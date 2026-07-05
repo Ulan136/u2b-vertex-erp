@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ТЗ — Водоканал ERP</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --surface2:  #1c2333;
+    --border:    #30363d;
+    --accent:    #1f8ef1;
+    --accent2:   #00c9a7;
+    --accent3:   #f4a118;
+    --accent4:   #e05c5c;
+    --text:      #e6edf3;
+    --muted:     #7d8590;
+    --mono:      'JetBrains Mono', monospace;
+    --sans:      'Inter', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(13,17,23,.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px; height: 56px;
+  }
+  .nav-brand { font-weight: 700; font-size: 15px; letter-spacing: .02em; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+  .nav-brand span { color: var(--text); }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-links a {
+    color: var(--muted); text-decoration: none; font-size: 13px;
+    padding: 6px 12px; border-radius: 6px; transition: all .15s;
+  }
+  .nav-links a:hover { color: var(--text); background: var(--surface2); }
+  .badge { background: var(--accent); color: #fff; font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 64px 32px 48px;
+    border-bottom: 1px solid var(--border);
+    max-width: 1200px; margin: 0 auto;
+  }
+  .hero-eyebrow { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 16px; }
+  .hero h1 { font-size: 40px; font-weight: 700; line-height: 1.15; margin-bottom: 16px; }
+  .hero h1 em { font-style: normal; color: var(--accent2); }
+  .hero p { color: var(--muted); font-size: 16px; max-width: 600px; }
+  .hero-meta { display: flex; gap: 24px; margin-top: 28px; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .meta-item strong { color: var(--text); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent2); flex-shrink: 0; }
+
+  /* ── LAYOUT ── */
+  main { max-width: 1200px; margin: 0 auto; padding: 48px 32px; }
+  section { margin-bottom: 64px; }
+  .section-title {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    letter-spacing: .1em; text-transform: uppercase;
+    margin-bottom: 24px; display: flex; align-items: center; gap: 12px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── FLOW ── */
+  .flow-container { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding-bottom: 8px; }
+  .flow-module {
+    flex: 1; min-width: 180px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+    outline: none;
+  }
+  .flow-module:focus { box-shadow: 0 0 0 2px var(--accent); }
+  .flow-module:hover, .flow-module.active {
+    border-color: var(--accent);
+    background: var(--surface2);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(31,142,241,.15);
+  }
+  .flow-arrow {
+    display: flex; align-items: center; padding: 0 4px; color: var(--muted);
+    font-size: 20px; flex-shrink: 0; align-self: center;
+  }
+  .module-icon { font-size: 24px; margin-bottom: 10px; }
+  .module-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+  .module-sub { font-size: 12px; color: var(--muted); }
+  .module-badge {
+    position: absolute; top: 12px; right: 12px;
+    font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 600;
+  }
+  .badge-new { background: rgba(0,201,167,.15); color: var(--accent2); border: 1px solid rgba(0,201,167,.3); }
+  .badge-flow { background: rgba(31,142,241,.15); color: var(--accent); border: 1px solid rgba(31,142,241,.3); }
+
+  /* ── MODULE DETAIL ── */
+  .module-detail {
+    display: none; margin-top: 16px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px;
+    animation: fadeIn .2s ease;
+  }
+  .module-detail.open { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform: none; } }
+  .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 16px; margin-top: 16px; }
+  .detail-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px;
+  }
+  .detail-card h4 { font-size: 12px; color: var(--muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .06em; }
+  .detail-card ul { list-style: none; }
+  .detail-card li { font-size: 13px; padding: 3px 0; display: flex; align-items: center; gap: 6px; }
+  .detail-card li::before { content: '›'; color: var(--accent); font-weight: 700; }
+
+  /* ── STATUS PIPELINE ── */
+  .pipeline { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .status-chip {
+    padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    border: 1px solid; cursor: default; transition: all .15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .status-chip:hover { opacity: .8; transform: scale(1.03); }
+  .s-new      { background: rgba(125,133,144,.1); border-color: #7d8590; color: #7d8590; }
+  .s-confirm  { background: rgba(31,142,241,.1);  border-color: var(--accent); color: var(--accent); }
+  .s-paid     { background: rgba(0,201,167,.1);   border-color: var(--accent2); color: var(--accent2); }
+  .s-instock  { background: rgba(244,161,24,.1);  border-color: var(--accent3); color: var(--accent3); }
+  .s-shipped  { background: rgba(149,100,245,.1); border-color: #9564f5; color: #9564f5; }
+  .s-done     { background: rgba(0,201,167,.1);   border-color: var(--accent2); color: var(--accent2); }
+  .s-cancel   { background: rgba(224,92,92,.1);   border-color: var(--accent4); color: var(--accent4); }
+
+  /* ── DB SCHEMA ── */
+  .schema-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 16px; }
+  .table-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+    transition: border-color .2s;
+  }
+  .table-card:hover { border-color: var(--accent); }
+  .table-header {
+    background: var(--surface2); padding: 10px 14px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-header .tname { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--accent2); }
+  .table-header .ticon { font-size: 14px; }
+  .table-body { padding: 10px 0; }
+  .col-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 14px; font-size: 12px; }
+  .col-row:hover { background: var(--surface2); }
+  .col-name { font-family: var(--mono); color: var(--text); }
+  .col-name.pk { color: var(--accent3); }
+  .col-name.fk { color: #9564f5; }
+  .col-type { color: var(--muted); font-size: 11px; }
+
+  /* ── STACK ── */
+  .stack-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 16px; }
+  .stack-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px;
+    transition: all .2s; cursor: default;
+  }
+  .stack-card:hover { border-color: var(--accent); background: var(--surface2); }
+  .stack-icon { font-size: 28px; margin-bottom: 10px; }
+  .stack-name { font-weight: 600; margin-bottom: 4px; }
+  .stack-role { font-size: 12px; color: var(--muted); }
+
+  /* ── MILESTONES ── */
+  .milestones { position: relative; padding-left: 32px; }
+  .milestones::before {
+    content: ''; position: absolute; left: 11px; top: 8px; bottom: 8px;
+    width: 2px; background: var(--border); border-radius: 2px;
+  }
+  .milestone { position: relative; margin-bottom: 28px; }
+  .milestone::before {
+    content: ''; position: absolute; left: -25px; top: 6px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--surface); border: 2px solid var(--border);
+  }
+  .milestone.done::before { background: var(--accent2); border-color: var(--accent2); }
+  .milestone.active::before { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 4px rgba(31,142,241,.2); }
+  .milestone h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .milestone p { font-size: 13px; color: var(--muted); }
+  .milestone .sprint { font-family: var(--mono); font-size: 11px; color: var(--accent3); margin-bottom: 4px; }
+
+  /* ── TOOLTIP ── */
+  .tip {
+    display: inline-block; position: relative; cursor: help;
+    border-bottom: 1px dashed var(--muted);
+  }
+  .tip:hover::after {
+    content: attr(data-tip);
+    position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%);
+    background: #fff; color: #000; font-size: 12px; padding: 6px 10px;
+    border-radius: 6px; white-space: nowrap; pointer-events: none; z-index: 99;
+    box-shadow: 0 4px 12px rgba(0,0,0,.3);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    border-top: 1px solid var(--border); padding: 24px 32px;
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--muted); font-size: 12px;
+    max-width: 1200px; margin: 0 auto;
+  }
+  .footer-stack { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag { background: var(--surface2); border: 1px solid var(--border); padding: 3px 10px; border-radius: 20px; font-family: var(--mono); font-size: 11px; }
+
+  @media (max-width: 768px) {
+    nav { padding: 0 16px; }
+    .hero { padding: 32px 16px; }
+    main { padding: 32px 16px; }
+    .hero h1 { font-size: 28px; }
+    .flow-container { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); align-self: flex-start; margin-left: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">
+    💧 <span>Водоканал <strong>ERP</strong></span>
+    <span class="badge">v1.0 ТЗ</span>
+  </div>
+  <div class="nav-links">
+    <a href="#flow">Цепочка</a>
+    <a href="#statuses">Статусы</a>
+    <a href="#db">База данных</a>
+    <a href="#stack">Стек</a>
+    <a href="#plan">Спринты</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">Техническое задание · Версия 1.0 · Июль 2026</div>
+  <h1>Система учёта<br>счётчиков <em>водоканала</em></h1>
+  <p>Единая платформа: приём заявок → продажа → склад → закупки. Данные без дублирования, статусы в реальном времени.</p>
+  <div class="hero-meta">
+    <div class="meta-item"><div class="dot"></div><strong>Стек:</strong> Next.js 14 · Neon PostgreSQL · Drizzle ORM</div>
+    <div class="meta-item"><div class="dot" style="background:var(--accent3)"></div><strong>CI/CD:</strong> GitHub Actions → Vercel</div>
+    <div class="meta-item"><div class="dot" style="background:var(--accent4)"></div><strong>Модули:</strong> 4 + Admin</div>
+    <div class="meta-item"><div class="dot" style="background:#9564f5"></div><strong>Спринтов:</strong> 4</div>
+  </div>
+</div>
+
+<main>
+
+<!-- FLOW -->
+<section id="flow">
+  <div class="section-title">01 — Цепочка процессов</div>
+  <p style="color:var(--muted); margin-bottom:20px; font-size:13px;">Нажмите на модуль, чтобы увидеть детали. Данные передаются по цепочке без дублирования.</p>
+
+  <div class="flow-container">
+
+    <div class="flow-module" tabindex="0" onclick="toggle('m-orders')" id="mod-orders">
+      <div class="module-badge badge-new">Старт</div>
+      <div class="module-icon">📋</div>
+      <div class="module-name">Заказы</div>
+      <div class="module-sub">Приём, оплата, статусы</div>
+    </div>
+
+    <div class="flow-arrow">→</div>
+
+    <div class="flow-module" tabindex="0" onclick="toggle('m-sales')" id="mod-sales">
+      <div class="module-badge badge-flow">Передача</div>
+      <div class="module-icon">💰</div>
+      <div class="module-name">Продажи</div>
+      <div class="module-sub">Счета, клиенты, договора</div>
+    </div>
+
+    <div class="flow-arrow">→</div>
+
+    <div class="flow-module" tabindex="0" onclick="toggle('m-warehouse')" id="mod-warehouse">
+      <div class="module-badge badge-flow">Передача</div>
+      <div class="module-icon">🏭</div>
+      <div class="module-name">Склад</div>
+      <div class="module-sub">Остатки, выдача, движение</div>
+    </div>
+
+    <div class="flow-arrow">→</div>
+
+    <div class="flow-module" tabindex="0" onclick="toggle('m-procurement')" id="mod-procurement">
+      <div class="module-badge badge-flow">Авто-триггер</div>
+      <div class="module-icon">🛒</div>
+      <div class="module-name">Закупки</div>
+      <div class="module-sub">Поставщики, лоты, приёмка</div>
+    </div>
+
+    <div class="flow-arrow">→</div>
+
+    <div class="flow-module" tabindex="0" onclick="toggle('m-admin')" id="mod-admin">
+      <div class="module-icon">⚙️</div>
+      <div class="module-name">Admin</div>
+      <div class="module-sub">Пользователи, справочники</div>
+    </div>
+
+  </div>
+
+  <!-- DETAIL PANELS -->
+  <div class="module-detail" id="m-orders">
+    <strong>📋 Модуль: Заказы</strong>
+    <div class="detail-grid">
+      <div class="detail-card">
+        <h4>Данные заказа</h4>
+        <ul>
+          <li>Номер, дата создания</li>
+          <li>Тип счётчика (ХВС/ГВС/газ)</li>
+          <li>Адрес установки</li>
+          <li>Данные абонента</li>
+          <li>Серийный номер прибора</li>
+          <li>Показания на момент установки</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <h4>Статусы заказа</h4>
+        <ul>
+          <li>Новый → Подтверждён</li>
+          <li>В работе → Установлен</li>
+          <li>Принят системой → Закрыт</li>
+          <li>Отменён</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <h4>Оплата</h4>
+        <ul>
+          <li>Счёт выставлен</li>
+          <li>Оплачен (частично / полностью)</li>
+          <li>Просроченная задолженность</li>
+          <li>Возврат</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <h4>Что уходит в Продажи</h4>
+        <ul>
+          <li>order_id (ключ, без дублей)</li>
+          <li>Сумма и услуги</li>
+          <li>Данные клиента</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="module-detail" id="m-sales">
+    <strong>💰 Модуль: Продажи</strong>
+    <div class="detail-grid">
+      <div class="detail-card">
+        <h4>Документы</h4>
+        <ul>
+          <li>Счёт-фактура</li>
+          <li>Договор / акт</li>
+          <li>Кассовый чек</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <h4>Клиенты</h4>
+        <ul>
+          <li>Физ. лицо / юр. лицо</li>
+          <li>История покупок</li>
+          <li>Баланс лицевого счёта</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <h4>Что уходит на Склад</h4>
+        <ul>
+          <li>sale_id → order_id (ref)</li>
+          <li>Перечень товаров (SKU)</li>
+          <li>Количество к резерву</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="module-detail" id="m-warehouse">
+    <strong>🏭 Модуль: Склад</strong>
+    <div class="detail-grid">
+      <div class="detail-card">
+        <h4>Остатки</h4>
+        <ul>
+          <li>Текущий остаток по SKU</li>
+          <li>Резерв под заказы</li>
+          <li>Свободный остаток</li>
+          <li>Минимальный порог</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <h4>Движения</h4>
+        <ul>
+          <li>Приход (от поставщика)</li>
+          <li>Расход (выдача по заказу)</li>
+          <li>Возврат / списание</li>
+          <li>Инвентаризация</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <h4>Авто-триггер в Закупки</h4>
+        <ul>
+          <li>Остаток &lt; минимума → alert</li>
+          <li>Создаётся заявка на закупку</li>
+          <li>Без ручного дублирования</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="module-detail" id="m-procurement">
+    <strong>🛒 Модуль: Закупки</strong>
+    <div class="detail-grid">
+      <div class="detail-card">
+        <h4>Заявки</h4>
+        <ul>
+          <li>Авто-заявка от склада</li>
+          <li>Ручная заявка</li>
+          <li>Согласование руководителем</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <h4>Поставщики</h4>
+        <ul>
+          <li>Реестр поставщиков</li>
+          <li>Рейтинг / история</li>
+          <li>Контракты</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <h4>Приёмка</h4>
+        <ul>
+          <li>Акт приёмки товара</li>
+          <li>Привязка к склад.приходу</li>
+          <li>Оплата поставщику</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="module-detail" id="m-admin">
+    <strong>⚙️ Модуль: Администрирование</strong>
+    <div class="detail-grid">
+      <div class="detail-card">
+        <h4>Пользователи & роли</h4>
+        <ul>
+          <li>Admin, Manager, Warehouse, Buyer</li>
+          <li>Разрешения по модулям</li>
+          <li>Аутентификация NextAuth</li>
+        </ul>
+      </div>
+      <div class="detail-card">
+        <h4>Справочники</h4>
+        <ul>
+          <li>Типы счётчиков</li>
+          <li>Категории товаров (SKU)</li>
+          <li>Единицы измерения</li>
+          <li>Статусные переходы</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATUSES -->
+<section id="statuses">
+  <div class="section-title">02 — Пайплайн статусов</div>
+
+  <div style="display:grid; gap:20px;">
+
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px;">
+      <div style="font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:8px;">📋 Заказ <span style="color:var(--muted); font-size:12px; font-weight:400;">(order_status)</span></div>
+      <div class="pipeline">
+        <div class="status-chip s-new">● Новый</div>
+        <div style="color:var(--muted); align-self:center;">→</div>
+        <div class="status-chip s-confirm">● Подтверждён</div>
+        <div style="color:var(--muted); align-self:center;">→</div>
+        <div class="status-chip s-instock">● В работе</div>
+        <div style="color:var(--muted); align-self:center;">→</div>
+        <div class="status-chip s-shipped">● Установлен</div>
+        <div style="color:var(--muted); align-self:center;">→</div>
+        <div class="status-chip s-done">✓ Закрыт</div>
+        <div class="status-chip s-cancel">✕ Отменён</div>
+      </div>
+    </div>
+
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px;">
+      <div style="font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:8px;">💳 Оплата <span style="color:var(--muted); font-size:12px; font-weight:400;">(payment_status)</span></div>
+      <div class="pipeline">
+        <div class="status-chip s-new">● Не выставлен</div>
+        <div style="color:var(--muted); align-self:center;">→</div>
+        <div class="status-chip s-confirm">● Счёт выставлен</div>
+        <div style="color:var(--muted); align-self:center;">→</div>
+        <div class="status-chip s-instock">● Частично оплачен</div>
+        <div style="color:var(--muted); align-self:center;">→</div>
+        <div class="status-chip s-done">✓ Оплачен</div>
+        <div class="status-chip s-cancel">✕ Просрочен</div>
+      </div>
+    </div>
+
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px;">
+      <div style="font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:8px;">🏭 Склад <span style="color:var(--muted); font-size:12px; font-weight:400;">(stock_status)</span></div>
+      <div class="pipeline">
+        <div class="status-chip s-confirm">● Зарезервирован</div>
+        <div style="color:var(--muted); align-self:center;">→</div>
+        <div class="status-chip s-instock">● Скомплектован</div>
+        <div style="color:var(--muted); align-self:center;">→</div>
+        <div class="status-chip s-shipped">● Выдан</div>
+        <div class="status-chip s-cancel">⚠ Нехватка</div>
+      </div>
+    </div>
+
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px;">
+      <div style="font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:8px;">🛒 Закупка <span style="color:var(--muted); font-size:12px; font-weight:400;">(purchase_status)</span></div>
+      <div class="pipeline">
+        <div class="status-chip s-new">● Черновик</div>
+        <div style="color:var(--muted); align-self:center;">→</div>
+        <div class="status-chip s-confirm">● На согласовании</div>
+        <div style="color:var(--muted); align-self:center;">→</div>
+        <div class="status-chip s-instock">● Отправлен поставщику</div>
+        <div style="color:var(--muted); align-self:center;">→</div>
+        <div class="status-chip s-shipped">● Ожидание доставки</div>
+        <div style="color:var(--muted); align-self:center;">→</div>
+        <div class="status-chip s-done">✓ Принят</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- DB SCHEMA -->
+<section id="db">
+  <div class="section-title">03 — Схема базы данных (Neon PostgreSQL)</div>
+  <div class="schema-grid">
+
+    <div class="table-card">
+      <div class="table-header"><span class="ticon">📋</span><span class="tname">orders</span></div>
+      <div class="table-body">
+        <div class="col-row"><span class="col-name pk">id</span><span class="col-type">uuid PK</span></div>
+        <div class="col-row"><span class="col-name fk">client_id</span><span class="col-type">uuid FK</span></div>
+        <div class="col-row"><span class="col-name">meter_type</span><span class="col-type">enum</span></div>
+        <div class="col-row"><span class="col-name">serial_no</span><span class="col-type">varchar</span></div>
+        <div class="col-row"><span class="col-name">address</span><span class="col-type">text</span></div>
+        <div class="col-row"><span class="col-name">order_status</span><span class="col-type">enum</span></div>
+        <div class="col-row"><span class="col-name">payment_status</span><span class="col-type">enum</span></div>
+        <div class="col-row"><span class="col-name">total_amount</span><span class="col-type">numeric</span></div>
+        <div class="col-row"><span class="col-name">created_at</span><span class="col-type">timestamptz</span></div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header"><span class="ticon">👤</span><span class="tname">clients</span></div>
+      <div class="table-body">
+        <div class="col-row"><span class="col-name pk">id</span><span class="col-type">uuid PK</span></div>
+        <div class="col-row"><span class="col-name">full_name</span><span class="col-type">varchar</span></div>
+        <div class="col-row"><span class="col-name">phone</span><span class="col-type">varchar</span></div>
+        <div class="col-row"><span class="col-name">email</span><span class="col-type">varchar</span></div>
+        <div class="col-row"><span class="col-name">client_type</span><span class="col-type">enum</span></div>
+        <div class="col-row"><span class="col-name">contract_no</span><span class="col-type">varchar</span></div>
+        <div class="col-row"><span class="col-name">account_balance</span><span class="col-type">numeric</span></div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header"><span class="ticon">💰</span><span class="tname">sales</span></div>
+      <div class="table-body">
+        <div class="col-row"><span class="col-name pk">id</span><span class="col-type">uuid PK</span></div>
+        <div class="col-row"><span class="col-name fk">order_id</span><span class="col-type">uuid FK → orders</span></div>
+        <div class="col-row"><span class="col-name">invoice_no</span><span class="col-type">varchar</span></div>
+        <div class="col-row"><span class="col-name">sale_date</span><span class="col-type">date</span></div>
+        <div class="col-row"><span class="col-name">discount</span><span class="col-type">numeric</span></div>
+        <div class="col-row"><span class="col-name">tax</span><span class="col-type">numeric</span></div>
+        <div class="col-row"><span class="col-name">final_amount</span><span class="col-type">numeric</span></div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header"><span class="ticon">📦</span><span class="tname">products (SKU)</span></div>
+      <div class="table-body">
+        <div class="col-row"><span class="col-name pk">id</span><span class="col-type">uuid PK</span></div>
+        <div class="col-row"><span class="col-name">sku_code</span><span class="col-type">varchar unique</span></div>
+        <div class="col-row"><span class="col-name">name</span><span class="col-type">varchar</span></div>
+        <div class="col-row"><span class="col-name">meter_type</span><span class="col-type">enum</span></div>
+        <div class="col-row"><span class="col-name">unit</span><span class="col-type">varchar</span></div>
+        <div class="col-row"><span class="col-name">min_stock</span><span class="col-type">integer</span></div>
+        <div class="col-row"><span class="col-name">current_stock</span><span class="col-type">integer</span></div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header"><span class="ticon">🏭</span><span class="tname">stock_movements</span></div>
+      <div class="table-body">
+        <div class="col-row"><span class="col-name pk">id</span><span class="col-type">uuid PK</span></div>
+        <div class="col-row"><span class="col-name fk">product_id</span><span class="col-type">uuid FK → products</span></div>
+        <div class="col-row"><span class="col-name fk">order_id</span><span class="col-type">uuid FK nullable</span></div>
+        <div class="col-row"><span class="col-name">move_type</span><span class="col-type">enum IN/OUT/ADJ</span></div>
+        <div class="col-row"><span class="col-name">qty</span><span class="col-type">integer</span></div>
+        <div class="col-row"><span class="col-name">moved_at</span><span class="col-type">timestamptz</span></div>
+        <div class="col-row"><span class="col-name">note</span><span class="col-type">text</span></div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header"><span class="ticon">🛒</span><span class="tname">purchases</span></div>
+      <div class="table-body">
+        <div class="col-row"><span class="col-name pk">id</span><span class="col-type">uuid PK</span></div>
+        <div class="col-row"><span class="col-name fk">supplier_id</span><span class="col-type">uuid FK</span></div>
+        <div class="col-row"><span class="col-name">status</span><span class="col-type">enum</span></div>
+        <div class="col-row"><span class="col-name">is_auto</span><span class="col-type">boolean</span></div>
+        <div class="col-row"><span class="col-name">total</span><span class="col-type">numeric</span></div>
+        <div class="col-row"><span class="col-name">expected_at</span><span class="col-type">date</span></div>
+        <div class="col-row"><span class="col-name">created_at</span><span class="col-type">timestamptz</span></div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header"><span class="ticon">🏢</span><span class="tname">suppliers</span></div>
+      <div class="table-body">
+        <div class="col-row"><span class="col-name pk">id</span><span class="col-type">uuid PK</span></div>
+        <div class="col-row"><span class="col-name">name</span><span class="col-type">varchar</span></div>
+        <div class="col-row"><span class="col-name">contact</span><span class="col-type">varchar</span></div>
+        <div class="col-row"><span class="col-name">rating</span><span class="col-type">smallint</span></div>
+        <div class="col-row"><span class="col-name">payment_terms</span><span class="col-type">varchar</span></div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header"><span class="ticon">👥</span><span class="tname">users</span></div>
+      <div class="table-body">
+        <div class="col-row"><span class="col-name pk">id</span><span class="col-type">uuid PK</span></div>
+        <div class="col-row"><span class="col-name">email</span><span class="col-type">varchar unique</span></div>
+        <div class="col-row"><span class="col-name">role</span><span class="col-type">enum</span></div>
+        <div class="col-row"><span class="col-name">name</span><span class="col-type">varchar</span></div>
+        <div class="col-row"><span class="col-name">is_active</span><span class="col-type">boolean</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:16px; padding:14px 18px; background:var(--surface2); border:1px solid var(--border); border-radius:8px; font-size:12px; color:var(--muted); display:flex; gap:24px; flex-wrap:wrap;">
+    <span><span style="color:var(--accent3); font-family:var(--mono)">gold</span> = Primary Key</span>
+    <span><span style="color:#9564f5; font-family:var(--mono)">purple</span> = Foreign Key</span>
+    <span>Связь: <code style="font-family:var(--mono); color:var(--accent2)">order_id</code> — единый ключ через всю цепочку, данные не дублируются</span>
+  </div>
+</section>
+
+<!-- STACK -->
+<section id="stack">
+  <div class="section-title">04 — Технологический стек</div>
+  <div class="stack-grid">
+    <div class="stack-card">
+      <div class="stack-icon">⚡</div>
+      <div class="stack-name">Next.js 14</div>
+      <div class="stack-role">App Router · SSR · API Routes · Server Actions</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-icon">🐘</div>
+      <div class="stack-name">Neon PostgreSQL</div>
+      <div class="stack-role">Serverless Postgres · ветки БД для dev/prod</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-icon">🔗</div>
+      <div class="stack-name">Drizzle ORM</div>
+      <div class="stack-role">Type-safe SQL · миграции · schema.ts</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-icon">🔐</div>
+      <div class="stack-name">NextAuth.js</div>
+      <div class="stack-role">Аутентификация · роли · сессии</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-icon">🎨</div>
+      <div class="stack-name">Tailwind CSS</div>
+      <div class="stack-role">Стили · shadcn/ui компоненты</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-icon">🐙</div>
+      <div class="stack-name">GitHub + Actions</div>
+      <div class="stack-role">CI/CD · lint → test → deploy на Vercel</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-icon">▲</div>
+      <div class="stack-name">Vercel</div>
+      <div class="stack-role">Хостинг · preview-деплои по PR</div>
+    </div>
+    <div class="stack-card">
+      <div class="stack-icon">🔄</div>
+      <div class="stack-name">Zod</div>
+      <div class="stack-role">Валидация данных на сервере и клиенте</div>
+    </div>
+  </div>
+</section>
+
+<!-- PLAN -->
+<section id="plan">
+  <div class="section-title">05 — Спринты</div>
+  <div class="milestones">
+
+    <div class="milestone active">
+      <div class="sprint">Спринт 1 · Неделя 1–2</div>
+      <h3>Фундамент: проект + БД + Auth</h3>
+      <p>Init Next.js · Подключение Neon · Drizzle schema · Миграции · NextAuth · Роли · GitHub Actions pipeline</p>
+    </div>
+
+    <div class="milestone">
+      <div class="sprint">Спринт 2 · Неделя 3–4</div>
+      <h3>Заказы + Продажи</h3>
+      <p>CRUD заказов · Статусные переходы · Оплата · Счёт-фактура · Данные клиентов · Фильтры и поиск</p>
+    </div>
+
+    <div class="milestone">
+      <div class="sprint">Спринт 3 · Неделя 5–6</div>
+      <h3>Склад + Закупки</h3>
+      <p>Учёт остатков · Движения товара · Авто-триггер при нехватке · Реестр поставщиков · Заявки на закупку</p>
+    </div>
+
+    <div class="milestone">
+      <div class="sprint">Спринт 4 · Неделя 7–8</div>
+      <h3>Дашборд + Полировка</h3>
+      <p>Сводный дашборд · Отчёты · Экспорт · Уведомления · Тесты · Prod-деплой</p>
+    </div>
+
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <span>Водоканал ERP — ТЗ v1.0 · Июль 2026</span>
+  <div class="footer-stack">
+    <span class="tag">next.js</span>
+    <span class="tag">neon</span>
+    <span class="tag">drizzle</span>
+    <span class="tag">github-actions</span>
+    <span class="tag">vercel</span>
+  </div>
+</footer>
+
+<script>
+  function toggle(id) {
+    // Close all open
+    document.querySelectorAll('.module-detail').forEach(el => {
+      if (el.id !== id) el.classList.remove('open');
+    });
+    document.querySelectorAll('.flow-module').forEach(el => el.classList.remove('active'));
+
+    const panel = document.getElementById(id);
+    const isOpen = panel.classList.contains('open');
+    panel.classList.toggle('open', !isOpen);
+
+    // Highlight active module
+    const modMap = {
+      'm-orders': 'mod-orders', 'm-sales': 'mod-sales',
+      'm-warehouse': 'mod-warehouse', 'm-procurement': 'mod-procurement',
+      'm-admin': 'mod-admin'
+    };
+    if (!isOpen) {
+      document.getElementById(modMap[id])?.classList.add('active');
+      setTimeout(() => panel.scrollIntoView({ behavior:'smooth', block:'nearest' }), 50);
+    }
+  }
+
+  // Keyboard navigation for modules
+  document.querySelectorAll('.flow-module').forEach(el => {
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
+    });
+  });
+</script>
+</body>
+</html>

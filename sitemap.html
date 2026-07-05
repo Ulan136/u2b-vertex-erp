@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Карта сайта — U2B-Vertex ERP</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0a0d12;
+  --surface:  #111520;
+  --card:     #161b27;
+  --border:   #1e2535;
+  --border2:  #2a3247;
+  --text:     #e2e8f0;
+  --muted:    #64748b;
+  --accent:   #3b82f6;
+  --accent2:  #06b6d4;
+
+  /* module colours */
+  --c-poverka:  #3b82f6;
+  --c-sales:    #10b981;
+  --c-other:    #8b5cf6;
+  --c-purchase: #f59e0b;
+  --c-warehouse:#06b6d4;
+  --c-staff:    #ec4899;
+  --c-expenses: #f97316;
+  --c-accounting:#6366f1;
+  --c-invoices: #14b8a6;
+  --c-database: #a78bfa;
+  --c-reports:  #84cc16;
+  --c-handbook: #94a3b8;
+  --c-settings: #64748b;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── TOP BAR ── */
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(10,13,18,.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px; height: 54px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, #3b82f6, #06b6d4);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+}
+.logo-name { font-size: 14px; font-weight: 800; letter-spacing: -.02em; }
+.logo-name span { color: #3b82f6; }
+.logo-sub { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.tb-meta { display: flex; align-items: center; gap: 16px; font-size: 11px; color: var(--muted); }
+.tb-badge {
+  display: flex; align-items: center; gap: 5px;
+  background: rgba(59,130,246,.12); border: 1px solid rgba(59,130,246,.25);
+  color: #93c5fd; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+}
+.dot-live { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+
+/* ── HERO ── */
+.hero {
+  padding: 48px 32px 36px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(59,130,246,.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--accent); letter-spacing: .15em;
+  text-transform: uppercase; margin-bottom: 14px;
+}
+.hero h1 { font-size: 32px; font-weight: 800; line-height: 1.15; margin-bottom: 10px; letter-spacing: -.02em; }
+.hero h1 em { font-style: normal; background: linear-gradient(90deg,#3b82f6,#06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.hero p { font-size: 14px; color: var(--muted); max-width: 500px; margin: 0 auto 24px; }
+.hero-stats { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; }
+.hstat { text-align: center; }
+.hstat-num { font-size: 24px; font-weight: 800; color: var(--text); }
+.hstat-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+
+/* ── MAIN ── */
+main { max-width: 1320px; margin: 0 auto; padding: 0 24px 64px; }
+
+/* ── SECTION LABELS ── */
+.section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; color: var(--muted); letter-spacing: .1em;
+  text-transform: uppercase; margin: 36px 0 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.section-label::after { content:''; flex:1; height:1px; background: var(--border); }
+
+/* ── FLOW STRIP (top-level chain) ── */
+.flow-strip {
+  display: flex; align-items: center; gap: 0;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px 20px;
+  overflow-x: auto; margin-bottom: 8px;
+}
+.flow-node {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 10px 18px; border-radius: 10px; cursor: pointer;
+  transition: all .15s; flex-shrink: 0; border: 1px solid transparent;
+}
+.flow-node:hover { border-color: var(--border2); background: rgba(255,255,255,.03); }
+.flow-node.active { border-color: var(--accent); background: rgba(59,130,246,.08); }
+.fn-icon { font-size: 22px; }
+.fn-label { font-size: 11px; font-weight: 600; color: var(--text); white-space: nowrap; }
+.fn-sub { font-size: 9px; color: var(--muted); white-space: nowrap; }
+.flow-arrow { color: var(--border2); font-size: 18px; padding: 0 4px; flex-shrink: 0; align-self: center; }
+
+/* ── MODULE GRID ── */
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+/* ── MODULE CARD ── */
+.mod-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all .2s;
+  position: relative;
+}
+.mod-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--color, #3b82f6);
+  opacity: 0; transition: opacity .2s;
+}
+.mod-card:hover { border-color: var(--color, #3b82f6); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+.mod-card:hover::before { opacity: 1; }
+.mod-card.expanded { border-color: var(--color, #3b82f6); }
+.mod-card.expanded::before { opacity: 1; }
+
+.card-head {
+  padding: 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.card-icon-wrap {
+  width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.card-meta { flex: 1; min-width: 0; }
+.card-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.card-desc { font-size: 11px; color: var(--muted); }
+.card-arrow { color: var(--muted); font-size: 12px; transition: transform .2s; flex-shrink: 0; }
+.mod-card.expanded .card-arrow { transform: rotate(90deg); }
+.card-count {
+  font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;
+  background: rgba(255,255,255,.06); color: var(--muted);
+}
+
+/* ── PAGES LIST (collapsed/expanded) ── */
+.pages-list {
+  display: none;
+  border-top: 1px solid var(--border);
+  padding: 8px 0;
+}
+.mod-card.expanded .pages-list { display: block; }
+
+.page-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 16px; font-size: 12px;
+  transition: background .1s; cursor: default;
+  border-left: 2px solid transparent;
+  margin: 0 8px; border-radius: 6px;
+}
+.page-item:hover { background: rgba(255,255,255,.03); }
+.page-item.sub { padding-left: 32px; }
+.page-item.sub2 { padding-left: 48px; }
+.pi-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.pi-label { flex: 1; color: var(--text); }
+.pi-tag {
+  font-size: 9px; padding: 1px 6px; border-radius: 20px; font-weight: 700;
+  white-space: nowrap;
+}
+.tag-new  { background: rgba(59,130,246,.15); color: #93c5fd; }
+.tag-auto { background: rgba(6,182,212,.15);  color: #67e8f9; }
+.tag-arch { background: rgba(148,163,184,.1);  color: #94a3b8; }
+.tag-link { background: rgba(139,92,246,.15); color: #c4b5fd; }
+.tag-calc { background: rgba(16,185,129,.15); color: #6ee7b7; }
+
+.pi-arrow { color: var(--muted); font-size: 10px; }
+
+/* ── DATA FLOW SECTION ── */
+.flow-diagram {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 24px; margin-bottom: 12px;
+}
+.flow-title { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 18px; }
+.flow-row { display: flex; align-items: center; gap: 0; flex-wrap: nowrap; overflow-x: auto; }
+.fstep {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 20px; border-radius: 10px; flex-shrink: 0;
+  border: 1px solid var(--border2);
+}
+.fstep-icon { font-size: 20px; }
+.fstep-name { font-size: 11px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.fstep-detail { font-size: 9px; color: var(--muted); text-align: center; max-width: 100px; }
+.farrow { color: var(--border2); font-size: 20px; padding: 0 6px; align-self: center; flex-shrink: 0; }
+.farrow.green { color: #22c55e; }
+
+/* ── LEGEND ── */
+.legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; padding: 14px 20px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; }
+.leg-item { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--muted); }
+.leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── DB SCHEMA SECTION ── */
+.db-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr)); gap: 10px; }
+.db-table {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden; transition: border-color .15s;
+}
+.db-table:hover { border-color: var(--border2); }
+.db-head {
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,.02);
+  display: flex; align-items: center; gap: 7px;
+}
+.db-name { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 500; color: var(--accent2); }
+.db-body { padding: 4px 0; }
+.db-col { display: flex; justify-content: space-between; align-items: center; padding: 3px 12px; font-size: 11px; }
+.db-col:hover { background: rgba(255,255,255,.02); }
+.db-col-name { font-family: 'JetBrains Mono', monospace; }
+.db-col-name.pk { color: #f59e0b; }
+.db-col-name.fk { color: #8b5cf6; }
+.db-col-type { color: var(--muted); font-size: 10px; }
+
+/* ── SCROLL BAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .hero h1 { font-size: 22px; }
+  .topbar { padding: 0 16px; }
+  main { padding: 0 16px 48px; }
+  .modules-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">💧</div>
+    <div>
+      <div class="logo-name">U2B<span>-Vertex</span></div>
+      <div class="logo-sub">Автоматизация бизнес-процессов</div>
+    </div>
+  </div>
+  <div class="tb-meta">
+    <div class="tb-badge"><div class="dot-live"></div> Карта сайта v1.0</div>
+    <span>ТОО «Vertex Metrology»</span>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">site map · архитектура системы</div>
+  <h1>U2B-Vertex <em>ERP</em></h1>
+  <p>Полная карта всех модулей, экранов и связей системы управления водоканалом</p>
+  <div class="hero-stats">
+    <div class="hstat"><div class="hstat-num">13</div><div class="hstat-lbl">Модулей</div></div>
+    <div class="hstat"><div class="hstat-num">42</div><div class="hstat-lbl">Экранов</div></div>
+    <div class="hstat"><div class="hstat-num">8</div><div class="hstat-lbl">Таблиц БД</div></div>
+    <div class="hstat"><div class="hstat-num">4</div><div class="hstat-lbl">Типа счетов</div></div>
+  </div>
+</div>
+
+<main>
+
+<!-- CHAIN -->
+<div class="section-label">01 — Основная цепочка процессов</div>
+<div class="flow-strip">
+  <div class="flow-node">
+    <div class="fn-icon">📋</div>
+    <div class="fn-label">Поверка</div>
+    <div class="fn-sub">САМИ · ВДК · ТЭЦ · Выезд</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-node">
+    <div class="fn-icon">💰</div>
+    <div class="fn-label">Продажа</div>
+    <div class="fn-sub">Журнал продаж</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-node">
+    <div class="fn-icon">📄</div>
+    <div class="fn-label">Прочие операции</div>
+    <div class="fn-sub">Проект · Тендер · Услуга</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-node">
+    <div class="fn-icon">🏭</div>
+    <div class="fn-label">Склад</div>
+    <div class="fn-sub">Остатки · Движения</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-node">
+    <div class="fn-icon">🛒</div>
+    <div class="fn-label">Закупки</div>
+    <div class="fn-sub">Авто-триггер</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-node">
+    <div class="fn-icon">🧾</div>
+    <div class="fn-label">Счета</div>
+    <div class="fn-sub">Каспи · БЦК · Наличка</div>
+  </div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-node">
+    <div class="fn-icon">📊</div>
+    <div class="fn-label">Отчёты</div>
+    <div class="fn-sub">Аналитика</div>
+  </div>
+</div>
+
+<!-- MODULES -->
+<div class="section-label">02 — Модули и экраны</div>
+<div class="modules-grid" id="modulesGrid"></div>
+
+<!-- DATA FLOW -->
+<div class="section-label">03 — Поток данных по счетам</div>
+<div class="flow-diagram">
+  <div class="flow-title">Источники → Тип счёта → Счёт оплаты (выбирает менеджер)</div>
+  <div class="flow-row">
+    <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+      <div class="fstep" style="border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.06);">
+        <div class="fstep-icon">📋</div>
+        <div class="fstep-name">САМИ</div>
+      </div>
+      <div class="fstep" style="border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.06);">
+        <div class="fstep-icon">🏭</div>
+        <div class="fstep-name">ВДК</div>
+      </div>
+      <div class="fstep" style="border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.06);">
+        <div class="fstep-icon">⚡</div>
+        <div class="fstep-name">ТЭЦ</div>
+      </div>
+      <div class="fstep" style="border-color:rgba(59,130,246,.4);background:rgba(59,130,246,.06);">
+        <div class="fstep-icon">🚗</div>
+        <div class="fstep-name">Выездная</div>
+      </div>
+    </div>
+    <div class="farrow green">→</div>
+    <div class="fstep" style="border-color:rgba(59,130,246,.5);background:rgba(59,130,246,.1);">
+      <div class="fstep-icon">📋</div>
+      <div class="fstep-name">Счёт «Поверка»</div>
+      <div class="fstep-detail">Авто по настройке</div>
+    </div>
+    <div class="farrow green">→</div>
+    <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+      <div class="fstep" style="border-color:rgba(249,168,212,.4);background:rgba(249,168,212,.06);">🍊 Каспи</div>
+      <div class="fstep" style="border-color:rgba(196,181,253,.4);background:rgba(196,181,253,.06);">🏦 БЦК</div>
+      <div class="fstep" style="border-color:rgba(110,231,183,.4);background:rgba(110,231,183,.06);">💵 Наличка</div>
+    </div>
+
+    <div style="width:2px;height:80px;background:var(--border);margin:0 16px;align-self:center;"></div>
+
+    <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+      <div class="fstep" style="border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.06);">💰 Продажа</div>
+      <div class="fstep" style="border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.06);">🆕 Первичная поверка</div>
+    </div>
+    <div class="farrow green">→</div>
+    <div class="fstep" style="border-color:rgba(16,185,129,.5);background:rgba(16,185,129,.1);">
+      <div class="fstep-icon">💰</div>
+      <div class="fstep-name">Счёт «Продажа»</div>
+    </div>
+    <div class="farrow green">→</div>
+    <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+      <div class="fstep" style="border-color:rgba(249,168,212,.4);background:rgba(249,168,212,.06);">🍊 Каспи</div>
+      <div class="fstep" style="border-color:rgba(196,181,253,.4);background:rgba(196,181,253,.06);">🏦 БЦК</div>
+      <div class="fstep" style="border-color:rgba(110,231,183,.4);background:rgba(110,231,183,.06);">💵 Наличка</div>
+    </div>
+
+    <div style="width:2px;height:80px;background:var(--border);margin:0 16px;align-self:center;"></div>
+
+    <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+      <div class="fstep" style="border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06);">📁 Проекты</div>
+      <div class="fstep" style="border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06);">🛠 Услуги</div>
+      <div class="fstep" style="border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.06);">📜 Тендеры</div>
+    </div>
+    <div class="farrow green">→</div>
+    <div class="fstep" style="border-color:rgba(139,92,246,.5);background:rgba(139,92,246,.1);">
+      <div class="fstep-icon">📄</div>
+      <div class="fstep-name">Счёт «Прочие»</div>
+    </div>
+    <div class="farrow green">→</div>
+    <div class="fstep" style="border-color:rgba(196,181,253,.4);background:rgba(196,181,253,.06);">🏦 БЦК только</div>
+  </div>
+</div>
+
+<!-- DB SCHEMA -->
+<div class="section-label">04 — Схема базы данных (Neon PostgreSQL)</div>
+<div class="db-grid">
+  <div class="db-table">
+    <div class="db-head"><span style="font-size:13px;">📋</span><span class="db-name">orders</span></div>
+    <div class="db-body">
+      <div class="db-col"><span class="db-col-name pk">id</span><span class="db-col-type">uuid PK</span></div>
+      <div class="db-col"><span class="db-col-name fk">client_id</span><span class="db-col-type">uuid FK</span></div>
+      <div class="db-col"><span class="db-col-name">meter_type</span><span class="db-col-type">enum</span></div>
+      <div class="db-col"><span class="db-col-name">serial_no</span><span class="db-col-type">varchar</span></div>
+      <div class="db-col"><span class="db-col-name">order_status</span><span class="db-col-type">enum</span></div>
+      <div class="db-col"><span class="db-col-name">payment_status</span><span class="db-col-type">enum</span></div>
+      <div class="db-col"><span class="db-col-name">next_check_date</span><span class="db-col-type">date</span></div>
+      <div class="db-col"><span class="db-col-name">total_amount</span><span class="db-col-type">numeric</span></div>
+    </div>
+  </div>
+  <div class="db-table">
+    <div class="db-head"><span style="font-size:13px;">👤</span><span class="db-name">clients</span></div>
+    <div class="db-body">
+      <div class="db-col"><span class="db-col-name pk">id</span><span class="db-col-type">uuid PK</span></div>
+      <div class="db-col"><span class="db-col-name">full_name</span><span class="db-col-type">varchar</span></div>
+      <div class="db-col"><span class="db-col-name">address</span><span class="db-col-type">text</span></div>
+      <div class="db-col"><span class="db-col-name">phone</span><span class="db-col-type">varchar</span></div>
+      <div class="db-col"><span class="db-col-name">client_type</span><span class="db-col-type">enum</span></div>
+      <div class="db-col"><span class="db-col-name">account_balance</span><span class="db-col-type">numeric</span></div>
+    </div>
+  </div>
+  <div class="db-table">
+    <div class="db-head"><span style="font-size:13px;">📦</span><span class="db-name">products</span></div>
+    <div class="db-body">
+      <div class="db-col"><span class="db-col-name pk">id</span><span class="db-col-type">uuid PK</span></div>
+      <div class="db-col"><span class="db-col-name">sku_code</span><span class="db-col-type">varchar unique</span></div>
+      <div class="db-col"><span class="db-col-name">meter_type</span><span class="db-col-type">enum</span></div>
+      <div class="db-col"><span class="db-col-name">min_stock</span><span class="db-col-type">integer</span></div>
+      <div class="db-col"><span class="db-col-name">current_stock</span><span class="db-col-type">integer</span></div>
+      <div class="db-col"><span class="db-col-name">check_interval_yr</span><span class="db-col-type">integer</span></div>
+    </div>
+  </div>
+  <div class="db-table">
+    <div class="db-head"><span style="font-size:13px;">🏭</span><span class="db-name">stock_movements</span></div>
+    <div class="db-body">
+      <div class="db-col"><span class="db-col-name pk">id</span><span class="db-col-type">uuid PK</span></div>
+      <div class="db-col"><span class="db-col-name fk">product_id</span><span class="db-col-type">uuid FK</span></div>
+      <div class="db-col"><span class="db-col-name fk">order_id</span><span class="db-col-type">uuid FK?</span></div>
+      <div class="db-col"><span class="db-col-name">move_type</span><span class="db-col-type">IN/OUT/ADJ</span></div>
+      <div class="db-col"><span class="db-col-name">qty</span><span class="db-col-type">integer</span></div>
+    </div>
+  </div>
+  <div class="db-table">
+    <div class="db-head"><span style="font-size:13px;">💰</span><span class="db-name">sales</span></div>
+    <div class="db-body">
+      <div class="db-col"><span class="db-col-name pk">id</span><span class="db-col-type">uuid PK</span></div>
+      <div class="db-col"><span class="db-col-name fk">order_id</span><span class="db-col-type">uuid FK</span></div>
+      <div class="db-col"><span class="db-col-name">invoice_no</span><span class="db-col-type">varchar</span></div>
+      <div class="db-col"><span class="db-col-name">account_type</span><span class="db-col-type">enum</span></div>
+      <div class="db-col"><span class="db-col-name">final_amount</span><span class="db-col-type">numeric</span></div>
+    </div>
+  </div>
+  <div class="db-table">
+    <div class="db-head"><span style="font-size:13px;">🛒</span><span class="db-name">purchases</span></div>
+    <div class="db-body">
+      <div class="db-col"><span class="db-col-name pk">id</span><span class="db-col-type">uuid PK</span></div>
+      <div class="db-col"><span class="db-col-name fk">supplier_id</span><span class="db-col-type">uuid FK</span></div>
+      <div class="db-col"><span class="db-col-name">status</span><span class="db-col-type">enum</span></div>
+      <div class="db-col"><span class="db-col-name">is_auto</span><span class="db-col-type">boolean</span></div>
+      <div class="db-col"><span class="db-col-name">total</span><span class="db-col-type">numeric</span></div>
+    </div>
+  </div>
+  <div class="db-table">
+    <div class="db-head"><span style="font-size:13px;">📋</span><span class="db-name">certificates</span></div>
+    <div class="db-body">
+      <div class="db-col"><span class="db-col-name pk">id</span><span class="db-col-type">uuid PK</span></div>
+      <div class="db-col"><span class="db-col-name fk">client_id</span><span class="db-col-type">uuid FK</span></div>
+      <div class="db-col"><span class="db-col-name">source</span><span class="db-col-type">САМИ/ВДК/ТЭЦ</span></div>
+      <div class="db-col"><span class="db-col-name">check_date</span><span class="db-col-type">date</span></div>
+      <div class="db-col"><span class="db-col-name">next_check_date</span><span class="db-col-type">date</span></div>
+      <div class="db-col"><span class="db-col-name">is_archived</span><span class="db-col-type">boolean</span></div>
+      <div class="db-col"><span class="db-col-name">archived_at</span><span class="db-col-type">timestamptz</span></div>
+    </div>
+  </div>
+  <div class="db-table">
+    <div class="db-head"><span style="font-size:13px;">👥</span><span class="db-name">users</span></div>
+    <div class="db-body">
+      <div class="db-col"><span class="db-col-name pk">id</span><span class="db-col-type">uuid PK</span></div>
+      <div class="db-col"><span class="db-col-name">email</span><span class="db-col-type">varchar unique</span></div>
+      <div class="db-col"><span class="db-col-name">role</span><span class="db-col-type">enum</span></div>
+      <div class="db-col"><span class="db-col-name">branch_id</span><span class="db-col-type">uuid FK?</span></div>
+      <div class="db-col"><span class="db-col-name">is_active</span><span class="db-col-type">boolean</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- LEGEND -->
+<div class="legend" style="margin-top:12px;">
+  <div class="leg-item"><div class="leg-dot" style="background:#f59e0b;"></div> <span class="db-col-name pk" style="font-size:10px;font-family:'JetBrains Mono',monospace;">gold</span> = Primary Key</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#8b5cf6;"></div> <span class="db-col-name fk" style="font-size:10px;font-family:'JetBrains Mono',monospace;">purple</span> = Foreign Key</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#06b6d4;"></div> <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--accent2);">order_id</span> — единый ключ цепочки</div>
+  <div class="leg-item"><div class="leg-dot" style="background:#22c55e;"></div> <span>Neon PostgreSQL · Drizzle ORM</span></div>
+</div>
+
+</main>
+
+<script>
+const MODULES = [
+  {
+    id:'poverka', icon:'📋', color:'#3b82f6', name:'Поверка',
+    desc:'Учёт поверки счётчиков воды',
+    pages:[
+      {label:'САМИ', indent:0, tag:''},
+      {label:'Сертификат', indent:1, tag:'arch'},
+      {label:'Извещение',  indent:1, tag:'arch'},
+      {label:'ВДК', indent:0, tag:''},
+      {label:'Сертификат', indent:1, tag:'arch'},
+      {label:'Извещение',  indent:1, tag:'arch'},
+      {label:'ТЭЦ', indent:0, tag:''},
+      {label:'Сертификат', indent:1, tag:'arch'},
+      {label:'Извещение',  indent:1, tag:'arch'},
+      {label:'Выездная поверка', indent:0, tag:''},
+    ]
+  },
+  {
+    id:'sales', icon:'💰', color:'#10b981', name:'Продажа',
+    desc:'Журнал продаж счётчиков и услуг',
+    pages:[
+      {label:'Журнал продаж', indent:0, tag:'link'},
+      {label:'Клиенты', indent:0, tag:''},
+      {label:'Счета-фактуры', indent:0, tag:'link'},
+    ]
+  },
+  {
+    id:'other-ops', icon:'📄', color:'#8b5cf6', name:'Прочие операции',
+    desc:'Проект · Тендер · Услуга → БЦК',
+    pages:[
+      {label:'Проект', indent:0, tag:'link'},
+      {label:'Тендер', indent:0, tag:'link'},
+      {label:'Услуга', indent:0, tag:'link'},
+    ]
+  },
+  {
+    id:'purchase', icon:'🛒', color:'#f59e0b', name:'Покупка',
+    desc:'Закупки у поставщиков',
+    pages:[
+      {label:'Журнал покупок', indent:0, tag:''},
+      {label:'Авто-закупка при нехватке', indent:0, tag:'auto'},
+      {label:'Реестр поставщиков', indent:0, tag:''},
+    ]
+  },
+  {
+    id:'warehouse', icon:'🏭', color:'#06b6d4', name:'Склад',
+    desc:'Остатки, движения, резервы',
+    pages:[
+      {label:'Журнал склада', indent:0, tag:''},
+      {label:'Остатки по SKU', indent:0, tag:''},
+      {label:'Движение товаров', indent:0, tag:''},
+      {label:'Авто-триггер → Закупки', indent:0, tag:'auto'},
+    ]
+  },
+  {
+    id:'staff', icon:'👥', color:'#ec4899', name:'Сотрудники',
+    desc:'Кадры, зарплаты, роли',
+    pages:[
+      {label:'Руководитель', indent:0, tag:''},
+      {label:'Зарплата и кадры', indent:0, tag:''},
+    ]
+  },
+  {
+    id:'expenses', icon:'💸', color:'#f97316', name:'Расходы',
+    desc:'Категории · Подкатегории · Аналитика',
+    pages:[
+      {label:'Журнал расходов', indent:0, tag:''},
+      {label:'Транспорт', indent:1, tag:''},
+      {label:'Коммунальные', indent:1, tag:''},
+      {label:'Зарплата', indent:1, tag:''},
+      {label:'Материалы', indent:1, tag:''},
+      {label:'Аренда', indent:1, tag:''},
+      {label:'Связь', indent:1, tag:''},
+      {label:'Обслуживание', indent:1, tag:''},
+      {label:'Категории (настройка)', indent:0, tag:'new'},
+      {label:'Аналитика', indent:0, tag:'calc'},
+    ]
+  },
+  {
+    id:'accounting', icon:'📒', color:'#6366f1', name:'Бухгалтерия',
+    desc:'Счета на оплату клиентам',
+    pages:[
+      {label:'Счёт на оплату', indent:0, tag:''},
+      {label:'Выставить счёт', indent:0, tag:'new'},
+    ]
+  },
+  {
+    id:'invoices', icon:'🧾', color:'#14b8a6', name:'Счета',
+    desc:'4 типа · Каспи / БЦК / Наличка',
+    pages:[
+      {label:'Поверка', indent:0, tag:'link'},
+      {label:'САМИ + ВДК + ТЭЦ + Выезд', indent:1, tag:'auto'},
+      {label:'Продажа', indent:0, tag:'link'},
+      {label:'Продажа + Первичная поверка', indent:1, tag:'auto'},
+      {label:'Прочие', indent:0, tag:'link'},
+      {label:'Проект + Услуга + Тендер → БЦК', indent:1, tag:'auto'},
+      {label:'Филиалы', indent:0, tag:'new'},
+      {label:'Астана (Каспи Голд)', indent:1, tag:''},
+    ]
+  },
+  {
+    id:'database', icon:'🗄', color:'#a78bfa', name:'База данных',
+    desc:'Архив · Сроки · Авто-заказы',
+    pages:[
+      {label:'Сроки счётчиков', indent:0, tag:'calc'},
+      {label:'Просрочено / Менее 3 мес. / Норма', indent:1, tag:'auto'},
+      {label:'Архив сертификатов', indent:0, tag:'arch'},
+      {label:'Записи старше 30 дней', indent:1, tag:'arch'},
+      {label:'Архив извещений', indent:0, tag:'arch'},
+      {label:'Авто-заказы', indent:0, tag:'auto'},
+      {label:'Авто при сроке < 3 мес.', indent:1, tag:'auto'},
+    ]
+  },
+  {
+    id:'reports', icon:'📊', color:'#84cc16', name:'Отчёт',
+    desc:'Сводные отчёты по всем модулям',
+    pages:[
+      {label:'Отчёт по поверкам', indent:0, tag:''},
+      {label:'Отчёт по продажам', indent:0, tag:''},
+      {label:'Отчёт по закупкам', indent:0, tag:''},
+      {label:'Движение склада', indent:0, tag:''},
+      {label:'Дебиторская задолженность', indent:0, tag:''},
+      {label:'Зарплатная ведомость', indent:0, tag:''},
+    ]
+  },
+  {
+    id:'handbook', icon:'📖', color:'#94a3b8', name:'Справочник',
+    desc:'Типы счётчиков, единицы, клиенты',
+    pages:[
+      {label:'Типы счётчиков', indent:0, tag:''},
+      {label:'Категории товаров (SKU)', indent:0, tag:''},
+      {label:'Единицы измерения', indent:0, tag:''},
+      {label:'Поставщики', indent:0, tag:''},
+      {label:'Типы клиентов', indent:0, tag:''},
+      {label:'Способы оплаты', indent:0, tag:''},
+    ]
+  },
+  {
+    id:'settings', icon:'⚙️', color:'#64748b', name:'Настройки',
+    desc:'Привязка счетов · Роли · Филиалы',
+    pages:[
+      {label:'Привязка счетов (источники)', indent:0, tag:'new'},
+      {label:'Поверка → настроить источники', indent:1, tag:''},
+      {label:'Продажа → настроить источники', indent:1, tag:''},
+      {label:'Прочие → настроить источники', indent:1, tag:''},
+      {label:'Филиалы', indent:0, tag:'new'},
+      {label:'Астана (Каспи Голд)', indent:1, tag:''},
+      {label:'Пользователи и роли', indent:0, tag:''},
+      {label:'Admin / Manager / Warehouse / Buyer', indent:1, tag:''},
+      {label:'Данные организации', indent:0, tag:''},
+    ]
+  },
+];
+
+const TAG_CONFIG = {
+  new:  {label:'NEW',  cls:'tag-new'},
+  auto: {label:'AUTO', cls:'tag-auto'},
+  arch: {label:'ARCH', cls:'tag-arch'},
+  link: {label:'LINK', cls:'tag-link'},
+  calc: {label:'CALC', cls:'tag-calc'},
+};
+
+function renderModules() {
+  const grid = document.getElementById('modulesGrid');
+  grid.innerHTML = MODULES.map((m, mi) => {
+    const bgAlpha = 'rgba(' + hexToRgb(m.color) + ',.10)';
+    const borderAlpha = 'rgba(' + hexToRgb(m.color) + ',.25)';
+    const pageRows = m.pages.map(p => {
+      const tag = p.tag && TAG_CONFIG[p.tag]
+        ? `<span class="pi-tag ${TAG_CONFIG[p.tag].cls}">${TAG_CONFIG[p.tag].label}</span>`
+        : '';
+      const indentClass = p.indent === 1 ? 'sub' : p.indent === 2 ? 'sub2' : '';
+      const dotColor = p.indent > 0 ? '#334155' : m.color;
+      return `<div class="page-item ${indentClass}">
+        <div class="pi-dot" style="background:${dotColor};"></div>
+        <span class="pi-label">${p.label}</span>
+        ${tag}
+      </div>`;
+    }).join('');
+
+    return `
+    <div class="mod-card" id="mod-${m.id}" style="--color:${m.color};" onclick="toggleMod('${m.id}')">
+      <div class="card-head">
+        <div class="card-icon-wrap" style="background:${bgAlpha};border:1px solid ${borderAlpha};">
+          <span>${m.icon}</span>
+        </div>
+        <div class="card-meta">
+          <div class="card-name">${m.name}</div>
+          <div class="card-desc">${m.desc}</div>
+        </div>
+        <span class="card-count">${m.pages.filter(p=>p.indent===0).length}</span>
+        <span class="card-arrow">›</span>
+      </div>
+      <div class="pages-list">${pageRows}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleMod(id) {
+  const card = document.getElementById('mod-' + id);
+  card.classList.toggle('expanded');
+}
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `${r},${g},${b}`;
+}
+
+// Expand all on load with slight delay for effect
+window.addEventListener('DOMContentLoaded', () => {
+  renderModules();
+  // Auto-expand first 3
+  setTimeout(() => {
+    ['poverka','invoices','database'].forEach(id => {
+      document.getElementById('mod-' + id)?.classList.add('expanded');
+    });
+  }, 300);
+});
+</script>
+</body>
+</html>

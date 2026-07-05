@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Кабинет директора — U2B-Vertex</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0A0B0F;--surface:#13151C;--s2:#1C1F2A;--s3:#252935;
+  --border:#2A2D3A;--border2:#353849;
+  --accent:#F5C842;--green:#22C55E;--red:#EF4444;--blue:#3B82F6;
+  --text:#F0F2FF;--t2:#9BA3C2;--t3:#5C6280;
+  --gold-glow:rgba(245,200,66,.15);
+}
+html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);overflow:hidden;}
+
+/* ── PHONE FRAME ── */
+.frame{width:390px;height:844px;margin:16px auto;background:var(--bg);border-radius:44px;box-shadow:0 0 0 8px #1a1a2e,0 0 0 10px #2a2a3e,0 30px 80px rgba(0,0,0,.5);overflow:hidden;display:flex;flex-direction:column;position:relative;}
+@media(max-width:430px){.frame{width:100%;height:100vh;border-radius:0;box-shadow:none;margin:0;}}
+
+/* STATUS BAR */
+.sb{height:44px;background:#0f172a;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
+.sb-time{font-size:15px;font-weight:600;color:#fff;}
+.sb-icons{display:flex;align-items:center;gap:5px;color:#fff;font-size:12px;}
+
+/* NAV */
+.nav{background:var(--surface);border-top:1px solid var(--border);display:flex;padding:5px 0;flex-shrink:0;padding-bottom:env(safe-area-inset-bottom,5px);}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px 0;transition:all .15s;}
+.ni-ico{font-size:22px;}
+.ni-lbl{font-size:9px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.3px;}
+.ni.on .ni-lbl{color:var(--accent);}
+.ni.on .ni-ico{transform:scale(1.1);}
+.ni-badge{position:absolute;top:-3px;right:-3px;background:var(--red);color:#fff;font-size:8px;font-weight:700;width:14px;height:14px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+
+/* SCREENS */
+.scr{display:none;flex:1;overflow-y:auto;flex-direction:column;}
+.scr.on{display:flex;}
+
+/* ── DASHBOARD ── */
+.dash-head{padding:14px 16px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
+.dh-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.dh-logo{display:flex;align-items:center;gap:8px;}
+.dh-logo-ic{width:30px;height:30px;background:linear-gradient(135deg,var(--accent),#FF9900);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.dh-name{font-size:12px;font-weight:700;color:var(--text);}
+.dh-role{font-size:10px;color:var(--t3);}
+.total-block{text-align:right;}
+.total-lbl{font-size:.52rem;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;}
+.total-big{font-family:'Playfair Display',Georgia,serif;color:var(--accent);font-size:1.4rem;font-weight:700;line-height:1.1;}
+
+/* balance chips */
+.bal-scroll{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;}
+.bal-scroll::-webkit-scrollbar{display:none;}
+.bal-chip{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;flex-shrink:0;min-width:90px;}
+.bc-cat{font-size:.52rem;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;}
+.bc-name{font-size:.6rem;color:var(--t2);margin-top:1px;}
+.bc-val{font-family:'Playfair Display',serif;font-size:.9rem;font-weight:700;color:var(--text);margin-top:1px;}
+
+/* stat cards */
+.dash-content{padding:12px;overflow-y:auto;}
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;}
+.sc-ico{font-size:18px;margin-bottom:4px;}
+.sc-val{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--text);}
+.sc-lbl{font-size:.58rem;color:var(--t3);margin-top:2px;text-transform:uppercase;letter-spacing:.4px;}
+.sc-trend{font-size:.6rem;font-weight:700;margin-top:3px;}
+.trend-up{color:var(--green);}
+.trend-down{color:var(--red);}
+
+/* KPI row */
+.kpi-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin-bottom:10px;}
+.kpi-row::-webkit-scrollbar{display:none;}
+.kpi-chip{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;flex-shrink:0;text-align:center;}
+.kpi-val{font-size:.95rem;font-weight:800;color:var(--text);}
+.kpi-lbl{font-size:.55rem;color:var(--t3);margin-top:2px;text-transform:uppercase;}
+
+/* Section titles */
+.sec-title{font-size:.62rem;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;display:flex;align-items:center;gap:6px;}
+
+/* Last ops */
+.op-item{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:6px;}
+.op-ico{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.op-ico.inc{background:rgba(34,197,94,.12);}
+.op-ico.exp{background:rgba(239,68,68,.12);}
+.op-ico.trf{background:rgba(59,130,246,.12);}
+.op-info{flex:1;min-width:0;}
+.op-name{font-size:.8rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.op-meta{font-size:.6rem;color:var(--t3);margin-top:1px;}
+.op-amt{font-size:.85rem;font-weight:700;flex-shrink:0;}
+.op-amt.inc{color:var(--green);}
+.op-amt.exp{color:var(--red);}
+.op-amt.trf{color:var(--t2);}
+
+/* Chain flow */
+.chain-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;}
+.chain-row{display:flex;align-items:center;gap:4px;overflow-x:auto;scrollbar-width:none;}
+.chain-row::-webkit-scrollbar{display:none;}
+.chain-step{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;padding:6px 8px;border-radius:8px;background:var(--s2);border:1px solid var(--border);}
+.cs-ico{font-size:16px;}
+.cs-name{font-size:.55rem;font-weight:700;color:var(--t2);white-space:nowrap;}
+.cs-num{font-size:.6rem;font-weight:700;color:var(--accent);}
+.chain-arr{color:var(--border2);font-size:14px;flex-shrink:0;}
+
+/* Alerts */
+.alert-item{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:10px;margin-bottom:6px;border-left:3px solid;}
+.al-red{background:rgba(239,68,68,.08);border-color:var(--red);}
+.al-amber{background:rgba(245,158,11,.08);border-color:#F59E0B;}
+.al-text{font-size:.78rem;font-weight:500;color:var(--text);}
+.al-sub{font-size:.62rem;color:var(--t3);margin-top:2px;}
+
+/* ── FINANCE PANE in director ── */
+.fin-pane{padding:12px;overflow-y:auto;}
+
+/* QUICK OP */
+.quick-op{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;}
+.qo-title{font-size:.62rem;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;}
+.qo-tgl{display:flex;gap:6px;margin-bottom:8px;}
+.qo-btn{flex:1;padding:9px 6px;border-radius:9px;border:1.5px solid var(--border);background:var(--s2);font-weight:700;font-size:.8rem;cursor:pointer;color:var(--t3);transition:all .15s;}
+.qo-btn.inc.on{background:rgba(34,197,94,.08);border-color:var(--green);color:var(--green);}
+.qo-btn.exp.on{background:rgba(239,68,68,.08);border-color:var(--red);color:var(--red);}
+.qo-btn.trf.on{background:rgba(59,130,246,.08);border-color:var(--blue);color:var(--blue);}
+select.qo-sel,input.qo-inp{width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:9px;font-size:.85rem;color:var(--text);background:var(--s2);appearance:none;outline:none;font-family:'Inter',sans-serif;margin-bottom:7px;}
+select.qo-sel:focus,input.qo-inp:focus{border-color:var(--accent);}
+.qo-row{display:flex;gap:6px;margin-bottom:7px;}
+.qo-row>*{flex:1;}
+.qo-amt-wrap{position:relative;}
+.qo-amt{width:100%;padding:10px 11px;border:1.5px solid var(--border);border-radius:9px;font-size:1rem;font-weight:700;color:var(--text);background:var(--s2);outline:none;font-family:'SF Mono',monospace;cursor:pointer;}
+.qo-amt:focus{border-color:var(--accent);}
+.qo-save{width:100%;padding:13px;border:none;border-radius:10px;font-size:.92rem;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif;background:linear-gradient(135deg,var(--accent),#E6A800);color:#0A0B0F;box-shadow:0 4px 16px rgba(245,200,66,.3);}
+.qo-save:active{transform:scale(.97);}
+
+/* Withdraw special */
+.withdraw-card{background:linear-gradient(135deg,rgba(239,68,68,.08),rgba(0,0,0,0));border:1px solid rgba(239,68,68,.2);border-radius:12px;padding:12px;margin-bottom:10px;}
+.wc-title{font-size:.62rem;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;}
+.wc-chips{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+.wc-chip{padding:6px 12px;border-radius:20px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.06);font-size:.75rem;font-weight:700;color:var(--text);cursor:pointer;transition:all .15s;}
+.wc-chip:hover,.wc-chip.sel{background:rgba(239,68,68,.15);border-color:var(--red);}
+
+/* NUMPAD (reuse same style) */
+.np-overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;}
+.np-sheet{width:100%;background:#1C1F2B;border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom,6px);box-shadow:0 -2px 20px rgba(0,0,0,.5);}
+.np-top{display:flex;align-items:center;justify-content:space-between;padding:9px 14px 7px;border-bottom:1px solid rgba(255,255,255,.07);gap:8px;}
+.np-lbl{font-size:.55rem;font-weight:600;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.8px;}
+.np-disp{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:#fff;word-break:break-all;}
+.np-expr{font-size:.62rem;color:var(--accent);font-weight:600;min-height:14px;}
+.np-close{background:rgba(255,255,255,.07);border:none;color:rgba(255,255,255,.45);font-size:.62rem;font-weight:600;padding:5px 10px;border-radius:20px;cursor:pointer;}
+.np-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,.06);}
+.np-btn{background:#1C1F2B;height:50px;display:flex;align-items:center;justify-content:center;font-size:1.05rem;font-weight:500;color:#fff;cursor:pointer;user-select:none;transition:background .08s;}
+.np-btn:active{background:#2C3040;}
+.np-btn.op{color:var(--accent);font-size:1.15rem;background:#181B26;}
+.np-btn.del{color:#ff7070;background:#181B26;}
+.np-btn.ok{background:var(--green);color:#fff;font-weight:700;font-size:1.2rem;}
+
+/* Toast */
+.toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--s3);color:var(--text);border:1px solid var(--border2);padding:9px 18px;border-radius:50px;font-size:.83rem;font-weight:600;z-index:9999;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+::-webkit-scrollbar{width:3px;height:3px;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:10px;}
+</style>
+</head>
+<body>
+<div class="frame">
+
+<!-- STATUS BAR -->
+<div class="sb">
+  <div class="sb-time" id="d-time">9:41</div>
+  <div class="sb-icons"><span>📶</span><span>🔋</span></div>
+</div>
+
+<!-- ══ SCREEN: DASHBOARD ══ -->
+<div class="scr on" id="scr-dash">
+
+  <!-- HEAD -->
+  <div class="dash-head">
+    <div class="dh-top">
+      <div class="dh-logo">
+        <div class="dh-logo-ic">💧</div>
+        <div>
+          <div class="dh-name">Молдабаев М.</div>
+          <div class="dh-role">👑 Директор · Vertex Metrology</div>
+        </div>
+      </div>
+      <div class="total-block">
+        <div class="total-lbl">Общий баланс</div>
+        <div class="total-big" id="d-total">—</div>
+      </div>
+    </div>
+    <!-- BALANCE CHIPS -->
+    <div class="bal-scroll" id="d-bal-chips"></div>
+  </div>
+
+  <div class="dash-content">
+
+    <!-- KPI -->
+    <div class="sec-title">📊 KPI · Июль 2026</div>
+    <div class="kpi-row">
+      <div class="kpi-chip"><div class="kpi-val">19</div><div class="kpi-lbl">Поверок</div></div>
+      <div class="kpi-chip"><div class="kpi-val" style="color:var(--green);">14</div><div class="kpi-lbl">В КТРМ</div></div>
+      <div class="kpi-chip"><div class="kpi-val" style="color:var(--accent);">510K</div><div class="kpi-lbl">Расходы ₸</div></div>
+      <div class="kpi-chip"><div class="kpi-val" style="color:var(--red);">2</div><div class="kpi-lbl">Авто-заказа</div></div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="sc-ico">💰</div>
+        <div class="sc-val" id="d-income">0 ₸</div>
+        <div class="sc-lbl">Приходы</div>
+        <div class="sc-trend trend-up" id="d-income-trend">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-ico">💸</div>
+        <div class="sc-val" id="d-expense">0 ₸</div>
+        <div class="sc-lbl">Расходы</div>
+        <div class="sc-trend trend-down" id="d-expense-trend">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-ico">🔄</div>
+        <div class="sc-val" id="d-transfers">0</div>
+        <div class="sc-lbl">Переводов</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-ico">📈</div>
+        <div class="sc-val" id="d-profit">0 ₸</div>
+        <div class="sc-lbl">Доход (нетто)</div>
+      </div>
+    </div>
+
+    <!-- CHAIN -->
+    <div class="sec-title">🔄 Цепочка процессов</div>
+    <div class="chain-card">
+      <div class="chain-row">
+        <div class="chain-step"><div class="cs-ico">📋</div><div class="cs-name">Поверка</div><div class="cs-num">19</div></div>
+        <div class="chain-arr">→</div>
+        <div class="chain-step"><div class="cs-ico">💰</div><div class="cs-name">Продажа</div><div class="cs-num">3</div></div>
+        <div class="chain-arr">→</div>
+        <div class="chain-step"><div class="cs-ico">🏭</div><div class="cs-name">Склад</div><div class="cs-num">12</div></div>
+        <div class="chain-arr">→</div>
+        <div class="chain-step"><div class="cs-ico">🛒</div><div class="cs-name">Закупки</div><div class="cs-num">2</div></div>
+        <div class="chain-arr">→</div>
+        <div class="chain-step"><div class="cs-ico">🧾</div><div class="cs-name">Счета</div><div class="cs-num" style="color:var(--green);">✓</div></div>
+      </div>
+    </div>
+
+    <!-- ALERTS -->
+    <div class="sec-title">⚠️ Уведомления</div>
+    <div class="alert-item al-red">
+      <span style="font-size:16px;">⏰</span>
+      <div><div class="al-text">Счётчик Укиевой — просрочен</div><div class="al-sub">ул. Казыбек би, 142 · Авто-заказ создан</div></div>
+    </div>
+    <div class="alert-item al-amber">
+      <span style="font-size:16px;">📦</span>
+      <div><div class="al-text">Склад: Счётчик ГВС DN20 — нехватка</div><div class="al-sub">Остаток 8 шт, минимум 15 шт</div></div>
+    </div>
+    <div class="alert-item al-amber">
+      <span style="font-size:16px;">💳</span>
+      <div><div class="al-text">8 оплат ожидают подтверждения</div><div class="al-sub">Общая сумма: 28 500 ₸</div></div>
+    </div>
+
+    <!-- LAST OPS -->
+    <div class="sec-title" style="margin-top:4px;">💳 Последние операции</div>
+    <div id="d-last-ops"></div>
+
+  </div>
+</div>
+
+<!-- ══ SCREEN: ФИНАНСЫ (управление деньгами) ══ -->
+<div class="scr" id="scr-fin">
+  <div style="padding:12px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+    <div>
+      <div style="font-size:14px;font-weight:800;color:var(--text);">Управление финансами</div>
+      <div style="font-size:11px;color:var(--t3);">Только для директора</div>
+    </div>
+    <div style="text-align:right;">
+      <div style="font-size:.52rem;color:var(--t3);text-transform:uppercase;letter-spacing:.8px;">Баланс</div>
+      <div style="font-family:'Playfair Display',serif;color:var(--accent);font-size:1.2rem;font-weight:700;" id="fin-total">—</div>
+    </div>
+  </div>
+
+  <div class="fin-pane">
+
+    <!-- QUICK OPERATION -->
+    <div class="quick-op">
+      <div class="qo-title">💸 Новая операция</div>
+      <div class="qo-tgl">
+        <button class="qo-btn inc on" id="qo-inc" onclick="qoSetType('income')">＋ Приход</button>
+        <button class="qo-btn exp" id="qo-exp" onclick="qoSetType('expense')">－ Расход</button>
+        <button class="qo-btn trf" id="qo-trf" onclick="qoSetType('transfer')">⇄ Перевод</button>
+      </div>
+      <select class="qo-sel" id="qo-acct"></select>
+      <div id="qo-to-wrap" style="display:none;">
+        <div style="text-align:center;font-size:1rem;color:var(--t3);margin:-3px 0 3px;">⇅</div>
+        <select class="qo-sel" id="qo-acct-to"></select>
+      </div>
+      <div class="qo-amt-wrap">
+        <input class="qo-amt" id="qo-amt" type="text" placeholder="— сумма (₸)" readonly onclick="openNP()">
+      </div>
+      <div style="margin-top:6px;margin-bottom:7px;">
+        <input class="qo-inp" id="qo-name" type="text" placeholder="Наименование / описание">
+      </div>
+      <button class="qo-save" onclick="qoSave()">💾 Сохранить операцию</button>
+    </div>
+
+    <!-- ВЫВОД ДЕНЕГ -->
+    <div class="withdraw-card">
+      <div class="wc-title">💸 Вывести деньги</div>
+      <div style="font-size:.7rem;color:var(--t3);margin-bottom:8px;">Быстрый вывод с выбранного счёта</div>
+      <select class="qo-sel" id="wd-acct" style="margin-bottom:7px;"></select>
+      <div class="wc-chips" id="wd-quick-chips">
+        <div class="wc-chip" onclick="wd(50000)">50K</div>
+        <div class="wc-chip" onclick="wd(100000)">100K</div>
+        <div class="wc-chip" onclick="wd(200000)">200K</div>
+        <div class="wc-chip" onclick="wd(500000)">500K</div>
+      </div>
+      <div class="qo-amt-wrap" style="margin-bottom:7px;">
+        <input class="qo-amt" id="wd-amt" type="text" placeholder="— или введите сумму" readonly onclick="openNP2()">
+      </div>
+      <input class="qo-inp" id="wd-note" type="text" placeholder="Причина вывода" style="margin-bottom:7px;">
+      <button class="qo-save" onclick="doWithdraw()" style="background:linear-gradient(135deg,var(--red),#DC2626);color:#fff;box-shadow:0 4px 14px rgba(239,68,68,.3);">
+        💸 Вывести средства
+      </button>
+    </div>
+
+    <!-- ACCOUNT BALANCES -->
+    <div class="sec-title">🏦 Счета</div>
+    <div id="fin-accts"></div>
+
+    <!-- LAST OPS -->
+    <div class="sec-title" style="margin-top:8px;">📋 Последние операции</div>
+    <div id="fin-last-ops"></div>
+
+  </div>
+</div>
+
+<!-- ══ SCREEN: ОТЧЁТЫ ══ -->
+<div class="scr" id="scr-rep">
+  <div style="padding:12px 14px 10px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;">
+    <div style="font-size:14px;font-weight:800;">Отчёты</div>
+    <div style="font-size:11px;color:var(--t3);">Сводные данные за период</div>
+  </div>
+  <div style="padding:12px;overflow-y:auto;">
+    <div class="sec-title">По источникам счетов</div>
+    <div id="rep-by-cat"></div>
+    <div class="sec-title" style="margin-top:10px;">Топ расходов</div>
+    <div id="rep-top-exp"></div>
+    <div class="sec-title" style="margin-top:10px;">Топ приходов</div>
+    <div id="rep-top-inc"></div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: ПРОФИЛЬ ══ -->
+<div class="scr" id="scr-prof">
+  <div style="padding:24px 14px;display:flex;flex-direction:column;align-items:center;gap:10px;">
+    <div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#FF9900);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#0A0B0F;">М</div>
+    <div style="text-align:center;">
+      <div style="font-size:17px;font-weight:800;">Молдабаев М.</div>
+      <div style="font-size:12px;color:var(--t3);">👑 Директор · ТОО «Vertex Metrology»</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <div style="background:rgba(245,200,66,.12);border:1px solid rgba(245,200,66,.3);color:var(--accent);padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;">● Онлайн</div>
+      <div style="background:var(--s2);border:1px solid var(--border);color:var(--t2);padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;">👑 Все права</div>
+    </div>
+  </div>
+  <div style="padding:0 12px 80px;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:10px;">
+      <div style="padding:10px 14px;border-bottom:1px solid var(--border);font-size:.62rem;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;">Доступы директора</div>
+      ${['📋 Все модули системы','💰 Управление финансами','💸 Вывод средств','📊 Все отчёты','⚙️ Настройки системы','👥 Управление сотрудниками','🗄 База данных / Архивы'].map(s=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--border);font-size:.82rem;"><span>${s}</span><span style="color:var(--green);">✅</span></div>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="finance_module.html" target="_blank" style="flex:1;display:block;padding:12px;background:linear-gradient(135deg,var(--accent),#E6A800);color:#0A0B0F;border-radius:10px;font-size:.85rem;font-weight:800;text-align:center;text-decoration:none;">💳 Полный трекер</a>
+    </div>
+  </div>
+</div>
+
+<!-- NAV BAR -->
+<div class="nav">
+  <div class="ni on" id="nav-dash" onclick="goScr('dash',this)">
+    <div class="ni-ico">🏠</div><div class="ni-lbl">Главная</div>
+  </div>
+  <div class="ni" id="nav-fin" onclick="goScr('fin',this)">
+    <div style="position:relative;display:inline-block;">
+      <div class="ni-ico">💳</div>
+    </div>
+    <div class="ni-lbl">Финансы</div>
+  </div>
+  <div class="ni" id="nav-rep" onclick="goScr('rep',this)">
+    <div class="ni-ico">📊</div><div class="ni-lbl">Отчёты</div>
+  </div>
+  <div class="ni" id="nav-prof" onclick="goScr('prof',this)">
+    <div class="ni-ico">👤</div><div class="ni-lbl">Профиль</div>
+  </div>
+</div>
+
+</div><!-- /frame -->
+
+<!-- NUMPAD -->
+<div class="np-overlay" id="np-ov" style="display:none;" onclick="if(event.target===this)npClose()">
+  <div class="np-sheet">
+    <div class="np-top">
+      <div>
+        <div class="np-lbl" id="np-lbl">Сумма</div>
+        <div class="np-disp" id="np-disp">0</div>
+        <div class="np-expr" id="np-expr"></div>
+      </div>
+      <button class="np-close" onclick="npClose()">✕ Готово</button>
+    </div>
+    <div class="np-grid">
+      <div class="np-btn" onclick="npK('7')">7</div><div class="np-btn" onclick="npK('8')">8</div><div class="np-btn" onclick="npK('9')">9</div><div class="np-btn del" onclick="npDel()">⌫</div>
+      <div class="np-btn" onclick="npK('4')">4</div><div class="np-btn" onclick="npK('5')">5</div><div class="np-btn" onclick="npK('6')">6</div><div class="np-btn op" onclick="npK('-')">−</div>
+      <div class="np-btn" onclick="npK('1')">1</div><div class="np-btn" onclick="npK('2')">2</div><div class="np-btn" onclick="npK('3')">3</div><div class="np-btn op" onclick="npK('+')">+</div>
+      <div class="np-btn" onclick="npK('.')">.</div><div class="np-btn" onclick="npK('0')">0</div><div class="np-btn" onclick="npK('00')">00</div><div class="np-btn ok" onclick="npOk()">✓</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY='u2b_finance_v2';
+function loadS(){try{const r=localStorage.getItem(STORAGE_KEY);return r?JSON.parse(r):null;}catch(e){return null;}}
+function saveS(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(FS));}catch(e){}}
+
+const DEFAULT_FS={
+  cats:[
+    {id:'kaspi',name:'Каспи',icon:'🍊',color:'#ec4899'},
+    {id:'bck',name:'БЦК',icon:'🏦',color:'#8b5cf6'},
+    {id:'nalichka',name:'Наличка',icon:'💵',color:'#22c55e'},
+    {id:'other',name:'Прочие',icon:'📦',color:'#94a3b8'},
+  ],
+  accts:{
+    'Каспи Основной':{cat:'kaspi',bal:0,icon:'🍊'},
+    'Каспи Голд (Астана)':{cat:'kaspi',bal:0,icon:'⭐'},
+    'БЦК Банк':{cat:'bck',bal:0,icon:'🏦'},
+    'Наличные офис':{cat:'nalichka',bal:0,icon:'💵'},
+    'Наличные склад':{cat:'nalichka',bal:0,icon:'💰'},
+  },
+  ops:[], favs:[], names:[],
+};
+
+let FS=loadS()||JSON.parse(JSON.stringify(DEFAULT_FS));
+if(!FS.cats)FS.cats=DEFAULT_FS.cats;
+
+function fmt(n){return Number(n||0).toLocaleString('ru-KZ')+' ₸';}
+function fmtS(n){const v=Math.abs(n||0);return v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'K':String(v);}
+function uuid(){return Math.random().toString(36).slice(2)+Date.now().toString(36);}
+function today(){return new Date().toISOString().slice(0,10);}
+function evalE(s){try{return Function('"use strict";return('+s.replace(/,/g,'.')+')')();}catch(e){return null;}}
+
+function showToast(msg,ms=2200){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),ms);
+}
+
+// ── Time ──
+function tick(){const n=new Date();const h=String(n.getHours()).padStart(2,'0');const m=String(n.getMinutes()).padStart(2,'0');document.getElementById('d-time').textContent=h+':'+m;}
+tick();setInterval(tick,30000);
+
+// ── NAV ──
+function goScr(id,el){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
+  document.getElementById('scr-'+id).classList.add('on');
+  el.classList.add('on');
+  if(id==='dash') renderDash();
+  if(id==='fin')  renderFin();
+  if(id==='rep')  renderRep();
+}
+
+// ── DASHBOARD ──
+function getTotal(){return Object.values(FS.accts).reduce((s,a)=>s+(a.bal||0),0);}
+
+function renderDash(){
+  const total=getTotal();
+  document.getElementById('d-total').textContent=fmtS(total)+' ₸';
+  document.getElementById('fin-total').textContent=fmtS(total)+' ₸';
+
+  // Balance chips by category
+  const groups={};
+  FS.cats.forEach(c=>{groups[c.id]={cat:c,total:0,accts:[]};});
+  Object.entries(FS.accts).forEach(([name,a])=>{
+    const cid=a.cat||'other';
+    if(!groups[cid])groups[cid]={cat:{id:cid,name:cid,icon:'📦'},total:0,accts:[]};
+    groups[cid].total+=(a.bal||0);
+    groups[cid].accts.push({name,bal:a.bal||0,icon:a.icon});
+  });
+  const chips=Object.values(groups).filter(g=>g.accts.length).map(g=>`
+    <div class="bal-chip">
+      <div class="bc-cat">${g.cat.icon} ${g.cat.name}</div>
+      ${g.accts.slice(0,2).map(a=>`<div class="bc-name">${a.name.slice(0,12)}</div><div class="bc-val">${fmtS(a.bal)}</div>`).join('')}
+    </div>`).join('');
+  document.getElementById('d-bal-chips').innerHTML = chips + `<div class="bal-chip" style="border-color:rgba(245,200,66,.3);"><div class="bc-cat" style="color:var(--accent);">💰 Итого</div><div class="bc-val" style="color:var(--accent);">${fmtS(total)}</div></div>`;
+
+  // Stats from ops
+  const ops=[...FS.ops].slice(-50);
+  const inc=ops.filter(o=>o.type==='Приход').reduce((s,o)=>s+o.amount,0);
+  const exp=ops.filter(o=>o.type==='Расход').reduce((s,o)=>s+o.amount,0);
+  const trfCount=ops.filter(o=>o.type==='Перевод').length;
+  document.getElementById('d-income').textContent=fmtS(inc)+' ₸';
+  document.getElementById('d-expense').textContent=fmtS(exp)+' ₸';
+  document.getElementById('d-transfers').textContent=trfCount;
+  document.getElementById('d-profit').textContent=fmtS(inc-exp)+' ₸';
+  document.getElementById('d-income-trend').textContent=inc>0?'↑ Поступлений: '+ops.filter(o=>o.type==='Приход').length:'Нет данных';
+  document.getElementById('d-expense-trend').textContent=exp>0?'↓ Расходов: '+ops.filter(o=>o.type==='Расход').length:'Нет данных';
+
+  // Last ops
+  const last=ops.reverse().slice(0,5);
+  document.getElementById('d-last-ops').innerHTML=last.length?last.map(o=>{
+    const isTrf=o.type==='Перевод';
+    const cls=isTrf?'trf':o.type==='Приход'?'inc':'exp';
+    const sign=o.type==='Приход'?'+':o.type==='Расход'?'−':'⇄';
+    return `<div class="op-item"><div class="op-ico ${cls}">${isTrf?'🔄':o.type==='Приход'?'💚':'🔴'}</div><div class="op-info"><div class="op-name">${o.name}</div><div class="op-meta">${o.account} · ${o.date}</div></div><div class="op-amt ${cls}">${sign}${fmtS(o.amount)}</div></div>`;
+  }).join(''):'<div style="text-align:center;padding:20px;color:var(--t3);font-size:.8rem;">Нет операций</div>';
+}
+
+// ── FINANCE PANE ──
+let qoType='income';
+function qoSetType(t){
+  qoType=t;
+  ['inc','exp','trf'].forEach(x=>document.getElementById('qo-'+x).classList.remove('on'));
+  document.getElementById('qo-'+(t==='income'?'inc':t==='expense'?'exp':'trf')).classList.add('on');
+  document.getElementById('qo-to-wrap').style.display=t==='transfer'?'block':'none';
+}
+
+function renderFin(){
+  renderDash();
+  const accts=Object.keys(FS.accts);
+  ['qo-acct','qo-acct-to','wd-acct'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.innerHTML=accts.map(n=>`<option>${n}</option>`).join('');
+  });
+  // Account balances
+  document.getElementById('fin-accts').innerHTML=Object.entries(FS.accts).map(([name,a])=>{
+    const cat=FS.cats.find(c=>c.id===a.cat)||{icon:'📦',name:'Прочие'};
+    return `<div class="op-item" style="margin-bottom:6px;cursor:pointer;" onclick="promptBal('${name}')">
+      <div class="op-ico inc">${a.icon||cat.icon}</div>
+      <div class="op-info"><div class="op-name">${name}</div><div class="op-meta">${cat.icon} ${cat.name}</div></div>
+      <div class="op-amt inc">${(a.bal||0).toLocaleString('ru-KZ')} ₸</div>
+    </div>`;
+  }).join('');
+  // Last 5 ops
+  const last=[...FS.ops].reverse().slice(0,5);
+  document.getElementById('fin-last-ops').innerHTML=last.length?last.map(o=>{
+    const cls=o.type==='Перевод'?'trf':o.type==='Приход'?'inc':'exp';
+    const sign=o.type==='Приход'?'+':o.type==='Расход'?'−':'⇄';
+    return `<div class="op-item"><div class="op-ico ${cls}">${o.type==='Перевод'?'🔄':o.type==='Приход'?'💚':'🔴'}</div><div class="op-info"><div class="op-name">${o.name}</div><div class="op-meta">${o.account} · ${o.date}</div></div><div class="op-amt ${cls}">${sign}${fmtS(o.amount)}</div></div>`;
+  }).join(''):'<div style="text-align:center;padding:16px;color:var(--t3);font-size:.8rem;">Нет операций</div>';
+}
+
+function qoSave(){
+  const acct=document.getElementById('qo-acct').value;
+  const amtRaw=document.getElementById('qo-amt').value;
+  const name=document.getElementById('qo-name').value.trim()||'Операция директора';
+  const amt=evalE(amtRaw)||parseFloat(amtRaw)||0;
+  if(!amt||amt<=0){showToast('⚠️ Введите сумму');return;}
+  if(qoType==='transfer'){
+    const to=document.getElementById('qo-acct-to').value;
+    if(acct===to){showToast('⚠️ Разные счета');return;}
+    if((FS.accts[acct]?.bal||0)<amt){showToast('⚠️ Недостаточно средств');return;}
+    FS.accts[acct].bal=(FS.accts[acct].bal||0)-amt;
+    FS.accts[to].bal=(FS.accts[to].bal||0)+amt;
+    FS.ops.push({id:uuid(),date:today(),name:`Перевод: ${acct} → ${to}`,account:acct,type:'Перевод',amount:Math.round(amt),comment:'Директор'});
+    showToast(`🔄 Перевод ${(amt/1000).toFixed(0)}K ₸: ${acct} → ${to}`);
+  } else {
+    const type=qoType==='income'?'Приход':'Расход';
+    if(type==='Расход'&&(FS.accts[acct]?.bal||0)<amt){showToast('⚠️ Недостаточно средств');return;}
+    FS.accts[acct].bal=(FS.accts[acct].bal||0)+(type==='Приход'?amt:-amt);
+    FS.ops.push({id:uuid(),date:today(),name,account:acct,type,amount:Math.round(amt),comment:'Директор'});
+    showToast(`✅ ${type}: ${(amt/1000).toFixed(0)}K ₸ → ${acct}`);
+  }
+  saveS(); renderFin();
+  document.getElementById('qo-amt').value=''; document.getElementById('qo-name').value='';
+}
+
+function doWithdraw(){
+  const acct=document.getElementById('wd-acct').value;
+  const amtRaw=document.getElementById('wd-amt').value;
+  const note=document.getElementById('wd-note').value.trim()||'Вывод директора';
+  const amt=evalE(amtRaw)||parseFloat(amtRaw)||0;
+  if(!amt||amt<=0){showToast('⚠️ Введите сумму');return;}
+  if((FS.accts[acct]?.bal||0)<amt){showToast('⚠️ Недостаточно средств на '+acct);return;}
+  FS.accts[acct].bal=(FS.accts[acct].bal||0)-amt;
+  FS.ops.push({id:uuid(),date:today(),name:'💸 Вывод: '+note,account:acct,type:'Расход',amount:Math.round(amt),comment:'Вывод директора'});
+  saveS(); renderFin();
+  document.getElementById('wd-amt').value=''; document.getElementById('wd-note').value='';
+  showToast(`💸 Выведено ${(amt/1000).toFixed(0)}K ₸ со счёта ${acct}`);
+}
+function wd(sum){document.getElementById('wd-amt').value=String(sum);}
+function promptBal(name){
+  const cur=FS.accts[name]?.bal||0;
+  const v=prompt(`Установить баланс для "${name}":\nТекущий: ${cur.toLocaleString('ru-KZ')} ₸`,cur);
+  if(v===null)return;
+  const n=parseFloat(v.replace(/[^\d.]/g,''));
+  if(isNaN(n)||n<0){showToast('⚠️ Некорректное значение');return;}
+  FS.accts[name].bal=n; saveS(); renderFin();
+  showToast(`✅ Баланс "${name}": ${n.toLocaleString('ru-KZ')} ₸`);
+}
+
+// ── REPORTS ──
+function renderRep(){
+  const ops=FS.ops;
+  // By cat
+  const catTotals={};
+  FS.cats.forEach(c=>{catTotals[c.id]={name:c.icon+' '+c.name,inc:0,exp:0};});
+  ops.forEach(op=>{
+    const cat=FS.accts[op.account]?.cat||'other';
+    if(!catTotals[cat])catTotals[cat]={name:'📦 '+cat,inc:0,exp:0};
+    if(op.type==='Приход')catTotals[cat].inc+=op.amount;
+    else if(op.type==='Расход')catTotals[cat].exp+=op.amount;
+  });
+  document.getElementById('rep-by-cat').innerHTML=Object.values(catTotals).filter(c=>c.inc||c.exp).map(c=>`
+    <div class="op-item" style="margin-bottom:6px;flex-direction:column;align-items:flex-start;gap:5px;">
+      <div style="font-size:.82rem;font-weight:700;color:var(--text);">${c.name}</div>
+      <div style="display:flex;gap:12px;font-size:.75rem;font-weight:700;">
+        <span style="color:var(--green);">↑ ${fmtS(c.inc)} ₸</span>
+        <span style="color:var(--red);">↓ ${fmtS(c.exp)} ₸</span>
+        <span style="color:var(--t2);">= ${fmtS(c.inc-c.exp)} ₸</span>
+      </div>
+    </div>`).join('')||'<div style="color:var(--t3);padding:12px;font-size:.8rem;">Нет данных</div>';
+
+  // Top exp/inc
+  const byName={};
+  ops.forEach(op=>{
+    if(!byName[op.name])byName[op.name]={name:op.name,inc:0,exp:0};
+    if(op.type==='Приход')byName[op.name].inc+=op.amount;
+    else if(op.type==='Расход')byName[op.name].exp+=op.amount;
+  });
+  const sorted=Object.values(byName);
+  const topExp=sorted.filter(x=>x.exp>0).sort((a,b)=>b.exp-a.exp).slice(0,5);
+  const topInc=sorted.filter(x=>x.inc>0).sort((a,b)=>b.inc-a.inc).slice(0,5);
+  document.getElementById('rep-top-exp').innerHTML=topExp.map(x=>`<div class="op-item" style="margin-bottom:5px;"><div class="op-info"><div class="op-name">${x.name}</div></div><div class="op-amt exp">−${fmtS(x.exp)} ₸</div></div>`).join('')||'<div style="color:var(--t3);font-size:.8rem;padding:8px;">Нет данных</div>';
+  document.getElementById('rep-top-inc').innerHTML=topInc.map(x=>`<div class="op-item" style="margin-bottom:5px;"><div class="op-info"><div class="op-name">${x.name}</div></div><div class="op-amt inc">+${fmtS(x.inc)} ₸</div></div>`).join('')||'<div style="color:var(--t3);font-size:.8rem;padding:8px;">Нет данных</div>';
+}
+
+// ── NUMPAD ──
+let NP={val:'',target:null};
+function openNP(){NP.target='qo-amt';NP.val=document.getElementById('qo-amt').value||'';document.getElementById('np-lbl').textContent='Сумма операции';document.getElementById('np-ov').style.display='flex';npRfsh();}
+function openNP2(){NP.target='wd-amt';NP.val=document.getElementById('wd-amt').value||'';document.getElementById('np-lbl').textContent='Сумма вывода';document.getElementById('np-ov').style.display='flex';npRfsh();}
+function npK(k){
+  if(k==='+'||k==='-'){if(!NP.val||NP.val.endsWith('+')||NP.val.endsWith('-'))return;NP.val+=k;npRfsh();return;}
+  if(k==='.'){const p=NP.val.split(/[+\-]/);if(p[p.length-1].includes('.'))return;NP.val+='.';npRfsh();return;}
+  if(k==='00'){if(!NP.val||NP.val==='0')return;NP.val+='00';npRfsh();return;}
+  if(NP.val==='0'||NP.val==='')NP.val=k;else NP.val+=k;npRfsh();
+}
+function npDel(){NP.val=NP.val.slice(0,-1);npRfsh();}
+function npRfsh(){
+  const d=document.getElementById('np-disp');const e=document.getElementById('np-expr');const v=NP.val||'0';
+  if(/[+\-]/.test(v)){d.textContent=v;const r=evalE(v);e.textContent=r!=null?'= '+Math.round(r).toLocaleString('ru-KZ')+' ₸':'';}
+  else{const n=parseFloat(v);d.textContent=isNaN(n)?v:n.toLocaleString('ru-KZ');e.textContent='';}
+}
+function npOk(){
+  if(NP.target){const inp=document.getElementById(NP.target);if(inp)inp.value=NP.val;}
+  npClose();
+}
+function npClose(){document.getElementById('np-ov').style.display='none';}
+
+// ── INIT ──
+window.addEventListener('DOMContentLoaded',()=>{ renderDash(); renderFin(); });
+</script>
+</body>
+</html>

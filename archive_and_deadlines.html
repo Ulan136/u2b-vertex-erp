@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Архив и Сроки — U2B-Vertex ERP</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter','Segoe UI',sans-serif;background:#f5f6fa;color:#1a1a2e;font-size:13px;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+
+  /* TOP BAR */
+  .topbar{background:#fff;border-bottom:1px solid #e5e7eb;padding:0 20px;height:50px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+  .tb-left{display:flex;align-items:center;gap:12px;}
+  .logo-mark{width:32px;height:32px;background:linear-gradient(135deg,#1a56db,#0ea5e9);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+  .logo-text{display:flex;flex-direction:column;gap:0;}
+  .logo-name{font-size:13px;font-weight:800;color:#111827;line-height:1.1;}
+  .logo-name span{color:#1a56db;}
+  .logo-sub{font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;}
+  .bc{font-size:12px;color:#6b7280;display:flex;align-items:center;gap:5px;border-left:1px solid #e5e7eb;padding-left:12px;}
+  .bc strong{color:#374151;}
+  .tb-right{display:flex;align-items:center;gap:10px;font-size:12px;color:#6b7280;}
+  .user-chip{display:flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;cursor:pointer;}
+  .avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#1a56db,#0ea5e9);display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:700;}
+
+  /* TABS */
+  .main-tabs{display:flex;background:#fff;border-bottom:1px solid #e5e7eb;padding:0;flex-shrink:0;}
+  .mtab{padding:12px 20px;font-size:13px;font-weight:500;color:#6b7280;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;display:flex;align-items:center;gap:6px;transition:all .15s;}
+  .mtab:hover{color:#374151;background:#fafafa;}
+  .mtab.active{color:#1d4ed8;border-bottom-color:#1a56db;font-weight:600;}
+  .mtab .tab-count{font-size:10px;padding:1px 6px;border-radius:10px;font-weight:700;}
+  .tc-red{background:#fee2e2;color:#991b1b;}
+  .tc-amber{background:#fef3c7;color:#92400e;}
+  .tc-blue{background:#dbeafe;color:#1e40af;}
+  .tc-gray{background:#f3f4f6;color:#6b7280;}
+
+  /* BODY */
+  .app-body{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+  .tab-panel{display:none;flex:1;overflow:hidden;flex-direction:column;}
+  .tab-panel.active{display:flex;}
+
+  /* TOOLBAR */
+  .toolbar{background:#fff;border-bottom:1px solid #e5e7eb;padding:10px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;}
+  .toolbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+  .search-box{display:flex;align-items:center;gap:6px;border:1px solid #d1d5db;border-radius:6px;padding:6px 10px;background:#fff;min-width:220px;}
+  .search-box input{border:none;outline:none;font-size:12px;width:100%;color:#374151;background:transparent;font-family:inherit;}
+  select.fsel{border:1px solid #d1d5db;border-radius:6px;padding:6px 8px;font-size:12px;color:#374151;background:#fff;outline:none;cursor:pointer;font-family:inherit;}
+
+  /* BUTTONS */
+  .btn{padding:7px 14px;border-radius:6px;font-size:12px;border:none;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap;font-family:inherit;}
+  .btn-primary{background:#1a56db;color:#fff;}
+  .btn-primary:hover{background:#1344b8;}
+  .btn-outline{background:#fff;color:#374151;border:1px solid #d1d5db;}
+  .btn-outline:hover{background:#f9fafb;}
+  .btn-warn{background:#fef3c7;color:#92400e;border:1px solid #fde68a;}
+  .btn-warn:hover{background:#fde68a;}
+  .btn-danger-soft{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
+  .btn-sm{padding:5px 10px;font-size:11px;}
+
+  /* STATS ROW */
+  .stats-strip{background:#fff;border-bottom:1px solid #e5e7eb;padding:0;display:flex;gap:0;flex-shrink:0;}
+  .stat-box{flex:1;padding:12px 16px;border-right:1px solid #f3f4f6;text-align:center;}
+  .stat-box:last-child{border-right:none;}
+  .stat-num{font-size:22px;font-weight:700;line-height:1.1;}
+  .stat-lbl{font-size:10px;color:#6b7280;margin-top:2px;text-transform:uppercase;letter-spacing:.04em;}
+  .s-red .stat-num{color:#dc2626;}
+  .s-amber .stat-num{color:#d97706;}
+  .s-green .stat-num{color:#059669;}
+  .s-blue .stat-num{color:#1d4ed8;}
+  .s-purple .stat-num{color:#7c3aed;}
+
+  /* TABLE */
+  .table-area{flex:1;overflow:auto;}
+  .tbl-card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;margin:14px;}
+  .tbl-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #eee;flex-wrap:wrap;gap:8px;}
+  .tbl-title{font-size:13px;font-weight:600;color:#222;display:flex;align-items:center;gap:8px;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  thead tr{background:#f9fafb;}
+  th{padding:8px 12px;text-align:left;font-size:10px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #eee;white-space:nowrap;}
+  td{padding:9px 12px;border-bottom:1px solid #f3f4f6;color:#374151;vertical-align:middle;}
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:#fafafa;}
+  tr.row-critical td{background:#fff5f5;}
+  tr.row-warn td{background:#fffbeb;}
+  tr.row-ok td{background:#f0fdf4;}
+
+  /* BADGES */
+  .badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;white-space:nowrap;}
+  .b-red{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;}
+  .b-amber{background:#fef3c7;color:#92400e;border:1px solid #fde68a;}
+  .b-green{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0;}
+  .b-blue{background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd;}
+  .b-purple{background:#ede9fe;color:#5b21b6;border:1px solid #c4b5fd;}
+  .b-gray{background:#f3f4f6;color:#6b7280;}
+  .b-cold{background:#dbeafe;color:#1e40af;}
+  .b-hot{background:#fee2e2;color:#991b1b;}
+
+  /* PROGRESS BAR */
+  .prog-wrap{width:100px;background:#f3f4f6;border-radius:4px;height:5px;overflow:hidden;}
+  .prog-bar{height:5px;border-radius:4px;transition:width .3s;}
+
+  /* MODAL */
+  .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:500;align-items:center;justify-content:center;}
+  .overlay.open{display:flex;}
+  .modal{background:#fff;border-radius:12px;width:620px;max-width:95vw;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:mIn .18s ease;}
+  @keyframes mIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+  .m-head{padding:16px 20px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;}
+  .m-head h3{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .m-close{border:none;background:none;cursor:pointer;font-size:18px;color:#9ca3af;padding:3px 6px;border-radius:4px;}
+  .m-close:hover{background:#f3f4f6;}
+  .m-body{padding:20px;}
+  .m-foot{padding:12px 20px;border-top:1px solid #e5e7eb;background:#f9fafb;display:flex;gap:8px;align-items:center;}
+  .fg{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+  .fg3{grid-template-columns:1fr 1fr 1fr;}
+  .field{display:flex;flex-direction:column;gap:5px;}
+  .field.full{grid-column:1/-1;}
+  .field label{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;font-weight:700;}
+  .field input,.field select,.field textarea{border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;color:#374151;outline:none;background:#fff;font-family:inherit;}
+  .field input:focus,.field select:focus{border-color:#1a56db;box-shadow:0 0 0 2px rgba(26,86,219,.08);}
+  .info-box{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#1e3a8a;display:flex;align-items:flex-start;gap:8px;}
+  .warn-box{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#92400e;display:flex;align-items:flex-start;gap:8px;}
+  .crit-box{background:#fff1f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#9f1239;display:flex;align-items:flex-start;gap:8px;}
+  .sec-label{font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #f3f4f6;}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .detail-item{background:#f9fafb;border:1px solid #f3f4f6;border-radius:6px;padding:8px 12px;}
+  .detail-item .dl{font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;}
+  .detail-item .dv{font-size:13px;font-weight:600;color:#111827;}
+
+  /* TOAST */
+  .toast{position:fixed;bottom:24px;right:24px;background:#111827;color:#fff;padding:11px 16px;border-radius:8px;font-size:13px;z-index:999;display:none;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.2);}
+  .toast.show{display:flex;animation:fadeUp .2s ease;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* EMPTY */
+  .empty{text-align:center;padding:48px 20px;color:#9ca3af;}
+  .empty-icon{font-size:40px;margin-bottom:12px;}
+
+  /* ORDER CREATE PANEL */
+  .order-panel{background:linear-gradient(135deg,#fffbeb,#fff);border:1px solid #fde68a;border-radius:8px;padding:14px;margin-bottom:14px;}
+  .order-panel-title{font-size:12px;font-weight:700;color:#92400e;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+
+  ::-webkit-scrollbar{width:5px;height:5px;}
+  ::-webkit-scrollbar-thumb{background:#e5e7eb;border-radius:10px;}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="tb-left">
+    <div class="logo-mark">💧</div>
+    <div class="logo-text">
+      <div class="logo-name">U2B<span>-Vertex</span></div>
+      <div class="logo-sub">Автоматизация бизнес-процессов</div>
+    </div>
+    <div class="bc">
+      <span>База данных</span> › <strong id="currentTab">Сроки истечения</strong>
+    </div>
+  </div>
+  <div class="tb-right">
+    <span>ТОО «Vertex Metrology»</span>
+    <div class="user-chip"><div class="avatar">М</div><span>Молдабаев М.</span></div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="main-tabs">
+  <div class="mtab active" onclick="switchTab('deadlines',this)">
+    ⏰ Сроки счётчиков
+    <span class="tab-count tc-red" id="tc-critical">0</span>
+    <span class="tab-count tc-amber" id="tc-soon">0</span>
+  </div>
+  <div class="mtab" onclick="switchTab('archive',this)">
+    🗄 Архив сертификатов
+    <span class="tab-count tc-gray" id="tc-archive">0</span>
+  </div>
+  <div class="mtab" onclick="switchTab('notif-archive',this)">
+    📭 Архив извещений
+    <span class="tab-count tc-gray" id="tc-notif-archive">0</span>
+  </div>
+  <div class="mtab" onclick="switchTab('orders-auto',this)">
+    📋 Авто-заказы
+    <span class="tab-count tc-blue" id="tc-orders">0</span>
+  </div>
+</div>
+
+<div class="app-body">
+
+  <!-- ══ TAB: СРОКИ ══ -->
+  <div class="tab-panel active" id="panel-deadlines">
+    <!-- STATS -->
+    <div class="stats-strip">
+      <div class="stat-box s-red"><div class="stat-num" id="st-expired">0</div><div class="stat-lbl">🔴 Просрочено</div></div>
+      <div class="stat-box s-amber"><div class="stat-num" id="st-critical">0</div><div class="stat-lbl">🟠 Менее 3 мес.</div></div>
+      <div class="stat-box s-blue"><div class="stat-num" id="st-soon">0</div><div class="stat-lbl">🔵 3–6 месяцев</div></div>
+      <div class="stat-box s-green"><div class="stat-num" id="st-ok">0</div><div class="stat-lbl">🟢 Норма</div></div>
+      <div class="stat-box s-purple"><div class="stat-num" id="st-total">0</div><div class="stat-lbl">Всего записей</div></div>
+    </div>
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <div class="search-box">
+        <span style="color:#9ca3af;">🔍</span>
+        <input type="text" placeholder="ФИО, адрес, № счётчика..." oninput="dlFilter(this.value)">
+      </div>
+      <select class="fsel" onchange="dlFilterStatus(this.value)">
+        <option value="">Статус: все</option>
+        <option value="expired">🔴 Просрочено</option>
+        <option value="critical">🟠 Менее 3 мес.</option>
+        <option value="soon">🔵 3–6 месяцев</option>
+        <option value="ok">🟢 Норма</option>
+      </select>
+      <select class="fsel" onchange="dlFilterWater(this.value)">
+        <option value="">Вода: все</option>
+        <option value="х/в">🔵 х/в</option>
+        <option value="г/в">🔴 г/в</option>
+      </select>
+      <select class="fsel" id="dlSortSel" onchange="dlSort(this.value)">
+        <option value="deadline">По сроку (ближайший)</option>
+        <option value="fio">По ФИО</option>
+        <option value="year">По году выпуска</option>
+      </select>
+      <div class="toolbar-right">
+        <span style="font-size:11px;color:#6b7280;">Записей: <strong id="dl-count">0</strong></span>
+        <button class="btn btn-warn btn-sm" onclick="createOrdersForExpired()">📋 Создать заказы для просроченных</button>
+      </div>
+    </div>
+
+    <div class="table-area">
+      <div class="tbl-card">
+        <div class="tbl-head">
+          <span class="tbl-title">⏰ Сроки поверки счётчиков · Реестр 2026</span>
+          <div style="display:flex;gap:6px;align-items:center;font-size:11px;color:#6b7280;">
+            <span>Сегодня: <strong>05.07.2026</strong></span>
+            <span>·</span>
+            <span>Порог уведомления: <strong>3 мес.</strong></span>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr>
+              <th>№</th>
+              <th>ФИО абонента</th>
+              <th>Адрес</th>
+              <th>Тип прибора</th>
+              <th>№ счётчика</th>
+              <th>Год выпуска</th>
+              <th>Вода</th>
+              <th>Дата поверки</th>
+              <th>Срок очередной поверки</th>
+              <th>Осталось дней</th>
+              <th>Прогресс срока</th>
+              <th>Статус срока</th>
+              <th style="text-align:center;">Действия</th>
+            </tr></thead>
+            <tbody id="dlBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: АРХИВ СЕРТИФИКАТОВ ══ -->
+  <div class="tab-panel" id="panel-archive">
+    <div class="stats-strip">
+      <div class="stat-box s-blue"><div class="stat-num" id="ar-total">0</div><div class="stat-lbl">Всего в архиве</div></div>
+      <div class="stat-box s-green"><div class="stat-num" id="ar-2026">0</div><div class="stat-lbl">2026 год</div></div>
+      <div class="stat-box"><div class="stat-num" id="ar-2025">0</div><div class="stat-lbl">2025 год</div></div>
+      <div class="stat-box"><div class="stat-num" id="ar-older">0</div><div class="stat-lbl">Ранее</div></div>
+      <div class="stat-box s-green"><div class="stat-num" id="ar-paid">0</div><div class="stat-lbl">Оплачено</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <span style="color:#9ca3af;">🔍</span>
+        <input type="text" placeholder="ФИО, адрес, № счётчика..." oninput="arFilter(this.value)">
+      </div>
+      <select class="fsel" onchange="arFilterYear(this.value)">
+        <option value="">Год: все</option>
+        <option>2026</option><option>2025</option><option>2024</option>
+      </select>
+      <select class="fsel" onchange="arFilterSource(this.value)">
+        <option value="">Источник: все</option>
+        <option>САМИ</option><option>ВДК</option><option>ТЭЦ</option><option>Выездная</option>
+      </select>
+      <select class="fsel">
+        <option value="">Оплата: все</option>
+        <option>Оплачено</option><option>В ожидании</option>
+      </select>
+      <div class="toolbar-right">
+        <span style="font-size:11px;color:#6b7280;">В архиве: <strong id="ar-count">0</strong></span>
+        <button class="btn btn-outline btn-sm">📤 Экспорт в Excel</button>
+        <button class="btn btn-outline btn-sm">🖨 Печать</button>
+      </div>
+    </div>
+    <div class="table-area">
+      <div style="margin:10px 14px 4px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px;color:#92400e;display:flex;align-items:center;gap:8px;">
+        🗄 <strong>Архив</strong> — записи старше 30 дней автоматически перемещаются сюда из рабочего стола. Данные доступны только для просмотра.
+      </div>
+      <div class="tbl-card">
+        <div class="tbl-head">
+          <span class="tbl-title">🗄 Архив сертификатов поверки</span>
+          <span style="font-size:11px;color:#6b7280;background:#f3f4f6;padding:3px 10px;border-radius:20px;">Только просмотр</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr>
+              <th>№</th><th>ФИО абонента</th><th>Адрес</th><th>Тип прибора</th>
+              <th>№ счётчика</th><th>Год</th><th>Вода</th><th>Дата поверки</th>
+              <th>Действ. до</th><th>№ клейма</th><th>Показания м³</th>
+              <th>Источник</th><th>Оплата</th><th>Счёт</th><th>Архивировано</th>
+            </tr></thead>
+            <tbody id="arBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: АРХИВ ИЗВЕЩЕНИЙ ══ -->
+  <div class="tab-panel" id="panel-notif-archive">
+    <div class="stats-strip">
+      <div class="stat-box s-blue"><div class="stat-num" id="na-total">0</div><div class="stat-lbl">Всего в архиве</div></div>
+      <div class="stat-box s-green"><div class="stat-num" id="na-sent">0</div><div class="stat-lbl">Отправлено</div></div>
+      <div class="stat-box s-red"><div class="stat-num" id="na-unsent">0</div><div class="stat-lbl">Не отправлено</div></div>
+      <div class="stat-box"><div class="stat-num" id="na-2026">0</div><div class="stat-lbl">2026 год</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <span style="color:#9ca3af;">🔍</span>
+        <input type="text" placeholder="ФИО, № счётчика..." oninput="naFilter(this.value)">
+      </div>
+      <select class="fsel">
+        <option value="">Статус: все</option>
+        <option>Отправлено</option><option>Не отправлено</option>
+      </select>
+      <select class="fsel">
+        <option value="">Источник: все</option>
+        <option>САМИ</option><option>ВДК</option><option>ТЭЦ</option>
+      </select>
+      <div class="toolbar-right">
+        <button class="btn btn-outline btn-sm">📤 Экспорт</button>
+      </div>
+    </div>
+    <div class="table-area">
+      <div style="margin:10px 14px 4px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px;color:#92400e;display:flex;align-items:center;gap:8px;">
+        🗄 <strong>Архив извещений</strong> — извещения старше 30 дней. Доступны только для просмотра и поиска.
+      </div>
+      <div class="tbl-card">
+        <div class="tbl-head">
+          <span class="tbl-title">📭 Архив извещений</span>
+          <span style="font-size:11px;color:#6b7280;background:#f3f4f6;padding:3px 10px;border-radius:20px;">Только просмотр</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr>
+              <th>№</th><th>ФИО абонента</th><th>Адрес</th><th>№ счётчика</th>
+              <th>Дата поверки</th><th>Следующая поверка</th><th>Источник</th>
+              <th>Отправлено</th><th>Статус</th><th>Архивировано</th>
+            </tr></thead>
+            <tbody id="naBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: АВТО-ЗАКАЗЫ ══ -->
+  <div class="tab-panel" id="panel-orders-auto">
+    <div class="stats-strip">
+      <div class="stat-box s-red"><div class="stat-num" id="ao-new">0</div><div class="stat-lbl">Новых заказов</div></div>
+      <div class="stat-box s-amber"><div class="stat-num" id="ao-process">0</div><div class="stat-lbl">В работе</div></div>
+      <div class="stat-box s-green"><div class="stat-num" id="ao-done">0</div><div class="stat-lbl">Завершено</div></div>
+      <div class="stat-box s-blue"><div class="stat-num" id="ao-total">0</div><div class="stat-lbl">Всего</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <span style="color:#9ca3af;">🔍</span>
+        <input type="text" placeholder="ФИО, адрес, № счётчика..." oninput="aoFilter(this.value)">
+      </div>
+      <select class="fsel" onchange="aoFilterStatus(this.value)">
+        <option value="">Статус: все</option>
+        <option>Новый</option><option>В работе</option><option>Завершён</option>
+      </select>
+      <div class="toolbar-right">
+        <span style="font-size:11px;color:#6b7280;">Заказов: <strong id="ao-count">0</strong></span>
+        <button class="btn btn-primary btn-sm" onclick="openOrderModal(null)">+ Заказ вручную</button>
+      </div>
+    </div>
+    <div class="table-area">
+      <div style="margin:10px 14px 4px;padding:8px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;font-size:11px;color:#1e3a8a;display:flex;align-items:center;gap:8px;">
+        📋 <strong>Авто-заказы</strong> — создаются автоматически когда срок очередной поверки менее <strong>3 месяцев</strong>. Менеджер принимает, назначает мастера и выполняет.
+      </div>
+      <div class="tbl-card">
+        <div class="tbl-head">
+          <span class="tbl-title">📋 Заказы на замену/поверку счётчиков</span>
+          <button class="btn btn-warn btn-sm" onclick="createOrdersForExpired()">⚡ Обновить из реестра</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead><tr>
+              <th>№ заказа</th><th>Создан</th><th>ФИО абонента</th><th>Адрес</th>
+              <th>Тип прибора</th><th>№ счётчика</th><th>Срок поверки</th>
+              <th>Осталось дней</th><th>Причина</th><th>Мастер</th><th>Статус</th><th>Действия</th>
+            </tr></thead>
+            <tbody id="aoBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app-body -->
+
+<!-- MODAL: ДЕТАЛИ СЧЁТЧИКА -->
+<div class="overlay" id="dlOverlay" onclick="if(event.target===this)closeDlModal()">
+  <div class="modal">
+    <div class="m-head">
+      <h3 id="dlModalTitle">📋 Данные счётчика</h3>
+      <button class="m-close" onclick="closeDlModal()">✕</button>
+    </div>
+    <div class="m-body" id="dlModalBody"></div>
+    <div class="m-foot">
+      <button class="btn btn-primary" onclick="createOrderFromModal()">📋 Создать заказ на поверку</button>
+      <button class="btn btn-outline" onclick="closeDlModal()">Закрыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ЗАКАЗ -->
+<div class="overlay" id="orderOverlay" onclick="if(event.target===this)closeOrderModal()">
+  <div class="modal" style="width:540px;">
+    <div class="m-head">
+      <h3 id="orderModalTitle">📋 Заказ на поверку</h3>
+      <button class="m-close" onclick="closeOrderModal()">✕</button>
+    </div>
+    <div class="m-body">
+      <div class="info-box">ℹ️ Заказ создаётся на основе данных из реестра. Срок поверки приближается — необходимо назначить мастера и выполнить поверку.</div>
+      <div class="fg">
+        <div class="field"><label>ФИО абонента</label><input id="ord-fio" readonly style="background:#f9fafb;"></div>
+        <div class="field"><label>Адрес</label><input id="ord-addr" readonly style="background:#f9fafb;"></div>
+        <div class="field"><label>Тип прибора</label><input id="ord-type" readonly style="background:#f9fafb;"></div>
+        <div class="field"><label>№ счётчика</label><input id="ord-serial" readonly style="background:#f9fafb;font-family:monospace;"></div>
+        <div class="field"><label>Срок очередной поверки</label><input id="ord-deadline" readonly style="background:#f9fafb;font-weight:600;"></div>
+        <div class="field"><label>Осталось дней</label><input id="ord-days" readonly style="background:#f9fafb;font-weight:600;"></div>
+      </div>
+      <hr style="border:none;border-top:1px solid #f3f4f6;margin:14px 0;">
+      <div class="fg">
+        <div class="field"><label>Назначить мастера *</label>
+          <select id="ord-master">
+            <option value="">— выберите —</option>
+            <option>Ахметов Д.С.</option>
+            <option>Смирнов Д.В.</option>
+            <option>Кузьмина А.Н.</option>
+          </select>
+        </div>
+        <div class="field"><label>Плановая дата выезда</label>
+          <input type="date" id="ord-date" value="2026-07-10">
+        </div>
+        <div class="field"><label>Приоритет</label>
+          <select id="ord-priority">
+            <option>Высокий</option><option selected>Средний</option><option>Низкий</option>
+          </select>
+        </div>
+        <div class="field"><label>Статус</label>
+          <select id="ord-status">
+            <option>Новый</option><option>В работе</option><option>Завершён</option>
+          </select>
+        </div>
+        <div class="field full"><label>Комментарий</label>
+          <textarea id="ord-note" style="resize:vertical;min-height:52px;border:1px solid #d1d5db;border-radius:6px;padding:8px;font-family:inherit;" placeholder="Дополнительная информация..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn btn-primary" onclick="saveOrder()">💾 Создать заказ</button>
+      <button class="btn btn-outline" onclick="closeOrderModal()">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══ TODAY ══════════════════════════════════════════════════════
+const TODAY = new Date('2026-07-05');
+
+// ══ РЕЕСТР — данные из Word файла ═════════════════════════════
+const REGISTRY = [
+  {n:1,  fio:'Кулжанов',     addr:'м-в Карасу, дом 29, кв.7',        type:'СГВ-15', serial:'11607415',      year:2009, d1:'29.05.2026', d2:'29.05.2031', stamp:'0549179', water:'х/в', val:1329, note:'',    src:'САМИ', pay:'Оплачено', inv:'Каспи',  arDate:'30.06.2026'},
+  {n:2,  fio:'Кулжанов',     addr:'м-в Карасу, дом 29, кв.7',        type:'СГВ-15', serial:'11603249',      year:2009, d1:'29.05.2026', d2:'29.05.2031', stamp:'0549181', water:'х/в', val:774,  note:'',    src:'САМИ', pay:'Оплачено', inv:'Каспи',  arDate:'30.06.2026'},
+  {n:3,  fio:'Коканбаева',   addr:'мкр 5, дом 20/4, кв.38',          type:'СВК-15', serial:'1019047123206', year:2021, d1:'29.05.2026', d2:'29.05.2031', stamp:'0549182', water:'х/в', val:886,  note:'',    src:'САМИ', pay:'Оплачено', inv:'БЦК',    arDate:'30.06.2026'},
+  {n:4,  fio:'Тілеуберді',   addr:'мкр 10, дом 12, кв.82',           type:'СГВ-15', serial:'10194314',      year:2007, d1:'02.06.2026', d2:'02.06.2031', stamp:'0753001', water:'х/в', val:727,  note:'',    src:'САМИ', pay:'В ожидании',inv:'Наличка', arDate:'03.07.2026'},
+  {n:5,  fio:'Тілеуберді',   addr:'мкр 10, дом 12, кв.82',           type:'СГВ-15', serial:'10194335',      year:2007, d1:'02.06.2026', d2:'02.06.2031', stamp:'0753000', water:'х/в', val:1003, note:'',    src:'САМИ', pay:'В ожидании',inv:'Наличка', arDate:'03.07.2026'},
+  {n:6,  fio:'Тойбай',       addr:'мкр 3, дом 5, кв.92',             type:'СГВ-15', serial:'36435470',      year:2018, d1:'02.06.2026', d2:'02.06.2031', stamp:'0752999', water:'х/в', val:670,  note:'',    src:'САМИ', pay:'Оплачено', inv:'Каспи',  arDate:'03.07.2026'},
+  {n:7,  fio:'Цой',          addr:'ул. Айтеке би, дом 10, кв.40',    type:'СГВ-15', serial:'19023904',      year:2015, d1:'03.06.2026', d2:'03.06.2031', stamp:'0549183', water:'х/в', val:46,   note:'',    src:'САМИ', pay:'Оплачено', inv:'Каспи',  arDate:'04.07.2026'},
+  {n:8,  fio:'Цой',          addr:'ул. Айтеке би, дом 10, кв.40',    type:'СГВ-15', serial:'19023915',      year:2015, d1:'03.06.2026', d2:'03.06.2031', stamp:'0549185', water:'х/в', val:499,  note:'',    src:'САМИ', pay:'Оплачено', inv:'Каспи',  arDate:'04.07.2026'},
+  {n:9,  fio:'Абдуллаева',   addr:'ул. Толе би, дом 7, кв.17',       type:'СГВ-15', serial:'14861223',      year:2011, d1:'04.06.2026', d2:'04.06.2031', stamp:'0549184', water:'г/в', val:519,  note:'ТТЭ', src:'САМИ', pay:'В ожидании',inv:'БЦК',    arDate:'05.07.2026'},
+  {n:10, fio:'Тургинбекова', addr:'мкр 4, дом 18, кв.78',            type:'СГВ-15', serial:'2800910',       year:2005, d1:'04.06.2026', d2:'04.06.2031', stamp:'0752998', water:'х/в', val:1211, note:'',    src:'САМИ', pay:'Оплачено', inv:'Каспи',  arDate:'05.07.2026'},
+  {n:11, fio:'Тулегенов',    addr:'Тонкуруш, дом 12, кв.32',         type:'СГВ-15', serial:'6103571',       year:2004, d1:'05.06.2026', d2:'05.06.2031', stamp:'0752997', water:'х/в', val:2060, note:'',    src:'САМИ', pay:'Оплачено', inv:'Наличка', arDate:'05.07.2026'},
+  {n:12, fio:'Тулегенов',    addr:'Тонкуруш, дом 12, кв.32',         type:'СГВ-15', serial:'6101291',       year:2004, d1:'05.06.2026', d2:'05.06.2031', stamp:'0752996', water:'х/в', val:609,  note:'',    src:'САМИ', pay:'Оплачено', inv:'Наличка', arDate:'05.07.2026'},
+  {n:13, fio:'Попова',       addr:'мкр 9, дом 67, кв.27',            type:'СГВ-15', serial:'42465817',      year:2020, d1:'08.06.2026', d2:'08.06.2031', stamp:'0549180', water:'г/в', val:46,   note:'ТТЭ', src:'САМИ', pay:'В ожидании',inv:'Каспи',  arDate:null},
+  {n:14, fio:'Алдабергенов', addr:'ул. Железнодорожная, дом 32',      type:'СГВ-15', serial:'41349195',      year:2020, d1:'08.06.2026', d2:'08.06.2031', stamp:'0549186', water:'х/в', val:1063, note:'',    src:'САМИ', pay:'В ожидании',inv:'БЦК',    arDate:null},
+  {n:15, fio:'Раймбекова',   addr:'Кошеней, дом 43/1, кв.22',        type:'СГВ-15', serial:'41640214',      year:2020, d1:'08.06.2026', d2:'08.06.2031', stamp:'0549187', water:'г/в', val:227,  note:'ТТЭ', src:'САМИ', pay:'В ожидании',inv:'БЦК',    arDate:null},
+  {n:16, fio:'Раймбекова',   addr:'Кошеней, дом 43/1, кв.22',        type:'СГВ-15', serial:'41641151',      year:2020, d1:'08.06.2026', d2:'08.06.2031', stamp:'0549189', water:'г/в', val:192,  note:'ТТЭ', src:'САМИ', pay:'В ожидании',inv:'БЦК',    arDate:null},
+  {n:17, fio:'Кашульская',   addr:'мкр 10, дом 3, кв.148',           type:'СГВ-15', serial:'24878564',      year:2016, d1:'09.06.2026', d2:'09.06.2031', stamp:'0752995', water:'г/в', val:587,  note:'ТТЭ', src:'САМИ', pay:'Оплачено', inv:'Каспи',  arDate:null},
+  {n:18, fio:'Укиева',       addr:'ул. Казыбек би, дом 142, кв.59',  type:'СГВ-15', serial:'42428893',      year:2020, d1:'09.06.2026', d2:'09.06.2031', stamp:'0752994', water:'г/в', val:121,  note:'ТТЭ', src:'САМИ', pay:'В ожидании',inv:'Каспи',  arDate:null},
+  {n:19, fio:'Баялы',        addr:'мкр 4, дом 21, кв.69',            type:'СГВ-15', serial:'39679805',      year:2019, d1:'11.06.2026', d2:'11.06.2031', stamp:'0752973', water:'х/в', val:410,  note:'',    src:'САМИ', pay:'Оплачено', inv:'Наличка', arDate:null},
+  // Старые записи для архива (прошлые годы)
+  {n:20, fio:'Сейткали',     addr:'мкр 7, дом 3, кв.14',             type:'СГВ-15', serial:'30012345',      year:2010, d1:'15.01.2025', d2:'15.01.2030', stamp:'0430001', water:'х/в', val:3201, note:'',    src:'САМИ', pay:'Оплачено', inv:'Каспи',  arDate:'16.02.2025'},
+  {n:21, fio:'Бекова',       addr:'ул. Сейфуллина, дом 56, кв.3',    type:'СВК-15', serial:'20056789',      year:2012, d1:'20.02.2025', d2:'20.02.2030', stamp:'0430002', water:'г/в', val:887,  note:'',    src:'САМИ', pay:'Оплачено', inv:'БЦК',    arDate:'22.03.2025'},
+  {n:22, fio:'Омаров',       addr:'пр. Достык, дом 12, кв.89',       type:'СГВ-15', serial:'15098765',      year:2008, d1:'10.03.2024', d2:'10.03.2029', stamp:'0320015', water:'х/в', val:4512, note:'',    src:'ВДК',  pay:'Оплачено', inv:'БЦК',    arDate:'10.04.2024'},
+  {n:23, fio:'Садыкова',     addr:'мкр 12, дом 8, кв.22',            type:'СГВ-15', serial:'11234567',      year:2006, d1:'05.11.2024', d2:'05.11.2029', stamp:'0410089', water:'х/в', val:6780, note:'',    src:'САМИ', pay:'Оплачено', inv:'Каспи',  arDate:'05.12.2024'},
+];
+
+// Derive deadline status from d2 date
+function parseDate(str) {
+  const [d,m,y] = str.split('.');
+  return new Date(+y, +m-1, +d);
+}
+function daysLeft(d2str) {
+  const deadline = parseDate(d2str);
+  return Math.round((deadline - TODAY) / 86400000);
+}
+function dlStatus(days) {
+  if (days < 0)    return {key:'expired',  label:'🔴 Просрочено',   cls:'b-red'};
+  if (days < 90)   return {key:'critical', label:'🟠 Менее 3 мес.', cls:'b-amber'};
+  if (days < 180)  return {key:'soon',     label:'🔵 3–6 месяцев',  cls:'b-blue'};
+  return               {key:'ok',       label:'🟢 Норма',        cls:'b-green'};
+}
+function progColor(days) {
+  if (days<0)   return '#dc2626';
+  if (days<90)  return '#f59e0b';
+  if (days<180) return '#3b82f6';
+  return '#22c55e';
+}
+
+// Enrich registry
+const DATA = REGISTRY.map(r => {
+  const days = daysLeft(r.d2);
+  const st   = dlStatus(days);
+  return {...r, days, st};
+});
+
+// ── DEADLINES ────────────────────────────────────────────────
+let dlFilters = {q:'', status:'', water:''};
+let dlSortBy  = 'deadline';
+
+function dlGetRows() {
+  return DATA.filter(r => {
+    if (dlFilters.q && !`${r.fio} ${r.addr} ${r.serial}`.toLowerCase().includes(dlFilters.q)) return false;
+    if (dlFilters.status && r.st.key !== dlFilters.status) return false;
+    if (dlFilters.water  && r.water !== dlFilters.water)   return false;
+    return true;
+  }).sort((a,b) => {
+    if (dlSortBy==='deadline') return a.days-b.days;
+    if (dlSortBy==='fio')      return a.fio.localeCompare(b.fio);
+    if (dlSortBy==='year')     return a.year-b.year;
+    return 0;
+  });
+}
+
+function renderDeadlines() {
+  const rows = dlGetRows();
+  const tbody = document.getElementById('dlBody');
+  document.getElementById('dl-count').textContent = rows.length;
+
+  const expired  = DATA.filter(r=>r.st.key==='expired').length;
+  const critical = DATA.filter(r=>r.st.key==='critical').length;
+  const soon     = DATA.filter(r=>r.st.key==='soon').length;
+  const ok       = DATA.filter(r=>r.st.key==='ok').length;
+  document.getElementById('st-expired').textContent  = expired;
+  document.getElementById('st-critical').textContent = critical;
+  document.getElementById('st-soon').textContent     = soon;
+  document.getElementById('st-ok').textContent       = ok;
+  document.getElementById('st-total').textContent    = DATA.length;
+  document.getElementById('tc-critical').textContent = expired+critical;
+  document.getElementById('tc-soon').textContent     = soon;
+
+  // Total срок службы = 5 лет с даты поверки
+  tbody.innerHTML = rows.map(r => {
+    const totalDays = 5*365;
+    const elapsed   = totalDays - r.days;
+    const pct       = Math.min(100, Math.max(0, Math.round(elapsed/totalDays*100)));
+    const rowCls = r.st.key==='expired'?'row-critical':r.st.key==='critical'?'row-warn':r.st.key==='ok'?'row-ok':'';
+    return `<tr class="${rowCls}">
+      <td style="color:#9ca3af;font-size:11px;">${r.n}</td>
+      <td style="font-weight:600;">${r.fio}</td>
+      <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;">${r.addr}</td>
+      <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:10px;">${r.type}</code></td>
+      <td style="font-family:monospace;font-size:11px;">${r.serial}</td>
+      <td style="color:#6b7280;">${r.year}</td>
+      <td>${r.water==='г/в'?'<span class="badge b-hot">🔴 г/в</span>':'<span class="badge b-cold">🔵 х/в</span>'}</td>
+      <td style="font-size:11px;">${r.d1}</td>
+      <td style="font-weight:700;font-size:12px;${r.days<90?'color:#dc2626':r.days<180?'color:#d97706':'color:#059669'}">${r.d2}</td>
+      <td style="font-weight:700;text-align:center;${r.days<0?'color:#dc2626':r.days<90?'color:#d97706':'color:#374151'}">
+        ${r.days<0?`<strong>+${Math.abs(r.days)} просроч.</strong>`:`${r.days} дн.`}
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="prog-wrap"><div class="prog-bar" style="width:${pct}%;background:${progColor(r.days)};"></div></div>
+          <span style="font-size:10px;color:#6b7280;">${pct}%</span>
+        </div>
+      </td>
+      <td><span class="badge ${r.st.cls}">${r.st.label}</span></td>
+      <td style="text-align:center;">
+        <div style="display:flex;gap:4px;justify-content:center;">
+          <button onclick="openDlModal(${r.n})" style="border:none;background:none;cursor:pointer;font-size:13px;padding:3px 5px;border-radius:4px;" title="Детали">👁</button>
+          <button onclick="openOrderModal(${r.n})" style="border:none;background:${r.days<90?'#fee2e2':r.days<180?'#fef3c7':'#f3f4f6'};cursor:pointer;font-size:11px;padding:3px 8px;border-radius:4px;font-weight:600;color:${r.days<90?'#991b1b':r.days<180?'#92400e':'#374151'};border:1px solid ${r.days<90?'#fca5a5':r.days<180?'#fde68a':'#e5e7eb'};" title="Создать заказ">
+            📋 Заказ
+          </button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function dlFilter(q)      { dlFilters.q = q.toLowerCase(); renderDeadlines(); }
+function dlFilterStatus(v){ dlFilters.status = v; renderDeadlines(); }
+function dlFilterWater(v) { dlFilters.water  = v; renderDeadlines(); }
+function dlSort(v)        { dlSortBy = v; renderDeadlines(); }
+
+// ── ARCHIVE CERTS ─────────────────────────────────────────────
+let arFilters = {q:'', year:'', source:''};
+const ARCHIVE = DATA.filter(r => r.arDate !== null);
+
+function renderArchive() {
+  const rows = ARCHIVE.filter(r => {
+    if (arFilters.q && !`${r.fio} ${r.addr} ${r.serial}`.toLowerCase().includes(arFilters.q)) return false;
+    if (arFilters.year && !r.arDate?.includes('.'+arFilters.year)) return false;
+    if (arFilters.source && r.src !== arFilters.source) return false;
+    return true;
+  });
+  const tbody = document.getElementById('arBody');
+  document.getElementById('ar-total').textContent = ARCHIVE.length;
+  document.getElementById('ar-2026').textContent  = ARCHIVE.filter(r=>r.arDate?.includes('2026')).length;
+  document.getElementById('ar-2025').textContent  = ARCHIVE.filter(r=>r.arDate?.includes('2025')).length;
+  document.getElementById('ar-older').textContent = ARCHIVE.filter(r=>r.arDate&&!r.arDate.includes('2026')&&!r.arDate.includes('2025')).length;
+  document.getElementById('ar-paid').textContent  = ARCHIVE.filter(r=>r.pay==='Оплачено').length;
+  document.getElementById('ar-count').textContent = rows.length;
+  document.getElementById('tc-archive').textContent = ARCHIVE.length;
+
+  const invBadge = v => {
+    const m={Каспи:'background:#fce7f3;color:#9d174d',БЦК:'background:#ede9fe;color:#5b21b6',Наличка:'background:#d1fae5;color:#065f46'};
+    const i={Каспи:'🍊',БЦК:'🏦',Наличка:'💵'};
+    return `<span class="badge" style="${m[v]||''}">${i[v]||''} ${v}</span>`;
+  };
+
+  tbody.innerHTML = rows.map(r => `<tr>
+    <td style="color:#9ca3af;font-size:11px;">${r.n}</td>
+    <td style="font-weight:600;">${r.fio}</td>
+    <td style="font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;">${r.addr}</td>
+    <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:10px;">${r.type}</code></td>
+    <td style="font-family:monospace;font-size:11px;">${r.serial}</td>
+    <td style="color:#6b7280;">${r.year}</td>
+    <td>${r.water==='г/в'?'<span class="badge b-hot">🔴 г/в</span>':'<span class="badge b-cold">🔵 х/в</span>'}</td>
+    <td style="font-size:11px;">${r.d1}</td>
+    <td style="font-size:11px;font-weight:600;color:#059669;">${r.d2}</td>
+    <td style="font-family:monospace;font-size:11px;">${r.stamp}</td>
+    <td style="text-align:right;font-weight:600;">${r.val.toLocaleString('ru')}</td>
+    <td><span class="badge b-blue">${r.src}</span></td>
+    <td><span class="badge ${r.pay==='Оплачено'?'b-green':'b-amber'}">${r.pay==='Оплачено'?'✓':''} ${r.pay}</span></td>
+    <td>${invBadge(r.inv)}</td>
+    <td style="font-size:11px;color:#6b7280;">${r.arDate}</td>
+  </tr>`).join('');
+}
+
+function arFilter(q)       { arFilters.q = q.toLowerCase(); renderArchive(); }
+function arFilterYear(v)   { arFilters.year = v; renderArchive(); }
+function arFilterSource(v) { arFilters.source = v; renderArchive(); }
+
+// ── ARCHIVE NOTIFS ────────────────────────────────────────────
+const NOTIF_ARCHIVE = ARCHIVE.map((r,i) => ({
+  ...r, sent: i<8 ? r.d1 : '—', status: i<8 ? 'Отправлено' : 'Не отправлено'
+}));
+
+function renderNotifArchive() {
+  const tbody = document.getElementById('naBody');
+  document.getElementById('na-total').textContent  = NOTIF_ARCHIVE.length;
+  document.getElementById('na-sent').textContent   = NOTIF_ARCHIVE.filter(r=>r.status==='Отправлено').length;
+  document.getElementById('na-unsent').textContent = NOTIF_ARCHIVE.filter(r=>r.status!=='Отправлено').length;
+  document.getElementById('na-2026').textContent   = NOTIF_ARCHIVE.filter(r=>r.arDate?.includes('2026')).length;
+  document.getElementById('tc-notif-archive').textContent = NOTIF_ARCHIVE.length;
+
+  tbody.innerHTML = NOTIF_ARCHIVE.map(r=>`<tr>
+    <td style="color:#9ca3af;font-size:11px;">${r.n}</td>
+    <td style="font-weight:600;">${r.fio}</td>
+    <td style="font-size:11px;max-width:140px;overflow:hidden;text-overflow:ellipsis;">${r.addr}</td>
+    <td style="font-family:monospace;font-size:11px;">${r.serial}</td>
+    <td style="font-size:11px;">${r.d1}</td>
+    <td style="font-size:11px;font-weight:600;">${r.d2}</td>
+    <td><span class="badge b-blue">${r.src}</span></td>
+    <td style="font-size:11px;">${r.sent}</td>
+    <td><span class="badge ${r.status==='Отправлено'?'b-green':'b-red'}">${r.status==='Отправлено'?'✓ ':''} ${r.status}</span></td>
+    <td style="font-size:11px;color:#6b7280;">${r.arDate}</td>
+  </tr>`).join('');
+}
+function naFilter(q){ renderNotifArchive(); }
+
+// ── AUTO ORDERS ────────────────────────────────────────────────
+let autoOrders = [];
+let aoFilters  = {q:'', status:''};
+
+function buildAutoOrders() {
+  // Auto-create orders for expired + critical (< 90 days)
+  const candidates = DATA.filter(r => r.days < 90);
+  autoOrders = candidates.map((r, i) => ({
+    ordId: `АВТ-${String(i+1).padStart(3,'0')}`,
+    created: '05.07.2026',
+    fio: r.fio, addr: r.addr, type: r.type, serial: r.serial,
+    deadline: r.d2, days: r.days,
+    reason: r.days < 0 ? '🔴 Просрочено' : '🟠 Менее 3 месяцев',
+    master: '',
+    status: r.days < 0 ? 'Новый' : 'Новый',
+    note: '',
+    n: r.n,
+  }));
+  document.getElementById('tc-orders').textContent = autoOrders.length;
+}
+
+function renderAutoOrders() {
+  const rows = autoOrders.filter(r => {
+    if (aoFilters.q && !`${r.fio} ${r.addr} ${r.serial}`.toLowerCase().includes(aoFilters.q)) return false;
+    if (aoFilters.status && r.status !== aoFilters.status) return false;
+    return true;
+  });
+  const tbody = document.getElementById('aoBody');
+  document.getElementById('ao-count').textContent  = rows.length;
+  document.getElementById('ao-new').textContent     = autoOrders.filter(r=>r.status==='Новый').length;
+  document.getElementById('ao-process').textContent = autoOrders.filter(r=>r.status==='В работе').length;
+  document.getElementById('ao-done').textContent    = autoOrders.filter(r=>r.status==='Завершён').length;
+  document.getElementById('ao-total').textContent   = autoOrders.length;
+
+  if (!rows.length) { tbody.innerHTML=`<tr><td colspan="12" style="text-align:center;padding:24px;color:#9ca3af;">Нет авто-заказов</td></tr>`; return; }
+
+  tbody.innerHTML = rows.map((r,i) => `<tr class="${r.days<0?'row-critical':'row-warn'}">
+    <td style="font-family:monospace;font-size:11px;font-weight:600;color:#1d4ed8;">${r.ordId}</td>
+    <td style="font-size:11px;color:#6b7280;">${r.created}</td>
+    <td style="font-weight:600;">${r.fio}</td>
+    <td style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;">${r.addr}</td>
+    <td><code style="background:#f3f4f6;padding:2px 5px;border-radius:4px;font-size:10px;">${r.type}</code></td>
+    <td style="font-family:monospace;font-size:11px;">${r.serial}</td>
+    <td style="font-size:11px;font-weight:700;color:#dc2626;">${r.deadline}</td>
+    <td style="font-weight:700;color:#dc2626;text-align:center;">${r.days<0?`<strong>+${Math.abs(r.days)}❗</strong>`:`${r.days} дн.`}</td>
+    <td><span class="badge ${r.days<0?'b-red':'b-amber'}">${r.reason}</span></td>
+    <td style="font-size:11px;color:${r.master?'#374151':'#9ca3af'};">${r.master||'— не назначен —'}</td>
+    <td><span class="badge ${r.status==='Новый'?'b-blue':r.status==='В работе'?'b-amber':'b-green'}">${r.status}</span></td>
+    <td>
+      <div style="display:flex;gap:4px;">
+        <button onclick="openOrderModal(${r.n})" style="border:none;background:#eff6ff;cursor:pointer;font-size:11px;padding:3px 8px;border-radius:4px;font-weight:600;color:#1d4ed8;border:1px solid #bfdbfe;">✏️ Назначить</button>
+      </div>
+    </td>
+  </tr>`).join('');
+}
+
+function createOrdersForExpired() {
+  buildAutoOrders();
+  renderAutoOrders();
+  switchTab('orders-auto', document.querySelectorAll('.mtab')[3]);
+  showToast(`📋 Создано ${autoOrders.length} авто-заказов`);
+}
+
+function aoFilter(q)       { aoFilters.q = q.toLowerCase(); renderAutoOrders(); }
+function aoFilterStatus(v) { aoFilters.status = v; renderAutoOrders(); }
+
+// ── MODAL: DETAIL ──────────────────────────────────────────────
+let dlModalRow = null;
+function openDlModal(n) {
+  const r = DATA.find(x=>x.n===n); if(!r) return;
+  dlModalRow = r;
+  document.getElementById('dlModalTitle').innerHTML = `${r.st.cls==='b-red'?'🔴':r.st.cls==='b-amber'?'🟠':r.st.cls==='b-blue'?'🔵':'🟢'} ${r.fio} — ${r.serial}`;
+  const warnBlock = r.days < 0
+    ? `<div class="crit-box">🚨 <div><strong>ПРОСРОЧЕНО!</strong> Срок поверки истёк ${Math.abs(r.days)} дней назад. Необходимо немедленно назначить поверку.</div></div>`
+    : r.days < 90
+    ? `<div class="warn-box">⚠️ <div><strong>Срок истекает менее чем через 3 месяца.</strong> Рекомендуется создать заказ на поверку.</div></div>`
+    : `<div class="info-box">ℹ️ Срок поверки в норме. До очередной поверки ${r.days} дней.</div>`;
+  document.getElementById('dlModalBody').innerHTML = `
+    ${warnBlock}
+    <div class="sec-label">📋 Данные из реестра</div>
+    <div class="detail-grid">
+      <div class="detail-item"><div class="dl">ФИО абонента</div><div class="dv">${r.fio}</div></div>
+      <div class="detail-item"><div class="dl">Адрес</div><div class="dv" style="font-size:12px;">${r.addr}</div></div>
+      <div class="detail-item"><div class="dl">Тип прибора</div><div class="dv">${r.type}</div></div>
+      <div class="detail-item"><div class="dl">№ счётчика</div><div class="dv" style="font-family:monospace;">${r.serial}</div></div>
+      <div class="detail-item"><div class="dl">Год выпуска</div><div class="dv">${r.year} г. (${2026-r.year} лет)</div></div>
+      <div class="detail-item"><div class="dl">Тип воды</div><div class="dv">${r.water}</div></div>
+      <div class="detail-item"><div class="dl">Дата поверки</div><div class="dv">${r.d1}</div></div>
+      <div class="detail-item"><div class="dl">Показания м³</div><div class="dv">${r.val.toLocaleString('ru')}</div></div>
+    </div>
+    <div class="sec-label">⏰ Срок очередной поверки</div>
+    <div class="detail-grid">
+      <div class="detail-item" style="${r.days<0?'background:#fff1f2;border-color:#fca5a5':r.days<90?'background:#fffbeb;border-color:#fde68a':'background:#f0fdf4;border-color:#a7f3d0'}">
+        <div class="dl">Дата очередной поверки</div>
+        <div class="dv" style="font-size:16px;color:${r.days<0?'#dc2626':r.days<90?'#d97706':'#059669'}">${r.d2}</div>
+      </div>
+      <div class="detail-item" style="${r.days<0?'background:#fff1f2;border-color:#fca5a5':r.days<90?'background:#fffbeb;border-color:#fde68a':'background:#f0fdf4;border-color:#a7f3d0'}">
+        <div class="dl">Осталось дней</div>
+        <div class="dv" style="font-size:16px;color:${r.days<0?'#dc2626':r.days<90?'#d97706':'#059669'}">${r.days<0?`Просрочено на ${Math.abs(r.days)} дн.`:`${r.days} дней`}</div>
+      </div>
+      <div class="detail-item"><div class="dl">№ клейма</div><div class="dv" style="font-family:monospace;">${r.stamp}</div></div>
+      <div class="detail-item"><div class="dl">Статус срока</div><div class="dv"><span class="badge ${r.st.cls}">${r.st.label}</span></div></div>
+    </div>`;
+  document.getElementById('dlOverlay').classList.add('open');
+}
+function closeDlModal() { document.getElementById('dlOverlay').classList.remove('open'); dlModalRow=null; }
+function createOrderFromModal() { if(dlModalRow){ closeDlModal(); openOrderModal(dlModalRow.n); } }
+
+// ── MODAL: ORDER ───────────────────────────────────────────────
+let orderRow = null;
+function openOrderModal(n) {
+  const r = n ? DATA.find(x=>x.n===n) : null;
+  orderRow = r;
+  document.getElementById('orderModalTitle').textContent = r ? `📋 Заказ — ${r.fio}` : '📋 Новый заказ';
+  document.getElementById('ord-fio').value      = r?.fio || '';
+  document.getElementById('ord-addr').value     = r?.addr || '';
+  document.getElementById('ord-type').value     = r?.type || '';
+  document.getElementById('ord-serial').value   = r?.serial || '';
+  document.getElementById('ord-deadline').value = r?.d2 || '';
+  document.getElementById('ord-days').value     = r ? (r.days<0?`Просрочено на ${Math.abs(r.days)} дн.`:`${r.days} дней`) : '';
+  document.getElementById('ord-note').value     = '';
+  document.getElementById('ord-master').value   = '';
+  document.getElementById('orderOverlay').classList.add('open');
+}
+function closeOrderModal() { document.getElementById('orderOverlay').classList.remove('open'); orderRow=null; }
+function saveOrder() {
+  const master = document.getElementById('ord-master').value;
+  if (!master) { showToast('⚠️ Выберите мастера'); return; }
+  // Update in autoOrders if exists
+  if (orderRow) {
+    const idx = autoOrders.findIndex(o=>o.n===orderRow.n);
+    if (idx>=0) {
+      autoOrders[idx].master = master;
+      autoOrders[idx].status = 'В работе';
+    } else {
+      autoOrders.push({
+        ordId:`МАН-${String(autoOrders.length+1).padStart(3,'0')}`,
+        created:'05.07.2026', fio:orderRow.fio, addr:orderRow.addr,
+        type:orderRow.type, serial:orderRow.serial,
+        deadline:orderRow.d2, days:orderRow.days,
+        reason: orderRow.days<0?'🔴 Просрочено':'📋 Ручной заказ',
+        master, status:'В работе', note:document.getElementById('ord-note').value, n:orderRow.n,
+      });
+    }
+  }
+  closeOrderModal();
+  renderAutoOrders();
+  document.getElementById('tc-orders').textContent = autoOrders.length;
+  showToast(`✅ Заказ создан → назначен: ${master}`);
+}
+
+// ── TABS ───────────────────────────────────────────────────────
+function switchTab(id, el) {
+  document.querySelectorAll('.mtab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-'+id).classList.add('active');
+  const labels = {deadlines:'Сроки счётчиков',archive:'Архив сертификатов','notif-archive':'Архив извещений','orders-auto':'Авто-заказы'};
+  document.getElementById('currentTab').textContent = labels[id]||id;
+}
+
+// ── TOAST ──────────────────────────────────────────────────────
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ── INIT ───────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded',()=>{
+  renderDeadlines();
+  renderArchive();
+  renderNotifArchive();
+  buildAutoOrders();
+  renderAutoOrders();
+});
+</script>
+</body>
+</html>

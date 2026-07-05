@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Сертификаты — САМИ · Водоканал ERP</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f5f6fa; color: #1a1a2e; font-size: 13px; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: #fff; border-bottom: 1px solid #e5e7eb;
+    padding: 0 20px; height: 50px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .logo { font-weight: 700; font-size: 14px; color: #1a56db; }
+  .breadcrumb { color: #6b7280; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+  .breadcrumb span { color: #9ca3af; }
+  .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    background: #fff; border-bottom: 1px solid #e5e7eb;
+    padding: 10px 20px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  }
+  .toolbar-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .toolbar-right { display: flex; align-items: center; gap: 8px; }
+  .btn { padding: 7px 14px; border-radius: 6px; font-size: 12px; border: none; cursor: pointer; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .btn-primary { background: #1a56db; color: #fff; }
+  .btn-primary:hover { background: #1344b8; }
+  .btn-outline { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+  .btn-outline:hover { background: #f9fafb; }
+  .btn-sm { padding: 5px 10px; font-size: 11px; }
+  .search-box {
+    display: flex; align-items: center; gap: 6px;
+    border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px;
+    background: #fff; min-width: 220px;
+  }
+  .search-box input { border: none; outline: none; font-size: 12px; width: 100%; color: #374151; background: transparent; }
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 10px; border-radius: 20px; font-size: 11px; font-weight: 500;
+    border: 1px solid #d1d5db; background: #fff; cursor: pointer;
+  }
+  .filter-chip.active { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+  select.filter-select {
+    border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px;
+    font-size: 12px; color: #374151; background: #fff; cursor: pointer; outline: none;
+  }
+
+  /* ── STATS ── */
+  .stats-bar {
+    display: flex; gap: 1px; background: #e5e7eb;
+    border-bottom: 1px solid #e5e7eb; border-top: 1px solid #e5e7eb;
+  }
+  .stat-item { background: #fff; flex: 1; padding: 10px 16px; text-align: center; }
+  .stat-num { font-size: 20px; font-weight: 700; color: #111827; }
+  .stat-lbl { font-size: 10px; color: #6b7280; margin-top: 1px; }
+  .stat-item.warn .stat-num { color: #d97706; }
+  .stat-item.ok .stat-num { color: #059669; }
+  .stat-item.err .stat-num { color: #dc2626; }
+  .stat-item.blue .stat-num { color: #1d4ed8; }
+
+  /* ── TABLE CONTAINER ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 1500px; }
+  thead { position: sticky; top: 50px; z-index: 10; }
+  thead tr { background: #f9fafb; }
+  th {
+    padding: 9px 10px; text-align: left; font-size: 10px; color: #6b7280;
+    font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+    border-bottom: 2px solid #e5e7eb; border-right: 1px solid #f3f4f6;
+    white-space: nowrap; user-select: none; cursor: pointer;
+  }
+  th:hover { background: #f0f5ff; color: #1d4ed8; }
+  th.sorted { background: #eff6ff; color: #1d4ed8; }
+  td {
+    padding: 9px 10px; border-bottom: 1px solid #f3f4f6;
+    border-right: 1px solid #f9f9f9; vertical-align: middle;
+    white-space: nowrap;
+  }
+  tr:hover td { background: #fafafa; }
+  tr.selected td { background: #eff6ff; }
+  tr.row-hot td { background: #fff7ed; } /* ТТЭ строки */
+
+  /* ── BADGES ── */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  /* Операция */
+  .b-work   { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  .b-ktrm   { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+  /* Оплата */
+  .b-paid   { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+  .b-wait   { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+  /* Счёт */
+  .b-kaspi  { background: #fce7f3; color: #9d174d; border: 1px solid #f9a8d4; }
+  .b-bck    { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
+  .b-cash   { background: #ecfdf5; color: #064e3b; border: 1px solid #6ee7b7; }
+  /* Вода */
+  .b-cold   { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+  .b-hot    { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+  /* Пломба */
+  .b-yes    { background: #d1fae5; color: #065f46; }
+  /* Срок */
+  .b-valid  { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+  .b-warn   { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+  .b-exp    { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+  /* ── DROPDOWN ── */
+  .dd-wrap { position: relative; display: inline-block; }
+  .dd-menu {
+    display: none; position: absolute; top: 110%; left: 0; z-index: 200;
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.1); min-width: 160px; padding: 4px 0;
+  }
+  .dd-wrap:focus-within .dd-menu,
+  .dd-wrap.open .dd-menu { display: block; }
+  .dd-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 14px; font-size: 12px; color: #374151;
+    cursor: pointer; border: none; background: none; width: 100%; text-align: left;
+  }
+  .dd-item:hover { background: #f0f5ff; color: #1d4ed8; }
+  .dd-sep { height: 1px; background: #f3f4f6; margin: 4px 0; }
+
+  /* ── INLINE STATUS EDIT ── */
+  .status-btn {
+    border: none; border-radius: 20px; cursor: pointer;
+    font-size: 11px; font-weight: 600; padding: 3px 9px;
+    display: inline-flex; align-items: center; gap: 4px;
+    transition: opacity .15s;
+  }
+  .status-btn:hover { opacity: .8; }
+  .status-popup {
+    display: none; position: absolute; z-index: 300;
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,.12); padding: 6px;
+    min-width: 160px;
+  }
+  .status-popup.open { display: block; }
+  .sp-item {
+    padding: 6px 10px; border-radius: 6px; cursor: pointer;
+    font-size: 12px; color: #374151; display: flex; align-items: center; gap: 6px;
+  }
+  .sp-item:hover { background: #f0f5ff; }
+
+  /* ── PAGINATION ── */
+  .pagination-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; background: #fff; border-top: 1px solid #e5e7eb;
+    font-size: 12px; color: #6b7280;
+  }
+  .page-btns { display: flex; gap: 4px; }
+  .page-btn {
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid #e5e7eb;
+    background: #fff; cursor: pointer; font-size: 12px; display: grid; place-items: center;
+  }
+  .page-btn.active { background: #1a56db; color: #fff; border-color: #1a56db; }
+  .page-btn:hover:not(.active) { background: #f0f5ff; }
+
+  /* ── ROW NUMBER ── */
+  .row-num { color: #9ca3af; font-size: 11px; }
+
+  /* ── MODAL (Детали записи) ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4);
+    z-index: 500; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 12px; width: 640px; max-width: 95vw;
+    max-height: 85vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  }
+  .modal-header {
+    padding: 16px 20px; border-bottom: 1px solid #e5e7eb;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-header h3 { font-size: 15px; font-weight: 700; }
+  .modal-close { border: none; background: none; cursor: pointer; font-size: 18px; color: #6b7280; }
+  .modal-body { padding: 20px; }
+  .mfield-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+  .mfield { display: flex; flex-direction: column; gap: 4px; }
+  .mfield label { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .mfield span { font-size: 13px; color: #111827; font-weight: 500; }
+  .modal-actions { display: flex; gap: 8px; padding: 14px 20px; border-top: 1px solid #e5e7eb; background: #f9fafb; }
+
+  /* ── COLUMN GROUP HEADERS ── */
+  .cg-info  { background: #f9fafb; }
+  .cg-oper  { background: #eff6ff; }
+  .cg-pay   { background: #f0fdf4; }
+  .cg-inv   { background: #fdf4ff; }
+  .cg-water { background: #fff7ed; }
+  th.cg-oper { color: #1d4ed8; }
+  th.cg-pay  { color: #065f46; }
+  th.cg-inv  { color: #7c3aed; }
+
+  .col-group-header th { font-size: 11px; font-weight: 700; text-align: center; letter-spacing: .03em; border-bottom: 1px solid #e5e7eb; padding: 6px 10px; }
+
+  /* main app wrapper */
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .app-content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+  .table-container { flex: 1; overflow: auto; }
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">💧 Водоканал ERP</div>
+    <div class="breadcrumb">
+      <span>Поверка</span> › <span>САМИ</span> › <strong style="color:#374151">Сертификат</strong>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-outline btn-sm">📤 Экспорт</button>
+    <button class="btn btn-primary btn-sm" onclick="openNew()">+ Новый сертификат</button>
+  </div>
+</div>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat-item"><div class="stat-num">19</div><div class="stat-lbl">Всего записей</div></div>
+  <div class="stat-item ok"><div class="stat-num">14</div><div class="stat-lbl">Внесено в КТРМ</div></div>
+  <div class="stat-item blue"><div class="stat-num">5</div><div class="stat-lbl">В работе</div></div>
+  <div class="stat-item ok"><div class="stat-num">11</div><div class="stat-lbl">Оплачено</div></div>
+  <div class="stat-item warn"><div class="stat-num">8</div><div class="stat-lbl">Ожидает оплаты</div></div>
+  <div class="stat-item"><div class="stat-num">5</div><div class="stat-lbl">ТТЭ (г/в)</div></div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <div class="toolbar-left">
+    <div class="search-box">
+      <span>🔍</span>
+      <input type="text" placeholder="Поиск по ФИО, адресу, номеру счётчика..." oninput="filterTable(this.value)">
+    </div>
+    <select class="filter-select" onchange="filterByOper(this.value)">
+      <option value="">Операция: все</option>
+      <option>В работе</option>
+      <option>Внесен в КТРМ</option>
+    </select>
+    <select class="filter-select" onchange="filterByPay(this.value)">
+      <option value="">Оплата: все</option>
+      <option>Оплачено</option>
+      <option>В ожидании</option>
+    </select>
+    <select class="filter-select" onchange="filterByInv(this.value)">
+      <option value="">Счёт: все</option>
+      <option>Каспи</option>
+      <option>БЦК</option>
+      <option>Наличка</option>
+    </select>
+    <select class="filter-select">
+      <option value="">Вода: все</option>
+      <option>х/в</option>
+      <option>г/в</option>
+    </select>
+  </div>
+  <div class="toolbar-right">
+    <span style="color:#6b7280; font-size:11px;">Показано: <strong id="rowcount">19</strong> записей</span>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div class="app-content">
+<div class="table-container">
+<div class="table-wrap">
+<table id="mainTable">
+<thead>
+  <!-- Группы колонок -->
+  <tr class="col-group-header">
+    <th colspan="1" class="cg-info" style="color:#374151; border-right:2px solid #e5e7eb;">№</th>
+    <th colspan="6" class="cg-info" style="color:#374151; border-right:2px solid #e5e7eb;">Данные реестра</th>
+    <th colspan="4" class="cg-info" style="color:#374151; border-right:2px solid #e5e7eb;">Поверка</th>
+    <th colspan="2" class="cg-water" style="color:#c2410c; border-right:2px solid #e5e7eb;">Показания</th>
+    <th colspan="1" class="cg-oper" style="color:#1d4ed8; border-right:2px solid #e5e7eb;">Операция</th>
+    <th colspan="1" class="cg-pay" style="color:#065f46; border-right:2px solid #e5e7eb;">Оплата</th>
+    <th colspan="1" class="cg-inv" style="color:#7c3aed;">Счёт</th>
+  </tr>
+  <!-- Колонки -->
+  <tr>
+    <th class="cg-info" style="border-right:2px solid #e5e7eb;">№</th>
+    <th class="cg-info">ФИО абонента</th>
+    <th class="cg-info">Адрес</th>
+    <th class="cg-info">Тип прибора</th>
+    <th class="cg-info">№ счётчика</th>
+    <th class="cg-info">Год выпуска</th>
+    <th class="cg-info" style="border-right:2px solid #e5e7eb;">Пломба</th>
+    <th class="cg-info">Дата поверки</th>
+    <th class="cg-info">Действ. до</th>
+    <th class="cg-info">№ клейма</th>
+    <th class="cg-info" style="border-right:2px solid #e5e7eb;">Вода</th>
+    <th class="cg-water" style="border-right:2px solid #e5e7eb;">Показания м³</th>
+    <th class="cg-water" style="border-right:2px solid #e5e7eb;">Примечание</th>
+    <th class="cg-oper" style="border-right:2px solid #e5e7eb;">🔄 Статус</th>
+    <th class="cg-pay" style="border-right:2px solid #e5e7eb;">💳 Оплата</th>
+    <th class="cg-inv">🧾 Счёт</th>
+  </tr>
+</thead>
+<tbody id="tableBody">
+</tbody>
+</table>
+</div>
+</div>
+
+<!-- PAGINATION -->
+<div class="pagination-bar">
+  <span>Страница 1 из 1 · 19 записей · VERTEX METROLOGY ТОО</span>
+  <div class="page-btns">
+    <button class="page-btn">‹</button>
+    <button class="page-btn active">1</button>
+    <button class="page-btn">›</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modalBox">
+    <div class="modal-header">
+      <h3 id="modalTitle">Детали сертификата</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary">💾 Сохранить изменения</button>
+      <button class="btn btn-outline" onclick="closeModal()">Отмена</button>
+      <button class="btn btn-outline" style="margin-left:auto; color:#dc2626; border-color:#fca5a5;">🗑 Удалить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const OPER_OPTS = ['В работе','Внесен в КТРМ'];
+const PAY_OPTS  = ['Оплачено','В ожидании'];
+const INV_OPTS  = ['Каспи','БЦК','Наличка'];
+
+const RAW = [
+  {n:1,  fio:'Кулжанов',      addr:'м-в Карасу, дом 29, кв.7',          type:'СГВ-15', serial:'11607415',      year:'2009', seal:'+', d1:'29.05.2026', d2:'29.05.2031', stamp:'0549179', water:'х/в', val:1329, note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:2,  fio:'Кулжанов',      addr:'м-в Карасу, дом 29, кв.7',          type:'СГВ-15', serial:'11603249',      year:'2009', seal:'+', d1:'29.05.2026', d2:'29.05.2031', stamp:'0549181', water:'х/в', val:774,  note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:3,  fio:'Коканбаева',    addr:'мкр 5, дом 20/4, кв.38',            type:'СВК-15', serial:'1019047123206', year:'2021', seal:'+', d1:'29.05.2026', d2:'29.05.2031', stamp:'0549182', water:'х/в', val:886,  note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'БЦК'},
+  {n:4,  fio:'Тілеуберді',    addr:'мкр 10, дом 12, кв.82',             type:'СГВ-15', serial:'10194314',      year:'2007', seal:'+', d1:'02.06.2026', d2:'02.06.2031', stamp:'0753001', water:'х/в', val:727,  note:'',    oper:'Внесен в КТРМ', pay:'В ожидании', inv:'Наличка'},
+  {n:5,  fio:'Тілеуберді',    addr:'мкр 10, дом 12, кв.82',             type:'СГВ-15', serial:'10194335',      year:'2007', seal:'+', d1:'02.06.2026', d2:'02.06.2031', stamp:'0753000', water:'х/в', val:1003, note:'',    oper:'Внесен в КТРМ', pay:'В ожидании', inv:'Наличка'},
+  {n:6,  fio:'Тойбай',        addr:'мкр 3, дом 5, кв.92',               type:'СГВ-15', serial:'36435470',      year:'2018', seal:'+', d1:'02.06.2026', d2:'02.06.2031', stamp:'0752999', water:'х/в', val:670,  note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:7,  fio:'Цой',           addr:'ул. Айтеке би, дом 10, кв.40',      type:'СГВ-15', serial:'19023904',      year:'2015', seal:'+', d1:'03.06.2026', d2:'03.06.2031', stamp:'0549183', water:'х/в', val:46,   note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:8,  fio:'Цой',           addr:'ул. Айтеке би, дом 10, кв.40',      type:'СГВ-15', serial:'19023915',      year:'2015', seal:'+', d1:'03.06.2026', d2:'03.06.2031', stamp:'0549185', water:'х/в', val:499,  note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:9,  fio:'Абдуллаева',    addr:'ул. Толе би, дом 7, кв.17',         type:'СГВ-15', serial:'14861223',      year:'2011', seal:'+', d1:'04.06.2026', d2:'04.06.2031', stamp:'0549184', water:'г/в', val:519,  note:'ТТЭ', oper:'В работе',       pay:'В ожидании', inv:'БЦК'},
+  {n:10, fio:'Тургинбекова',  addr:'мкр 4, дом 18, кв.78',              type:'СГВ-15', serial:'2800910',       year:'2005', seal:'+', d1:'04.06.2026', d2:'04.06.2031', stamp:'0752998', water:'х/в', val:1211, note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:11, fio:'Тулегенов',     addr:'Тонкуруш, дом 12, кв.32',           type:'СГВ-15', serial:'6103571',       year:'2004', seal:'+', d1:'05.06.2026', d2:'05.06.2031', stamp:'0752997', water:'х/в', val:2060, note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Наличка'},
+  {n:12, fio:'Тулегенов',     addr:'Тонкуруш, дом 12, кв.32',           type:'СГВ-15', serial:'6101291',       year:'2004', seal:'+', d1:'05.06.2026', d2:'05.06.2031', stamp:'0752996', water:'х/в', val:609,  note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Наличка'},
+  {n:13, fio:'Попова',        addr:'мкр 9, дом 67, кв.27',              type:'СГВ-15', serial:'42465817',      year:'2020', seal:'+', d1:'08.06.2026', d2:'08.06.2031', stamp:'0549180', water:'г/в', val:46,   note:'ТТЭ', oper:'В работе',       pay:'В ожидании', inv:'Каспи'},
+  {n:14, fio:'Алдабергенов',  addr:'ул. Железнодорожная, дом 32',       type:'СГВ-15', serial:'41349195',      year:'2020', seal:'+', d1:'08.06.2026', d2:'08.06.2031', stamp:'0549186', water:'х/в', val:1063, note:'',    oper:'Внесен в КТРМ', pay:'В ожидании', inv:'БЦК'},
+  {n:15, fio:'Раймбекова',    addr:'Кошеней, дом 43/1, кв.22',          type:'СГВ-15', serial:'41640214',      year:'2020', seal:'+', d1:'08.06.2026', d2:'08.06.2031', stamp:'0549187', water:'г/в', val:227,  note:'ТТЭ', oper:'В работе',       pay:'В ожидании', inv:'БЦК'},
+  {n:16, fio:'Раймбекова',    addr:'Кошеней, дом 43/1, кв.22',          type:'СГВ-15', serial:'41641151',      year:'2020', seal:'+', d1:'08.06.2026', d2:'08.06.2031', stamp:'0549189', water:'г/в', val:192,  note:'ТТЭ', oper:'В работе',       pay:'В ожидании', inv:'БЦК'},
+  {n:17, fio:'Кашульская',    addr:'мкр 10, дом 3, кв.148',             type:'СГВ-15', serial:'24878564',      year:'2016', seal:'+', d1:'09.06.2026', d2:'09.06.2031', stamp:'0752995', water:'г/в', val:587,  note:'ТТЭ', oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:18, fio:'Укиева',        addr:'ул. Казыбек би, дом 142, кв.59',    type:'СГВ-15', serial:'42428893',      year:'2020', seal:'+', d1:'09.06.2026', d2:'09.06.2031', stamp:'0752994', water:'г/в', val:121,  note:'ТТЭ', oper:'В работе',       pay:'В ожидании', inv:'Каспи'},
+  {n:19, fio:'Баялы',         addr:'мкр 4, дом 21, кв.69',              type:'СГВ-15', serial:'39679805',      year:'2019', seal:'+', d1:'11.06.2026', d2:'11.06.2031', stamp:'0752973', water:'х/в', val:410,  note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Наличка'},
+];
+
+let data = RAW.map(r => ({...r}));
+let activePopup = null;
+
+function operBadge(v) {
+  return v === 'Внесен в КТРМ'
+    ? `<button class="badge b-ktrm status-btn" onclick="openPopup(event,'oper',this)">✅ ${v}</button>`
+    : `<button class="badge b-work status-btn" onclick="openPopup(event,'oper',this)">🔄 ${v}</button>`;
+}
+function payBadge(v) {
+  return v === 'Оплачено'
+    ? `<button class="badge b-paid status-btn" onclick="openPopup(event,'pay',this)">✓ ${v}</button>`
+    : `<button class="badge b-wait status-btn" onclick="openPopup(event,'pay',this)">⏳ ${v}</button>`;
+}
+function invBadge(v) {
+  const cls = v === 'Каспи' ? 'b-kaspi' : v === 'БЦК' ? 'b-bck' : 'b-cash';
+  const ico = v === 'Каспи' ? '🍊' : v === 'БЦК' ? '🏦' : '💵';
+  return `<button class="badge ${cls} status-btn" onclick="openPopup(event,'inv',this)">${ico} ${v}</button>`;
+}
+function waterBadge(v) {
+  return v === 'г/в'
+    ? `<span class="badge b-hot">🔴 г/в</span>`
+    : `<span class="badge b-cold">🔵 х/в</span>`;
+}
+
+function renderRows(arr) {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = arr.map((r, i) => `
+    <tr class="${r.note === 'ТТЭ' ? 'row-hot' : ''}" data-idx="${i}" ondblclick="openDetail(${i})">
+      <td class="row-num">${r.n}</td>
+      <td><strong>${r.fio}</strong></td>
+      <td style="max-width:220px; overflow:hidden; text-overflow:ellipsis;">${r.addr}</td>
+      <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:11px;">${r.type}</code></td>
+      <td style="font-family:monospace; font-size:11px; color:#374151;">${r.serial}</td>
+      <td style="color:#6b7280;">${r.year}</td>
+      <td><span class="badge b-yes">✓</span></td>
+      <td>${r.d1}</td>
+      <td><span class="badge b-valid" style="font-size:10px;">${r.d2}</span></td>
+      <td style="font-family:monospace; font-size:11px;">${r.stamp}</td>
+      <td>${waterBadge(r.water)}</td>
+      <td style="text-align:right; font-weight:600;">${r.val.toLocaleString('ru')} м³</td>
+      <td style="color:#c2410c; font-size:11px; font-weight:600;">${r.note}</td>
+      <td style="position:relative;">${operBadge(r.oper)}</td>
+      <td style="position:relative;">${payBadge(r.pay)}</td>
+      <td style="position:relative;">${invBadge(r.inv)}</td>
+    </tr>
+  `).join('');
+  document.getElementById('rowcount').textContent = arr.length;
+}
+
+function openPopup(e, field, btn) {
+  e.stopPropagation();
+  // close any open popup
+  document.querySelectorAll('.status-popup').forEach(p => { p.classList.remove('open'); p.remove(); });
+
+  const opts = field === 'oper' ? OPER_OPTS : field === 'pay' ? PAY_OPTS : INV_OPTS;
+  const row = btn.closest('tr');
+  const idx = +row.dataset.idx;
+
+  const popup = document.createElement('div');
+  popup.className = 'status-popup open';
+  popup.style.top = '110%';
+  popup.style.left = '0';
+  opts.forEach(opt => {
+    const item = document.createElement('div');
+    item.className = 'sp-item';
+    item.textContent = opt;
+    item.onclick = (ev) => {
+      ev.stopPropagation();
+      data[idx][field === 'oper' ? 'oper' : field === 'pay' ? 'pay' : 'inv'] = opt;
+      renderRows(currentFiltered());
+      popup.remove();
+    };
+    popup.appendChild(item);
+  });
+
+  btn.parentElement.style.position = 'relative';
+  btn.parentElement.appendChild(popup);
+  activePopup = popup;
+  document.addEventListener('click', () => { popup.remove(); }, { once: true });
+}
+
+function currentFiltered() {
+  const q = (document.querySelector('.search-box input')?.value || '').toLowerCase();
+  return data.filter(r => {
+    if (q && !`${r.fio} ${r.addr} ${r.serial}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function filterTable(q) { renderRows(currentFiltered()); }
+function filterByOper(v) { renderRows(v ? data.filter(r => r.oper === v) : data); }
+function filterByPay(v)  { renderRows(v ? data.filter(r => r.pay  === v) : data); }
+function filterByInv(v)  { renderRows(v ? data.filter(r => r.inv  === v) : data); }
+
+function openDetail(idx) {
+  const r = data[idx];
+  document.getElementById('modalTitle').textContent = `Сертификат #${r.n} — ${r.fio}`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="mfield-grid">
+      <div class="mfield"><label>ФИО абонента</label><span>${r.fio}</span></div>
+      <div class="mfield"><label>Адрес</label><span>${r.addr}</span></div>
+      <div class="mfield"><label>Тип прибора</label><span>${r.type}</span></div>
+      <div class="mfield"><label>№ счётчика</label><span style="font-family:monospace">${r.serial}</span></div>
+      <div class="mfield"><label>Год выпуска</label><span>${r.year}</span></div>
+      <div class="mfield"><label>Пломба</label><span>${r.seal}</span></div>
+      <div class="mfield"><label>Дата поверки</label><span>${r.d1}</span></div>
+      <div class="mfield"><label>Действует до</label><span>${r.d2}</span></div>
+      <div class="mfield"><label>№ клейма</label><span style="font-family:monospace">${r.stamp}</span></div>
+      <div class="mfield"><label>Показания м³</label><span>${r.val}</span></div>
+      <div class="mfield"><label>Вода</label><span>${r.water}</span></div>
+      <div class="mfield"><label>Примечание</label><span>${r.note || '—'}</span></div>
+    </div>
+    <hr style="border:none;border-top:1px solid #f3f4f6;margin-bottom:16px;">
+    <div class="mfield-grid">
+      <div class="mfield">
+        <label>🔄 Операция</label>
+        <select style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;" onchange="data[${idx}].oper=this.value; renderRows(data)">
+          ${OPER_OPTS.map(o => `<option ${o===r.oper?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="mfield">
+        <label>💳 Оплата</label>
+        <select style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;" onchange="data[${idx}].pay=this.value; renderRows(data)">
+          ${PAY_OPTS.map(o => `<option ${o===r.pay?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="mfield">
+        <label>🧾 Счёт</label>
+        <select style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;" onchange="data[${idx}].inv=this.value; renderRows(data)">
+          ${INV_OPTS.map(o => `<option ${o===r.inv?'selected':''}>${o}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+  `;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function openNew() {
+  document.getElementById('modalTitle').textContent = '+ Новый сертификат';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="mfield-grid">
+      <div class="mfield"><label>ФИО абонента</label><input style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;width:100%" placeholder="Введите ФИО"></div>
+      <div class="mfield"><label>Адрес</label><input style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;width:100%" placeholder="Адрес абонента"></div>
+      <div class="mfield"><label>Тип прибора</label><select style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;width:100%"><option>СГВ-15</option><option>СВК-15</option><option>СВК-20</option></select></div>
+      <div class="mfield"><label>№ счётчика</label><input style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;width:100%;font-family:monospace" placeholder="Серийный номер"></div>
+      <div class="mfield"><label>Год выпуска</label><input type="number" style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;width:100%" placeholder="2020"></div>
+      <div class="mfield"><label>№ клейма</label><input style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;width:100%;font-family:monospace" placeholder="0000000"></div>
+      <div class="mfield"><label>Дата поверки</label><input type="date" style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;width:100%"></div>
+      <div class="mfield"><label>Показания м³</label><input type="number" style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;width:100%" placeholder="0"></div>
+      <div class="mfield"><label>Тип воды</label><select style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;width:100%"><option>х/в</option><option>г/в</option></select></div>
+      <div class="mfield"><label>Примечание</label><input style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;width:100%" placeholder="ТТЭ и др."></div>
+      <div class="mfield"><label>🔄 Операция</label><select style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;width:100%"><option>В работе</option><option>Внесен в КТРМ</option></select></div>
+      <div class="mfield"><label>💳 Оплата</label><select style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;width:100%"><option>В ожидании</option><option>Оплачено</option></select></div>
+      <div class="mfield"><label>🧾 Счёт</label><select style="border:1px solid #d1d5db;border-radius:6px;padding:7px 10px;font-size:13px;width:100%"><option>Каспи</option><option>БЦК</option><option>Наличка</option></select></div>
+    </div>
+  `;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modalOverlay')) {
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+}
+
+// Init
+renderRows(data);
+</script>
+</body>
+</html>

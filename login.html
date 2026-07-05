@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>U2B-Vertex ERP — Вход</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#0a0d14;
+  --surface:#111520;
+  --card:#161b28;
+  --border:#1e2535;
+  --border2:#2a3350;
+  --blue:#1a56db;
+  --blue2:#0ea5e9;
+  --text:#e2e8f0;
+  --muted:#64748b;
+  --muted2:#94a3b8;
+  --green:#22c55e;
+  --red:#ef4444;
+  --amber:#f59e0b;
+}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;}
+
+/* ── BG GLOW ── */
+.bg-glow{position:fixed;inset:0;pointer-events:none;z-index:0;}
+.bg-glow::before{content:'';position:absolute;top:-20%;left:50%;transform:translateX(-50%);width:800px;height:600px;background:radial-gradient(ellipse,rgba(26,86,219,.12) 0%,transparent 70%);border-radius:50%;}
+.bg-glow::after{content:'';position:absolute;bottom:-10%;right:-10%;width:400px;height:400px;background:radial-gradient(ellipse,rgba(14,165,233,.07) 0%,transparent 60%);border-radius:50%;}
+
+/* ── LAYOUT ── */
+.wrap{position:relative;z-index:1;width:100%;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+
+/* ── LOGO ── */
+.logo-block{text-align:center;margin-bottom:32px;}
+.logo-mark{width:64px;height:64px;background:linear-gradient(135deg,#1a56db 0%,#0ea5e9 100%);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 14px;box-shadow:0 0 40px rgba(26,86,219,.35),0 8px 32px rgba(0,0,0,.4);}
+.logo-name{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--text);}
+.logo-name span{color:var(--blue2);}
+.logo-sub{font-size:12px;color:var(--muted);margin-top:5px;letter-spacing:.05em;text-transform:uppercase;}
+.logo-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(26,86,219,.1);border:1px solid rgba(26,86,219,.2);color:#93c5fd;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:600;margin-top:10px;}
+.badge-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── CARD ── */
+.login-card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--border);border-radius:20px;padding:32px;box-shadow:0 24px 80px rgba(0,0,0,.4);}
+
+/* ── ROLE TABS ── */
+.role-tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px;margin-bottom:24px;}
+.rtab{flex:1;padding:8px 6px;border-radius:7px;font-size:11px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .15s;text-align:center;border:none;background:none;}
+.rtab:hover{color:var(--muted2);}
+.rtab.on{background:var(--blue);color:#fff;box-shadow:0 2px 10px rgba(26,86,219,.4);}
+.rtab .rico{font-size:14px;display:block;margin-bottom:2px;}
+
+/* ── FORM ── */
+.form-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.form-sub{font-size:12px;color:var(--muted);margin-bottom:20px;}
+
+.field-group{margin-bottom:14px;}
+.field-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;display:block;}
+.field-wrap{position:relative;}
+.field-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;}
+.field-input{width:100%;padding:12px 13px 12px 40px;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);outline:none;transition:all .18s;font-family:'Inter',sans-serif;}
+.field-input:focus{border-color:var(--blue);background:#0f1626;box-shadow:0 0 0 3px rgba(26,86,219,.12);}
+.field-input.error{border-color:var(--red);}
+.field-input::placeholder{color:var(--muted);}
+.field-eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:4px;transition:color .15s;}
+.field-eye:hover{color:var(--muted2);}
+
+/* ── REMEMBER ── */
+.remember-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.remember-check{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--muted2);}
+.remember-check input{width:15px;height:15px;accent-color:var(--blue);cursor:pointer;}
+.forgot-link{font-size:12px;color:var(--blue2);cursor:pointer;text-decoration:none;transition:opacity .15s;}
+.forgot-link:hover{opacity:.8;}
+
+/* ── SUBMIT ── */
+.btn-login{width:100%;padding:14px;background:linear-gradient(135deg,var(--blue),#1344b8);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 24px rgba(26,86,219,.35);}
+.btn-login:hover{box-shadow:0 6px 32px rgba(26,86,219,.5);transform:translateY(-1px);}
+.btn-login:active{transform:translateY(0);}
+.btn-login:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+
+/* ── DIVIDER ── */
+.or-divider{display:flex;align-items:center;gap:10px;margin:18px 0;font-size:11px;color:var(--muted);}
+.or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* ── QUICK ACCESS ── */
+.quick-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
+.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.quick-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:5px;}
+.quick-card:hover{border-color:var(--border2);background:#0f1525;}
+.qc-icon{font-size:22px;}
+.qc-name{font-size:12px;font-weight:700;color:var(--text);}
+.qc-role{font-size:10px;color:var(--muted);}
+.qc-email{font-size:10px;color:var(--blue2);margin-top:1px;}
+
+/* ── ERROR MSG ── */
+.error-msg{display:none;padding:10px 14px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:8px;font-size:12px;color:#fca5a5;margin-bottom:14px;align-items:center;gap:8px;}
+.error-msg.show{display:flex;}
+
+/* ── SUCCESS (redirect overlay) ── */
+.redirect-overlay{position:fixed;inset:0;z-index:999;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+.redirect-overlay.show{display:flex;}
+.redirect-icon{font-size:56px;animation:pop .3s ease;}
+@keyframes pop{0%{transform:scale(.5)}80%{transform:scale(1.1)}100%{transform:scale(1)}}
+.redirect-title{font-size:20px;font-weight:800;color:var(--text);}
+.redirect-sub{font-size:14px;color:var(--muted);}
+.redirect-bar-wrap{width:240px;height:4px;background:var(--border);border-radius:4px;overflow:hidden;margin-top:8px;}
+.redirect-bar{height:4px;background:linear-gradient(90deg,var(--blue),var(--blue2));border-radius:4px;width:0%;transition:width 1.8s ease;}
+
+/* ── FOOTER ── */
+.login-footer{margin-top:20px;text-align:center;font-size:11px;color:var(--muted);}
+.login-footer a{color:var(--blue2);text-decoration:none;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--card);color:var(--text);border:1px solid var(--border2);padding:10px 18px;border-radius:20px;font-size:13px;font-weight:500;z-index:9999;opacity:0;transition:all .22s;pointer-events:none;white-space:nowrap;box-shadow:0 8px 30px rgba(0,0,0,.4);}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── SCROLLABLE on small screens ── */
+@media (max-height: 700px){
+  body{overflow-y:auto;}
+  .wrap{height:auto;min-height:100vh;justify-content:flex-start;padding-top:30px;}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-glow"></div>
+
+<!-- REDIRECT OVERLAY -->
+<div class="redirect-overlay" id="redirectOverlay">
+  <div class="redirect-icon" id="redirectIcon">👑</div>
+  <div class="redirect-title" id="redirectTitle">Добро пожаловать!</div>
+  <div class="redirect-sub" id="redirectSub">Перенаправление в кабинет...</div>
+  <div class="redirect-bar-wrap"><div class="redirect-bar" id="redirectBar"></div></div>
+</div>
+
+<div class="wrap">
+
+  <!-- LOGO -->
+  <div class="logo-block">
+    <div class="logo-mark">💧</div>
+    <div class="logo-name">U2B<span>-Vertex</span></div>
+    <div class="logo-sub">Автоматизация бизнес-процессов</div>
+    <div class="logo-badge"><div class="badge-dot"></div>Vertex Metrology · ERP v1.0</div>
+  </div>
+
+  <!-- CARD -->
+  <div class="login-card">
+
+    <!-- ROLE TABS -->
+    <div class="role-tabs" id="roleTabs">
+      <button class="rtab on" onclick="setRole('admin',this)"><span class="rico">👑</span>Админ</button>
+      <button class="rtab" onclick="setRole('manager',this)"><span class="rico">💼</span>Менеджер</button>
+      <button class="rtab" onclick="setRole('director',this)"><span class="rico">📊</span>Директор</button>
+      <button class="rtab" onclick="setRole('field',this)"><span class="rico">🚗</span>Мастер</button>
+    </div>
+
+    <!-- TITLE -->
+    <div class="form-title" id="formTitle">Вход для администратора</div>
+    <div class="form-sub" id="formSub">Полный доступ ко всем модулям системы</div>
+
+    <!-- ERROR -->
+    <div class="error-msg" id="errorMsg"><span>⚠️</span><span id="errorText">Неверный email или пароль</span></div>
+
+    <!-- EMAIL -->
+    <div class="field-group">
+      <label class="field-label">Email</label>
+      <div class="field-wrap">
+        <span class="field-icon">✉️</span>
+        <input class="field-input" id="loginEmail" type="email" placeholder="user@vertex.kz" autocomplete="email" oninput="clearError()">
+      </div>
+    </div>
+
+    <!-- PASSWORD -->
+    <div class="field-group">
+      <label class="field-label">Пароль</label>
+      <div class="field-wrap">
+        <span class="field-icon">🔒</span>
+        <input class="field-input" id="loginPass" type="password" placeholder="••••••••" autocomplete="current-password" oninput="clearError()" onkeydown="if(event.key==='Enter')doLogin()">
+        <button class="field-eye" onclick="togglePass()" id="eyeBtn" title="Показать пароль">👁</button>
+      </div>
+    </div>
+
+    <!-- REMEMBER + FORGOT -->
+    <div class="remember-row">
+      <label class="remember-check">
+        <input type="checkbox" id="rememberMe" checked>
+        Запомнить меня
+      </label>
+      <a class="forgot-link" onclick="showToast('📧 Обратитесь к администратору системы')">Забыли пароль?</a>
+    </div>
+
+    <!-- SUBMIT -->
+    <button class="btn-login" id="loginBtn" onclick="doLogin()">
+      <span id="btnIcon">→</span> Войти в систему
+    </button>
+
+    <!-- OR DIVIDER -->
+    <div class="or-divider">Быстрый вход</div>
+
+    <!-- QUICK ACCESS -->
+    <div class="quick-title">Сохранённые аккаунты</div>
+    <div class="quick-grid" id="quickGrid"></div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div class="login-footer">
+    ТОО «Vertex Metrology» · <a href="sketch_screens.html">ERP система</a> · © 2026
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  USERS
+// ══════════════════════════════════════════════════════════════
+const USERS = [
+  {
+    id:'admin1', email:'m@vertex.kz', password:'admin123',
+    name:'Молдабаев М.', role:'admin', roleLabel:'Администратор',
+    icon:'👑', color:'#1a56db',
+    redirect:'sketch_screens.html',
+    desc:'Полный доступ ко всем модулям'
+  },
+  {
+    id:'manager1', email:'k@vertex.kz', password:'manager123',
+    name:'Кузьмина А.Н.', role:'manager', roleLabel:'Менеджер',
+    icon:'💼', color:'#1a56db',
+    redirect:'sketch_screens.html',
+    desc:'Поверка, продажа, склад, расходы'
+  },
+  {
+    id:'manager2', email:'a@vertex.kz', password:'manager123',
+    name:'Ахметов Д.С.', role:'manager', roleLabel:'Менеджер',
+    icon:'💼', color:'#0ea5e9',
+    redirect:'sketch_screens.html',
+    desc:'Поверка, продажа, склад, расходы'
+  },
+  {
+    id:'director1', email:'director@vertex.kz', password:'director123',
+    name:'Молдабаев М.', role:'director', roleLabel:'Директор',
+    icon:'📊', color:'#f59e0b',
+    redirect:'director_mobile.html',
+    desc:'Дашборд, финансы, отчёты'
+  },
+  {
+    id:'field1', email:'s@vertex.kz', password:'field123',
+    name:'Смирнов Д.В.', role:'field', roleLabel:'Выездной мастер',
+    icon:'🚗', color:'#059669',
+    redirect:'mobile_master.html',
+    desc:'Задания, поверка, фото-отчёт'
+  },
+  {
+    id:'field2', email:'serik@vertex.kz', password:'field123',
+    name:'Серіков А.Т.', role:'field', roleLabel:'Выездной мастер (Астана)',
+    icon:'🚗', color:'#06b6d4',
+    redirect:'mobile_master.html',
+    desc:'Задания, поверка, фото-отчёт'
+  },
+];
+
+const ROLE_INFO = {
+  admin:    {title:'Вход для администратора',  sub:'Полный доступ ко всем модулям системы',  placeholder:'admin@vertex.kz'},
+  manager:  {title:'Вход для менеджера',        sub:'Доступ к поверке, продаже, складу, расходам', placeholder:'manager@vertex.kz'},
+  director: {title:'Вход для директора',        sub:'Дашборд, финансы, отчёты, управление', placeholder:'director@vertex.kz'},
+  field:    {title:'Вход для выездного мастера',sub:'Мобильный кабинет: задания и поверка', placeholder:'master@vertex.kz'},
+};
+
+let currentRole = 'admin';
+let passVisible = false;
+
+// ── INIT ──────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  loadRemembered();
+  renderQuickAccess();
+  // Auto-fill if remembered
+  const saved = getSavedSession();
+  if (saved) {
+    document.getElementById('loginEmail').value = saved.email || '';
+    document.getElementById('loginPass').value  = saved.password || '';
+    if (saved.role) setRoleByKey(saved.role);
+  }
+});
+
+// ── ROLE SELECT ───────────────────────────────────────────────
+function setRole(role, el) {
+  currentRole = role;
+  document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  const info = ROLE_INFO[role];
+  document.getElementById('formTitle').textContent = info.title;
+  document.getElementById('formSub').textContent   = info.sub;
+  document.getElementById('loginEmail').placeholder = info.placeholder;
+  clearError();
+  // Pre-fill first user of that role if quick access was just clicked
+}
+function setRoleByKey(role) {
+  const tabs = document.querySelectorAll('.rtab');
+  const roles = ['admin','manager','director','field'];
+  const idx = roles.indexOf(role);
+  if (idx>=0) { currentRole=role; tabs.forEach(t=>t.classList.remove('on')); tabs[idx].classList.add('on'); }
+}
+
+// ── QUICK ACCESS ──────────────────────────────────────────────
+function renderQuickAccess() {
+  const saved = loadAllSaved();
+  const grid  = document.getElementById('quickGrid');
+
+  // Show saved sessions first, then role examples
+  const toShow = saved.length > 0
+    ? saved.slice(0,4)
+    : USERS.slice(0,4);
+
+  grid.innerHTML = toShow.map(u => `
+    <div class="quick-card" onclick="quickLogin('${u.email}','${u.password}','${u.role}')">
+      <div class="qc-icon" style="font-size:18px;">${u.icon}</div>
+      <div class="qc-name">${u.name}</div>
+      <div class="qc-role" style="color:${u.color};">${u.roleLabel}</div>
+      <div class="qc-email">${u.email}</div>
+    </div>`).join('');
+}
+
+function quickLogin(email, password, role) {
+  setRoleByKey(role);
+  document.getElementById('loginEmail').value = email;
+  document.getElementById('loginPass').value  = password;
+  clearError();
+  setTimeout(() => doLogin(), 100);
+}
+
+// ── TOGGLE PASSWORD ───────────────────────────────────────────
+function togglePass() {
+  passVisible = !passVisible;
+  const inp = document.getElementById('loginPass');
+  const eye = document.getElementById('eyeBtn');
+  inp.type = passVisible ? 'text' : 'password';
+  eye.textContent = passVisible ? '🙈' : '👁';
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pass  = document.getElementById('loginPass').value;
+  const btn   = document.getElementById('loginBtn');
+
+  if (!email) { showFieldError('Введите email'); return; }
+  if (!pass)  { showFieldError('Введите пароль'); return; }
+
+  // Loading state
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:inline-block;animation:spin .7s linear infinite;font-size:14px;">⟳</span> Проверяем...';
+
+  setTimeout(() => {
+    const user = USERS.find(u =>
+      u.email.toLowerCase() === email &&
+      u.password === pass &&
+      u.role === currentRole
+    );
+
+    if (!user) {
+      // Try any role match
+      const anyUser = USERS.find(u => u.email.toLowerCase()===email && u.password===pass);
+      if (anyUser) {
+        showFieldError(`Неверная роль. Попробуйте вкладку «${anyUser.roleLabel}»`);
+      } else {
+        showFieldError('Неверный email или пароль');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<span>→</span> Войти в систему';
+      return;
+    }
+
+    // Save session if "remember me"
+    if (document.getElementById('rememberMe').checked) {
+      saveSession(user);
+    }
+
+    // Success redirect
+    showRedirect(user);
+  }, 600);
+}
+
+// ── REDIRECT ──────────────────────────────────────────────────
+function showRedirect(user) {
+  const ov    = document.getElementById('redirectOverlay');
+  const icon  = document.getElementById('redirectIcon');
+  const title = document.getElementById('redirectTitle');
+  const sub   = document.getElementById('redirectSub');
+  const bar   = document.getElementById('redirectBar');
+
+  icon.textContent  = user.icon;
+  title.textContent = `Добро пожаловать, ${user.name.split(' ')[0]}!`;
+
+  const destNames = {
+    'sketch_screens.html':  'Главный кабинет ERP',
+    'director_mobile.html': 'Кабинет директора',
+    'mobile_master.html':   'Кабинет мастера',
+  };
+  sub.textContent = `${user.roleLabel} → ${destNames[user.redirect]||user.redirect}`;
+
+  ov.classList.add('show');
+  setTimeout(()=>{ bar.style.width='100%'; },50);
+  setTimeout(()=>{ window.location.href = user.redirect; }, 2000);
+}
+
+// ── ERRORS ────────────────────────────────────────────────────
+function showFieldError(msg) {
+  const err = document.getElementById('errorMsg');
+  document.getElementById('errorText').textContent = msg;
+  err.classList.add('show');
+  document.getElementById('loginEmail').classList.add('error');
+  document.getElementById('loginPass').classList.add('error');
+}
+function clearError() {
+  document.getElementById('errorMsg').classList.remove('show');
+  document.getElementById('loginEmail').classList.remove('error');
+  document.getElementById('loginPass').classList.remove('error');
+}
+
+// ── STORAGE ───────────────────────────────────────────────────
+const SESSION_KEY   = 'u2b_last_session';
+const SESSIONS_KEY  = 'u2b_saved_sessions';
+
+function saveSession(user) {
+  try {
+    // Save last session
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      email: user.email, password: user.password, role: user.role
+    }));
+    // Save to sessions list
+    let sessions = loadAllSaved();
+    const idx = sessions.findIndex(s=>s.email===user.email);
+    const entry = {
+      email: user.email, password: user.password,
+      name: user.name, role: user.role, roleLabel: user.roleLabel,
+      icon: user.icon, color: user.color
+    };
+    if (idx>=0) sessions[idx]=entry;
+    else sessions.unshift(entry);
+    sessions = sessions.slice(0,6); // max 6
+    localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
+  } catch(e) {}
+}
+
+function getSavedSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY)||'null'); } catch(e){ return null; }
+}
+function loadAllSaved() {
+  try { return JSON.parse(localStorage.getItem(SESSIONS_KEY)||'[]'); } catch(e){ return []; }
+}
+function loadRemembered() {
+  renderQuickAccess();
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// CSS for spin
+const style=document.createElement('style');
+style.textContent='@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}';
+document.head.appendChild(style);
+</script>
+</body>
+</html>

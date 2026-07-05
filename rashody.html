@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Расходы — Водоканал ERP</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #f5f6fa; color: #1a1a2e; font-size: 13px; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  /* ── TOP BAR ── */
+  .topbar { background:#fff; border-bottom:1px solid #e5e7eb; padding:0 20px; height:50px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; position:sticky; top:0; z-index:50; }
+  .topbar-left { display:flex; align-items:center; gap:12px; }
+  .logo { font-weight:700; font-size:14px; color:#1a56db; }
+  .bc { color:#6b7280; font-size:12px; display:flex; align-items:center; gap:5px; }
+  .bc strong { color:#222; }
+  .topbar-right { display:flex; gap:8px; }
+
+  /* ── LAYOUT ── */
+  .app-body { display:flex; flex:1; overflow:hidden; }
+
+  /* ── LEFT PANEL: TREE ── */
+  .left-panel { width:280px; background:#fff; border-right:1px solid #e5e7eb; display:flex; flex-direction:column; flex-shrink:0; overflow:hidden; }
+  .panel-head { padding:12px 14px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between; }
+  .panel-title { font-size:12px; font-weight:700; color:#374151; text-transform:uppercase; letter-spacing:.05em; }
+  .panel-body { flex:1; overflow-y:auto; padding:8px 0; }
+
+  /* ── TREE NODES ── */
+  .cat-item { user-select:none; }
+  .cat-row {
+    display:flex; align-items:center; gap:6px; padding:7px 12px;
+    cursor:pointer; border-radius:0; transition:background .1s;
+    position:relative;
+  }
+  .cat-row:hover { background:#f0f5ff; }
+  .cat-row.active { background:#eff6ff; border-left:3px solid #1a56db; }
+  .cat-row.active .cat-name { color:#1d4ed8; font-weight:600; }
+  .cat-toggle { width:16px; height:16px; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:10px; flex-shrink:0; cursor:pointer; border-radius:3px; }
+  .cat-toggle:hover { background:#e5e7eb; }
+  .cat-icon { font-size:14px; flex-shrink:0; }
+  .cat-name { font-size:12px; color:#374151; flex:1; }
+  .cat-count { font-size:10px; color:#9ca3af; background:#f3f4f6; padding:1px 6px; border-radius:10px; }
+  .cat-add { opacity:0; font-size:11px; color:#9ca3af; cursor:pointer; padding:2px 4px; border-radius:4px; border:none; background:none; }
+  .cat-row:hover .cat-add { opacity:1; }
+  .cat-add:hover { background:#e5e7eb; color:#374151; }
+
+  /* sub level */
+  .sub-list { display:none; }
+  .sub-list.open { display:block; }
+  .sub-row {
+    display:flex; align-items:center; gap:6px; padding:6px 12px 6px 34px;
+    cursor:pointer; transition:background .1s;
+  }
+  .sub-row:hover { background:#f9fafb; }
+  .sub-row.active { background:#eff6ff; border-left:3px solid #93c5fd; }
+  .sub-row.active .sub-name { color:#1d4ed8; font-weight:600; }
+  .sub-dot { width:5px; height:5px; border-radius:50%; background:#d1d5db; flex-shrink:0; }
+  .sub-row.active .sub-dot { background:#1a56db; }
+  .sub-name { font-size:12px; color:#6b7280; flex:1; }
+  .sub-count { font-size:10px; color:#9ca3af; background:#f3f4f6; padding:1px 6px; border-radius:10px; }
+  .sub-add { opacity:0; font-size:10px; color:#9ca3af; cursor:pointer; padding:2px 4px; border-radius:4px; border:none; background:none; }
+  .sub-row:hover .sub-add { opacity:1; }
+
+  /* ── QUICK ADD IN TREE ── */
+  .tree-add-input { padding:4px 12px 4px 34px; }
+  .tree-add-input input { width:100%; border:1px solid #93c5fd; border-radius:6px; padding:5px 8px; font-size:12px; outline:none; }
+
+  /* ── RIGHT PANEL ── */
+  .right-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+  /* ── TOOLBAR ── */
+  .toolbar { background:#fff; border-bottom:1px solid #e5e7eb; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; flex-shrink:0; }
+  .toolbar-left { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .search-box { display:flex; align-items:center; gap:6px; border:1px solid #d1d5db; border-radius:6px; padding:6px 10px; background:#fff; min-width:200px; }
+  .search-box input { border:none; outline:none; font-size:12px; width:100%; color:#374151; background:transparent; font-family:inherit; }
+  select.fsel { border:1px solid #d1d5db; border-radius:6px; padding:6px 8px; font-size:12px; color:#374151; background:#fff; outline:none; cursor:pointer; font-family:inherit; }
+
+  /* ── BUTTONS ── */
+  .btn { padding:7px 14px; border-radius:6px; font-size:12px; border:none; cursor:pointer; font-weight:500; display:inline-flex; align-items:center; gap:5px; transition:all .15s; white-space:nowrap; font-family:inherit; }
+  .btn-primary { background:#1a56db; color:#fff; }
+  .btn-primary:hover { background:#1344b8; }
+  .btn-outline { background:#fff; color:#374151; border:1px solid #d1d5db; }
+  .btn-outline:hover { background:#f9fafb; }
+  .btn-ghost { background:none; color:#6b7280; border:none; padding:6px 8px; }
+  .btn-ghost:hover { background:#f3f4f6; color:#374151; }
+  .btn-danger { background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; }
+  .btn-danger:hover { background:#fecaca; }
+  .btn-sm { padding:5px 10px; font-size:11px; }
+  .btn-xs { padding:3px 8px; font-size:10px; font-weight:600; border-radius:4px; }
+
+  /* ── CONTENT AREA ── */
+  .content-area { flex:1; overflow-y:auto; padding:16px; }
+
+  /* ── STAT CARDS ── */
+  .stat-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:16px; }
+  .stat-card { background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px; }
+  .stat-label { font-size:10px; color:#6b7280; margin-bottom:4px; text-transform:uppercase; letter-spacing:.05em; }
+  .stat-val { font-size:20px; font-weight:700; color:#111827; }
+  .stat-sub { font-size:11px; color:#9ca3af; margin-top:2px; }
+  .s-red .stat-val { color:#dc2626; }
+  .s-green .stat-val { color:#059669; }
+  .s-blue .stat-val { color:#1d4ed8; }
+  .s-amber .stat-val { color:#d97706; }
+
+  /* ── TABLE CARD ── */
+  .table-card { background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; }
+  .table-head { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid #eee; gap:8px; flex-wrap:wrap; }
+  .table-title { font-size:13px; font-weight:600; color:#222; display:flex; align-items:center; gap:8px; }
+  .crumb-path { font-size:11px; color:#6b7280; background:#f3f4f6; padding:3px 10px; border-radius:20px; }
+
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  thead tr { background:#f9fafb; }
+  th { padding:8px 12px; text-align:left; font-size:10px; color:#6b7280; font-weight:700; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid #eee; white-space:nowrap; }
+  td { padding:9px 12px; border-bottom:1px solid #f3f4f6; color:#374151; vertical-align:middle; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:#fafafa; }
+
+  /* ── BADGES ── */
+  .badge { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:700; white-space:nowrap; }
+  .b-kaspi { background:#fce7f3; color:#9d174d; }
+  .b-bck   { background:#ede9fe; color:#5b21b6; }
+  .b-cash  { background:#d1fae5; color:#065f46; }
+  .b-transfer { background:#dbeafe; color:#1e40af; }
+  .b-ok    { background:#d1fae5; color:#065f46; }
+  .b-warn  { background:#fef3c7; color:#92400e; }
+  .b-err   { background:#fee2e2; color:#991b1b; }
+  .b-new   { background:#f3f4f6; color:#6b7280; }
+  .b-cat   { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
+
+  /* ── STATUS DROPDOWN ── */
+  .sdrop { position:relative; display:inline-block; }
+  .sdrop-menu { display:none; position:absolute; top:110%; left:0; z-index:200; background:#fff; border:1px solid #e5e7eb; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,.1); min-width:150px; padding:4px 0; }
+  .sdrop.open .sdrop-menu { display:block; }
+  .sdrop-item { padding:7px 12px; font-size:12px; color:#374151; cursor:pointer; display:flex; align-items:center; gap:6px; }
+  .sdrop-item:hover { background:#f0f5ff; }
+
+  /* ── MODAL ── */
+  .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:500; align-items:flex-start; justify-content:center; padding-top:60px; }
+  .overlay.open { display:flex; }
+  .modal { background:#fff; border-radius:12px; width:600px; max-width:95vw; max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.2); animation:slideIn .18s ease; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none} }
+  .m-head { padding:16px 20px; border-bottom:1px solid #e5e7eb; display:flex; align-items:center; justify-content:space-between; }
+  .m-head h3 { font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px; }
+  .m-close { border:none; background:none; cursor:pointer; font-size:18px; color:#9ca3af; padding:2px 6px; border-radius:4px; }
+  .m-close:hover { background:#f3f4f6; color:#374151; }
+  .m-body { padding:20px; }
+  .m-foot { padding:14px 20px; border-top:1px solid #e5e7eb; background:#f9fafb; display:flex; gap:8px; align-items:center; }
+  .m-foot .right { margin-left:auto; }
+
+  /* ── FORM ── */
+  .fg { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+  .fg1 { grid-template-columns:1fr; }
+  .fg3 { grid-template-columns:1fr 1fr 1fr; }
+  .field { display:flex; flex-direction:column; gap:5px; }
+  .field.full { grid-column:1/-1; }
+  .field label { font-size:10px; color:#6b7280; text-transform:uppercase; letter-spacing:.06em; font-weight:700; }
+  .field input, .field select, .field textarea { border:1px solid #d1d5db; border-radius:6px; padding:8px 10px; font-size:13px; color:#374151; outline:none; background:#fff; font-family:inherit; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color:#1a56db; box-shadow:0 0 0 2px rgba(26,86,219,.08); }
+  .field textarea { resize:vertical; min-height:70px; }
+  .field .hint { font-size:10px; color:#9ca3af; }
+  .section-lbl { font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid #f3f4f6; display:flex; align-items:center; gap:6px; }
+  .divider { height:1px; background:#f3f4f6; margin:16px 0; }
+
+  /* ── CAT MODAL ── */
+  .cat-picker { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:14px; }
+  .cat-pick-item { border:1px solid #e5e7eb; border-radius:8px; padding:10px 12px; cursor:pointer; font-size:12px; display:flex; align-items:center; gap:8px; transition:all .12s; }
+  .cat-pick-item:hover { border-color:#93c5fd; background:#f0f7ff; }
+  .cat-pick-item.selected { border-color:#1a56db; background:#eff6ff; color:#1d4ed8; font-weight:600; }
+
+  /* ── EMPTY ── */
+  .empty { text-align:center; padding:48px 20px; color:#9ca3af; }
+  .empty-icon { font-size:36px; margin-bottom:10px; }
+
+  /* ── TOAST ── */
+  .toast { position:fixed; bottom:24px; right:24px; background:#111827; color:#fff; padding:11px 16px; border-radius:8px; font-size:13px; z-index:999; display:none; align-items:center; gap:8px; box-shadow:0 4px 16px rgba(0,0,0,.2); }
+  .toast.show { display:flex; animation:fadeUp .2s ease; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none} }
+
+  /* ── CAT MANAGE TAB ── */
+  .cat-manage { padding:16px; }
+  .cat-manage-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .cat-box { background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; }
+  .cat-box-head { padding:10px 14px; border-bottom:1px solid #eee; display:flex; align-items:center; justify-content:space-between; background:#f9fafb; }
+  .cat-box-title { font-size:12px; font-weight:600; color:#374151; display:flex; align-items:center; gap:6px; }
+  .cat-box-body { padding:8px 0; max-height:280px; overflow-y:auto; }
+  .cat-manage-item { display:flex; align-items:center; gap:8px; padding:7px 14px; border-bottom:1px solid #f9fafb; }
+  .cat-manage-item:last-child { border-bottom:none; }
+  .cat-manage-name { flex:1; font-size:12px; color:#374151; }
+  .cat-manage-actions { display:flex; gap:4px; }
+
+  /* ── TABS ── */
+  .tabs { display:flex; gap:0; border-bottom:1px solid #e5e7eb; background:#fff; padding:0 16px; flex-shrink:0; }
+  .tab { padding:11px 16px; font-size:12px; font-weight:500; color:#6b7280; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; white-space:nowrap; }
+  .tab:hover { color:#374151; }
+  .tab.active { color:#1d4ed8; border-bottom-color:#1d4ed8; font-weight:600; }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width:5px; height:5px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:#e5e7eb; border-radius:10px; }
+  ::-webkit-scrollbar-thumb:hover { background:#d1d5db; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo">💧 Водоканал ERP</div>
+    <div class="bc">
+      <span>Главная</span> › <strong>Расходы</strong>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-outline btn-sm">📤 Экспорт</button>
+    <button class="btn btn-primary btn-sm" onclick="openExpModal()">+ Добавить расход</button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('list',this)">📋 Журнал расходов</div>
+  <div class="tab" onclick="switchTab('cats',this)">🗂 Категории</div>
+  <div class="tab" onclick="switchTab('stats',this)">📊 Аналитика</div>
+</div>
+
+<!-- APP BODY -->
+<div class="app-body" id="tabList">
+
+  <!-- LEFT: CATEGORY TREE -->
+  <div class="left-panel">
+    <div class="panel-head">
+      <span class="panel-title">Категории</span>
+      <button class="btn btn-xs btn-primary" onclick="openCatModal()">+ Категория</button>
+    </div>
+    <div class="panel-body" id="treeContainer"></div>
+  </div>
+
+  <!-- RIGHT: EXPENSES TABLE -->
+  <div class="right-panel">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <div class="search-box">
+          <span style="color:#9ca3af;">🔍</span>
+          <input type="text" placeholder="Поиск по описанию, поставщику..." oninput="filterExp(this.value)">
+        </div>
+        <select class="fsel" onchange="filterByAccount(this.value)">
+          <option value="">Счёт: все</option>
+          <option>Каспи</option><option>БЦК</option><option>Наличка</option><option>Перевод</option>
+        </select>
+        <select class="fsel" onchange="filterByStatus(this.value)">
+          <option value="">Статус: все</option>
+          <option>Оплачен</option><option>Ожидает</option><option>Отменён</option>
+        </select>
+        <select class="fsel" id="periodSel">
+          <option>Июнь 2026</option><option>Май 2026</option><option>Апрель 2026</option>
+        </select>
+      </div>
+      <span style="font-size:11px;color:#6b7280;">Записей: <strong id="expCount">0</strong></span>
+    </div>
+
+    <div class="content-area">
+      <!-- STATS -->
+      <div class="stat-row" id="expStats"></div>
+
+      <!-- TABLE -->
+      <div class="table-card">
+        <div class="table-head">
+          <div class="table-title">
+            <span id="tableTitle">Все расходы</span>
+            <span class="crumb-path" id="catCrumb" style="display:none;"></span>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-outline btn-sm" onclick="openExpModal()">+ Расход</button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>№</th>
+                <th>Дата</th>
+                <th>Категория</th>
+                <th>Подкатегория</th>
+                <th>Описание</th>
+                <th>Поставщик / Получатель</th>
+                <th>Сумма</th>
+                <th>🧾 Счёт</th>
+                <th>Привязка</th>
+                <th>Статус</th>
+                <th style="text-align:center;">Действия</th>
+              </tr>
+            </thead>
+            <tbody id="expBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: КАТЕГОРИИ (управление) -->
+<div class="app-body" id="tabCats" style="display:none; overflow-y:auto;">
+  <div style="flex:1; padding:16px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#111827;margin-bottom:2px;">Управление категориями</div>
+        <div style="font-size:12px;color:#6b7280;">Создавайте категории и подкатегории расходов</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-outline btn-sm" onclick="openSubCatModal()">+ Подкатегория</button>
+        <button class="btn btn-primary btn-sm" onclick="openCatModal()">+ Категория</button>
+      </div>
+    </div>
+    <div class="cat-manage-grid" id="catManageGrid"></div>
+  </div>
+</div>
+
+<!-- TAB: АНАЛИТИКА -->
+<div class="app-body" id="tabStats" style="display:none; overflow-y:auto;">
+  <div style="flex:1; padding:16px;">
+    <div style="font-size:16px;font-weight:700;color:#111827;margin-bottom:14px;">Аналитика расходов</div>
+    <div class="stat-row" id="analyticsStats"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+      <div class="table-card">
+        <div class="table-head"><span class="table-title">По категориям</span></div>
+        <table><thead><tr><th>Категория</th><th>Кол-во</th><th>Сумма</th><th>%</th></tr></thead>
+        <tbody id="statsByCat"></tbody></table>
+      </div>
+      <div class="table-card">
+        <div class="table-head"><span class="table-title">По счетам</span></div>
+        <table><thead><tr><th>Счёт</th><th>Кол-во</th><th>Сумма</th><th>%</th></tr></thead>
+        <tbody id="statsByAccount"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ДОБАВИТЬ РАСХОД ══ -->
+<div class="overlay" id="expOverlay" onclick="if(event.target===this)closeExp()">
+  <div class="modal">
+    <div class="m-head">
+      <h3 id="expModalTitle">💸 Добавить расход</h3>
+      <button class="m-close" onclick="closeExp()">✕</button>
+    </div>
+    <div class="m-body">
+      <div class="section-lbl">📁 Категоризация</div>
+      <div class="fg">
+        <div class="field">
+          <label>Категория *</label>
+          <select id="expCatSel" onchange="updateSubCats()">
+            <option value="">— выберите —</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Подкатегория</label>
+          <select id="expSubCatSel">
+            <option value="">— выберите —</option>
+          </select>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-lbl">📋 Детали расхода</div>
+      <div class="fg">
+        <div class="field">
+          <label>Дата *</label>
+          <input type="date" id="expDate" value="2026-07-04">
+        </div>
+        <div class="field">
+          <label>Сумма (₸) *</label>
+          <input type="number" id="expAmount" placeholder="0">
+        </div>
+        <div class="field full">
+          <label>Описание *</label>
+          <input id="expDesc" placeholder="Краткое описание расхода">
+        </div>
+        <div class="field">
+          <label>Поставщик / Получатель</label>
+          <input id="expSupplier" placeholder="Название или ФИО">
+        </div>
+        <div class="field">
+          <label>Статус</label>
+          <select id="expStatus">
+            <option>Оплачен</option>
+            <option>Ожидает</option>
+            <option>Отменён</option>
+          </select>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section-lbl">🧾 Привязка к счетам и данным</div>
+      <div class="fg fg3">
+        <div class="field">
+          <label>Счёт оплаты *</label>
+          <select id="expAccount">
+            <option value="">— выберите —</option>
+            <option>🍊 Каспи</option>
+            <option>🏦 БЦК</option>
+            <option>💵 Наличка</option>
+            <option>🔄 Перевод</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Привязать к заказу</label>
+          <select id="expOrder">
+            <option value="">— не привязан —</option>
+            <option>ЗАК-001 · Кулжанов</option>
+            <option>ЗАК-002 · Коканбаева</option>
+            <option>ЗАК-003 · Тілеуберді</option>
+            <option>ЗАК-004 · Абдуллаева</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Привязать к поверке</label>
+          <select id="expPoverka">
+            <option value="">— не привязан —</option>
+            <option>САМИ — Кулжанов (29.05)</option>
+            <option>САМИ — Тойбай (02.06)</option>
+            <option>ВДК — КНС №3</option>
+            <option>ТЭЦ — Котельная №2</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg">
+        <div class="field">
+          <label>№ документа / счёта</label>
+          <input id="expDocNo" placeholder="СЧ-2026-001">
+        </div>
+        <div class="field">
+          <label>Ответственный</label>
+          <select id="expResponsible">
+            <option>Молдабаев М.</option>
+            <option>Кузьмина А.Н.</option>
+            <option>Ахметов Д.С.</option>
+            <option>Смирнов Д.В.</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label>Комментарий</label>
+          <textarea id="expNote" placeholder="Дополнительная информация..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn btn-primary" onclick="saveExp()">💾 Сохранить</button>
+      <button class="btn btn-outline" onclick="closeExp()">Отмена</button>
+      <button class="btn btn-danger btn-sm right" id="expDeleteBtn" style="display:none;" onclick="deleteExp()">🗑 Удалить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: НОВАЯ КАТЕГОРИЯ ══ -->
+<div class="overlay" id="catOverlay" onclick="if(event.target===this)closeCat()">
+  <div class="modal" style="width:420px;">
+    <div class="m-head">
+      <h3>🗂 Новая категория</h3>
+      <button class="m-close" onclick="closeCat()">✕</button>
+    </div>
+    <div class="m-body">
+      <div class="fg fg1" style="margin-bottom:14px;">
+        <div class="field">
+          <label>Название категории *</label>
+          <input id="newCatName" placeholder="Например: Аренда, Транспорт...">
+        </div>
+      </div>
+      <div class="section-lbl">Иконка</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;" id="iconPicker">
+        <!-- icons rendered by JS -->
+      </div>
+      <div class="fg fg1">
+        <div class="field">
+          <label>Описание (необязательно)</label>
+          <textarea id="newCatDesc" placeholder="Описание категории..." style="min-height:56px;"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn btn-primary" onclick="saveCat()">✅ Создать категорию</button>
+      <button class="btn btn-outline" onclick="closeCat()">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: НОВАЯ ПОДКАТЕГОРИЯ ══ -->
+<div class="overlay" id="subCatOverlay" onclick="if(event.target===this)closeSubCat()">
+  <div class="modal" style="width:420px;">
+    <div class="m-head">
+      <h3>📂 Новая подкатегория</h3>
+      <button class="m-close" onclick="closeSubCat()">✕</button>
+    </div>
+    <div class="m-body">
+      <div class="fg fg1">
+        <div class="field">
+          <label>Родительская категория *</label>
+          <select id="subCatParent">
+            <option value="">— выберите —</option>
+          </select>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>Название подкатегории *</label>
+          <input id="newSubCatName" placeholder="Например: ГСМ, Запчасти...">
+        </div>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn btn-primary" onclick="saveSubCat()">✅ Создать</button>
+      <button class="btn btn-outline" onclick="closeSubCat()">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════════════════════════════
+const ICONS = ['🚗','🏭','⚡','💧','📦','🔧','👤','📞','🖥','🏢','📋','🛒','💡','🔌','⛽','🚿','🔑','📐','🧰','💼'];
+let selectedIcon = '📦';
+
+let cats = [
+  { id:1, name:'Транспорт',     icon:'🚗', desc:'Транспортные расходы', subs:['ГСМ','Ремонт авто','Мойка','Страховка ОСМС'] },
+  { id:2, name:'Коммунальные',  icon:'⚡', desc:'Коммунальные платежи',  subs:['Электричество','Вода','Отопление','Интернет'] },
+  { id:3, name:'Зарплата',      icon:'👤', desc:'Расходы на персонал',   subs:['Основная з/п','Премии','Командировочные'] },
+  { id:4, name:'Материалы',     icon:'📦', desc:'Расходные материалы',   subs:['Счётчики','Фитинги','Пломбы','Инструменты'] },
+  { id:5, name:'Аренда',        icon:'🏢', desc:'Аренда помещений',      subs:['Офис','Склад','Гараж'] },
+  { id:6, name:'Связь',         icon:'📞', desc:'Телефон и интернет',    subs:['Мобильная','Интернет офис','Корпоративная'] },
+  { id:7, name:'Обслуживание',  icon:'🔧', desc:'Ремонт и сервис',       subs:['Оборудование','Офисная техника','Прочее'] },
+];
+
+let expenses = [
+  {id:1, date:'01.06.2026', cat:'Транспорт',    sub:'ГСМ',              desc:'Бензин для служебного авто', supplier:'АЗС №5',          amount:18500, account:'Каспи',   order:'',                    poverka:'САМИ — Кулжанов',  docNo:'',           resp:'Смирнов Д.В.', note:'',         status:'Оплачен'},
+  {id:2, date:'02.06.2026', cat:'Материалы',    sub:'Счётчики',         desc:'Закупка счётчиков ХВС DN15', supplier:'ТОО «Метрология»', amount:450000,account:'БЦК',     order:'ЗАК-001 · Кулжанов',  poverka:'',                 docNo:'СЧ-2026-001',resp:'Кузьмина А.Н.', note:'50 шт.',  status:'Оплачен'},
+  {id:3, date:'03.06.2026', cat:'Коммунальные', sub:'Электричество',    desc:'Оплата электроэнергии июнь', supplier:'АО «АЛСЕ»',        amount:24300, account:'БЦК',     order:'',                    poverka:'',                 docNo:'',           resp:'Молдабаев М.', note:'',         status:'Оплачен'},
+  {id:4, date:'04.06.2026', cat:'Зарплата',     sub:'Основная з/п',     desc:'Зарплата поверителей май',   supplier:'',                 amount:360000,account:'Перевод', order:'',                    poverka:'',                 docNo:'',           resp:'Молдабаев М.', note:'2 чел.',  status:'Оплачен'},
+  {id:5, date:'05.06.2026', cat:'Транспорт',    sub:'Ремонт авто',      desc:'Замена тормозных колодок',   supplier:'СТО «Мастер»',     amount:35000, account:'Наличка', order:'',                    poverka:'САМИ — Тойбай',    docNo:'',           resp:'Смирнов Д.В.', note:'',         status:'Оплачен'},
+  {id:6, date:'06.06.2026', cat:'Аренда',       sub:'Офис',             desc:'Аренда офиса за июнь',       supplier:'ТОО «Бизнес+»',    amount:85000, account:'Каспи',   order:'',                    poverka:'',                 docNo:'АР-2026-06', resp:'Молдабаев М.', note:'',         status:'Оплачен'},
+  {id:7, date:'08.06.2026', cat:'Материалы',    sub:'Фитинги',          desc:'Прокладки и фитинги',        supplier:'ИП Ахметов',        amount:60000, account:'Наличка', order:'ЗАК-002 · Коканбаева',poverka:'',                 docNo:'',           resp:'Кузьмина А.Н.', note:'200 шт.', status:'Оплачен'},
+  {id:8, date:'09.06.2026', cat:'Связь',        sub:'Мобильная',        desc:'Корпоративная связь июнь',   supplier:'Kcell',             amount:12000, account:'Каспи',   order:'',                    poverka:'',                 docNo:'',           resp:'Молдабаев М.', note:'4 номера', status:'Оплачен'},
+  {id:9, date:'10.06.2026', cat:'Обслуживание', sub:'Оборудование',     desc:'ТО поверочного оборудования',supplier:'ТОО «Калибр»',     amount:45000, account:'БЦК',     order:'',                    poverka:'ВДК — КНС №3',     docNo:'ТО-2026-03', resp:'Ахметов Д.С.', note:'',         status:'Оплачен'},
+  {id:10,date:'11.06.2026', cat:'Коммунальные', sub:'Интернет',         desc:'Интернет офис июнь',         supplier:'Beeline',           amount:8500,  account:'Каспи',   order:'',                    poverka:'',                 docNo:'',           resp:'Молдабаев М.', note:'',         status:'Оплачен'},
+  {id:11,date:'15.06.2026', cat:'Транспорт',    sub:'ГСМ',              desc:'Бензин выездная поверка',    supplier:'АЗС «Sinooil»',    amount:9800,  account:'Наличка', order:'',                    poverka:'САМИ — Попова',    docNo:'',           resp:'Смирнов Д.В.', note:'',         status:'Оплачен'},
+  {id:12,date:'20.06.2026', cat:'Зарплата',     sub:'Командировочные',  desc:'Суточные выездная поверка',  supplier:'',                  amount:15000, account:'Наличка', order:'',                    poverka:'САМИ — Абдуллаева',docNo:'',           resp:'Смирнов Д.В.', note:'',         status:'Ожидает'},
+  {id:13,date:'25.06.2026', cat:'Аренда',       sub:'Склад',            desc:'Аренда склада июнь',         supplier:'ИП Сидоров',        amount:40000, account:'Перевод', order:'',                    poverka:'',                 docNo:'АС-2026-06', resp:'Кузьмина А.Н.', note:'',        status:'Ожидает'},
+  {id:14,date:'28.06.2026', cat:'Материалы',    sub:'Пломбы',           desc:'Поверочные пломбы (500 шт)', supplier:'ТОО «Метрология»', amount:25000, account:'БЦК',     order:'ЗАК-003 · Тілеуберді',poverka:'',                 docNo:'СЧ-2026-018',resp:'Кузьмина А.Н.', note:'',        status:'Оплачен'},
+  {id:15,date:'30.06.2026', cat:'Обслуживание', sub:'Офисная техника',  desc:'Заправка картриджей принтер',supplier:'ИП Ким',            amount:6500,  account:'Наличка', order:'',                    poverka:'',                 docNo:'',           resp:'Молдабаев М.', note:'',         status:'Оплачен'},
+];
+
+let filteredExp = [...expenses];
+let activeFilters = { q:'', account:'', status:'', catId:null, subName:'' };
+let editingId = null;
+let catDeletePending = null;
+
+// ══════════════════════════════════════════════════════════════════
+// RENDER TREE
+// ══════════════════════════════════════════════════════════════════
+function renderTree() {
+  const container = document.getElementById('treeContainer');
+  const allCount = expenses.length;
+  let html = `
+    <div class="cat-item">
+      <div class="cat-row ${!activeFilters.catId ? 'active':''}" onclick="filterByCat(null,null,'Все расходы')">
+        <span class="cat-icon">📊</span>
+        <span class="cat-name">Все расходы</span>
+        <span class="cat-count">${allCount}</span>
+      </div>
+    </div>`;
+  cats.forEach(cat => {
+    const catCount = expenses.filter(e=>e.cat===cat.name).length;
+    const isOpen = activeFilters.catId===cat.id;
+    html += `
+      <div class="cat-item">
+        <div class="cat-row ${activeFilters.catId===cat.id&&!activeFilters.subName?'active':''}" onclick="filterByCat(${cat.id},null,'${cat.name}')">
+          <span class="cat-toggle" onclick="event.stopPropagation();toggleSub(${cat.id},this)">${isOpen?'▾':'▸'}</span>
+          <span class="cat-icon">${cat.icon}</span>
+          <span class="cat-name">${cat.name}</span>
+          <span class="cat-count">${catCount}</span>
+          <button class="cat-add" onclick="event.stopPropagation();openSubCatModalFor(${cat.id})" title="Добавить подкатегорию">+</button>
+        </div>
+        <div class="sub-list ${isOpen?'open':''}" id="sub-${cat.id}">
+          ${cat.subs.map(sub => {
+            const sCount = expenses.filter(e=>e.cat===cat.name&&e.sub===sub).length;
+            return `
+            <div class="sub-row ${activeFilters.catId===cat.id&&activeFilters.subName===sub?'active':''}"
+                 onclick="filterByCat(${cat.id},'${sub}','${cat.name} › ${sub}')">
+              <div class="sub-dot"></div>
+              <span class="sub-name">${sub}</span>
+              <span class="sub-count">${sCount}</span>
+            </div>`;
+          }).join('')}
+          <div class="sub-row" onclick="openSubCatModalFor(${cat.id})" style="color:#9ca3af;font-size:11px;">
+            <div class="sub-dot" style="background:#e5e7eb;"></div>
+            <span style="color:#9ca3af;font-style:italic;">+ подкатегория</span>
+          </div>
+        </div>
+      </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function toggleSub(catId, btn) {
+  const sub = document.getElementById('sub-'+catId);
+  const isOpen = sub.classList.contains('open');
+  // close all
+  document.querySelectorAll('.sub-list').forEach(s=>s.classList.remove('open'));
+  document.querySelectorAll('.cat-toggle').forEach(t=>t.textContent='▸');
+  if (!isOpen) { sub.classList.add('open'); btn.textContent='▾'; }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FILTERS
+// ══════════════════════════════════════════════════════════════════
+function filterByCat(catId, subName, label) {
+  activeFilters.catId  = catId;
+  activeFilters.subName = subName || '';
+  document.getElementById('tableTitle').textContent = label || 'Все расходы';
+  const crumb = document.getElementById('catCrumb');
+  crumb.style.display = catId ? 'inline-flex' : 'none';
+  crumb.textContent = label;
+  applyFilters();
+  renderTree();
+  // open parent
+  if (catId) {
+    const sub = document.getElementById('sub-'+catId);
+    if (sub) sub.classList.add('open');
+  }
+}
+
+function filterExp(q) { activeFilters.q = q.toLowerCase(); applyFilters(); }
+function filterByAccount(v) { activeFilters.account = v; applyFilters(); }
+function filterByStatus(v)  { activeFilters.status  = v; applyFilters(); }
+
+function applyFilters() {
+  filteredExp = expenses.filter(e => {
+    if (activeFilters.catId && cats.find(c=>c.id===activeFilters.catId)?.name !== e.cat) return false;
+    if (activeFilters.subName && e.sub !== activeFilters.subName) return false;
+    if (activeFilters.account && e.account !== activeFilters.account) return false;
+    if (activeFilters.status  && e.status  !== activeFilters.status)  return false;
+    if (activeFilters.q && !`${e.desc} ${e.supplier} ${e.cat} ${e.sub}`.toLowerCase().includes(activeFilters.q)) return false;
+    return true;
+  });
+  renderExpTable();
+  renderStats();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// RENDER TABLE
+// ══════════════════════════════════════════════════════════════════
+function accountBadge(v) {
+  const m = {Каспи:'b-kaspi 🍊', БЦК:'b-bck 🏦', Наличка:'b-cash 💵', Перевод:'b-transfer 🔄'};
+  const [cls,ico] = (m[v]||'b-new ?').split(' ');
+  return `<span class="badge ${cls}">${ico} ${v}</span>`;
+}
+function statusBadge(v) {
+  const m = {Оплачен:'b-ok',Ожидает:'b-warn',Отменён:'b-err'};
+  const ico = {Оплачен:'✓',Ожидает:'⏳',Отменён:'✕'};
+  return `<span class="badge ${m[v]||'b-new'}">${ico[v]||''} ${v}</span>`;
+}
+
+function renderExpTable() {
+  const tbody = document.getElementById('expBody');
+  document.getElementById('expCount').textContent = filteredExp.length;
+  if (!filteredExp.length) {
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:32px;color:#9ca3af;">Нет записей по выбранному фильтру</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filteredExp.map((e,i) => `
+    <tr>
+      <td style="color:#9ca3af;font-size:11px;">${e.id}</td>
+      <td style="font-size:11px;color:#6b7280;">${e.date}</td>
+      <td>
+        <span class="badge b-cat">${cats.find(c=>c.name===e.cat)?.icon||'📦'} ${e.cat}</span>
+      </td>
+      <td style="font-size:11px;color:#6b7280;">${e.sub}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;">${e.desc}</td>
+      <td style="font-size:11px;color:#374151;">${e.supplier||'—'}</td>
+      <td style="font-weight:700;color:#111827;text-align:right;">${e.amount.toLocaleString('ru')} ₸</td>
+      <td>${accountBadge(e.account)}</td>
+      <td style="font-size:11px;color:#6b7280;">
+        ${e.order ? `<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;" title="${e.order}">📋 ${e.order}</div>` : ''}
+        ${e.poverka ? `<div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;" title="${e.poverka}">🔬 ${e.poverka}</div>` : ''}
+        ${!e.order && !e.poverka ? '—' : ''}
+      </td>
+      <td>${statusBadge(e.status)}</td>
+      <td style="text-align:center;">
+        <div style="display:flex;gap:4px;justify-content:center;">
+          <button class="btn btn-ghost btn-xs" onclick="openExpEdit(${e.id})" title="Редактировать">✏️</button>
+          <button class="btn btn-ghost btn-xs" onclick="cloneExp(${e.id})" title="Клонировать" style="font-size:11px;">⎘</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STATS
+// ══════════════════════════════════════════════════════════════════
+function renderStats() {
+  const total = filteredExp.reduce((s,e)=>s+e.amount,0);
+  const paid  = filteredExp.filter(e=>e.status==='Оплачен').reduce((s,e)=>s+e.amount,0);
+  const wait  = filteredExp.filter(e=>e.status==='Ожидает').reduce((s,e)=>s+e.amount,0);
+  const cnt   = filteredExp.length;
+  document.getElementById('expStats').innerHTML = `
+    <div class="stat-card s-red"><div class="stat-label">💸 Итого расходов</div><div class="stat-val">${(total/1000).toFixed(0)} тыс ₸</div><div class="stat-sub">${cnt} записей</div></div>
+    <div class="stat-card s-green"><div class="stat-label">✅ Оплачено</div><div class="stat-val">${(paid/1000).toFixed(0)} тыс ₸</div></div>
+    <div class="stat-card s-amber"><div class="stat-label">⏳ Ожидает</div><div class="stat-val">${(wait/1000).toFixed(0)} тыс ₸</div></div>
+    <div class="stat-card s-blue"><div class="stat-label">📅 Записей</div><div class="stat-val">${cnt}</div></div>`;
+}
+
+function renderAnalytics() {
+  const total = expenses.reduce((s,e)=>s+e.amount,0);
+  // by cat
+  const byCat = {};
+  expenses.forEach(e => { byCat[e.cat] = (byCat[e.cat]||{cnt:0,sum:0}); byCat[e.cat].cnt++; byCat[e.cat].sum+=e.amount; });
+  document.getElementById('statsByCat').innerHTML = Object.entries(byCat).sort((a,b)=>b[1].sum-a[1].sum).map(([k,v])=>{
+    const cat = cats.find(c=>c.name===k);
+    return `<tr><td>${cat?.icon||''} ${k}</td><td>${v.cnt}</td><td style="font-weight:600;">${(v.sum/1000).toFixed(0)} тыс ₸</td><td><span class="badge b-new">${Math.round(v.sum/total*100)}%</span></td></tr>`;
+  }).join('');
+  // by account
+  const byAcc = {};
+  expenses.forEach(e => { byAcc[e.account] = (byAcc[e.account]||{cnt:0,sum:0}); byAcc[e.account].cnt++; byAcc[e.account].sum+=e.amount; });
+  document.getElementById('statsByAccount').innerHTML = Object.entries(byAcc).sort((a,b)=>b[1].sum-a[1].sum).map(([k,v])=>
+    `<tr><td>${accountBadge(k)}</td><td>${v.cnt}</td><td style="font-weight:600;">${(v.sum/1000).toFixed(0)} тыс ₸</td><td><span class="badge b-new">${Math.round(v.sum/total*100)}%</span></td></tr>`
+  ).join('');
+
+  document.getElementById('analyticsStats').innerHTML = `
+    <div class="stat-card s-red"><div class="stat-label">💸 Всего расходов</div><div class="stat-val">${(total/1000).toFixed(0)} тыс ₸</div></div>
+    <div class="stat-card"><div class="stat-label">🗂 Категорий</div><div class="stat-val">${cats.length}</div></div>
+    <div class="stat-card s-blue"><div class="stat-label">📋 Записей</div><div class="stat-val">${expenses.length}</div></div>
+    <div class="stat-card s-amber"><div class="stat-label">⏳ Ожидает</div><div class="stat-val">${expenses.filter(e=>e.status==='Ожидает').length}</div></div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CAT MANAGE TAB
+// ══════════════════════════════════════════════════════════════════
+function renderCatManage() {
+  document.getElementById('catManageGrid').innerHTML = cats.map(cat=>{
+    const count = expenses.filter(e=>e.cat===cat.name).length;
+    return `
+    <div class="cat-box">
+      <div class="cat-box-head">
+        <span class="cat-box-title">${cat.icon} ${cat.name} <span class="badge b-new" style="font-size:10px;">${count} расх.</span></span>
+        <div style="display:flex;gap:4px;">
+          <button class="btn btn-ghost btn-xs" onclick="openSubCatModalFor(${cat.id})" title="Добавить подкатегорию">+sub</button>
+          <button class="btn btn-ghost btn-xs" style="color:#dc2626;" onclick="deleteCat(${cat.id})" title="Удалить категорию">🗑</button>
+        </div>
+      </div>
+      <div class="cat-box-body">
+        ${cat.subs.map(sub=>{
+          const sc = expenses.filter(e=>e.cat===cat.name&&e.sub===sub).length;
+          return `<div class="cat-manage-item">
+            <span class="sub-dot"></span>
+            <span class="cat-manage-name">${sub}</span>
+            <span class="badge b-new" style="font-size:10px;">${sc}</span>
+            <div class="cat-manage-actions">
+              <button class="btn btn-ghost btn-xs" onclick="deleteSub(${cat.id},'${sub}')" style="color:#dc2626;" title="Удалить">✕</button>
+            </div>
+          </div>`;
+        }).join('')}
+        ${cat.subs.length===0?'<div style="padding:12px 14px;color:#9ca3af;font-size:12px;">Нет подкатегорий</div>':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MODALS: CAT
+// ══════════════════════════════════════════════════════════════════
+function openCatModal() {
+  selectedIcon = '📦';
+  document.getElementById('newCatName').value = '';
+  document.getElementById('newCatDesc').value = '';
+  renderIconPicker();
+  document.getElementById('catOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('newCatName').focus(),100);
+}
+function closeCat() { document.getElementById('catOverlay').classList.remove('open'); }
+
+function renderIconPicker() {
+  document.getElementById('iconPicker').innerHTML = ICONS.map(ic=>`
+    <div onclick="selectIcon('${ic}',this)" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:2px solid ${ic===selectedIcon?'#1a56db':'#e5e7eb'};cursor:pointer;font-size:18px;background:${ic===selectedIcon?'#eff6ff':'#fff'};transition:all .1s;">
+      ${ic}
+    </div>`).join('');
+}
+function selectIcon(ic, el) {
+  selectedIcon = ic;
+  document.querySelectorAll('#iconPicker > div').forEach(d=>{ d.style.borderColor='#e5e7eb'; d.style.background='#fff'; });
+  el.style.borderColor='#1a56db'; el.style.background='#eff6ff';
+}
+
+function saveCat() {
+  const name = document.getElementById('newCatName').value.trim();
+  if (!name) { showToast('⚠️ Введите название категории'); return; }
+  if (cats.find(c=>c.name.toLowerCase()===name.toLowerCase())) { showToast('⚠️ Такая категория уже есть'); return; }
+  cats.push({ id: Date.now(), name, icon: selectedIcon, desc: document.getElementById('newCatDesc').value, subs: [] });
+  closeCat();
+  renderTree();
+  renderCatManage();
+  populateCatSelects();
+  showToast(`✅ Категория "${name}" создана`);
+}
+
+function deleteCat(catId) {
+  const cat = cats.find(c=>c.id===catId);
+  const usedCount = expenses.filter(e=>e.cat===cat?.name).length;
+  if (usedCount > 0) { showToast(`⚠️ Нельзя удалить — используется в ${usedCount} расходах`); return; }
+  cats = cats.filter(c=>c.id!==catId);
+  renderTree(); renderCatManage(); populateCatSelects();
+  showToast(`🗑 Категория удалена`);
+}
+
+function deleteSub(catId, subName) {
+  const cat = cats.find(c=>c.id===catId);
+  if (!cat) return;
+  const used = expenses.filter(e=>e.cat===cat.name&&e.sub===subName).length;
+  if (used > 0) { showToast(`⚠️ Используется в ${used} расходах`); return; }
+  cat.subs = cat.subs.filter(s=>s!==subName);
+  renderTree(); renderCatManage(); populateCatSelects();
+  showToast(`🗑 Подкатегория удалена`);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MODALS: SUBCAT
+// ══════════════════════════════════════════════════════════════════
+function openSubCatModal() {
+  populateSubCatParent();
+  document.getElementById('newSubCatName').value = '';
+  document.getElementById('subCatOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('newSubCatName').focus(),100);
+}
+function openSubCatModalFor(catId) {
+  populateSubCatParent(catId);
+  document.getElementById('newSubCatName').value = '';
+  document.getElementById('subCatOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('newSubCatName').focus(),100);
+}
+function closeSubCat() { document.getElementById('subCatOverlay').classList.remove('open'); }
+
+function populateSubCatParent(selectId) {
+  const sel = document.getElementById('subCatParent');
+  sel.innerHTML = '<option value="">— выберите —</option>' + cats.map(c=>`<option value="${c.id}" ${c.id===selectId?'selected':''}>${c.icon} ${c.name}</option>`).join('');
+}
+
+function saveSubCat() {
+  const catId  = +document.getElementById('subCatParent').value;
+  const name   = document.getElementById('newSubCatName').value.trim();
+  if (!catId) { showToast('⚠️ Выберите категорию'); return; }
+  if (!name)  { showToast('⚠️ Введите название'); return; }
+  const cat = cats.find(c=>c.id===catId);
+  if (cat.subs.includes(name)) { showToast('⚠️ Такая подкатегория уже есть'); return; }
+  cat.subs.push(name);
+  closeSubCat();
+  renderTree(); renderCatManage(); populateCatSelects();
+  showToast(`✅ Подкатегория "${name}" добавлена в "${cat.name}"`);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MODALS: EXPENSE
+// ══════════════════════════════════════════════════════════════════
+function populateCatSelects() {
+  const sel = document.getElementById('expCatSel');
+  sel.innerHTML = '<option value="">— выберите —</option>' + cats.map(c=>`<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+  updateSubCats();
+  const subParent = document.getElementById('subCatParent');
+  if (subParent) populateSubCatParent();
+}
+
+function updateSubCats() {
+  const catId = +document.getElementById('expCatSel').value;
+  const cat = cats.find(c=>c.id===catId);
+  const sel = document.getElementById('expSubCatSel');
+  sel.innerHTML = '<option value="">— выберите —</option>' + (cat?.subs||[]).map(s=>`<option>${s}</option>`).join('');
+}
+
+function openExpModal() {
+  editingId = null;
+  document.getElementById('expModalTitle').textContent = '💸 Добавить расход';
+  document.getElementById('expDeleteBtn').style.display='none';
+  ['expCatSel','expSubCatSel','expOrder','expPoverka','expDocNo','expNote','expDesc','expSupplier','expAmount'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('expDate').value='2026-07-04';
+  document.getElementById('expStatus').value='Оплачен';
+  document.getElementById('expAccount').value='';
+  document.getElementById('expResponsible').value='Молдабаев М.';
+  // pre-select active cat filter
+  if (activeFilters.catId) {
+    document.getElementById('expCatSel').value = activeFilters.catId;
+    updateSubCats();
+    if (activeFilters.subName) document.getElementById('expSubCatSel').value = activeFilters.subName;
+  }
+  document.getElementById('expOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('expDesc').focus(),100);
+}
+
+function openExpEdit(id) {
+  const e = expenses.find(x=>x.id===id);
+  if (!e) return;
+  editingId = id;
+  document.getElementById('expModalTitle').textContent = `✏️ Редактировать расход #${id}`;
+  document.getElementById('expDeleteBtn').style.display='flex';
+  const cat = cats.find(c=>c.name===e.cat);
+  document.getElementById('expCatSel').value = cat?.id||'';
+  updateSubCats();
+  document.getElementById('expSubCatSel').value = e.sub;
+  document.getElementById('expDate').value = e.date.split('.').reverse().join('-');
+  document.getElementById('expAmount').value = e.amount;
+  document.getElementById('expDesc').value = e.desc;
+  document.getElementById('expSupplier').value = e.supplier;
+  document.getElementById('expStatus').value = e.status;
+  document.getElementById('expAccount').value = e.account ? `${e.account==='Каспи'?'🍊':e.account==='БЦК'?'🏦':e.account==='Наличка'?'💵':'🔄'} ${e.account}` : '';
+  document.getElementById('expOrder').value = e.order;
+  document.getElementById('expPoverka').value = e.poverka;
+  document.getElementById('expDocNo').value = e.docNo;
+  document.getElementById('expResponsible').value = e.resp;
+  document.getElementById('expNote').value = e.note;
+  document.getElementById('expOverlay').classList.add('open');
+}
+
+function saveExp() {
+  const catId = +document.getElementById('expCatSel').value;
+  const cat   = cats.find(c=>c.id===catId);
+  const desc  = document.getElementById('expDesc').value.trim();
+  const amount= +document.getElementById('expAmount').value;
+  const accRaw= document.getElementById('expAccount').value;
+  const account = accRaw.replace(/[🍊🏦💵🔄]\s*/,'');
+  if (!cat)   { showToast('⚠️ Выберите категорию'); return; }
+  if (!desc)  { showToast('⚠️ Введите описание'); return; }
+  if (!amount){ showToast('⚠️ Введите сумму'); return; }
+  if (!account){ showToast('⚠️ Выберите счёт'); return; }
+  const parts = document.getElementById('expDate').value.split('-');
+  const dateStr = `${parts[2]}.${parts[1]}.${parts[0]}`;
+  const rec = {
+    id: editingId || (Math.max(...expenses.map(e=>e.id),0)+1),
+    date: dateStr, cat: cat.name,
+    sub: document.getElementById('expSubCatSel').value,
+    desc, supplier: document.getElementById('expSupplier').value,
+    amount, account,
+    order: document.getElementById('expOrder').value,
+    poverka: document.getElementById('expPoverka').value,
+    docNo: document.getElementById('expDocNo').value,
+    resp: document.getElementById('expResponsible').value,
+    note: document.getElementById('expNote').value,
+    status: document.getElementById('expStatus').value,
+  };
+  if (editingId) {
+    const idx = expenses.findIndex(e=>e.id===editingId);
+    expenses[idx] = rec;
+    showToast('✅ Расход обновлён');
+  } else {
+    expenses.push(rec);
+    showToast('✅ Расход добавлен');
+  }
+  closeExp();
+  applyFilters();
+  renderTree();
+  renderCatManage();
+}
+
+function deleteExp() {
+  if (!editingId) return;
+  expenses.splice(expenses.findIndex(e=>e.id===editingId),1);
+  closeExp();
+  applyFilters(); renderTree(); renderCatManage();
+  showToast('🗑 Расход удалён');
+}
+
+function cloneExp(id) {
+  const orig = expenses.find(e=>e.id===id);
+  if (!orig) return;
+  const clone = {...orig, id: Math.max(...expenses.map(e=>e.id))+1, status:'Ожидает'};
+  const idx = expenses.findIndex(e=>e.id===id);
+  expenses.splice(idx+1,0,clone);
+  applyFilters(); renderTree();
+  showToast('⎘ Расход клонирован');
+}
+
+function closeExp() { document.getElementById('expOverlay').classList.remove('open'); editingId=null; }
+
+// ══════════════════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════════════════
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tabList').style.display  = tab==='list'  ? 'flex' : 'none';
+  document.getElementById('tabCats').style.display  = tab==='cats'  ? 'flex' : 'none';
+  document.getElementById('tabStats').style.display = tab==='stats' ? 'flex' : 'none';
+  if (tab==='cats')  renderCatManage();
+  if (tab==='stats') renderAnalytics();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 2800);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  populateCatSelects();
+  renderTree();
+  applyFilters();
+});
+</script>
+</body>
+</html>

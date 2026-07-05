@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Кабинет мастера — U2B-Vertex</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{
+  --blue:#1a56db; --green:#059669; --orange:#d97706; --red:#dc2626;
+  --bg:#f5f6fa; --card:#fff; --border:#e5e7eb; --text:#111827; --muted:#6b7280;
+  --safe-top:env(safe-area-inset-top,0px); --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);font-size:14px;overflow:hidden;}
+
+/* ── PHONE FRAME (desktop view) ── */
+.phone-frame{
+  width:390px; height:844px; margin:20px auto;
+  background:var(--bg); border-radius:44px;
+  box-shadow:0 0 0 8px #1a1a2e, 0 0 0 10px #2a2a3e, 0 30px 80px rgba(0,0,0,.4);
+  overflow:hidden; display:flex; flex-direction:column;
+  position:relative;
+}
+@media (max-width:430px){
+  .phone-frame{width:100%;height:100vh;border-radius:0;box-shadow:none;margin:0;}
+  body{background:#fff;}
+}
+
+/* ── STATUS BAR ── */
+.status-bar{
+  height:44px; background:#0f172a;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 20px; flex-shrink:0;
+}
+.sb-time{font-size:15px;font-weight:600;color:#fff;}
+.sb-icons{display:flex;align-items:center;gap:5px;color:#fff;font-size:12px;}
+
+/* ── NAV BAR ── */
+.nav-bar{
+  background:#fff; border-top:1px solid var(--border);
+  display:flex; padding:6px 0; flex-shrink:0;
+  padding-bottom:calc(6px + var(--safe-bottom));
+}
+.nav-item{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+  cursor:pointer; transition:all .15s; padding:4px 0;
+}
+.nav-icon{font-size:22px; transition:transform .15s;}
+.nav-label{font-size:10px; color:var(--muted); font-weight:500;}
+.nav-item.active .nav-label{color:var(--blue); font-weight:700;}
+.nav-item.active .nav-icon{transform:scale(1.1);}
+.nav-badge{
+  position:absolute; top:-4px; right:-4px;
+  background:var(--red); color:#fff; font-size:9px; font-weight:700;
+  width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+}
+
+/* ── SCREENS ── */
+.screen{display:none;flex:1;overflow-y:auto;flex-direction:column;}
+.screen.active{display:flex;}
+
+/* ── APP HEADER ── */
+.app-header{
+  background:#fff; padding:14px 16px 12px;
+  border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+  flex-shrink:0; position:sticky; top:0; z-index:10;
+}
+.ah-title{font-size:17px;font-weight:800;color:var(--text);}
+.ah-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.ah-right{display:flex;align-items:center;gap:8px;}
+.avatar-sm{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1a56db,#0ea5e9);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;}
+
+/* ── CARDS ── */
+.card{background:var(--card);border-radius:14px;margin:10px 14px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.card-inner{padding:14px 16px;}
+.card-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
+
+/* ── TASK ITEMS ── */
+.task-item{
+  background:#fff; border:1.5px solid var(--border); border-radius:12px;
+  margin:8px 14px; padding:14px;
+  cursor:pointer; transition:all .15s; position:relative;
+}
+.task-item:hover,.task-item:active{border-color:var(--blue);background:#fafcff;transform:scale(.99);}
+.task-item.urgent{border-color:#fca5a5;background:#fff5f5;}
+.task-item.done{border-color:#a7f3d0;background:#f0fdf4;opacity:.8;}
+.task-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;}
+.task-name{font-size:14px;font-weight:700;color:var(--text);line-height:1.3;}
+.task-badge{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:700;white-space:nowrap;flex-shrink:0;}
+.tb-new   {background:#dbeafe;color:#1e40af;}
+.tb-urgent{background:#fee2e2;color:#991b1b;}
+.tb-done  {background:#d1fae5;color:#065f46;}
+.tb-work  {background:#fef3c7;color:#92400e;}
+.task-row{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-bottom:4px;}
+.task-row:last-child{margin-bottom:0;}
+.task-check{position:absolute;top:14px;right:14px;}
+
+/* ── FORM ── */
+.form-section{padding:0 14px 14px;}
+.form-group{margin-bottom:14px;}
+.form-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.required{color:var(--red);}
+.form-input{
+  width:100%;border:1.5px solid var(--border);border-radius:10px;
+  padding:11px 13px;font-size:14px;color:var(--text);outline:none;
+  background:#fff;font-family:inherit;transition:border-color .15s;
+}
+.form-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,86,219,.08);}
+.form-select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+
+/* ── PHOTO UPLOAD ── */
+.photo-area{
+  border:2px dashed var(--border);border-radius:12px;
+  padding:20px 14px;text-align:center;cursor:pointer;
+  transition:all .15s;background:#fafafa;margin-bottom:14px;
+  position:relative;
+}
+.photo-area:hover,.photo-area:active{border-color:var(--blue);background:#eff6ff;}
+.photo-area.has-photo{border-style:solid;border-color:#a7f3d0;background:#f0fdf4;padding:0;overflow:hidden;}
+.photo-preview{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;}
+.photo-icon{font-size:36px;margin-bottom:8px;}
+.photo-label{font-size:13px;font-weight:600;color:var(--muted);}
+.photo-sub{font-size:11px;color:#9ca3af;margin-top:4px;}
+.photo-required-badge{
+  position:absolute;top:8px;right:8px;
+  background:var(--red);color:#fff;font-size:9px;font-weight:700;
+  padding:2px 7px;border-radius:10px;
+}
+.photo-count-badge{
+  position:absolute;top:8px;right:8px;
+  background:#059669;color:#fff;font-size:10px;font-weight:700;
+  padding:2px 8px;border-radius:10px;
+}
+/* simulate multiple photos */
+.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px;}
+.photo-thumb{aspect-ratio:1;border-radius:8px;background:#e5e7eb;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;overflow:hidden;position:relative;}
+.photo-thumb img{width:100%;height:100%;object-fit:cover;}
+.photo-add{border:2px dashed var(--border);background:#fafafa;font-size:28px;}
+.photo-add:hover{border-color:var(--blue);background:#eff6ff;}
+
+/* ── BUTTONS ── */
+.btn-primary{
+  width:100%;background:var(--blue);color:#fff;
+  border:none;border-radius:12px;padding:15px;
+  font-size:15px;font-weight:700;cursor:pointer;
+  transition:all .15s;font-family:inherit;
+}
+.btn-primary:hover,.btn-primary:active{background:#1344b8;transform:scale(.98);}
+.btn-primary:disabled{background:#9ca3af;cursor:not-allowed;}
+.btn-outline-sm{
+  flex:1;background:#fff;color:var(--text);
+  border:1.5px solid var(--border);border-radius:10px;padding:10px;
+  font-size:13px;font-weight:600;cursor:pointer;
+  transition:all .15s;font-family:inherit;
+}
+.btn-outline-sm:hover{background:#f9fafb;}
+.btn-success{background:var(--green);color:#fff;border:none;}
+.btn-danger-sm{color:var(--red);border-color:#fca5a5;}
+
+/* ── PROGRESS ── */
+.step-progress{display:flex;gap:4px;padding:12px 14px 0;}
+.step-dot{flex:1;height:4px;border-radius:2px;background:#e5e7eb;transition:background .3s;}
+.step-dot.done{background:var(--green);}
+.step-dot.active{background:var(--blue);}
+.step-label{text-align:center;font-size:11px;color:var(--muted);margin:6px 14px 0;font-weight:500;}
+
+/* ── STATS CHIPS ── */
+.stats-row{display:flex;gap:8px;padding:10px 14px;overflow-x:auto;}
+.stat-chip{
+  flex-shrink:0;background:#fff;border:1px solid var(--border);
+  border-radius:12px;padding:10px 14px;min-width:80px;text-align:center;
+}
+.sc-num{font-size:20px;font-weight:800;line-height:1;}
+.sc-lbl{font-size:10px;color:var(--muted);margin-top:2px;}
+.sc-new .sc-num{color:var(--blue);}
+.sc-done .sc-num{color:var(--green);}
+.sc-urgent .sc-num{color:var(--red);}
+
+/* ── CERT DETAIL ── */
+.detail-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #f3f4f6;}
+.detail-row:last-child{border-bottom:none;}
+.dr-label{font-size:11px;color:var(--muted);}
+.dr-value{font-size:13px;font-weight:600;color:var(--text);text-align:right;}
+
+/* ── SUCCESS SCREEN ── */
+.success-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 20px;text-align:center;}
+.success-icon{font-size:72px;margin-bottom:16px;animation:pop .4s ease;}
+@keyframes pop{0%{transform:scale(0)}80%{transform:scale(1.15)}100%{transform:scale(1)}}
+.success-title{font-size:22px;font-weight:800;color:var(--text);margin-bottom:8px;}
+.success-sub{font-size:14px;color:var(--muted);line-height:1.5;margin-bottom:24px;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;font-weight:500;z-index:999;display:none;white-space:nowrap;}
+.toast.show{display:block;animation:toastIn .2s ease;}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* Divider */
+.divider{height:8px;background:var(--bg);}
+
+  /* ── VOICE INPUT ── */
+  .mic-fab {
+    width:52px; height:52px; border-radius:50%;
+    background:linear-gradient(135deg,#ef4444,#dc2626);
+    border:none; color:#fff; font-size:22px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:all .15s;
+    box-shadow:0 4px 16px rgba(239,68,68,.4);
+    flex-shrink:0;
+  }
+  .mic-fab:active { transform:scale(.93); }
+  .mic-fab.listening { animation:micPulse 1s infinite; }
+  .mic-inline {
+    width:34px; height:34px; border-radius:50%;
+    background:#f3f4f6; border:none; font-size:16px;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer; flex-shrink:0; transition:all .15s;
+  }
+  .mic-inline.listening {
+    background:linear-gradient(135deg,#ef4444,#dc2626);
+    color:#fff; animation:micPulse 1s infinite;
+  }
+  @keyframes micPulse {
+    0%   {box-shadow:0 0 0 0 rgba(239,68,68,.4);}
+    70%  {box-shadow:0 0 0 10px rgba(239,68,68,0);}
+    100% {box-shadow:0 0 0 0 rgba(239,68,68,0);}
+  }
+  .voice-overlay-m {
+    display:none; position:fixed; inset:0; z-index:700;
+    background:rgba(0,0,0,.75); align-items:flex-end; justify-content:center;
+  }
+  .voice-overlay-m.open { display:flex; animation:fadeUp .2s ease; }
+  .voice-sheet-m {
+    width:100%; background:#111827; border-radius:20px 20px 0 0;
+    padding:20px 16px 36px;
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+  }
+  .vm-hint { font-size:11px; font-weight:700; color:#60a5fa; letter-spacing:.06em; text-transform:uppercase; }
+  .vm-indicator {
+    width:80px; height:80px; border-radius:50%;
+    background:linear-gradient(135deg,#ef4444,#dc2626);
+    display:flex; align-items:center; justify-content:center;
+    font-size:34px; animation:micPulse 1.2s infinite;
+  }
+  .vm-indicator.done { background:linear-gradient(135deg,#059669,#10b981); animation:none; }
+  .vm-indicator.idle { background:#374151; animation:none; }
+  .vm-label { font-size:13px; color:#9ca3af; font-weight:600; text-align:center; }
+  .vm-transcript {
+    width:100%; min-height:56px; background:#1f2937;
+    border:1px solid #374151; border-radius:12px;
+    padding:12px 14px; font-size:15px; color:#e2e8f0; text-align:center;
+  }
+  .vm-cursor { display:inline-block; width:2px; height:16px; background:#60a5fa; animation:blink .7s infinite; vertical-align:middle; }
+  .vm-actions { display:flex; gap:8px; width:100%; margin-top:4px; }
+  .vm-actions button { flex:1; padding:13px; border:none; border-radius:12px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+  .vm-cancel { background:#374151; color:#9ca3af; }
+  .vm-apply  { background:linear-gradient(135deg,#1a56db,#0ea5e9); color:#fff; display:none; }
+  input.voice-ok { border-color:#3b82f6 !important; background:#eff6ff !important; }
+
+</style>
+</head>
+<body>
+
+<div class="phone-frame">
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="sb-time" id="currentTime">9:41</div>
+    <div class="sb-icons">
+      <span>📶</span><span>🔋</span>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: ЗАДАНИЯ ══ -->
+  <div class="screen active" id="screen-tasks">
+    <div class="app-header">
+      <div>
+        <div class="ah-title">Мои задания</div>
+        <div class="ah-sub">Смирнов Д.В. · 05.07.2026</div>
+      </div>
+      <div class="ah-right">
+        <div style="position:relative;">
+          <div class="avatar-sm">С</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STATS -->
+    <div class="stats-row">
+      <div class="stat-chip sc-urgent"><div class="sc-num">2</div><div class="sc-lbl">Срочных</div></div>
+      <div class="stat-chip sc-new"><div class="sc-num">4</div><div class="sc-lbl">Новых</div></div>
+      <div class="stat-chip sc-done"><div class="sc-num">7</div><div class="sc-lbl">Выполнено</div></div>
+      <div class="stat-chip"><div class="sc-num">13</div><div class="sc-lbl">Всего</div></div>
+    </div>
+
+    <!-- TODAY -->
+    <div style="padding:6px 14px 4px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Сегодня — 5 июля</div>
+
+    <div class="task-item urgent" onclick="openTask(1)">
+      <div class="task-header">
+        <div class="task-name">Поверка ХВС<br><span style="font-weight:400;font-size:12px;color:var(--muted);">ул. Казыбек би, 142, кв.59</span></div>
+        <div class="task-badge tb-urgent">🔴 Срочно</div>
+      </div>
+      <div class="task-row">👤 Укиева · СГВ-15 · №42428893</div>
+      <div class="task-row">🕐 10:00 — 12:00</div>
+      <div class="task-row">📍 5.2 км от вас</div>
+    </div>
+
+    <div class="task-item" onclick="openTask(2)">
+      <div class="task-header">
+        <div class="task-name">Поверка ГВС<br><span style="font-weight:400;font-size:12px;color:var(--muted);">Кошеней, дом 43/1, кв.22</span></div>
+        <div class="task-badge tb-new">📋 Новый</div>
+      </div>
+      <div class="task-row">👤 Раймбекова · СГВ-15 · №41640214</div>
+      <div class="task-row">🕐 13:00 — 15:00</div>
+      <div class="task-row">📍 3.1 км от вас</div>
+    </div>
+
+    <div class="task-item" onclick="openTask(3)">
+      <div class="task-header">
+        <div class="task-name">Поверка ГВС<br><span style="font-weight:400;font-size:12px;color:var(--muted);">мкр 9, дом 67, кв.27</span></div>
+        <div class="task-badge tb-new">📋 Новый</div>
+      </div>
+      <div class="task-row">👤 Попова · СГВ-15 · №42465817</div>
+      <div class="task-row">🕐 15:30 — 17:00</div>
+      <div class="task-row">📍 7.8 км от вас</div>
+    </div>
+
+    <div style="padding:6px 14px 4px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:4px;">Выполнено</div>
+
+    <div class="task-item done" onclick="openTask(4)">
+      <div class="task-header">
+        <div class="task-name">Поверка ХВС<br><span style="font-weight:400;font-size:12px;color:var(--muted);">мкр Карасу, дом 29, кв.7</span></div>
+        <div class="task-badge tb-done">✅ Готово</div>
+      </div>
+      <div class="task-row">👤 Кулжанов · СГВ-15 · №11607415</div>
+      <div class="task-row">✅ Выполнено в 09:23 · Фото ✓ · Подпись ✓</div>
+    </div>
+
+    <div style="height:20px;"></div>
+  </div>
+
+  <!-- ══ SCREEN: ЗАПОЛНЕНИЕ СЕРТИФИКАТА ══ -->
+  <div class="screen" id="screen-form">
+    <!-- Header с кнопкой назад -->
+    <div class="app-header">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button onclick="goBack()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--blue);padding:4px;">‹</button>
+        <div>
+          <div class="ah-title" id="formTitle">Укиева · кв.59</div>
+          <div class="ah-sub" id="formSerial">СГВ-15 · №42428893</div>
+        </div>
+      </div>
+      <div class="task-badge tb-urgent" id="formBadge">🔴 Срочно</div>
+    </div>
+
+    <!-- STEPS PROGRESS -->
+    <div class="step-progress">
+      <div class="step-dot active" id="step1"></div>
+      <div class="step-dot" id="step2"></div>
+      <div class="step-dot" id="step3"></div>
+    </div>
+    <div class="step-label" id="stepLabel">Шаг 1 из 3 — Данные счётчика</div>
+
+    <!-- STEP 1: DATA -->
+    <div id="step-data" style="overflow-y:auto;flex:1;">
+      <div class="form-section" style="padding-top:14px;">
+
+        <!-- VOICE BUTTON ROW -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;background:#fff7f7;border:1px solid #fca5a5;border-radius:10px;">
+          <button class="mic-fab" onclick="mVoiceStartAll()" title="Заполнить все поля голосом">🎤</button>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:#dc2626;">Голосовой ввод</div>
+            <div style="font-size:11px;color:#9ca3af;">Нажмите и говорите данные счётчика</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Показания счётчика, м³ <span class="required">*</span></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="number" class="form-input" id="f-readings" placeholder="0000" inputmode="numeric" style="flex:1;">
+            <button class="mic-inline" onclick="mVoiceStart('f-readings','Показания в кубометрах')">🎤</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Дата поверки <span class="required">*</span></div>
+          <input type="date" class="form-input" id="f-date" value="2026-07-05">
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Тип воды <span class="required">*</span></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select class="form-input form-select" id="f-water" style="flex:1;">
+              <option value="хв">Холодная вода (х/в)</option>
+              <option value="гв">Горячая вода (г/в)</option>
+            </select>
+            <button class="mic-inline" onclick="mVoiceStart('f-water','Тип воды — холодная или горячая')">🎤</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">№ поверительного клейма <span class="required">*</span></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" class="form-input" id="f-stamp" placeholder="0000000" inputmode="numeric" style="flex:1;">
+            <button class="mic-inline" onclick="mVoiceStart('f-stamp','Номер клейма цифрами')">🎤</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Пломба установлена</div>
+          <select class="form-input form-select" id="f-seal">
+            <option>✅ Да, установлена</option>
+            <option>❌ Нет</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <div class="form-label">Примечание</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" class="form-input" id="f-note" placeholder="ТТЭ, особенности..." style="flex:1;">
+            <button class="mic-inline" onclick="mVoiceStart('f-note','Примечание')">🎤</button>
+          </div>
+        </div>
+
+        <div style="margin-top:4px;">
+          <button class="btn-primary" onclick="goStep(2)">Далее — Фото счётчика →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: PHOTO -->
+    <div id="step-photo" style="display:none;overflow-y:auto;flex:1;">
+      <div class="form-section" style="padding-top:14px;">
+        <div class="form-group">
+          <div class="form-label">
+            📷 Фото счётчика <span class="required">* Обязательно</span>
+          </div>
+
+          <div class="photo-grid" id="photoGrid">
+            <!-- photos rendered by JS -->
+          </div>
+        </div>
+
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#92400e;display:flex;align-items:flex-start;gap:8px;">
+          <span>⚠️</span>
+          <div>Сфотографируйте: <strong>показания, шильдик с серийным номером</strong> и общий вид счётчика. Минимум 1 фото.</div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <button class="btn-outline-sm" onclick="addPhoto('camera')">📷 Камера</button>
+          <button class="btn-outline-sm" onclick="addPhoto('gallery')">🖼 Галерея</button>
+        </div>
+
+        <div style="display:flex;gap:8px;">
+          <button class="btn-outline-sm" onclick="goStep(1)">‹ Назад</button>
+          <button class="btn-outline-sm btn-success" id="nextPhotoBtn" onclick="goStep(3)" disabled style="opacity:.5;">Далее →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: REVIEW & SUBMIT -->
+    <div id="step-review" style="display:none;overflow-y:auto;flex:1;">
+      <div class="card" style="margin-top:14px;">
+        <div class="card-inner">
+          <div class="card-title">Проверьте данные</div>
+          <div class="detail-row"><span class="dr-label">Абонент</span><span class="dr-value" id="rv-fio">Укиева</span></div>
+          <div class="detail-row"><span class="dr-label">Адрес</span><span class="dr-value" id="rv-addr" style="font-size:12px;max-width:55%;text-align:right;">ул. Казыбек би, 142, кв.59</span></div>
+          <div class="detail-row"><span class="dr-label">Тип прибора</span><span class="dr-value">СГВ-15</span></div>
+          <div class="detail-row"><span class="dr-label">№ счётчика</span><span class="dr-value" style="font-family:monospace;">42428893</span></div>
+          <div class="detail-row"><span class="dr-label">Показания</span><span class="dr-value" id="rv-readings">—</span></div>
+          <div class="detail-row"><span class="dr-label">Дата поверки</span><span class="dr-value" id="rv-date">—</span></div>
+          <div class="detail-row"><span class="dr-label">№ клейма</span><span class="dr-value" id="rv-stamp">—</span></div>
+          <div class="detail-row"><span class="dr-label">Тип воды</span><span class="dr-value" id="rv-water">—</span></div>
+          <div class="detail-row"><span class="dr-label">Пломба</span><span class="dr-value">✅ Установлена</span></div>
+          <div class="detail-row"><span class="dr-label">Фото</span><span class="dr-value" id="rv-photos" style="color:var(--green);">—</span></div>
+        </div>
+      </div>
+
+      <div class="form-section" style="padding-top:0;">
+        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#1e3a8a;display:flex;align-items:flex-start;gap:8px;">
+          <span>ℹ️</span>
+          <div>После отправки данные поступят в <strong>офис</strong> и появятся в журнале сертификатов как <strong>«Внесен в КТРМ»</strong>.</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <button class="btn-outline-sm" onclick="goStep(2)">‹ Назад</button>
+        </div>
+        <button class="btn-primary" onclick="submitForm()" style="background:var(--green);">
+          ✅ Отправить в офис
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: УСПЕХ ══ -->
+  <div class="screen" id="screen-success">
+    <div class="success-wrap">
+      <div class="success-icon">✅</div>
+      <div class="success-title">Отправлено!</div>
+      <div class="success-sub">Данные поверки переданы в офис.<br>Статус: <strong style="color:var(--green);">Внесен в КТРМ</strong></div>
+      <button class="btn-primary" onclick="goScreen('tasks')" style="max-width:240px;">← К заданиям</button>
+      <div style="margin-top:12px;font-size:12px;color:var(--muted);">
+        Следующее задание: Раймбекова · 13:00
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN: АРХИВ ══ -->
+  <div class="screen" id="screen-archive">
+    <div class="app-header">
+      <div>
+        <div class="ah-title">Мои сертификаты</div>
+        <div class="ah-sub">История выездов</div>
+      </div>
+    </div>
+
+    <div style="padding:10px 14px 4px;display:flex;gap:8px;">
+      <input class="form-input" placeholder="🔍 Поиск..." style="padding:9px 12px;font-size:13px;">
+    </div>
+
+    <div style="padding:6px 14px 4px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Июль 2026</div>
+
+    <div class="task-item done" style="cursor:default;">
+      <div class="task-header">
+        <div class="task-name">Кулжанов · №11607415</div>
+        <div class="task-badge tb-done">✅ КТРМ</div>
+      </div>
+      <div class="task-row">📍 м-в Карасу, 29, кв.7 · х/в</div>
+      <div class="task-row">📅 29.05.2026 → 29.05.2031</div>
+      <div class="task-row">📷 3 фото · Клеймо: 0549179</div>
+    </div>
+
+    <div class="task-item done" style="cursor:default;">
+      <div class="task-header">
+        <div class="task-name">Тойбай · №36435470</div>
+        <div class="task-badge tb-done">✅ КТРМ</div>
+      </div>
+      <div class="task-row">📍 мкр 3, дом 5, кв.92 · х/в</div>
+      <div class="task-row">📅 02.06.2026 → 02.06.2031</div>
+      <div class="task-row">📷 2 фото · Клеймо: 0752999</div>
+    </div>
+
+    <div class="task-item done" style="cursor:default;">
+      <div class="task-header">
+        <div class="task-name">Цой · №19023904</div>
+        <div class="task-badge tb-done">✅ КТРМ</div>
+      </div>
+      <div class="task-row">📍 ул. Айтеке би, 10, кв.40 · х/в</div>
+      <div class="task-row">📅 03.06.2026 → 03.06.2031</div>
+      <div class="task-row">📷 4 фото · Клеймо: 0549183</div>
+    </div>
+
+    <div style="height:20px;"></div>
+  </div>
+
+  <!-- ══ SCREEN: ПРОФИЛЬ ══ -->
+  <div class="screen" id="screen-profile">
+    <div class="app-header">
+      <div class="ah-title">Профиль</div>
+    </div>
+
+    <div style="padding:20px 14px;display:flex;flex-direction:column;align-items:center;gap:10px;">
+      <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#059669,#06b6d4);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;">С</div>
+      <div style="text-align:center;">
+        <div style="font-size:18px;font-weight:800;">Смирнов Д.В.</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">🚗 Выездной мастер · Алматы</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <div style="background:#d1fae5;color:#065f46;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;">● Онлайн</div>
+        <div style="background:#eff6ff;color:#1d4ed8;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;">📱 Моб. версия</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-inner">
+        <div class="card-title">Доступные модули</div>
+        <div class="detail-row"><span class="dr-label">📋 Поверка (выездная)</span><span style="color:var(--green);font-size:13px;">✅</span></div>
+        <div class="detail-row"><span class="dr-label">🗄 База данных (задания)</span><span style="color:var(--green);font-size:13px;">✅</span></div>
+        <div class="detail-row"><span class="dr-label">📷 Фото-отчёт</span><span style="color:var(--green);font-size:13px;">✅</span></div>
+        <div class="detail-row"><span class="dr-label">💰 Продажа</span><span style="color:#d1d5db;font-size:13px;">✕</span></div>
+        <div class="detail-row"><span class="dr-label">⚙️ Настройки</span><span style="color:#d1d5db;font-size:13px;">✕</span></div>
+        <div class="detail-row"><span class="dr-label">📊 Отчёты</span><span style="color:#d1d5db;font-size:13px;">✕</span></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <button class="btn-outline-sm btn-danger-sm" style="width:100%;padding:12px;">🚪 Выйти</button>
+    </div>
+  </div>
+
+  <!-- ══ NAV BAR ══ -->
+  <div class="nav-bar">
+    <div class="nav-item active" id="nav-tasks" onclick="goScreen('tasks')">
+      <div style="position:relative;">
+        <div class="nav-icon">📋</div>
+        <div class="nav-badge">3</div>
+      </div>
+      <div class="nav-label">Задания</div>
+    </div>
+    <div class="nav-item" id="nav-archive" onclick="goScreen('archive')">
+      <div class="nav-icon">🗂</div>
+      <div class="nav-label">История</div>
+    </div>
+    <div class="nav-item" id="nav-profile" onclick="goScreen('profile')">
+      <div class="nav-icon">👤</div>
+      <div class="nav-label">Профиль</div>
+    </div>
+  </div>
+
+</div><!-- /phone-frame -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Time
+function updateTime(){
+  const now=new Date();
+  const h=now.getHours().toString().padStart(2,'0');
+  const m=now.getMinutes().toString().padStart(2,'0');
+  document.getElementById('currentTime').textContent=`${h}:${m}`;
+}
+updateTime(); setInterval(updateTime,30000);
+
+// Photos state
+let photos = [];
+let currentStep = 1;
+
+function renderPhotoGrid(){
+  const grid = document.getElementById('photoGrid');
+  const items = photos.map((p,i)=>`
+    <div class="photo-thumb" onclick="removePhoto(${i})">
+      <span style="font-size:32px;">${p}</span>
+      <div style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.5);color:#fff;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:10px;">✕</div>
+    </div>`).join('');
+  const addBtn = photos.length < 6
+    ? `<div class="photo-thumb photo-add" onclick="addPhoto('camera')">+</div>` : '';
+  grid.innerHTML = items + addBtn;
+
+  const nextBtn = document.getElementById('nextPhotoBtn');
+  if (nextBtn) {
+    nextBtn.disabled = photos.length === 0;
+    nextBtn.style.opacity = photos.length > 0 ? '1' : '.5';
+  }
+}
+
+function addPhoto(source) {
+  if (photos.length >= 6) { showToast('Максимум 6 фото'); return; }
+  // simulate photo
+  const emojis = ['📷','🖼','📸','🔍','📍','🔧'];
+  photos.push(emojis[photos.length % emojis.length]);
+  renderPhotoGrid();
+  showToast(source==='camera'?'📷 Фото сделано':'🖼 Фото добавлено из галереи');
+}
+function removePhoto(i){
+  photos.splice(i,1);
+  renderPhotoGrid();
+}
+
+// Steps
+function goStep(n){
+  const readings = document.getElementById('f-readings')?.value;
+  if (n===2 && !readings) { showToast('⚠️ Введите показания счётчика'); return; }
+  if (n===3 && photos.length===0) { showToast('⚠️ Добавьте хотя бы 1 фото'); return; }
+
+  currentStep = n;
+  ['data','photo','review'].forEach((id,i)=>{
+    document.getElementById('step-'+id).style.display = i+1===n?'flex':'none';
+    document.getElementById('step'+(i+1)).className = 'step-dot '+(i+1<n?'done':i+1===n?'active':'');
+  });
+  document.getElementById('stepLabel').textContent = `Шаг ${n} из 3 — ${['Данные счётчика','Фото счётчика','Проверка и отправка'][n-1]}`;
+
+  if (n===3) fillReview();
+}
+
+function fillReview(){
+  const d = document.getElementById('f-date').value.split('-');
+  document.getElementById('rv-date').textContent    = d[2]+'.'+d[1]+'.'+d[0];
+  document.getElementById('rv-readings').textContent= document.getElementById('f-readings').value + ' м³';
+  document.getElementById('rv-stamp').textContent   = document.getElementById('f-stamp').value || '—';
+  document.getElementById('rv-water').textContent   = document.getElementById('f-water').value==='гв'?'Горячая (г/в)':'Холодная (х/в)';
+  document.getElementById('rv-photos').textContent  = `${photos.length} фото ✓`;
+}
+
+function submitForm(){
+  goScreen('success');
+  showToast('✅ Данные отправлены в офис');
+}
+
+// Task open
+const TASKS = {
+  1:{fio:'Укиева',addr:'ул. Казыбек би, 142, кв.59',serial:'СГВ-15 · №42428893',badge:'🔴 Срочно',badgeCls:'tb-urgent'},
+  2:{fio:'Раймбекова',addr:'Кошеней, дом 43/1, кв.22',serial:'СГВ-15 · №41640214',badge:'📋 Новый',badgeCls:'tb-new'},
+  3:{fio:'Попова',addr:'мкр 9, дом 67, кв.27',serial:'СГВ-15 · №42465817',badge:'📋 Новый',badgeCls:'tb-new'},
+  4:{fio:'Кулжанов',addr:'мкр Карасу, дом 29, кв.7',serial:'СГВ-15 · №11607415',badge:'✅ Готово',badgeCls:'tb-done'},
+};
+
+function openTask(id){
+  const t = TASKS[id]; if(!t) return;
+  if (t.badgeCls==='tb-done') { showToast('Задание уже выполнено'); return; }
+  document.getElementById('formTitle').textContent  = t.fio + ' · ' + t.addr.split(',').slice(-1)[0].trim();
+  document.getElementById('formSerial').textContent = t.serial;
+  document.getElementById('formBadge').textContent  = t.badge;
+  document.getElementById('formBadge').className    = 'task-badge '+t.badgeCls;
+  document.getElementById('rv-fio').textContent     = t.fio;
+  document.getElementById('rv-addr').textContent    = t.addr;
+  // reset form
+  photos = []; currentStep = 1;
+  ['f-readings','f-stamp','f-note'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  goStep(1);
+  renderPhotoGrid();
+  goScreen('form');
+}
+
+// Navigation
+function goScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+id).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const navMap={tasks:'nav-tasks',archive:'nav-archive',profile:'nav-profile'};
+  if(navMap[id]) document.getElementById(navMap[id]).classList.add('active');
+}
+function goBack(){ goScreen('tasks'); }
+
+// Toast
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+// Init photo grid
+renderPhotoGrid();
+</script>
+
+<!-- VOICE OVERLAY MOBILE -->
+<div class="voice-overlay-m" id="mVoiceOverlay">
+  <div class="voice-sheet-m">
+    <div class="vm-hint" id="mVoiceHint">ПОЛЕ</div>
+    <div class="vm-indicator" id="mVoiceInd">🎤</div>
+    <div class="vm-label" id="mVoiceLabel">Говорите...</div>
+    <div class="vm-transcript" id="mVoiceText"><span class="vm-cursor"></span></div>
+    <div class="vm-actions">
+      <button class="vm-cancel" onclick="mVoiceCancel()">✕ Отмена</button>
+      <button class="vm-apply" id="mVoiceApply" onclick="mVoiceApply()">✓ Применить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── MOBILE VOICE ENGINE ───────────────────────────────────────
+let mvRecog = null, mvTargetId = null, mvResult = '', mvFields = null, mvIdx = 0;
+
+const MV_FIELDS = [
+  {id:'f-readings', hint:'Показания м³ (цифры)', digits:true},
+  {id:'f-stamp',    hint:'Номер клейма (цифры)', digits:true},
+  {id:'f-note',     hint:'Примечание (необязательно)', digits:false},
+];
+
+function mVoiceStart(fieldId, hint) {
+  mvTargetId = fieldId; mvResult = ''; mvFields = null;
+  document.getElementById('mVoiceHint').textContent = hint.toUpperCase();
+  document.getElementById('mVoiceOverlay').classList.add('open');
+  document.getElementById('mVoiceLabel').textContent = 'Слушаю...';
+  document.getElementById('mVoiceText').innerHTML = '<span class="vm-cursor"></span>';
+  document.getElementById('mVoiceApply').style.display = 'none';
+  document.getElementById('mVoiceInd').className = 'vm-indicator';
+  document.getElementById('mVoiceInd').textContent = '🎤';
+  document.querySelectorAll('.mic-inline').forEach(b=>b.classList.remove('listening'));
+  const btn = document.querySelector(`button[onclick*="${fieldId}"]`);
+  if (btn) btn.classList.add('listening');
+  setTimeout(() => { mvRecog = mInitRecog(false); if(mvRecog) mvRecog.start(); }, 300);
+}
+
+function mVoiceStartAll() {
+  mvFields = MV_FIELDS; mvIdx = 0; mvNextField();
+}
+
+function mvNextField() {
+  if (!mvFields || mvIdx >= mvFields.length) {
+    mVoiceClose(); showToast('✅ Готово! Проверьте данные.');
+    return;
+  }
+  const f = mvFields[mvIdx];
+  mvTargetId = f.id; mvResult = '';
+  const cur = mvIdx+1, tot = mvFields.length;
+  document.getElementById('mVoiceHint').textContent = `${f.hint.toUpperCase()} (${cur}/${tot})`;
+  document.getElementById('mVoiceOverlay').classList.add('open');
+  document.getElementById('mVoiceLabel').textContent = 'Говорите...';
+  document.getElementById('mVoiceText').innerHTML = '<span class="vm-cursor"></span>';
+  document.getElementById('mVoiceApply').style.display = 'none';
+  document.getElementById('mVoiceInd').className = 'vm-indicator';
+  document.getElementById('mVoiceInd').textContent = '🎤';
+  setTimeout(() => {
+    mvRecog = mInitRecog(f.digits);
+    if (!mvRecog) return;
+    mvRecog.onend = () => {
+      if (mvResult) {
+        mApplyField(mvTargetId, mvResult);
+        mvIdx++;
+        setTimeout(mvNextField, 700);
+      } else {
+        document.getElementById('mVoiceInd').className = 'vm-indicator idle';
+        document.getElementById('mVoiceLabel').textContent = 'Ничего не услышал. Говорите снова или пропустите.';
+        document.getElementById('mVoiceApply').style.display = 'block';
+        document.getElementById('mVoiceApply').textContent = '→ Пропустить';
+        document.getElementById('mVoiceApply').onclick = () => { mvIdx++; mvNextField(); };
+      }
+    };
+    mvRecog.start();
+  }, 400);
+}
+
+function mInitRecog(digitsOnly) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('⚠️ Используйте Chrome для голосового ввода'); return null; }
+  const r = new SR();
+  r.lang = 'ru-RU'; r.continuous = false; r.interimResults = true; r.maxAlternatives = 1;
+  r.onstart = () => {
+    document.getElementById('mVoiceInd').className = 'vm-indicator';
+    document.getElementById('mVoiceInd').textContent = '🎤';
+    document.getElementById('mVoiceLabel').textContent = 'Слушаю...';
+  };
+  r.onresult = (e) => {
+    let interim='', final='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      if(e.results[i].isFinal) final+=t; else interim+=t;
+    }
+    const shown = final||interim;
+    let processed = shown;
+    if (digitsOnly) processed = shown.replace(/[^0-9]/g,'');
+    else {
+      processed = shown.trim();
+      if (shown.toLowerCase().includes('горяч')) processed = 'гв';
+      if (shown.toLowerCase().includes('холод')) processed = 'хв';
+    }
+    document.getElementById('mVoiceText').innerHTML = processed + (final?'':'<span class="vm-cursor"></span>');
+    if (final) {
+      mvResult = processed;
+      document.getElementById('mVoiceInd').className = 'vm-indicator done';
+      document.getElementById('mVoiceInd').textContent = '✅';
+      document.getElementById('mVoiceLabel').textContent = 'Отлично! Распознано.';
+      document.getElementById('mVoiceApply').style.display = 'block';
+      document.getElementById('mVoiceApply').textContent = '✓ Применить';
+      document.getElementById('mVoiceApply').onclick = mVoiceApply;
+    }
+  };
+  r.onerror = (e) => {
+    if (e.error==='not-allowed') { mVoiceClose(); showToast('⚠️ Разрешите микрофон'); }
+  };
+  return r;
+}
+
+function mVoiceApply() {
+  if (!mvResult || !mvTargetId) { if(mvFields){mvIdx++;mvNextField();} else mVoiceClose(); return; }
+  mApplyField(mvTargetId, mvResult);
+  if (mvFields) { mvIdx++; setTimeout(mvNextField, 500); }
+  else mVoiceClose();
+}
+
+function mApplyField(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el.tagName==='SELECT') {
+    // Match by value or text
+    for(let o of el.options) {
+      if (o.value===val||o.text.toLowerCase().includes(val.toLowerCase())) {
+        el.value=o.value; break;
+      }
+    }
+  } else {
+    el.value = val;
+  }
+  el.classList.add('voice-ok');
+  setTimeout(()=>el.classList.remove('voice-ok'),1500);
+  // Enable next step button if readings filled
+  const nextBtn = document.getElementById('nextPhotoBtn');
+  if (nextBtn && document.getElementById('f-readings')?.value) {
+    nextBtn.disabled=false; nextBtn.style.opacity='1';
+  }
+}
+
+function mVoiceCancel() {
+  if(mvRecog){try{mvRecog.stop();}catch(e){} mvRecog=null;}
+  mvFields=null; mVoiceClose();
+}
+function mVoiceClose() {
+  document.getElementById('mVoiceOverlay').classList.remove('open');
+  document.querySelectorAll('.mic-inline,.mic-fab').forEach(b=>b.classList.remove('listening'));
+  if(mvRecog){try{mvRecog.stop();}catch(e){} mvRecog=null;}
+  mvResult='';
+}
+document.getElementById('mVoiceOverlay').addEventListener('click',function(e){if(e.target===this)mVoiceCancel();});
+</script>
+</body>
+</html>
