@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>U2B-Vertex ERP</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:#0a0d14;color:#e2e8f0;min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.wrap{text-align:center;padding:40px 20px;}
+.logo{width:72px;height:72px;background:linear-gradient(135deg,#1a56db,#0ea5e9);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 20px;box-shadow:0 0 40px rgba(26,86,219,.4);}
+h1{font-size:28px;font-weight:800;margin-bottom:8px;}
+h1 span{color:#0ea5e9;}
+p{font-size:14px;color:#64748b;margin-bottom:32px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;max-width:700px;margin:0 auto;}
+.card{background:#161b28;border:1px solid #1e2535;border-radius:14px;padding:20px;text-decoration:none;color:#e2e8f0;transition:all .2s;display:block;}
+.card:hover{border-color:#1a56db;transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3);}
+.card-icon{font-size:28px;margin-bottom:10px;}
+.card-title{font-size:14px;font-weight:700;margin-bottom:4px;}
+.card-sub{font-size:11px;color:#64748b;}
+.badge{display:inline-block;background:rgba(26,86,219,.15);color:#93c5fd;border:1px solid rgba(26,86,219,.2);padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;margin-bottom:24px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">💧</div>
+  <h1>U2B<span>-Vertex</span> ERP</h1>
+  <p>Автоматизация бизнес-процессов · ТОО «Vertex Metrology»</p>
+  <div class="badge">● Sprint 0 · HTML прототипы</div>
+  <div class="grid">
+    <a href="login.html" class="card">
+      <div class="card-icon">🔐</div>
+      <div class="card-title">Вход в систему</div>
+      <div class="card-sub">Все роли · Быстрый вход</div>
+    </a>
+    <a href="sketch_screens.html" class="card">
+      <div class="card-icon">📋</div>
+      <div class="card-title">Главный ERP</div>
+      <div class="card-sub">Все модули системы</div>
+    </a>
+    <a href="director_mobile.html" class="card">
+      <div class="card-icon">📊</div>
+      <div class="card-title">Кабинет директора</div>
+      <div class="card-sub">Мобильный дашборд</div>
+    </a>
+    <a href="mobile_master.html" class="card">
+      <div class="card-icon">🚗</div>
+      <div class="card-title">Кабинет мастера</div>
+      <div class="card-sub">Выездная поверка · Фото</div>
+    </a>
+    <a href="finance_module.html" class="card">
+      <div class="card-icon">💳</div>
+      <div class="card-title">Финансы (U-Pay)</div>
+      <div class="card-sub">Счета · Операции · История</div>
+    </a>
+    <a href="roles_settings.html" class="card">
+      <div class="card-icon">👥</div>
+      <div class="card-title">Роли и доступы</div>
+      <div class="card-sub">Управление сотрудниками</div>
+    </a>
+    <a href="sitemap.html" class="card">
+      <div class="card-icon">🗺</div>
+      <div class="card-title">Карта сайта</div>
+      <div class="card-sub">Все модули и схема БД</div>
+    </a>
+    <a href="TZ_U2B_Vertex_ERP_v2.md" class="card">
+      <div class="card-icon">📄</div>
+      <div class="card-title">Техническое задание</div>
+      <div class="card-sub">ТЗ v2.0 · 17 разделов</div>
+    </a>
+  </div>
+</div>
+</body>
+</html>
