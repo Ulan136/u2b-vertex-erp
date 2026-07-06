@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Робот е-КТРМ — Демо</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f0f4f8;
+  --card:#ffffff;
+  --border:#e2e8f0;
+  --blue:#1a56db;
+  --blue-light:#eff6ff;
+  --green:#16a34a;
+  --green-light:#f0fdf4;
+  --orange:#ea580c;
+  --orange-light:#fff7ed;
+  --gray:#6b7280;
+  --text:#111827;
+  --muted:#6b7280;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px;}
+
+/* ── HEADER ── */
+.page-header{text-align:center;margin-bottom:32px;}
+.page-header .eyebrow{font-size:11px;font-weight:700;color:var(--blue);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px;}
+.page-header h1{font-size:28px;font-weight:800;letter-spacing:-.02em;color:var(--text);margin-bottom:8px;}
+.page-header p{font-size:14px;color:var(--muted);max-width:500px;margin:0 auto;}
+
+/* ── CERT CARD ── */
+.cert-card{
+  background:var(--card);border:1px solid var(--border);border-radius:16px;
+  max-width:900px;margin:0 auto 28px;overflow:hidden;
+  box-shadow:0 2px 16px rgba(0,0,0,.06);
+}
+.cert-card-head{
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;
+}
+.cert-avatar{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#1a56db,#0ea5e9);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;flex-shrink:0;}
+.cert-meta{flex:1;}
+.cert-name{font-size:15px;font-weight:800;color:var(--text);}
+.cert-info{font-size:12px;color:var(--muted);margin-top:2px;}
+.cert-badge{font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;transition:all .4s;white-space:nowrap;}
+
+.cert-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:0;border-top:1px solid var(--border);}
+.cert-field{padding:12px 16px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);}
+.cert-field:last-child{border-right:none;}
+.cf-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+.cf-value{font-size:13px;font-weight:600;color:var(--text);}
+
+/* ── STATUS PIPELINE ── */
+.pipeline{max-width:900px;margin:0 auto 28px;}
+.pipeline-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;}
+.pipeline-track{display:flex;align-items:flex-start;gap:0;position:relative;}
+.pipeline-track::before{
+  content:'';position:absolute;top:20px;left:20px;right:20px;height:2px;
+  background:var(--border);z-index:0;
+}
+.p-step{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative;z-index:1;cursor:default;}
+.p-dot{
+  width:40px;height:40px;border-radius:50%;
+  border:2px solid var(--border);background:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;transition:all .4s;flex-shrink:0;
+}
+.p-label{font-size:10px;font-weight:700;color:var(--muted);text-align:center;max-width:80px;line-height:1.3;transition:color .3s;}
+.p-actor{font-size:9px;color:var(--muted);text-align:center;margin-top:2px;opacity:.7;}
+
+/* step states */
+.p-step.done  .p-dot{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 0 0 4px rgba(22,163,74,.15);}
+.p-step.done  .p-label{color:var(--green);}
+.p-step.active .p-dot{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 0 0 6px rgba(26,86,219,.15);animation:activePulse 1.5s infinite;}
+.p-step.active .p-label{color:var(--blue);font-weight:800;}
+.p-step.waiting .p-dot{background:#f9fafb;border-color:#d1d5db;color:#d1d5db;}
+
+/* pipeline connector fill */
+.p-connector{flex:1;height:2px;background:var(--border);position:relative;top:19px;margin:0 -1px;z-index:0;transition:background .4s;}
+.p-connector.done{background:var(--green);}
+.p-connector.active{background:linear-gradient(90deg,var(--green),var(--blue));animation:connFlow .8s linear infinite;}
+
+@keyframes activePulse{0%,100%{box-shadow:0 0 0 4px rgba(26,86,219,.2);}50%{box-shadow:0 0 0 8px rgba(26,86,219,.05);}}
+@keyframes connFlow{0%{opacity:1;}50%{opacity:.6;}100%{opacity:1;}}
+
+/* ── ROBOT LOG ── */
+.log-panel{
+  max-width:900px;margin:0 auto 28px;
+  background:#0f1117;border-radius:16px;overflow:hidden;
+  box-shadow:0 2px 16px rgba(0,0,0,.15);
+}
+.log-header{
+  padding:12px 16px;background:#0a0d12;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid #1e2535;
+}
+.log-title{font-family:'JetBrains Mono',monospace;font-size:12px;color:#64748b;display:flex;align-items:center;gap:8px;}
+.log-dots{display:flex;gap:5px;}
+.ld{width:10px;height:10px;border-radius:50%;}
+.ld-r{background:#ef4444;}.ld-y{background:#f59e0b;}.ld-g{background:#22c55e;}
+.log-status{font-size:11px;font-weight:700;color:#4ade80;display:flex;align-items:center;gap:5px;}
+.log-body{padding:14px;min-height:200px;max-height:280px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;}
+.log-body::-webkit-scrollbar{width:3px;}
+.log-body::-webkit-scrollbar-thumb{background:#1e2535;border-radius:3px;}
+.log-line{margin-bottom:2px;display:flex;gap:8px;}
+.ll-time{color:#374151;flex-shrink:0;}
+.ll-info  {color:#60a5fa;}
+.ll-ok    {color:#4ade80;}
+.ll-warn  {color:#fbbf24;}
+.ll-action{color:#e2e8f0;font-weight:600;}
+.ll-type  {color:#c084fc;}
+.ll-dim   {color:#4b5563;}
+
+/* ── BROWSER SIM ── */
+.browser-wrap{max-width:900px;margin:0 auto 28px;background:#fff;border-radius:16px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 16px rgba(0,0,0,.06);}
+.browser-bar{background:#f1f5f9;padding:8px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);}
+.b-dots{display:flex;gap:5px;}
+.b-dot{width:10px;height:10px;border-radius:50%;}
+.b-dot:nth-child(1){background:#ef4444;}
+.b-dot:nth-child(2){background:#f59e0b;}
+.b-dot:nth-child(3){background:#22c55e;}
+.b-url{flex:1;background:#fff;border:1px solid #d1d5db;border-radius:20px;padding:4px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:all .3s;}
+.b-indicator{width:8px;height:8px;border-radius:50%;background:#d1d5db;flex-shrink:0;transition:all .3s;}
+.b-indicator.loading{background:#f59e0b;animation:pulse 1s infinite;}
+.b-indicator.done{background:#22c55e;}
+.browser-content{padding:16px;min-height:240px;transition:all .3s;}
+
+/* EUPSI form */
+.eupsi-header{background:linear-gradient(135deg,#1a56db,#1e40af);color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;}
+.eupsi-nav{background:#1e3a8a;padding:5px 14px;display:flex;gap:16px;margin-bottom:14px;}
+.eupsi-nav span{font-size:10px;color:rgba(255,255,255,.6);padding:4px 0;}
+.eupsi-nav span.active{color:#fff;border-bottom:2px solid #60a5fa;font-weight:700;}
+.eupsi-form{background:#fff;border:1px solid var(--border);border-radius:0 0 10px 10px;padding:14px;}
+.eupsi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.ef-field label{font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:3px;}
+.ef-input{width:100%;border:1.5px solid var(--border);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--text);font-family:inherit;transition:all .3s;}
+.ef-input.typing{border-color:#f59e0b;background:#fffbeb;}
+.ef-input.filled{border-color:var(--blue);background:#eff6ff;color:#1e3a8a;font-weight:700;}
+.ef-input.signed{border-color:var(--green);background:#f0fdf4;color:var(--green);font-weight:700;}
+.ef-cursor{display:inline-block;width:2px;height:13px;background:var(--blue);animation:blink .7s infinite;vertical-align:middle;margin-left:1px;}
+.eupsi-btn{width:100%;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;margin-top:10px;cursor:default;transition:all .3s;}
+.eupsi-btn.ready{background:var(--green);animation:btnPop .3s ease;}
+.eupsi-success{background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:14px;text-align:center;display:none;}
+.eupsi-success.show{display:block;animation:fadeIn .4s ease;}
+
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes btnPop{0%{transform:scale(.97)}100%{transform:scale(1)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── CONTROLS ── */
+.controls{max-width:900px;margin:0 auto 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.ctrl-btn{padding:12px 24px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;gap:8px;}
+.ctrl-btn:active{transform:scale(.97);}
+.btn-start{background:linear-gradient(135deg,#1a56db,#0ea5e9);color:#fff;box-shadow:0 4px 16px rgba(26,86,219,.3);}
+.btn-reset{background:#fff;color:var(--muted);border:1.5px solid var(--border);}
+.btn-start:disabled{opacity:.5;cursor:not-allowed;}
+.speed-label{font-size:12px;color:var(--muted);font-weight:600;}
+.speed-btns{display:flex;gap:4px;}
+.spd{padding:6px 12px;border:1.5px solid var(--border);border-radius:8px;background:#fff;font-size:12px;font-weight:700;cursor:pointer;color:var(--muted);transition:all .15s;}
+.spd.on{background:var(--blue);color:#fff;border-color:var(--blue);}
+
+/* progress */
+.prog-wrap{flex:1;min-width:200px;}
+.prog-bar-bg{height:6px;background:var(--border);border-radius:4px;overflow:hidden;}
+.prog-bar{height:6px;background:linear-gradient(90deg,var(--blue),var(--green));border-radius:4px;transition:width .4s ease;width:0%;}
+.prog-label{font-size:11px;color:var(--muted);margin-top:4px;font-weight:600;}
+
+/* ── STATUS BADGE STYLES ── */
+.sb-work   {background:#f3f4f6;color:#374151;border:1px solid #d1d5db;}
+.sb-ready  {background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;}
+.sb-submit {background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;}
+.sb-ktrm70 {background:linear-gradient(90deg,#dcfce7 70%,#fff7ed 70%);color:#15803d;border:1px solid #86efac;}
+.sb-done   {background:#dcfce7;color:#15803d;border:1px solid #86efac;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="page-header">
+  <div class="eyebrow">🤖 U2B-Vertex ERP · Демонстрация</div>
+  <h1>Робот е-КТРМ в действии</h1>
+  <p>Один сертификат — полный цикл от «В работе» до «Внесён в КТРМ» с реальными шагами и сменой статусов</p>
+</div>
+
+<!-- CONTROLS -->
+<div class="controls">
+  <button class="ctrl-btn btn-start" id="btnStart" onclick="startRobot()">▶ Запустить робота</button>
+  <button class="ctrl-btn btn-reset" onclick="resetAll()">↩ Сбросить</button>
+  <div class="speed-label">Скорость:</div>
+  <div class="speed-btns">
+    <div class="spd" onclick="setSpeed(2,this)">0.5x</div>
+    <div class="spd on" onclick="setSpeed(1,this)">1x</div>
+    <div class="spd" onclick="setSpeed(0.5,this)">2x</div>
+    <div class="spd" onclick="setSpeed(0.25,this)">4x</div>
+  </div>
+  <div class="prog-wrap">
+    <div class="prog-bar-bg"><div class="prog-bar" id="progBar"></div></div>
+    <div class="prog-label" id="progLabel">Готов к запуску</div>
+  </div>
+</div>
+
+<!-- CERT CARD -->
+<div class="cert-card">
+  <div class="cert-card-head">
+    <div class="cert-avatar">💧</div>
+    <div class="cert-meta">
+      <div class="cert-name">Укиева · ул. Казыбек би, 142, кв.59</div>
+      <div class="cert-info">Поверка счётчика воды · САМИ · г/в (горячая вода)</div>
+    </div>
+    <span class="cert-badge sb-work" id="mainBadge">🔄 В работе</span>
+  </div>
+  <div class="cert-fields">
+    <div class="cert-field"><div class="cf-label">Тип прибора</div><div class="cf-value">СГВ-15</div></div>
+    <div class="cert-field"><div class="cf-label">№ счётчика</div><div class="cf-value" style="font-family:'JetBrains Mono',monospace;">42428893</div></div>
+    <div class="cert-field"><div class="cf-label">Год выпуска</div><div class="cf-value">2018</div></div>
+    <div class="cert-field"><div class="cf-label">Дата поверки</div><div class="cf-value">09.06.2026</div></div>
+    <div class="cert-field"><div class="cf-label">Действ. до</div><div class="cf-value" style="color:var(--green);font-weight:700;">09.06.2031</div></div>
+    <div class="cert-field"><div class="cf-label">№ клейма</div><div class="cf-value" style="font-family:'JetBrains Mono',monospace;">0752994</div></div>
+    <div class="cert-field"><div class="cf-label">Показания</div><div class="cf-value">487 м³</div></div>
+    <div class="cert-field"><div class="cf-label">Тип воды</div><div class="cf-value">🔴 г/в</div></div>
+  </div>
+</div>
+
+<!-- PIPELINE -->
+<div class="pipeline">
+  <div class="pipeline-title">Цепочка статусов</div>
+  <div style="display:flex;align-items:flex-start;">
+    <div class="p-step waiting" id="ps-0">
+      <div class="p-dot">🔄</div>
+      <div class="p-label">В работе</div>
+      <div class="p-actor">Менеджер</div>
+    </div>
+    <div class="p-connector" id="pc-0"></div>
+    <div class="p-step waiting" id="ps-1">
+      <div class="p-dot">📋</div>
+      <div class="p-label">Готова к КТРМ</div>
+      <div class="p-actor">Менеджер</div>
+    </div>
+    <div class="p-connector" id="pc-1"></div>
+    <div class="p-step waiting" id="ps-2">
+      <div class="p-dot">🤖</div>
+      <div class="p-label">Внести в КТРМ</div>
+      <div class="p-actor">Менеджер → Робот</div>
+    </div>
+    <div class="p-connector" id="pc-2"></div>
+    <div class="p-step waiting" id="ps-3">
+      <div class="p-dot">⏳</div>
+      <div class="p-label">КТРМ 70%</div>
+      <div class="p-actor">Робот автоматически</div>
+    </div>
+    <div class="p-connector" id="pc-3"></div>
+    <div class="p-step waiting" id="ps-4">
+      <div class="p-dot">✅</div>
+      <div class="p-label">Внесён в КТРМ</div>
+      <div class="p-actor">Робот автоматически</div>
+    </div>
+  </div>
+</div>
+
+<!-- BROWSER SIM -->
+<div class="browser-wrap">
+  <div class="browser-bar">
+    <div class="b-dots">
+      <div class="b-dot"></div><div class="b-dot"></div><div class="b-dot"></div>
+    </div>
+    <div class="b-url" id="bUrl">— ожидание —</div>
+    <div class="b-indicator" id="bInd"></div>
+  </div>
+  <div class="browser-content" id="bContent">
+    <div style="text-align:center;padding:40px;color:var(--muted);">
+      <div style="font-size:40px;margin-bottom:12px;">🤖</div>
+      <div style="font-size:14px;font-weight:600;">Робот готов к работе</div>
+      <div style="font-size:12px;margin-top:6px;">Нажмите «Запустить робота» чтобы начать</div>
+    </div>
+  </div>
+</div>
+
+<!-- LOG PANEL -->
+<div class="log-panel">
+  <div class="log-header">
+    <div class="log-title">
+      <div class="log-dots">
+        <div class="ld ld-r"></div><div class="ld ld-y"></div><div class="ld ld-g"></div>
+      </div>
+      ktrm_robot.py — лог выполнения
+    </div>
+    <div class="log-status" id="logStatus">
+      <span>●</span> Ожидание
+    </div>
+  </div>
+  <div class="log-body" id="logBody">
+    <div class="log-line"><span class="ll-dim ll-time">00:00:00</span><span class="ll-dim">Инициализация завершена. Ожидаю команду.</span></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────
+let speed = 1;       // множитель скорости
+let timers = [];
+let isRunning = false;
+
+function T(ms) { return ms * speed; } // применяем скорость
+function setSpeed(s, el) {
+  speed = s;
+  document.querySelectorAll('.spd').forEach(x=>x.classList.remove('on'));
+  el.classList.add('on');
+}
+
+// ── CERT DATA ─────────────────────────────────────────────────
+const CERT = {
+  fio: 'Укиева', addr: 'ул. Казыбек би, 142, кв.59',
+  type: 'СГВ-15', serial: '42428893', year: '2018',
+  d1: '09.06.2026', d2: '09.06.2031', stamp: '0752994',
+  water: 'г/в', val: '487',
+};
+
+// ── STATUS CONFIG ─────────────────────────────────────────────
+const STATUSES = [
+  { id:0, label:'В работе',      cls:'sb-work',   ico:'🔄' },
+  { id:1, label:'Готова к КТРМ', cls:'sb-ready',  ico:'📋' },
+  { id:2, label:'Внести в КТРМ', cls:'sb-submit',  ico:'🤖' },
+  { id:3, label:'КТРМ 70%',      cls:'sb-ktrm70', ico:'⏳' },
+  { id:4, label:'Внесён в КТРМ', cls:'sb-done',   ico:'✅' },
+];
+
+// ── HELPERS ───────────────────────────────────────────────────
+function delay(ms) { return new Promise(r => { const t = setTimeout(r, T(ms)); timers.push(t); }); }
+
+function nowStr() {
+  const n=new Date();
+  return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+}
+
+function log(msg, type='dim') {
+  const body = document.getElementById('logBody');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="ll-time ll-dim">${nowStr()}</span><span class="ll-${type}">${msg}</span>`;
+  body.appendChild(line);
+  body.scrollTop = body.scrollHeight;
+}
+
+function setProgress(pct, label) {
+  document.getElementById('progBar').style.width = pct + '%';
+  document.getElementById('progLabel').textContent = label;
+}
+
+function setUrl(url, loading=false) {
+  document.getElementById('bUrl').textContent = url;
+  const ind = document.getElementById('bInd');
+  ind.className = 'b-indicator ' + (loading?'loading':'done');
+}
+
+function setStatus(idx) {
+  const s = STATUSES[idx];
+  const badge = document.getElementById('mainBadge');
+  badge.className = 'cert-badge ' + s.cls;
+  badge.textContent = s.ico + ' ' + s.label;
+
+  // Update pipeline
+  STATUSES.forEach((st, i) => {
+    const step = document.getElementById('ps-'+i);
+    if (i < idx)       step.className = 'p-step done';
+    else if (i === idx) step.className = 'p-step active';
+    else               step.className = 'p-step waiting';
+
+    if (i < 4) {
+      const conn = document.getElementById('pc-'+i);
+      if (i < idx)       conn.className = 'p-connector done';
+      else if (i===idx)  conn.className = 'p-connector active';
+      else               conn.className = 'p-connector';
+    }
+  });
+}
+
+function setContent(html) {
+  document.getElementById('bContent').innerHTML = html;
+}
+
+function setLogStatus(text, color='#4ade80') {
+  const el = document.getElementById('logStatus');
+  el.innerHTML = `<span style="color:${color};">●</span> ${text}`;
+}
+
+// ── TYPE EFFECT ───────────────────────────────────────────────
+async function typeInto(fieldId, value) {
+  const el = document.getElementById(fieldId);
+  if (!el) return;
+  el.classList.add('typing');
+  el.value = '';
+  for (let i=0; i<value.length; i++) {
+    el.value += value[i];
+    await delay(55);
+  }
+  el.classList.remove('typing');
+  el.classList.add('filled');
+}
+
+// ── MAIN ROBOT STEPS ─────────────────────────────────────────
+async function startRobot() {
+  if (isRunning) return;
+  isRunning = true;
+  document.getElementById('btnStart').disabled = true;
+
+  // ════════════════════════════════════════
+  // ШАГ 0 — НАЧАЛЬНЫЙ СТАТУС
+  // ════════════════════════════════════════
+  setStatus(0);
+  setProgress(5, 'Шаг 0 — В работе');
+  log('▶ Старт. Сканирую таблицу сертификатов...', 'info');
+  log('  Найдена запись: Укиева · №42428893', 'ok');
+  log('  Текущий статус: "В работе"', 'dim');
+  setLogStatus('Сканирование');
+  setUrl('u2b-vertex-erp.vercel.app/sketch_screens.html', false);
+  setContent(`<div style="text-align:center;padding:30px;">
+    <div style="font-size:32px;margin-bottom:10px;">👀</div>
+    <div style="font-size:14px;font-weight:700;color:var(--text);">Менеджер заполняет данные</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px;">Робот ждёт команды...</div>
+    <div style="margin-top:16px;display:inline-flex;align-items:center;gap:8px;padding:8px 16px;background:#f3f4f6;border-radius:20px;font-size:12px;color:var(--muted);">
+      🔄 В работе — ожидание менеджера
+    </div>
+  </div>`);
+  await delay(2000);
+
+  // ════════════════════════════════════════
+  // ШАГ 1 — МЕНЕДЖЕР: ГОТОВА К КТРМ
+  // ════════════════════════════════════════
+  setStatus(1);
+  setProgress(18, 'Шаг 1 — Менеджер проверил данные');
+  log('👤 Менеджер изменил статус → "Готова к КТРМ"', 'warn');
+  log('  Данные проверены и подтверждены', 'ok');
+  setLogStatus('Ожидаю команды');
+  setContent(`<div style="text-align:center;padding:30px;">
+    <div style="font-size:32px;margin-bottom:10px;">📋</div>
+    <div style="font-size:14px;font-weight:700;color:#c2410c;">Готова к КТРМ</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px;">Менеджер проверил все данные — готово к отправке</div>
+    <div style="margin-top:16px;padding:12px 16px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;text-align:left;max-width:300px;margin-left:auto;margin-right:auto;">
+      <div style="font-size:11px;font-weight:700;color:#92400e;margin-bottom:6px;">✓ Проверено менеджером</div>
+      <div style="font-size:11px;color:#374151;">ФИО: Укиева</div>
+      <div style="font-size:11px;color:#374151;">№: 42428893 · Клеймо: 0752994</div>
+      <div style="font-size:11px;color:#374151;">Дата: 09.06.2026 → 09.06.2031</div>
+    </div>
+  </div>`);
+  await delay(2500);
+
+  // ════════════════════════════════════════
+  // ШАГ 2 — МЕНЕДЖЕР → РОБОТ ЗАПУСКАЕТСЯ
+  // ════════════════════════════════════════
+  setStatus(2);
+  setProgress(30, 'Шаг 2 — Запуск робота');
+  log('👤 Менеджер: "Внести в КТРМ" — команда роботу!', 'action');
+  log('▶ Робот получил задачу. Запускаюсь...', 'info');
+  setLogStatus('Запуск', '#fbbf24');
+  await delay(600);
+  log('▶ Подключение к NCALayer WebSocket...', 'info');
+  setUrl('127.0.0.1:13579', true);
+  setContent(`<div style="text-align:center;padding:30px;">
+    <div style="font-size:32px;margin-bottom:10px;animation:pulse 1s infinite;">🤖</div>
+    <div style="font-size:14px;font-weight:700;color:var(--blue);">Робот запускается</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:6px;">Подключение к NCALayer...</div>
+    <div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:11px;background:#0f1117;color:#4ade80;padding:10px 14px;border-radius:8px;text-align:left;max-width:320px;margin-left:auto;margin-right:auto;">
+      <div>$ python ktrm_robot.py</div>
+      <div style="color:#60a5fa;">Connecting NCALayer...</div>
+      <div style="color:#4ade80;">✓ ws://127.0.0.1:13579</div>
+    </div>
+  </div>`);
+  await delay(1500);
+  log('✓ NCALayer подключён: ws://127.0.0.1:13579', 'ok');
+  await delay(800);
+  log('▶ Поиск ЭЦП ключей...', 'info');
+  await delay(700);
+  log('✓ Найдены ключи: VERTEX METROLOGY · RSA 2048', 'ok');
+  log('  Поверитель: Ахметов Д.С.', 'type');
+  setProgress(38, 'Авторизация через ЭЦП...');
+
+  // ════════════════════════════════════════
+  // АВТОРИЗАЦИЯ
+  // ════════════════════════════════════════
+  await delay(800);
+  log('▶ Авторизация на techreg.gov.kz...', 'info');
+  setUrl('techreg.gov.kz', true);
+  setContent(`<div style="max-width:340px;margin:0 auto;">
+    <div style="background:linear-gradient(135deg,#1a56db,#1e40af);color:#fff;padding:12px 16px;border-radius:10px 10px 0 0;">
+      <div style="font-size:13px;font-weight:700;">🏛 е-КТРМ · Авторизация</div>
+      <div style="font-size:10px;opacity:.7;">Электронная цифровая подпись НУЦ РК</div>
+    </div>
+    <div style="border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:16px;text-align:center;">
+      <div style="font-size:30px;margin-bottom:8px;">🔑</div>
+      <div style="font-size:13px;font-weight:700;">Вход через ЭЦП</div>
+      <div style="margin-top:10px;padding:8px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:11px;color:#1e3a8a;text-align:left;">
+        <div style="font-weight:700;">🤖 Робот подключается...</div>
+        <div style="margin-top:3px;">ТОО «VERTEX METROLOGY»<br>Поверочная лаборатория</div>
+      </div>
+    </div>
+  </div>`);
+  await delay(1200);
+  log('✓ Авторизован: ТОО «VERTEX METROLOGY»', 'ok');
+  log('  Роль: Поверочная лаборатория', 'type');
+  setProgress(46, 'Открываю форму ЭУПСИ...');
+
+  // ════════════════════════════════════════
+  // ФОРМА ЭУПСИ
+  // ════════════════════════════════════════
+  await delay(800);
+  log('▶ Переход в модуль ЭУПСИ...', 'info');
+  setUrl('techreg.gov.kz/eupsi/certificate/new', true);
+  await delay(600);
+  setUrl('techreg.gov.kz/eupsi/certificate/new', false);
+  setLogStatus('Заполняю форму', '#60a5fa');
+
+  // Render empty form
+  setContent(eupsiForm());
+  await delay(700);
+  log('▶ Форма ЭУПСИ открыта. Начинаю заполнение...', 'action');
+  setProgress(52, 'Заполняю поля формы...');
+
+  // Fill fields one by one
+  const fields = [
+    {id:'ef-type',   val:CERT.type,   msg:'Тип СИ: '+CERT.type},
+    {id:'ef-serial', val:CERT.serial, msg:'Серийный №: '+CERT.serial},
+    {id:'ef-d1',     val:CERT.d1,     msg:'Дата поверки: '+CERT.d1},
+    {id:'ef-d2',     val:CERT.d2,     msg:'Действ. до: '+CERT.d2},
+    {id:'ef-stamp',  val:CERT.stamp,  msg:'№ клейма: '+CERT.stamp},
+    {id:'ef-water',  val:CERT.water,  msg:'Тип воды: '+CERT.water},
+    {id:'ef-addr',   val:CERT.addr,   msg:'Адрес: '+CERT.addr},
+    {id:'ef-fio',    val:CERT.fio,    msg:'Абонент: '+CERT.fio},
+  ];
+
+  for (let i=0; i<fields.length; i++) {
+    const f = fields[i];
+    log(`  ✎ ${f.msg}`, 'type');
+    await typeInto(f.id, f.val);
+    const pct = 52 + Math.round((i+1)/fields.length * 22);
+    setProgress(pct, `Заполняю: ${f.msg.split(':')[0]}...`);
+    await delay(350);
+  }
+
+  // Activate submit btn
+  const btn = document.getElementById('eupsi-submit');
+  if (btn) btn.textContent = '🔑 Готово к подписанию';
+
+  // ════════════════════════════════════════
+  // ПОДПИСЬ №1 — ПОВЕРИТЕЛЬ
+  // ════════════════════════════════════════
+  await delay(600);
+  log('▶ Запрос подписи №1 в NCALayer...', 'info');
+  setProgress(76, 'Подпись №1 — поверитель...');
+  setLogStatus('Подписание ЭЦП', '#fbbf24');
+  setContent(`<div style="text-align:center;padding:24px;">
+    <div style="font-size:36px;margin-bottom:10px;">🔑</div>
+    <div style="font-size:14px;font-weight:700;">NCALayer · Подпись №1</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:5px;">Поверитель: Ахметов Д.С.</div>
+    <div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;text-align:left;max-width:300px;margin-left:auto;margin-right:auto;">
+      <div style="font-size:11px;font-weight:700;color:#92400e;margin-bottom:6px;">📋 Подписываемые данные</div>
+      <div style="font-size:10px;color:#374151;font-family:'JetBrains Mono',monospace;line-height:1.6;">
+        <div>Тип: СГВ-15 · №42428893</div>
+        <div>Дата: 09.06.2026</div>
+        <div>Поверитель: Ахметов Д.С.</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:var(--blue);font-weight:600;">
+      <span style="animation:pulse 1s infinite;">⟳</span> Формирую подпись RSA...
+    </div>
+  </div>`);
+  await delay(800);
+  log('  Алгоритм: ГОСТ 34.10-2015 · SHA-256', 'type');
+  await delay(700);
+  log('✓ Подпись №1 сформирована!', 'ok');
+  await delay(500);
+  log('▶ Отправка данных на сервер е-КТРМ...', 'info');
+  setUrl('techreg.gov.kz/eupsi/certificate/sign', true);
+  await delay(900);
+  log('✓ Сервер принял. Статус → КТРМ 70%', 'ok');
+
+  // Update status to 70%
+  setStatus(3);
+  setProgress(82, 'КТРМ 70% — первая подпись готова');
+  setLogStatus('КТРМ 70%', '#4ade80');
+
+  setContent(`<div style="text-align:center;padding:24px;">
+    <div style="font-size:36px;margin-bottom:10px;">⏳</div>
+    <div style="font-size:14px;font-weight:700;color:var(--green);">КТРМ 70% — Подпись №1 ✓</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:5px;">Ожидание подписи руководителя...</div>
+    <div style="margin-top:14px;padding:12px 16px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;text-align:left;max-width:300px;margin-left:auto;margin-right:auto;">
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px;">✅ Поверитель: Ахметов Д.С.</div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#f59e0b;">⏳ Руководитель: Молдабаев М. — ожидание</div>
+    </div>
+  </div>`);
+  await delay(2000);
+
+  // ════════════════════════════════════════
+  // ПОДПИСЬ №2 — РУКОВОДИТЕЛЬ
+  // ════════════════════════════════════════
+  log('▶ Сканирую таблицу... Вижу "КТРМ 70%"', 'info');
+  await delay(600);
+  log('▶ Запрос подписи №2 — руководитель...', 'info');
+  setProgress(90, 'Подпись №2 — руководитель...');
+  setLogStatus('Подпись №2', '#fbbf24');
+  setUrl('techreg.gov.kz/eupsi/certificate/confirm', true);
+  setContent(`<div style="text-align:center;padding:24px;">
+    <div style="font-size:36px;margin-bottom:10px;">👑</div>
+    <div style="font-size:14px;font-weight:700;">NCALayer · Подпись №2</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:5px;">Руководитель: Молдабаев М.</div>
+    <div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;text-align:left;max-width:300px;margin-left:auto;margin-right:auto;">
+      <div style="font-size:11px;font-weight:700;color:#92400e;margin-bottom:6px;">📋 Утверждение сертификата</div>
+      <div style="font-size:10px;color:#374151;font-family:'JetBrains Mono',monospace;line-height:1.6;">
+        <div>Поверитель: ✅ подписан</div>
+        <div>Руководитель: ⏳ подпись...</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:var(--blue);font-weight:600;">
+      <span style="animation:pulse 1s infinite;">⟳</span> Формирую подпись...
+    </div>
+  </div>`);
+  await delay(700);
+  log('  Ключ руководителя: Молдабаев М.', 'type');
+  await delay(600);
+  log('✓ Подпись №2 сформирована!', 'ok');
+  await delay(400);
+  log('▶ Финальная отправка в реестр ЭУПСИ...', 'info');
+  setUrl('techreg.gov.kz/eupsi/certificate/complete', true);
+  await delay(900);
+
+  // ════════════════════════════════════════
+  // ФИНАЛ — ВНЕСЁН В КТРМ ✅
+  // ════════════════════════════════════════
+  log('✓ ✓ ✓ СЕРТИФИКАТ ЗАРЕГИСТРИРОВАН В е-КТРМ!', 'ok');
+  log('  Рег. №: KZ-ЭУПСИ-2026-042891', 'ok');
+  log('  QR-код сгенерирован', 'ok');
+  log('▶ Обновляю статус в ERP: "Внесён в КТРМ"', 'action');
+  await delay(400);
+  log('✓ Статус обновлён. Запись закрыта.', 'ok');
+  log('▶ Сканирую следующую запись...', 'dim');
+
+  setStatus(4);
+  setProgress(100, '✅ Готово! Внесён в КТРМ');
+  setLogStatus('Завершено ✅', '#4ade80');
+  setUrl('techreg.gov.kz/eupsi/certificate/KZ-2026-042891', false);
+
+  setContent(`
+    <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:20px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:10px;">✅</div>
+      <div style="font-size:16px;font-weight:800;color:var(--green);">Сертификат зарегистрирован!</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:5px;">Реестр ЭУПСИ · е-КТРМ РК</div>
+      <div style="margin-top:16px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start;text-align:left;">
+        <div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Укиева · ул. Казыбек би, 142, кв.59</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.8;">
+            🔧 СГВ-15 · №42428893<br>
+            📅 09.06.2026 → 09.06.2031<br>
+            🔖 Клеймо: 0752994<br>
+            🔴 Горячая вода (г/в)<br>
+            ✅ Поверитель: Ахметов Д.С.<br>
+            ✅ Руководитель: Молдабаев М.
+          </div>
+          <div style="margin-top:8px;padding:6px 10px;background:#eff6ff;border-radius:6px;font-size:10px;color:#1e3a8a;font-family:'JetBrains Mono',monospace;">
+            Рег. №: <strong>KZ-ЭУПСИ-2026-042891</strong>
+          </div>
+        </div>
+        <div style="text-align:center;">
+          <svg width="72" height="72" viewBox="0 0 72 72">
+            <rect width="72" height="72" fill="white"/>
+            <rect x="4" y="4" width="20" height="20" fill="none" stroke="#111" stroke-width="2"/>
+            <rect x="7" y="7" width="14" height="14" fill="#111"/>
+            <rect x="48" y="4" width="20" height="20" fill="none" stroke="#111" stroke-width="2"/>
+            <rect x="51" y="7" width="14" height="14" fill="#111"/>
+            <rect x="4" y="48" width="20" height="20" fill="none" stroke="#111" stroke-width="2"/>
+            <rect x="7" y="51" width="14" height="14" fill="#111"/>
+            <rect x="30" y="10" width="6" height="6" fill="#111"/><rect x="38" y="10" width="4" height="4" fill="#111"/>
+            <rect x="30" y="18" width="4" height="4" fill="#111"/><rect x="36" y="16" width="6" height="6" fill="#111"/>
+            <rect x="10" y="30" width="6" height="6" fill="#111"/><rect x="18" y="28" width="4" height="8" fill="#111"/>
+            <rect x="30" y="30" width="8" height="4" fill="#111"/><rect x="40" y="28" width="4" height="8" fill="#111"/>
+            <rect x="48" y="30" width="16" height="4" fill="#111"/><rect x="48" y="36" width="8" height="6" fill="#111"/>
+            <rect x="30" y="38" width="6" height="10" fill="#111"/><rect x="38" y="40" width="8" height="4" fill="#111"/>
+            <rect x="10" y="40" width="8" height="4" fill="#111"/><rect x="20" y="38" width="4" height="10" fill="#111"/>
+            <rect x="48" y="48" width="6" height="6" fill="#111"/><rect x="56" y="46" width="8" height="4" fill="#111"/>
+            <rect x="56" y="52" width="8" height="8" fill="#111"/><rect x="48" y="56" width="6" height="6" fill="#111"/>
+          </svg>
+          <div style="font-size:9px;color:var(--muted);margin-top:4px;">QR-код<br>сертификата</div>
+        </div>
+      </div>
+    </div>`);
+
+  isRunning = false;
+  document.getElementById('btnStart').disabled = false;
+}
+
+function eupsiForm() {
+  return `<div>
+    <div style="background:linear-gradient(135deg,#1a56db,#1e40af);color:#fff;padding:11px 14px;border-radius:8px 8px 0 0;">
+      <div style="font-size:12px;font-weight:700;">📋 ЭУПСИ · Новый сертификат о поверке СИ</div>
+    </div>
+    <div style="background:#1e3a8a;padding:4px 14px;display:flex;gap:14px;margin-bottom:12px;">
+      <span style="font-size:10px;color:rgba(255,255,255,.6);padding:4px 0;">Список</span>
+      <span style="font-size:10px;color:#fff;border-bottom:2px solid #60a5fa;font-weight:700;padding:4px 0;">Новый сертификат</span>
+    </div>
+    <div style="padding:0 2px;">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;">Данные средства измерений</div>
+      <div class="eupsi-grid">
+        <div class="ef-field"><label>Тип СИ *</label><input class="ef-input" id="ef-type" value="" placeholder="СГВ-15..."></div>
+        <div class="ef-field"><label>Серийный № *</label><input class="ef-input" id="ef-serial" value="" placeholder=""></div>
+        <div class="ef-field"><label>Дата поверки *</label><input class="ef-input" id="ef-d1" value="" placeholder="дд.мм.гггг"></div>
+        <div class="ef-field"><label>Действ. до *</label><input class="ef-input" id="ef-d2" value="" placeholder="дд.мм.гггг"></div>
+        <div class="ef-field"><label>№ клейма *</label><input class="ef-input" id="ef-stamp" value="" placeholder=""></div>
+        <div class="ef-field"><label>Тип воды *</label><input class="ef-input" id="ef-water" value="" placeholder="х/в г/в"></div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--muted);margin:10px 0 8px;">Данные абонента</div>
+      <div class="ef-field" style="margin-bottom:8px;"><label>Адрес *</label><input class="ef-input" id="ef-addr" value="" placeholder="Улица, дом, кв."></div>
+      <div class="ef-field"><label>ФИО абонента</label><input class="ef-input" id="ef-fio" value="" placeholder="Фамилия Имя"></div>
+      <button class="eupsi-btn" id="eupsi-submit" style="opacity:.5;">Подписать и отправить ЭЦП</button>
+    </div>
+  </div>`;
+}
+
+function resetAll() {
+  if (isRunning) { timers.forEach(t=>clearTimeout(t)); timers=[]; isRunning=false; }
+  document.getElementById('btnStart').disabled = false;
+  setStatus(0);
+  const badge = document.getElementById('mainBadge');
+  badge.className='cert-badge sb-work'; badge.textContent='🔄 В работе';
+  for(let i=0;i<5;i++) document.getElementById('ps-'+i).className='p-step waiting';
+  for(let i=0;i<4;i++) document.getElementById('pc-'+i).className='p-connector';
+  document.getElementById('progBar').style.width='0%';
+  document.getElementById('progLabel').textContent='Готов к запуску';
+  document.getElementById('bUrl').textContent='— ожидание —';
+  document.getElementById('bInd').className='b-indicator';
+  document.getElementById('logBody').innerHTML='<div class="log-line"><span class="ll-dim ll-time">00:00:00</span><span class="ll-dim">Сброс. Готов к запуску.</span></div>';
+  setLogStatus('Ожидание');
+  setContent(`<div style="text-align:center;padding:40px;color:var(--muted);">
+    <div style="font-size:40px;margin-bottom:12px;">🤖</div>
+    <div style="font-size:14px;font-weight:600;">Робот готов к работе</div>
+    <div style="font-size:12px;margin-top:6px;">Нажмите «Запустить робота» чтобы начать</div>
+  </div>`);
+}
+
+// init
+setStatus(0);
+</script>
+</body>
+</html>

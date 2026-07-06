@@ -206,6 +206,22 @@
   .badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; white-space: nowrap; }
   .b-new    { background: #f3f4f6; color: #6b7280; }
   .b-active { background: #dbeafe; color: #1d4ed8; }
+
+  /* ── OPER STATUS BADGES ── */
+  .b-work   { background:#f3f4f6; color:#374151; border:1px solid #d1d5db; }
+  .b-ready  { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; font-weight:700; }
+  .b-submit { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; font-weight:700; animation:submitPulse 2s infinite; }
+  .b-ktrm70 {
+    background:linear-gradient(90deg,#dcfce7 0%,#dcfce7 70%,#fff7ed 70%,#fff7ed 100%);
+    color:#15803d; border:1px solid #86efac; font-weight:700;
+  }
+  .b-ktrm   { background:#dcfce7; color:#15803d; border:1px solid #86efac; font-weight:700; }
+  @keyframes submitPulse {
+    0%,100%{box-shadow:0 0 0 0 rgba(26,86,219,.3);}
+    50%{box-shadow:0 0 0 4px rgba(26,86,219,0);}
+  }
+  /* Status popup items */
+  .s-opt { border-radius:6px !important; margin-bottom:2px !important; }
   .b-ok     { background: #d1fae5; color: #065f46; }
   .b-warn   { background: #fef3c7; color: #92400e; }
   .b-err    { background: #fee2e2; color: #991b1b; }
@@ -397,12 +413,140 @@
     to   { transform:scale(1);   background:#eff6ff; }
   }
 
+
+  /* ── ROBOT STATUS INDICATOR ── */
+  .robot-bar {
+    display:none; align-items:center; gap:10px;
+    padding:8px 14px;
+    background:linear-gradient(135deg,#1e3a8a,#1a56db);
+    border-bottom:1px solid #1d4ed8;
+    font-size:12px; color:#fff; flex-shrink:0;
+  }
+  .robot-bar.active { display:flex; }
+  .robot-dot {
+    width:8px; height:8px; border-radius:50%;
+    background:#4ade80; flex-shrink:0;
+    animation:robotPulse 1s infinite;
+  }
+  @keyframes robotPulse {
+    0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,.5);}
+    50%{box-shadow:0 0 0 6px rgba(74,222,128,0);}
+  }
+  .robot-text { flex:1; font-weight:600; }
+  .robot-count {
+    background:rgba(255,255,255,.2); padding:2px 10px;
+    border-radius:20px; font-weight:700; font-size:11px;
+  }
+  .robot-stop {
+    background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3);
+    color:#fff; padding:3px 10px; border-radius:20px;
+    font-size:11px; font-weight:700; cursor:pointer;
+    transition:all .15s;
+  }
+  .robot-stop:hover { background:rgba(239,68,68,.4); }
+
+
+  /* ══ SIDEBAR REDESIGN ══════════════════════════════════════ */
+
+  /* Разделитель групп */
+  .sb-divider {
+    height:1px; background:var(--border);
+    margin:6px 10px;
+  }
+  .sb-divider-label {
+    font-size:9px; font-weight:700; color:#9ca3af;
+    text-transform:uppercase; letter-spacing:.1em;
+    padding:8px 14px 2px;
+  }
+
+  /* ── ДОХОДНЫЕ СЕКЦИИ (Поверка / Продажа / Прочие) ── */
+  .sb-section.income .sb-group {
+    position:relative;
+  }
+  /* Поверка — синий */
+  .sb-section.income-blue .sb-group {
+    color:#1d4ed8 !important;
+    font-weight:800 !important;
+  }
+  .sb-section.income-blue .sb-group::before {
+    content:''; position:absolute; left:0; top:0; bottom:0;
+    width:3px; border-radius:0 2px 2px 0;
+    background:linear-gradient(180deg,#1a56db,#0ea5e9);
+  }
+  .sb-section.income-blue > .sb-group {
+    background:linear-gradient(90deg,rgba(219,234,254,.55) 0%,transparent 100%) !important;
+  }
+  .sb-section.income-blue .sb-item {
+    color:#1e40af !important;
+  }
+  .sb-section.income-blue .sb-item:hover,
+  .sb-section.income-blue .sb-item.active {
+    background:rgba(219,234,254,.7) !important;
+    color:#1d4ed8 !important;
+  }
+
+  /* Продажа — зелёный */
+  .sb-section.income-green .sb-group {
+    color:#065f46 !important;
+    font-weight:800 !important;
+  }
+  .sb-section.income-green .sb-group::before {
+    content:''; position:absolute; left:0; top:0; bottom:0;
+    width:3px; border-radius:0 2px 2px 0;
+    background:linear-gradient(180deg,#059669,#10b981);
+  }
+  .sb-section.income-green > .sb-group {
+    background:linear-gradient(90deg,rgba(209,250,229,.55) 0%,transparent 100%) !important;
+  }
+  .sb-section.income-green .sb-item {
+    color:#065f46 !important;
+  }
+  .sb-section.income-green .sb-item:hover,
+  .sb-section.income-green .sb-item.active {
+    background:rgba(209,250,229,.7) !important;
+    color:#059669 !important;
+  }
+
+  /* Прочие операции — фиолетовый */
+  .sb-section.income-purple .sb-group {
+    color:#5b21b6 !important;
+    font-weight:800 !important;
+  }
+  .sb-section.income-purple .sb-group::before {
+    content:''; position:absolute; left:0; top:0; bottom:0;
+    width:3px; border-radius:0 2px 2px 0;
+    background:linear-gradient(180deg,#7c3aed,#a855f7);
+  }
+  .sb-section.income-purple > .sb-group {
+    background:linear-gradient(90deg,rgba(237,233,254,.55) 0%,transparent 100%) !important;
+  }
+  .sb-section.income-purple .sb-item {
+    color:#5b21b6 !important;
+  }
+  .sb-section.income-purple .sb-item:hover,
+  .sb-section.income-purple .sb-item.active {
+    background:rgba(237,233,254,.7) !important;
+    color:#7c3aed !important;
+  }
+
+  /* ── ИКОНКА-БЕЙДЖ у заголовков доходных секций ── */
+  .sb-income-badge {
+    font-size:9px; font-weight:700; padding:1px 6px;
+    border-radius:10px; margin-left:auto; margin-right:6px;
+    flex-shrink:0;
+  }
+  .badge-income-blue   { background:#dbeafe; color:#1d4ed8; }
+  .badge-income-green  { background:#d1fae5; color:#065f46; }
+  .badge-income-purple { background:#ede9fe; color:#5b21b6; }
+
 </style>
 </head>
 <body>
 
 <!-- SIDEBAR -->
 <div id="sidebar">
+
+  <!-- LOGO -->
   <div class="sb-logo">
     <div class="sb-logo-top">
       <div class="sb-logo-mark" id="logoMark">💧</div>
@@ -414,12 +558,18 @@
     <div class="sb-logo-badge">Vertex Metrology · ERP v1.0</div>
   </div>
 
+  <!-- РАБОЧИЙ СТОЛ -->
   <div class="sb-section">
     <button class="sb-direct active" onclick="go('dashboard','Главная','Рабочий стол',this)">🏠 &nbsp;Рабочий стол</button>
   </div>
 
-  <div class="sb-section">
-    <button class="sb-group open" onclick="toggleGroup(this)"><span>📋 ПОВЕРКА</span><span class="arrow">▾</span></button>
+  <!-- ══ ИСТОЧНИКИ ДОХОДА ════════════════════════════════════ -->
+  <!-- 1. ПОВЕРКА — синий -->
+  <div class="sb-section income income-blue">
+    <button class="sb-group open" onclick="toggleGroup(this)">
+      <span>📋 ПОВЕРКА</span>
+      <span class="arrow">▾</span>
+    </button>
     <div class="sb-sub open">
       <button class="sb-group" onclick="toggleGroup(this)" style="padding-left:24px;font-size:11px;"><span>САМИ</span><span class="arrow">▾</span></button>
       <div class="sb-sub open">
@@ -440,37 +590,23 @@
     </div>
   </div>
 
-  <div class="sb-section">
-    <button class="sb-group open" onclick="toggleGroup(this)"><span>💰 ПРОДАЖА</span><span class="arrow">▾</span></button>
+  <!-- 2. ПРОДАЖА — зелёный -->
+  <div class="sb-section income income-green">
+    <button class="sb-group open" onclick="toggleGroup(this)">
+      <span>💰 ПРОДАЖА</span>
+      <span class="arrow">▾</span>
+    </button>
     <div class="sb-sub open">
       <button class="sb-item" onclick="go('sales','Продажа','Журнал продаж',this)">Журнал продаж</button>
     </div>
   </div>
 
-  <div class="sb-section">
-    <button class="sb-group open" onclick="toggleGroup(this)"><span>🛒 ПОКУПКА</span><span class="arrow">▾</span></button>
-    <div class="sb-sub open">
-      <button class="sb-item" onclick="go('purchases','Покупка','Журнал покупок',this)">Журнал покупок</button>
-    </div>
-  </div>
-
-  <div class="sb-section">
-    <button class="sb-group open" onclick="toggleGroup(this)"><span>🏭 СКЛАД</span><span class="arrow">▾</span></button>
-    <div class="sb-sub open">
-      <button class="sb-item" onclick="go('warehouse','Склад','Журнал склада',this)">Журнал склада</button>
-    </div>
-  </div>
-
-  <div class="sb-section">
-    <button class="sb-group open" onclick="toggleGroup(this)"><span>👥 СОТРУДНИКИ</span><span class="arrow">▾</span></button>
-    <div class="sb-sub open">
-      <button class="sb-item" onclick="go('staff-mgr','Сотрудники','Руководитель',this)">Руководитель</button>
-      <button class="sb-item" onclick="go('staff-hr','Сотрудники','Зарплата и кадры',this)">Зарплата и кадры</button>
-    </div>
-  </div>
-
-  <div class="sb-section">
-    <button class="sb-group open" onclick="toggleGroup(this)"><span>📄 ПРОЧИЕ ОПЕРАЦИИ</span><span class="arrow">▾</span></button>
+  <!-- 3. ПРОЧИЕ ОПЕРАЦИИ — фиолетовый -->
+  <div class="sb-section income income-purple">
+    <button class="sb-group open" onclick="toggleGroup(this)">
+      <span>📄 ПРОЧИЕ ОПЕРАЦИИ</span>
+      <span class="arrow">▾</span>
+    </button>
     <div class="sb-sub open">
       <button class="sb-item" onclick="go('other-ops-proj','Прочие операции','Проект',this)">📁 Проект</button>
       <button class="sb-item" onclick="go('other-ops-tender','Прочие операции','Тендер',this)">📜 Тендер</button>
@@ -478,6 +614,11 @@
     </div>
   </div>
 
+  <!-- ══ ОПЕРАЦИОННЫЕ ════════════════════════════════════════ -->
+  <div class="sb-divider"></div>
+  <div class="sb-divider-label">ОПЕРАЦИОННЫЕ</div>
+
+  <!-- РАСХОДЫ -->
   <div class="sb-section">
     <button class="sb-group open" onclick="toggleGroup(this)"><span>💸 РАСХОДЫ</span><span class="arrow">▾</span></button>
     <div class="sb-sub open">
@@ -487,6 +628,7 @@
     </div>
   </div>
 
+  <!-- БУХГАЛТЕРИЯ -->
   <div class="sb-section">
     <button class="sb-group open" onclick="toggleGroup(this)"><span>📒 БУХГАЛТЕРИЯ</span><span class="arrow">▾</span></button>
     <div class="sb-sub open">
@@ -494,16 +636,40 @@
     </div>
   </div>
 
+  <!-- СКЛАД -->
+  <div class="sb-section">
+    <button class="sb-group open" onclick="toggleGroup(this)"><span>🏭 СКЛАД</span><span class="arrow">▾</span></button>
+    <div class="sb-sub open">
+      <button class="sb-item" onclick="go('warehouse','Склад','Журнал склада',this)">Журнал склада</button>
+      <button class="sb-item" onclick="go('purchases','Покупка','Журнал покупок',this)">🛒 Закупки</button>
+    </div>
+  </div>
+
+  <!-- СОТРУДНИКИ -->
+  <div class="sb-section">
+    <button class="sb-group open" onclick="toggleGroup(this)"><span>👥 СОТРУДНИКИ</span><span class="arrow">▾</span></button>
+    <div class="sb-sub open">
+      <button class="sb-item" onclick="go('staff-mgr','Сотрудники','Руководитель',this)">Руководитель</button>
+      <button class="sb-item" onclick="go('staff-hr','Сотрудники','Зарплата и кадры',this)">Зарплата и кадры</button>
+    </div>
+  </div>
+
+  <!-- ══ ФИНАНСЫ ════════════════════════════════════════════ -->
+  <div class="sb-divider"></div>
+  <div class="sb-divider-label">ФИНАНСЫ И УЧЁТ</div>
+
+  <!-- СЧЕТА -->
   <div class="sb-section">
     <button class="sb-group open" onclick="toggleGroup(this)"><span>🧾 СЧЕТА</span><span class="arrow">▾</span></button>
     <div class="sb-sub open">
-      <button class="sb-item" onclick="go('inv-poverka','Счета','Поверка',this)">Поверка</button>
-      <button class="sb-item" onclick="go('inv-sales','Счета','Продажа',this)">Продажа</button>
-      <button class="sb-item" onclick="go('inv-other','Счета','Прочие',this)">Прочие</button>
+      <button class="sb-item" onclick="go('inv-poverka','Счета','Поверка',this)">📋 Поверка</button>
+      <button class="sb-item" onclick="go('inv-sales','Счета','Продажа',this)">💰 Продажа</button>
+      <button class="sb-item" onclick="go('inv-other','Счета','Прочие',this)">📄 Прочие</button>
       <button class="sb-item" onclick="go('inv-branches','Счета','Филиалы',this)">🏢 Филиалы</button>
     </div>
   </div>
 
+  <!-- БАЗА ДАННЫХ -->
   <div class="sb-section">
     <button class="sb-group open" onclick="toggleGroup(this)"><span>🗄 БАЗА ДАННЫХ</span><span class="arrow">▾</span></button>
     <div class="sb-sub open">
@@ -514,6 +680,11 @@
     </div>
   </div>
 
+  <!-- ══ АНАЛИТИКА ══════════════════════════════════════════ -->
+  <div class="sb-divider"></div>
+  <div class="sb-divider-label">АНАЛИТИКА</div>
+
+  <!-- ОТЧЁТ -->
   <div class="sb-section">
     <button class="sb-group open" onclick="toggleGroup(this)"><span>📊 ОТЧЁТ</span><span class="arrow">▾</span></button>
     <div class="sb-sub open">
@@ -521,6 +692,7 @@
     </div>
   </div>
 
+  <!-- СПРАВОЧНИК -->
   <div class="sb-section">
     <button class="sb-group open" onclick="toggleGroup(this)"><span>📖 СПРАВОЧНИК</span><span class="arrow">▾</span></button>
     <div class="sb-sub open">
@@ -528,12 +700,17 @@
     </div>
   </div>
 
+  <!-- ══ СИСТЕМА ════════════════════════════════════════════ -->
+  <div class="sb-divider"></div>
+
+  <!-- НАСТРОЙКА -->
   <div class="sb-section">
     <button class="sb-group open" onclick="toggleGroup(this)"><span>⚙️ НАСТРОЙКА</span><span class="arrow">▾</span></button>
     <div class="sb-sub open">
       <button class="sb-item" onclick="go('settings','Настройка','Настройки',this)">Настройки</button>
     </div>
   </div>
+
 </div>
 
 <!-- MAIN -->
@@ -559,6 +736,15 @@
       </div>
     </div>
   </div>
+  <!-- ROBOT STATUS BAR -->
+  <div class="robot-bar" id="robotBar">
+    <div class="robot-dot"></div>
+    <div class="robot-text">🤖 Робот е-КТРМ активен</div>
+    <div class="robot-count" id="robotCount">0 в очереди</div>
+    <div style="font-size:11px;color:rgba(255,255,255,.7);flex:1;" id="robotCurrent">—</div>
+    <button class="robot-stop" onclick="robotBarHide()">⏹ Стоп</button>
+  </div>
+
   <div id="content">
 
     <!-- DASHBOARD -->
@@ -751,19 +937,33 @@
 
     <!-- ПРОДАЖА -->
     <div class="screen" id="s-sales">
-      <div class="page-title">Журнал продаж</div><div class="page-sub">Все продажи счётчиков и услуг</div>
+      <div class="page-title">Журнал продаж</div><div class="page-sub">Продажи счётчиков — остатки склада списываются автоматически</div>
       <div class="stat-row">
-        <div class="stat-card"><div class="stat-label">💰 Итого</div><div class="stat-val">0 <span class="unit">₸</span></div></div>
-        <div class="stat-card ok"><div class="stat-label">✅ Оплачено</div><div class="stat-val">0 <span class="unit">₸</span></div></div>
-        <div class="stat-card warn"><div class="stat-label">⏳ Ожидает</div><div class="stat-val">0 <span class="unit">₸</span></div></div>
+        <div class="stat-card"><div class="stat-label">💰 Итого</div><div class="stat-val" id="sales-total">0 ₸</div></div>
+        <div class="stat-card ok"><div class="stat-label">✅ Оплачено</div><div class="stat-val" id="sales-paid">0 ₸</div></div>
+        <div class="stat-card warn"><div class="stat-label">⏳ Ожидает</div><div class="stat-val" id="sales-wait">0 ₸</div></div>
       </div>
       <div class="tbl-wrap">
-        <div class="tbl-header"><span class="tbl-title">Продажи</span><div class="btn-row"><button class="btn btn-outline btn-sm">📤 Экспорт</button><button class="btn btn-primary btn-sm">+ Новая продажа</button></div></div>
-        <table><thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Товар/Услуга</th><th>Кол-во</th><th>Сумма</th><th>Оплата</th><th>Заказ</th></tr></thead>
-        <tbody>
-          <tr><td>ПРД-001</td><td>01.07.2026</td><td>Иванов А.А.</td><td>Счётчик ХВС DN15</td><td>1</td><td>15 000 ₸</td><td><span class="badge b-ok">Оплачен</span></td><td>ЗАК-001</td></tr>
-          <tr><td>ПРД-002</td><td>02.07.2026</td><td>ТОО «Алма»</td><td>Услуга поверки</td><td>2</td><td>8 000 ₸</td><td><span class="badge b-warn">Частично</span></td><td>ЗАК-002</td></tr>
-        </tbody></table>
+        <div class="tbl-header">
+          <span class="tbl-title">Продажи</span>
+          <div class="btn-row">
+            <button class="btn btn-outline btn-sm" onclick="salesExport()">📤 Экспорт</button>
+            <button class="btn btn-primary btn-sm" onclick="salesOpenNew()">+ Новая продажа</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>№</th><th>Дата</th><th>Клиент</th>
+              <th>SKU</th><th>Товар</th>
+              <th style="text-align:center;">Кол-во</th>
+              <th style="text-align:right;">Цена</th>
+              <th style="text-align:right;">Сумма</th>
+              <th>Оплата</th><th>Счёт</th><th>Действия</th>
+            </tr>
+          </thead>
+          <tbody id="sales-tbody"></tbody>
+        </table>
       </div>
     </div>
 
@@ -782,19 +982,81 @@
 
     <!-- СКЛАД -->
     <div class="screen" id="s-warehouse">
-      <div class="page-title">Журнал склада</div><div class="page-sub">Остатки и движения товаров</div>
+      <div class="page-title">Склад</div><div class="page-sub">Остатки · Движения · Приходные накладные</div>
+
+      <!-- STATS -->
       <div class="stat-row">
-        <div class="stat-card"><div class="stat-label">📦 Позиций</div><div class="stat-val">12</div></div>
-        <div class="stat-card err"><div class="stat-label">⚠️ Нехватка</div><div class="stat-val">2</div></div>
-        <div class="stat-card blue"><div class="stat-label">🔒 Резерв</div><div class="stat-val">5</div></div>
+        <div class="stat-card"><div class="stat-label">📦 Позиций</div><div class="stat-val" id="wh-stat-pos">21</div></div>
+        <div class="stat-card err"><div class="stat-label">⚠️ Ниже мин.</div><div class="stat-val" id="wh-stat-low">0</div></div>
+        <div class="stat-card blue"><div class="stat-label">🚫 Нет в наличии</div><div class="stat-val" id="wh-stat-empty">0</div></div>
+        <div class="stat-card ok"><div class="stat-label">💰 Стоимость склада</div><div class="stat-val" id="wh-stat-val">0 ₸</div></div>
       </div>
-      <div class="tbl-wrap">
-        <div class="tbl-header"><span class="tbl-title">Остатки</span><div class="btn-row"><button class="btn btn-outline btn-sm">📋 Движения</button><button class="btn btn-primary btn-sm">+ Приход</button></div></div>
-        <table><thead><tr><th>SKU</th><th>Наименование</th><th>Тип</th><th>Остаток</th><th>Резерв</th><th>Свободно</th><th>Мин.</th><th>Статус</th></tr></thead>
-        <tbody>
-          <tr><td>SKU-001</td><td>Счётчик ХВС DN15</td><td>ХВС</td><td>45</td><td>5</td><td>40</td><td>20</td><td><span class="badge b-ok">Норма</span></td></tr>
-          <tr><td>SKU-002</td><td>Счётчик ГВС DN20</td><td>ГВС</td><td>8</td><td>3</td><td>5</td><td>15</td><td><span class="badge b-err">⚠ Нехватка</span></td></tr>
-        </tbody></table>
+
+      <!-- TABS -->
+      <div style="display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin-bottom:14px;">
+        <button class="btn btn-ghost btn-sm" id="wh-tab-stock" onclick="whTabSwitch('stock')"
+          style="border-radius:0;border-bottom:2px solid #1a56db;margin-bottom:-2px;color:#1a56db;font-weight:700;">
+          📦 Остатки
+        </button>
+        <button class="btn btn-ghost btn-sm" id="wh-tab-moves" onclick="whTabSwitch('moves')"
+          style="border-radius:0;margin-bottom:-2px;">
+          📋 Движения
+        </button>
+      </div>
+
+      <!-- TAB: ОСТАТКИ -->
+      <div id="wh-pane-stock">
+        <div class="tbl-wrap">
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:9px 14px;margin-bottom:10px;font-size:12px;color:#92400e;display:flex;align-items:center;gap:8px;" id="wh-empty-hint">
+            <span>💡</span> Склад пустой. Нажмите <strong>📥 Приход</strong> чтобы внести товары.
+          </div>
+          <div class="tbl-header">
+            <span class="tbl-title">Все товары (21 позиция)</span>
+            <div class="btn-row">
+              <button class="btn btn-outline btn-sm" onclick="whPrintInvoice()">🖨 Накладная</button>
+              <button class="btn btn-outline btn-sm" onclick="whOpenRevision(null)" style="color:#7c3aed;border-color:#c4b5fd;">📋 Ревизия</button>
+              <button class="btn btn-primary btn-sm" onclick="whOpenIncoming(null)">📥 Приход</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Наименование</th>
+                <th>Тип воды</th>
+                <th style="text-align:center;">Остаток</th>
+                <th style="text-align:center;">Резерв</th>
+                <th style="text-align:center;">Свободно</th>
+                <th style="text-align:center;">Мин.</th>
+                <th style="text-align:right;">Цена</th>
+                <th>Статус</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="wh-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: ДВИЖЕНИЯ -->
+      <div id="wh-pane-moves" style="display:none;">
+        <div class="tbl-wrap">
+          <div class="tbl-header">
+            <span class="tbl-title">Движения товаров</span>
+            <button class="btn btn-outline btn-sm" onclick="whPrintInvoice()">🖨 Накладная</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Дата</th><th>SKU</th><th>Наименование</th>
+                <th>Тип</th><th style="text-align:center;">Кол-во</th>
+                <th style="text-align:right;">Сумма</th>
+                <th>Контрагент</th><th>Документ</th><th>Комментарий</th>
+              </tr>
+            </thead>
+            <tbody id="wh-move-tbody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -1722,10 +1984,11 @@
       <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body" id="modalBody"></div>
-    <div class="modal-foot">
-      <button class="btn btn-primary" onclick="saveCertModal()">💾 Сохранить</button>
+    <div class="modal-foot" id="modalFoot">
+      <span id="modalFooterLeft" style="display:flex;gap:8px;"></span>
+      <button class="btn btn-primary" id="modalSaveBtn" onclick="saveCertModal()">💾 Сохранить</button>
       <button class="btn btn-outline" onclick="closeModal()">Отмена</button>
-      <button class="btn btn-outline" style="margin-left:auto;color:#dc2626;border-color:#fca5a5;">🗑 Удалить</button>
+      <button class="btn btn-outline" id="modalDeleteBtn" style="margin-left:auto;color:#dc2626;border-color:#fca5a5;display:none;">🗑 Удалить</button>
     </div>
   </div>
 </div>
@@ -1735,30 +1998,30 @@
 
 <script>
 // ── DATA ──────────────────────────────────────────────────────────
-const OPER_OPTS = ['В работе','Внесен в КТРМ'];
+const OPER_OPTS = ['В работе','Готова к КТРМ','Внести в КТРМ','КТРМ 70%','Внесён в КТРМ'];
 const PAY_OPTS  = ['В ожидании','Оплачено'];
 const INV_OPTS  = ['Каспи','БЦК','Наличка'];
 
 const BASE = [
-  {n:1,  fio:'Кулжанов',     addr:'м-в Карасу, дом 29, кв.7',        type:'СГВ-15', serial:'11607415',      year:'2009', seal:'+', d1:'29.05.2026', d2:'29.05.2031', stamp:'0549179', water:'х/в', val:1329, note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
-  {n:2,  fio:'Кулжанов',     addr:'м-в Карасу, дом 29, кв.7',        type:'СГВ-15', serial:'11603249',      year:'2009', seal:'+', d1:'29.05.2026', d2:'29.05.2031', stamp:'0549181', water:'х/в', val:774,  note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
-  {n:3,  fio:'Коканбаева',   addr:'мкр 5, дом 20/4, кв.38',          type:'СВК-15', serial:'1019047123206', year:'2021', seal:'+', d1:'29.05.2026', d2:'29.05.2031', stamp:'0549182', water:'х/в', val:886,  note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'БЦК'},
-  {n:4,  fio:'Тілеуберді',   addr:'мкр 10, дом 12, кв.82',           type:'СГВ-15', serial:'10194314',      year:'2007', seal:'+', d1:'02.06.2026', d2:'02.06.2031', stamp:'0753001', water:'х/в', val:727,  note:'',    oper:'Внесен в КТРМ', pay:'В ожидании', inv:'Наличка'},
-  {n:5,  fio:'Тілеуберді',   addr:'мкр 10, дом 12, кв.82',           type:'СГВ-15', serial:'10194335',      year:'2007', seal:'+', d1:'02.06.2026', d2:'02.06.2031', stamp:'0753000', water:'х/в', val:1003, note:'',    oper:'Внесен в КТРМ', pay:'В ожидании', inv:'Наличка'},
-  {n:6,  fio:'Тойбай',       addr:'мкр 3, дом 5, кв.92',             type:'СГВ-15', serial:'36435470',      year:'2018', seal:'+', d1:'02.06.2026', d2:'02.06.2031', stamp:'0752999', water:'х/в', val:670,  note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
-  {n:7,  fio:'Цой',          addr:'ул. Айтеке би, дом 10, кв.40',    type:'СГВ-15', serial:'19023904',      year:'2015', seal:'+', d1:'03.06.2026', d2:'03.06.2031', stamp:'0549183', water:'х/в', val:46,   note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
-  {n:8,  fio:'Цой',          addr:'ул. Айтеке би, дом 10, кв.40',    type:'СГВ-15', serial:'19023915',      year:'2015', seal:'+', d1:'03.06.2026', d2:'03.06.2031', stamp:'0549185', water:'х/в', val:499,  note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:1,  fio:'Кулжанов',     addr:'м-в Карасу, дом 29, кв.7',        type:'СГВ-15', serial:'11607415',      year:'2009', seal:'+', d1:'29.05.2026', d2:'29.05.2031', stamp:'0549179', water:'х/в', val:1329, note:'',    oper:'Внесён в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:2,  fio:'Кулжанов',     addr:'м-в Карасу, дом 29, кв.7',        type:'СГВ-15', serial:'11603249',      year:'2009', seal:'+', d1:'29.05.2026', d2:'29.05.2031', stamp:'0549181', water:'х/в', val:774,  note:'',    oper:'Внесён в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:3,  fio:'Коканбаева',   addr:'мкр 5, дом 20/4, кв.38',          type:'СВК-15', serial:'1019047123206', year:'2021', seal:'+', d1:'29.05.2026', d2:'29.05.2031', stamp:'0549182', water:'х/в', val:886,  note:'',    oper:'Внесён в КТРМ', pay:'Оплачено',   inv:'БЦК'},
+  {n:4,  fio:'Тілеуберді',   addr:'мкр 10, дом 12, кв.82',           type:'СГВ-15', serial:'10194314',      year:'2007', seal:'+', d1:'02.06.2026', d2:'02.06.2031', stamp:'0753001', water:'х/в', val:727,  note:'',    oper:'Внесён в КТРМ', pay:'В ожидании', inv:'Наличка'},
+  {n:5,  fio:'Тілеуберді',   addr:'мкр 10, дом 12, кв.82',           type:'СГВ-15', serial:'10194335',      year:'2007', seal:'+', d1:'02.06.2026', d2:'02.06.2031', stamp:'0753000', water:'х/в', val:1003, note:'',    oper:'Внесён в КТРМ', pay:'В ожидании', inv:'Наличка'},
+  {n:6,  fio:'Тойбай',       addr:'мкр 3, дом 5, кв.92',             type:'СГВ-15', serial:'36435470',      year:'2018', seal:'+', d1:'02.06.2026', d2:'02.06.2031', stamp:'0752999', water:'х/в', val:670,  note:'',    oper:'Внесён в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:7,  fio:'Цой',          addr:'ул. Айтеке би, дом 10, кв.40',    type:'СГВ-15', serial:'19023904',      year:'2015', seal:'+', d1:'03.06.2026', d2:'03.06.2031', stamp:'0549183', water:'х/в', val:46,   note:'',    oper:'Внесён в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:8,  fio:'Цой',          addr:'ул. Айтеке би, дом 10, кв.40',    type:'СГВ-15', serial:'19023915',      year:'2015', seal:'+', d1:'03.06.2026', d2:'03.06.2031', stamp:'0549185', water:'х/в', val:499,  note:'',    oper:'Внесён в КТРМ', pay:'Оплачено',   inv:'Каспи'},
   {n:9,  fio:'Абдуллаева',   addr:'ул. Толе би, дом 7, кв.17',       type:'СГВ-15', serial:'14861223',      year:'2011', seal:'+', d1:'04.06.2026', d2:'04.06.2031', stamp:'0549184', water:'г/в', val:519,  note:'ТТЭ', oper:'В работе',       pay:'В ожидании', inv:'БЦК'},
-  {n:10, fio:'Тургинбекова', addr:'мкр 4, дом 18, кв.78',            type:'СГВ-15', serial:'2800910',       year:'2005', seal:'+', d1:'04.06.2026', d2:'04.06.2031', stamp:'0752998', water:'х/в', val:1211, note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
-  {n:11, fio:'Тулегенов',    addr:'Тонкуруш, дом 12, кв.32',         type:'СГВ-15', serial:'6103571',       year:'2004', seal:'+', d1:'05.06.2026', d2:'05.06.2031', stamp:'0752997', water:'х/в', val:2060, note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Наличка'},
-  {n:12, fio:'Тулегенов',    addr:'Тонкуруш, дом 12, кв.32',         type:'СГВ-15', serial:'6101291',       year:'2004', seal:'+', d1:'05.06.2026', d2:'05.06.2031', stamp:'0752996', water:'х/в', val:609,  note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Наличка'},
-  {n:13, fio:'Попова',       addr:'мкр 9, дом 67, кв.27',            type:'СГВ-15', serial:'42465817',      year:'2020', seal:'+', d1:'08.06.2026', d2:'08.06.2031', stamp:'0549180', water:'г/в', val:46,   note:'ТТЭ', oper:'В работе',       pay:'В ожидании', inv:'Каспи'},
-  {n:14, fio:'Алдабергенов', addr:'ул. Железнодорожная, дом 32',      type:'СГВ-15', serial:'41349195',      year:'2020', seal:'+', d1:'08.06.2026', d2:'08.06.2031', stamp:'0549186', water:'х/в', val:1063, note:'',    oper:'Внесен в КТРМ', pay:'В ожидании', inv:'БЦК'},
-  {n:15, fio:'Раймбекова',   addr:'Кошеней, дом 43/1, кв.22',        type:'СГВ-15', serial:'41640214',      year:'2020', seal:'+', d1:'08.06.2026', d2:'08.06.2031', stamp:'0549187', water:'г/в', val:227,  note:'ТТЭ', oper:'В работе',       pay:'В ожидании', inv:'БЦК'},
-  {n:16, fio:'Раймбекова',   addr:'Кошеней, дом 43/1, кв.22',        type:'СГВ-15', serial:'41641151',      year:'2020', seal:'+', d1:'08.06.2026', d2:'08.06.2031', stamp:'0549189', water:'г/в', val:192,  note:'ТТЭ', oper:'В работе',       pay:'В ожидании', inv:'БЦК'},
-  {n:17, fio:'Кашульская',   addr:'мкр 10, дом 3, кв.148',           type:'СГВ-15', serial:'24878564',      year:'2016', seal:'+', d1:'09.06.2026', d2:'09.06.2031', stamp:'0752995', water:'г/в', val:587,  note:'ТТЭ', oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:10, fio:'Тургинбекова', addr:'мкр 4, дом 18, кв.78',            type:'СГВ-15', serial:'2800910',       year:'2005', seal:'+', d1:'04.06.2026', d2:'04.06.2031', stamp:'0752998', water:'х/в', val:1211, note:'',    oper:'Внесён в КТРМ', pay:'Оплачено',   inv:'Каспи'},
+  {n:11, fio:'Тулегенов',    addr:'Тонкуруш, дом 12, кв.32',         type:'СГВ-15', serial:'6103571',       year:'2004', seal:'+', d1:'05.06.2026', d2:'05.06.2031', stamp:'0752997', water:'х/в', val:2060, note:'',    oper:'Внесён в КТРМ', pay:'Оплачено',   inv:'Наличка'},
+  {n:12, fio:'Тулегенов',    addr:'Тонкуруш, дом 12, кв.32',         type:'СГВ-15', serial:'6101291',       year:'2004', seal:'+', d1:'05.06.2026', d2:'05.06.2031', stamp:'0752996', water:'х/в', val:609,  note:'',    oper:'Внесён в КТРМ', pay:'Оплачено',   inv:'Наличка'},
+  {n:13, fio:'Попова',       addr:'мкр 9, дом 67, кв.27',            type:'СГВ-15', serial:'42465817',      year:'2020', seal:'+', d1:'08.06.2026', d2:'08.06.2031', stamp:'0549180', water:'г/в', val:46,   note:'ТТЭ', oper:'Готова к КТРМ',  pay:'В ожидании', inv:'Каспи'},
+  {n:14, fio:'Алдабергенов', addr:'ул. Железнодорожная, дом 32',      type:'СГВ-15', serial:'41349195',      year:'2020', seal:'+', d1:'08.06.2026', d2:'08.06.2031', stamp:'0549186', water:'х/в', val:1063, note:'',    oper:'Внесён в КТРМ', pay:'В ожидании', inv:'БЦК'},
+  {n:15, fio:'Раймбекова',   addr:'Кошеней, дом 43/1, кв.22',        type:'СГВ-15', serial:'41640214',      year:'2020', seal:'+', d1:'08.06.2026', d2:'08.06.2031', stamp:'0549187', water:'г/в', val:227,  note:'ТТЭ', oper:'Внести в КТРМ', pay:'В ожидании', inv:'БЦК'},
+  {n:16, fio:'Раймбекова',   addr:'Кошеней, дом 43/1, кв.22',        type:'СГВ-15', serial:'41641151',      year:'2020', seal:'+', d1:'08.06.2026', d2:'08.06.2031', stamp:'0549189', water:'г/в', val:192,  note:'ТТЭ', oper:'КТРМ 70%',       pay:'В ожидании', inv:'БЦК'},
+  {n:17, fio:'Кашульская',   addr:'мкр 10, дом 3, кв.148',           type:'СГВ-15', serial:'24878564',      year:'2016', seal:'+', d1:'09.06.2026', d2:'09.06.2031', stamp:'0752995', water:'г/в', val:587,  note:'ТТЭ', oper:'Внесён в КТРМ', pay:'Оплачено',   inv:'Каспи'},
   {n:18, fio:'Укиева',       addr:'ул. Казыбек би, дом 142, кв.59',  type:'СГВ-15', serial:'42428893',      year:'2020', seal:'+', d1:'09.06.2026', d2:'09.06.2031', stamp:'0752994', water:'г/в', val:121,  note:'ТТЭ', oper:'В работе',       pay:'В ожидании', inv:'Каспи'},
-  {n:19, fio:'Баялы',        addr:'мкр 4, дом 21, кв.69',            type:'СГВ-15', serial:'39679805',      year:'2019', seal:'+', d1:'11.06.2026', d2:'11.06.2031', stamp:'0752973', water:'х/в', val:410,  note:'',    oper:'Внесен в КТРМ', pay:'Оплачено',   inv:'Наличка'},
+  {n:19, fio:'Баялы',        addr:'мкр 4, дом 21, кв.69',            type:'СГВ-15', serial:'39679805',      year:'2019', seal:'+', d1:'11.06.2026', d2:'11.06.2031', stamp:'0752973', water:'х/в', val:410,  note:'',    oper:'Внесён в КТРМ', pay:'Оплачено',   inv:'Наличка'},
 ];
 
 // Per-screen state: САМИ has real data, VDK/TEC start empty
@@ -1773,9 +2036,18 @@ let activeFilters = {oper:'', pay:'', inv:'', q:''};
 
 // ── CERT BADGES ──────────────────────────────────────────────────
 function operBadge(v) {
-  const cls = v==='Внесен в КТРМ'?'b-ktrm':'b-work';
-  const ico = v==='Внесен в КТРМ'?'✅':'🔄';
-  return `<button class="badge ${cls} status-btn" onclick="openStatusPop(event,'oper',this)">${ico} ${v}</button>`;
+  const MAP = {
+    'В работе':       {cls:'b-work',    ico:'🔄', tip:'Данные заполняются'},
+    'Готова к КТРМ':  {cls:'b-ready',   ico:'📋', tip:'Готова к внесению'},
+    'Внести в КТРМ':  {cls:'b-submit',  ico:'🤖', tip:'Запустить робота'},
+    'КТРМ 70%':       {cls:'b-ktrm70',  ico:'⏳', tip:'Первая подпись сделана'},
+    'Внесён в КТРМ':  {cls:'b-ktrm',    ico:'✅', tip:'Готово'},
+  };
+  const m = MAP[v] || {cls:'b-work', ico:'🔄', tip:''};
+  // For "Внести в КТРМ" and "КТРМ 70%" - also show robot button
+  const robotBtn = (v==='Внести в КТРМ'||v==='КТРМ 70%')
+    ? `` : '';
+  return `<button class="badge ${m.cls} status-btn" onclick="openStatusPop(event,'oper',this)" title="${m.tip}">${m.ico} ${v}</button>`;
 }
 function payBadge(v) {
   const cls = v==='Оплачено'?'b-paid':'b-wait';
@@ -1894,16 +2166,39 @@ function openStatusPop(e, field, btn) {
   const arr  = dataMap[tbodyId];
   const popup = document.createElement('div');
   popup.className = 's-popup open';
+  const OPER_ICONS = {
+    'В работе':      {ico:'🔄',bg:'#f3f4f6',clr:'#374151'},
+    'Готова к КТРМ': {ico:'📋',bg:'#fff7ed',clr:'#c2410c'},
+    'Внести в КТРМ': {ico:'🤖',bg:'#eff6ff',clr:'#1d4ed8'},
+    'КТРМ 70%':      {ico:'⏳',bg:'#f0fdf4',clr:'#15803d'},
+    'Внесён в КТРМ': {ico:'✅',bg:'#dcfce7',clr:'#15803d'},
+  };
   opts.forEach(opt => {
     const item = document.createElement('div');
     item.className = 's-opt';
-    item.textContent = opt;
+    const meta = OPER_ICONS[opt] || {ico:'',bg:'#fff',clr:'#374151'};
+    item.style.cssText = `background:${meta.bg};color:${meta.clr};font-weight:600;`;
+    item.innerHTML = `<span style="margin-right:6px;">${meta.ico}</span>${opt}`;
     item.onclick = ev => {
       ev.stopPropagation();
-      arr[idx][field] = opt;
+      if(arr && arr[idx]) arr[idx][field] = opt;
       tbodyId.startsWith('notif') ? renderNotif(arr, tbodyId) : renderCert(arr, tbodyId);
       renderCertStats(certData,'cert-stats');
       popup.remove();
+      // Auto-trigger KTRM robot on "Внести в КТРМ"
+      if (opt==='Внести в КТРМ' && arr && arr[idx]) {
+        setTimeout(()=>ktrmRobot(arr[idx]), 300);
+      }
+      // Toast for each status
+      const msgs = {
+        'В работе':'🔄 Статус: В работе',
+        'Готова к КТРМ':'📋 Готова к внесению в КТРМ',
+        'Внести в КТРМ':'🤖 Запуск робота е-КТРМ...',
+        'КТРМ 70%':'⏳ Первая подпись сделана — осталась вторая',
+        'Внесён в КТРМ':'✅ Внесён в КТРМ!',
+      };
+      showToast(msgs[opt]||opt);
+      robotBarUpdate();
     };
     popup.appendChild(item);
   });
@@ -2139,6 +2434,8 @@ function go(screenId, section, page, el) {
   if (screenId==='cert-tec')  { renderCert(certTecData,'certTecBody'); }
   if (screenId==='notif-tec') { renderNotif(notifTecData,'notifTecBody'); }
   if (screenId==='rashody')       { rshApplyFilters(); rshRenderTree(); rshPopulateCatSels(); }
+  if (screenId==='warehouse')       { whLoadFromStorage(); renderWarehouse(); }
+  if (screenId==='sales')            { salesLoadFromStorage(); renderSales(); }
   if (screenId==='other-ops-proj')    { oopRenderTable('proj');    oopRenderStats('proj'); }
   if (screenId==='other-ops-tender')  { oopRenderTable('tender');  oopRenderStats('tender'); }
   if (screenId==='other-ops-service') { oopRenderTable('service'); oopRenderStats('service'); }
@@ -3255,6 +3552,7 @@ function syncTmplToSources() {
     ACCTS_PER[key] = banks.length ? banks : ['Каспи','БЦК','Наличка'];
   });
   renderAccountSources();
+  setTimeout(robotBarUpdate, 500);
 }
 
 // Also override renderAccountSources to use tmplGrid
@@ -3631,6 +3929,10 @@ function ktrmScreenSuccess(r) {
 
 // ── INIT ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
+  // Load data from localStorage (don't render yet — screens not visible)
+  whLoadFromStorage();
+  salesLoadFromStorage();
+
   renderCertStats(certData,'cert-stats');
   renderCert(certData,'certBody');
   renderNotif(notifData,'notifBody');
@@ -4077,7 +4379,20 @@ function financeAutoExpense({ name, account, amount, date, source }) {
 }
 
 // ── СОХРАНЕНИЕ СЕРТИФИКАТА — главная функция ──────────────────
+function modalReset() {
+  // Reset modal footer to defaults before each use
+  const fl = document.getElementById('modalFooterLeft');
+  if (fl) fl.innerHTML = '';
+  const sb = document.getElementById('modalSaveBtn');
+  if (sb) { sb.textContent = '💾 Сохранить'; sb.onclick = saveCertModal; sb.style.display = ''; }
+  const db = document.getElementById('modalDeleteBtn');
+  if (db) db.style.display = 'none';
+}
+
 function saveCertModal() {
+  // Reset button for next use
+  const sb = document.getElementById('modalSaveBtn');
+  if (sb) { sb.textContent = '💾 Сохранить'; sb.onclick = saveCertModal; }
   // Собираем данные из формы
   const fio    = document.getElementById('vf-fio')    ? document.getElementById('vf-fio').value    : '';
   const serial = document.getElementById('vf-serial') ? document.getElementById('vf-serial').value : '';
@@ -4178,6 +4493,7 @@ document.head.appendChild(finSyncStyle);
 function syncFinanceWidget() {
   const s = finGetState();
   if (!s) return;
+  if (!document.getElementById('dash-fin-total') && !document.getElementById('d-total')) return;
 
   const total = Object.values(s.accts).reduce((sum, a) => sum + (a.bal || 0), 0);
 
@@ -4261,6 +4577,818 @@ function injectFinanceWidget() {
 
   syncFinanceWidget();
 }
+
+
+
+// ══════════════════════════════════════════════════════════════
+//  СКЛАД — товары, остатки, движения
+// ══════════════════════════════════════════════════════════════
+
+const PRODUCT_GROUPS = [
+  { id:'radio',   name:'Приборы со встроенным радиомодулем', icon:'📡' },
+  { id:'impulse', name:'Приборы с импульсными выходами',     icon:'⚡' },
+  { id:'modem',   name:'Радиомодемы ExpDevice',              icon:'📶' },
+];
+
+let warehouseData = [
+  // ── Радиомодульные ──────────────────────────────────────────
+  {id:'SKU-001', group:'radio',   name:'KAZMETER Pro15C-LRW', full:'KAZMETER Pro15C-LRW со встроенным радиомодулем. Класс точности "С" для холодной воды', water:'х/в', min:5,  stock:0, reserved:0, price:0},
+  {id:'SKU-002', group:'radio',   name:'KAZMETER Pro15H-LRW', full:'KAZMETER Pro15H-LRW со встроенным радиомодулем. Класс точности "В" для горячей воды',  water:'г/в', min:5,  stock:0, reserved:0, price:0},
+  {id:'SKU-003', group:'radio',   name:'KAZMETER Pro15C-NB',  full:'KAZMETER Pro15C-NB со встроенным радиомодулем. Класс точности "С" для холодной воды',  water:'х/в', min:5,  stock:0, reserved:0, price:0},
+  {id:'SKU-004', group:'radio',   name:'KAZMETER Pro15H-NB',  full:'KAZMETER Pro15H-NB со встроенным радиомодулем. Класс точности "В" для горячей воды',   water:'г/в', min:5,  stock:0, reserved:0, price:0},
+  // ── Импульсные ──────────────────────────────────────────────
+  {id:'SKU-005', group:'impulse', name:'KAZMETER KM-UW15',    full:'KAZMETER KM-UW15 для горячей воды. Класс точности "B", с импульсным выходом',          water:'г/в', min:5,  stock:0, reserved:0, price:0},
+  {id:'SKU-006', group:'impulse', name:'VODOMER ВСКМ-15',     full:'VODOMER ВСКМ-15-R160-И. Класс точности "С", с импульсным выходом',                     water:'х/в', min:10, stock:0, reserved:0, price:0},
+  {id:'SKU-007', group:'impulse', name:'VODOMER ВСКМ-20',     full:'VODOMER ВСКМ-20-R160-И. Класс точности "С", с импульсным выходом',                     water:'х/в', min:10, stock:0, reserved:0, price:0},
+  {id:'SKU-008', group:'impulse', name:'KAZMETER KM-CW25',    full:'KAZMETER KM-CW25. Класс точности "С", с импульсным выходом',                           water:'х/в', min:5,  stock:0, reserved:0, price:0},
+  {id:'SKU-009', group:'impulse', name:'KAZMETER KM-CW32',    full:'KAZMETER KM-CW32. Класс точности "С", с импульсным выходом',                           water:'х/в', min:5,  stock:0, reserved:0, price:0},
+  {id:'SKU-010', group:'impulse', name:'KAZMETER KM-CW40',    full:'KAZMETER KM-CW40. Класс точности "С", с импульсным выходом',                           water:'х/в', min:3,  stock:0, reserved:0, price:0},
+  {id:'SKU-011', group:'impulse', name:'KAZMETER KM-CW50',    full:'KAZMETER KM-CW50. Класс точности "С", с импульсным выходом. Фланец',                   water:'х/в', min:3,  stock:0, reserved:0, price:0},
+  {id:'SKU-012', group:'impulse', name:'KAZMETER KM-CW65',    full:'KAZMETER KM-CW65. Класс точности "С", с импульсным выходом',                           water:'х/в', min:2,  stock:0, reserved:0, price:0},
+  {id:'SKU-013', group:'impulse', name:'KAZMETER KM-CW80',    full:'KAZMETER KM-CW80. Класс точности "С", с импульсным выходом',                           water:'х/в', min:2,  stock:0, reserved:0, price:0},
+  {id:'SKU-014', group:'impulse', name:'KAZMETER KM-CW100',   full:'KAZMETER KM-CW100. Класс точности "С", с импульсным выходом',                          water:'х/в', min:2,  stock:0, reserved:0, price:0},
+  {id:'SKU-015', group:'impulse', name:'KAZMETER KM-CW150',   full:'KAZMETER KM-CW150. Класс точности "С", с импульсным выходом',                          water:'х/в', min:1,  stock:0, reserved:0, price:0},
+  // ── Радиомодемы ─────────────────────────────────────────────
+  {id:'SKU-016', group:'modem',   name:'ExpDevice 2кан. NB-IoT', full:'ExpDevice 2-х канальный NB-IoT',  water:'—', min:5,  stock:0, reserved:0, price:0},
+  {id:'SKU-017', group:'modem',   name:'ExpDevice 2кан. GSM',    full:'ExpDevice 2-х канальный GSM',     water:'—', min:5,  stock:0, reserved:0, price:0},
+  {id:'SKU-018', group:'modem',   name:'ExpDevice 2кан. Wi-Fi',  full:'ExpDevice 2-х канальный Wi-Fi',   water:'—', min:5,  stock:0, reserved:0, price:0},
+  {id:'SKU-019', group:'modem',   name:'ExpDevice 4кан.',        full:'ExpDevice 4-х канальный',         water:'—', min:3,  stock:0, reserved:0, price:0},
+  {id:'SKU-020', group:'modem',   name:'ExpDevice 8кан.',        full:'ExpDevice 8-ми канальный',        water:'—', min:3,  stock:0, reserved:0, price:0},
+  {id:'SKU-021', group:'modem',   name:'ExpDevice 10кан.',       full:'ExpDevice 10-ти канальный',       water:'—', min:2,  stock:0, reserved:0, price:0},
+];
+
+// Движения склада (лог)
+let stockMovements = [];
+
+function whLoadFromStorage() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('u2b_warehouse')||'null');
+    if (saved) {
+      warehouseData   = saved.products || warehouseData;
+      stockMovements  = saved.movements || stockMovements;
+    }
+  } catch(e) {}
+}
+function whSaveToStorage() {
+  try {
+    localStorage.setItem('u2b_warehouse', JSON.stringify({
+      products: warehouseData,
+      movements: stockMovements,
+    }));
+  } catch(e) {}
+}
+
+// ── HELPERS ──────────────────────────────────────────────────
+function whFmt(n) { return (n||0).toLocaleString('ru-KZ'); }
+function whToday() { return new Date().toISOString().slice(0,10); }
+function whUuid()  { return 'M-'+Date.now().toString(36); }
+
+function whGetFree(p) { return Math.max(0,(p.stock||0)-(p.reserved||0)); }
+function whStatus(p)  {
+  const free = whGetFree(p);
+  if (free <= 0)         return {cls:'b-err',  txt:'⚠ Нет',      color:'#dc2626'};
+  if (free < p.min)      return {cls:'b-warn',  txt:'⚠ Мало',     color:'#d97706'};
+  return                        {cls:'b-ok',    txt:'✓ Норма',    color:'#059669'};
+}
+
+// ── ПРИХОД ТОВАРА ─────────────────────────────────────────────
+function whAddIncoming(skuId, qty, price, supplier, docNo, date) {
+  const p = warehouseData.find(x=>x.id===skuId);
+  if (!p) return false;
+  p.stock = (p.stock||0) + qty;
+  if (price) p.price = price;
+  stockMovements.push({
+    id: whUuid(), date: date||whToday(),
+    sku: skuId, name: p.name,
+    type: 'IN', qty, price: price||p.price,
+    sum: qty*(price||p.price),
+    supplier, docNo,
+    comment: 'Приход'
+  });
+  whSaveToStorage();
+  return true;
+}
+
+// ── СПИСАНИЕ ПРИ ПРОДАЖЕ ──────────────────────────────────────
+function whDeductSale(skuId, qty, clientName, saleNo) {
+  const p = warehouseData.find(x=>x.id===skuId);
+  if (!p) return {ok:false, msg:'Товар не найден'};
+  const free = whGetFree(p);
+  if (free < qty) return {ok:false, msg:`Недостаточно: свободно ${free} шт., нужно ${qty} шт.`};
+  p.stock = (p.stock||0) - qty;
+  stockMovements.push({
+    id: whUuid(), date: whToday(),
+    sku: skuId, name: p.name,
+    type: 'OUT', qty: -qty, price: p.price,
+    sum: qty*p.price,
+    supplier: clientName, docNo: saleNo,
+    comment: 'Продажа'
+  });
+  whSaveToStorage();
+  robotBarUpdate && robotBarUpdate();
+  return {ok:true, newStock: p.stock};
+}
+
+// ── РЕНДЕР СКЛАДА ─────────────────────────────────────────────
+
+function whWaterCls(w) { return w==='г/в'?'b-hot':w==='х/в'?'b-cold':'b-active'; }
+function whWaterLbl(w) { return w==='г/в'?'🔴 г/в':w==='х/в'?'🔵 х/в':'—'; }
+
+function renderWarehouse() {
+  whLoadFromStorage();
+  const total    = warehouseData.length;
+  const shortage = warehouseData.filter(p=>whGetFree(p)<p.min).length;
+  const empty    = warehouseData.filter(p=>p.stock<=0).length;
+  const totalVal = warehouseData.reduce((s,p)=>(s+(p.stock||0)*(p.price||0)),0);
+
+  const _pos=document.getElementById('wh-stat-pos');   if(_pos) _pos.textContent=total;
+  const _low=document.getElementById('wh-stat-low');   if(_low) _low.textContent=shortage;
+  const _emp=document.getElementById('wh-stat-empty'); if(_emp) _emp.textContent=empty;
+  const _val=document.getElementById('wh-stat-val');   if(_val) _val.textContent=whFmt(totalVal)+' ₸';
+
+  // Group by product group
+  const tbody = document.getElementById('wh-tbody');
+  if (!tbody) return;
+  let rows = '';
+  PRODUCT_GROUPS.forEach(g => {
+    const items = warehouseData.filter(p=>p.group===g.id);
+    if (!items.length) return;
+    rows += `<tr style="background:#f9fafb;"><td colspan="9" style="padding:7px 12px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">${g.icon} ${g.name}</td></tr>`;
+    items.forEach(p => {
+      const free = whGetFree(p);
+      const st   = whStatus(p);
+      rows += `<tr data-sku="${p.id}">
+        <td style="font-family:monospace;font-size:11px;color:#6b7280;">${p.id}</td>
+        <td style="font-weight:600;max-width:200px;" title="${p.full}">${p.name}</td>
+        <td><span class="badge ${whWaterCls(p.water)}">${whWaterLbl(p.water)}</span></td>
+        <td style="text-align:center;font-weight:700;">${p.stock||0}</td>
+        <td style="text-align:center;color:#6b7280;">${p.reserved||0}</td>
+        <td style="text-align:center;font-weight:700;color:${st.color};">${free}</td>
+        <td style="text-align:center;color:#6b7280;">${p.min}</td>
+        <td style="text-align:right;color:#374151;">${whFmt(p.price)} ₸</td>
+        <td><span class="badge ${st.cls}">${st.txt}</span></td>
+        <td>
+          <div class="actions-cell">
+            <button class="act-btn" onclick="whOpenIncoming('${p.id}')" title="📥 Приход" style="color:#059669;">📥</button>
+            <button class="act-btn" onclick="whOpenOutgoing('${p.id}')" title="📤 Расход" style="color:#d97706;">📤</button>
+            <button class="act-btn" onclick="whOpenEdit('${p.id}')" title="⚙️ Настройки" style="color:#6b7280;">⚙️</button>
+          </div>
+        </td>
+      </tr>`;
+    });
+  });
+  tbody.innerHTML = rows;
+
+  // Show/hide empty hint
+  const hint = document.getElementById('wh-empty-hint');
+  if (hint) {
+    const hasStock = warehouseData.some(p=>(p.stock||0)>0);
+    hint.style.display = hasStock ? 'none' : 'flex';
+  }
+
+  // Movements
+  renderMovements();
+}
+
+function renderMovements() {
+  const tbody = document.getElementById('wh-move-tbody');
+  if (!tbody) return;
+  const last = [...stockMovements].reverse().slice(0,30);
+  tbody.innerHTML = last.map(m => {
+    const isIn = m.type==='IN';
+    return `<tr>
+      <td style="font-family:monospace;font-size:11px;color:#6b7280;">${m.date}</td>
+      <td style="font-size:11px;font-family:monospace;color:#6b7280;">${m.sku}</td>
+      <td style="font-weight:600;">${m.name}</td>
+      <td><span class="badge ${isIn?'b-ok':'b-warn'}">${isIn?'📥 Приход':'📤 Расход'}</span></td>
+      <td style="text-align:center;font-weight:700;color:${isIn?'#059669':'#dc2626'};">${isIn?'+':''}${m.qty}</td>
+      <td style="text-align:right;">${whFmt(m.sum)} ₸</td>
+      <td style="font-size:11px;color:#6b7280;">${m.supplier||'—'}</td>
+      <td style="font-size:11px;font-family:monospace;color:#6b7280;">${m.docNo||'—'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#9ca3af;">Нет движений</td></tr>';
+}
+
+// ── МОДАЛ: ПРИХОД ─────────────────────────────────────────────
+function whOpenIncoming(skuId) {
+  modalReset();
+  // If no skuId given (general button), show SKU selector first
+  if (!skuId) {
+    document.getElementById('modalTitle').textContent = '📥 Приход товара';
+    document.getElementById('modalBadge').textContent = 'Склад';
+    document.getElementById('modalBadge').className   = 'modal-badge badge b-ok';
+    document.getElementById('modalBody').innerHTML = `
+      <div class="fg">
+        <div class="field full" style="grid-column:1/-1;"><label>Выберите товар *</label>
+          <select id="wh-gen-sku" style="font-size:13px;">
+            <option value="">— Выберите —</option>
+            ${warehouseData.map(p=>`<option value="${p.id}">${p.id} · ${p.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>`;
+    document.getElementById('modalFooterLeft').innerHTML = '';
+    document.getElementById('modalSaveBtn').onclick = () => {
+      const sku = document.getElementById('wh-gen-sku').value;
+      if (!sku){showToast('⚠️ Выберите товар');return;}
+      closeModal();
+      setTimeout(()=>whOpenIncoming(sku),100);
+    };
+    document.getElementById('modalOverlay').classList.add('open');
+    return;
+  }
+  const p = warehouseData.find(x=>x.id===skuId);
+  if (!p) return;
+  document.getElementById('modalTitle').textContent = `📥 Приход — ${p.name}`;
+  document.getElementById('modalBadge').textContent = p.id;
+  document.getElementById('modalBadge').className   = 'modal-badge badge b-active';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px;">${p.full}</div>
+      <div style="font-size:12px;color:#6b7280;">Текущий остаток: <strong>${p.stock||0} шт.</strong> · Свободно: <strong>${whGetFree(p)} шт.</strong></div>
+    </div>
+    <div class="fg">
+      <div class="field"><label>Количество (шт.) *</label><input type="number" id="wh-in-qty" min="1" value="1" placeholder="0"></div>
+      <div class="field"><label>Цена за ед. (₸)</label><input type="number" id="wh-in-price" value="${p.price||0}" placeholder="0"></div>
+      <div class="field"><label>Поставщик</label><input type="text" id="wh-in-supplier" placeholder="ТОО «...»"></div>
+      <div class="field"><label>№ документа</label><input type="text" id="wh-in-doc" placeholder="ПН-2026-001"></div>
+      <div class="field"><label>Дата прихода</label><input type="date" id="wh-in-date" value="${whToday()}"></div>
+    </div>
+    <div style="margin-top:4px;padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;">
+      ⚠️ После сохранения остаток увеличится автоматически
+    </div>
+  `;
+  document.getElementById('modalFooterLeft').innerHTML = '';
+  document.getElementById('modalSaveBtn').onclick = () => {
+    const qty     = +document.getElementById('wh-in-qty').value;
+    const price   = +document.getElementById('wh-in-price').value;
+    const supplier= document.getElementById('wh-in-supplier').value;
+    const docNo   = document.getElementById('wh-in-doc').value;
+    const date    = document.getElementById('wh-in-date').value;
+    if (!qty||qty<=0){showToast('⚠️ Введите количество');return;}
+    whAddIncoming(skuId, qty, price, supplier, docNo, date);
+    renderWarehouse();
+    closeModal();
+    showToast(`✅ Приход: ${qty} шт. ${p.name} · Остаток: ${p.stock}`);
+  };
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+// ── МОДАЛ: РЕДАКТИРОВАНИЕ ──────────────────────────────────────
+function whOpenEdit(skuId) {
+  modalReset();
+  // ⚠️ Остаток НЕ редактируется напрямую — только через документы!
+  // Здесь только: цена, мин. остаток, описание
+  const p = warehouseData.find(x=>x.id===skuId);
+  if (!p) return;
+  document.getElementById('modalTitle').textContent = '⚙️ Настройки — ' + p.name;
+  document.getElementById('modalBadge').textContent = p.id;
+  document.getElementById('modalBadge').className   = 'modal-badge badge b-active';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;
+                padding:9px 14px;margin-bottom:14px;font-size:12px;color:#92400e;
+                display:flex;align-items:flex-start;gap:8px;">
+      <span style="flex-shrink:0;">⚠️</span>
+      <div>Остаток <strong>нельзя изменить вручную</strong>.<br>
+      Для изменения используйте: <strong>📥 Приход · 📤 Расход · 📋 Ревизия</strong></div>
+    </div>
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;
+                padding:10px 14px;margin-bottom:14px;font-size:12px;">
+      <div style="color:#6b7280;margin-bottom:4px;font-size:10px;font-weight:700;
+                  text-transform:uppercase;letter-spacing:.05em;">Текущий остаток (только чтение)</div>
+      <div style="font-size:20px;font-weight:800;color:#111827;">${p.stock||0} шт.</div>
+      <div style="font-size:11px;color:#6b7280;margin-top:2px;">Свободно: ${whGetFree(p)} шт. · Резерв: ${p.reserved||0} шт.</div>
+    </div>
+    <div class="fg">
+      <div class="field" style="grid-column:1/-1;">
+        <label>Полное наименование</label>
+        <input type="text" id="wh-e-full" value="${p.full.replace(/"/g,'&quot;')}">
+      </div>
+      <div class="field">
+        <label>Мин. остаток (шт.)</label>
+        <input type="number" id="wh-e-min" value="${p.min||0}" min="0">
+        <div style="font-size:10px;color:#6b7280;margin-top:3px;">При падении ниже — статус "⚠ Мало"</div>
+      </div>
+      <div class="field">
+        <label>Цена за ед. (₸)</label>
+        <input type="number" id="wh-e-price" value="${p.price||0}" min="0">
+        <div style="font-size:10px;color:#6b7280;margin-top:3px;">Подставляется в продажу</div>
+      </div>
+    </div>
+  `;
+  document.getElementById('modalFooterLeft').innerHTML =
+    '<button class="btn btn-outline btn-sm" onclick="closeModal();setTimeout(()=>whOpenRevision(\'' + skuId + '\'),100)">📋 Провести ревизию</button>';
+  document.getElementById('modalSaveBtn').onclick = () => {
+    p.full  = document.getElementById('wh-e-full').value;
+    p.min   = +document.getElementById('wh-e-min').value;
+    p.price = +document.getElementById('wh-e-price').value;
+    whSaveToStorage(); renderWarehouse(); closeModal();
+    showToast('✅ Настройки обновлены: ' + p.name);
+  };
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+// ── РАСХОДНАЯ НАКЛАДНАЯ (списание) ────────────────────────────
+function whOpenOutgoing(skuId) {
+  modalReset();
+  const p = warehouseData.find(x=>x.id===skuId);
+  if (!p) return;
+  document.getElementById('modalTitle').textContent = '📤 Расход — ' + p.name;
+  document.getElementById('modalBadge').textContent = p.id;
+  document.getElementById('modalBadge').className   = 'modal-badge badge b-warn';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;
+                padding:10px 14px;margin-bottom:14px;font-size:12px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px;">${p.full}</div>
+      <div style="color:#6b7280;">Текущий остаток: <strong style="color:#dc2626;">${p.stock||0} шт.</strong> · Свободно: <strong>${whGetFree(p)} шт.</strong></div>
+    </div>
+    <div class="fg">
+      <div class="field">
+        <label>Количество (шт.) *</label>
+        <input type="number" id="wh-out-qty" min="1" max="${whGetFree(p)}" value="1" placeholder="0">
+        <div style="font-size:10px;color:#6b7280;margin-top:3px;">Макс: ${whGetFree(p)} шт.</div>
+      </div>
+      <div class="field">
+        <label>Причина списания *</label>
+        <select id="wh-out-reason">
+          <option value="Продажа">💰 Продажа</option>
+          <option value="Поверка">📋 Использовано в поверке</option>
+          <option value="Брак">❌ Брак/списание</option>
+          <option value="Возврат">↩ Возврат поставщику</option>
+          <option value="Внутреннее">🏭 Внутреннее использование</option>
+          <option value="Другое">✏️ Другое</option>
+        </select>
+      </div>
+      <div class="field"><label>Контрагент</label><input type="text" id="wh-out-who" placeholder="Клиент, ТОО..."></div>
+      <div class="field"><label>№ документа</label><input type="text" id="wh-out-doc" placeholder="РН-2026-001"></div>
+      <div class="field"><label>Дата</label><input type="date" id="wh-out-date" value="${whToday()}"></div>
+      <div class="field"><label>Комментарий</label><input type="text" id="wh-out-comment" placeholder="Необязательно"></div>
+    </div>
+  `;
+  document.getElementById('modalFooterLeft').innerHTML = '';
+  document.getElementById('modalSaveBtn').textContent = '📤 Провести расход';
+  document.getElementById('modalSaveBtn').onclick = () => {
+    const qty    = +document.getElementById('wh-out-qty').value;
+    const reason = document.getElementById('wh-out-reason').value;
+    const who    = document.getElementById('wh-out-who').value;
+    const docNo  = document.getElementById('wh-out-doc').value;
+    const date   = document.getElementById('wh-out-date').value;
+    const comm   = document.getElementById('wh-out-comment').value;
+    if (!qty||qty<=0)           { showToast('⚠️ Введите количество'); return; }
+    if (qty > whGetFree(p))     { showToast('⚠️ Недостаточно свободных: ' + whGetFree(p) + ' шт.'); return; }
+    p.stock = (p.stock||0) - qty;
+    stockMovements.push({
+      id: whUuid(), date: date||whToday(),
+      sku: p.id, name: p.name,
+      type: 'OUT', qty: -qty, price: p.price,
+      sum: qty * p.price,
+      supplier: who, docNo,
+      comment: reason + (comm ? ' — ' + comm : ''),
+      author: 'Менеджер',
+    });
+    whSaveToStorage(); renderWarehouse(); closeModal();
+    showToast('✅ Расход проведён: ' + qty + ' шт. ' + p.name + ' · Причина: ' + reason);
+  };
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+// ── АКТ РЕВИЗИИ ────────────────────────────────────────────────
+// Единственный способ скорректировать фактический остаток
+function whOpenRevision(skuId) {
+  modalReset();
+  const p = skuId ? warehouseData.find(x=>x.id===skuId) : null;
+
+  document.getElementById('modalTitle').textContent = '📋 Акт ревизии' + (p ? ' — ' + p.name : '');
+  document.getElementById('modalBadge').textContent = 'РЕВИЗИЯ';
+  document.getElementById('modalBadge').className   = 'modal-badge badge b-purple';
+
+  const itemsHtml = (p ? [p] : warehouseData).map(pr => `
+    <tr>
+      <td style="font-family:monospace;font-size:11px;color:#6b7280;">${pr.id}</td>
+      <td style="font-weight:600;max-width:180px;font-size:12px;">${pr.name}</td>
+      <td style="text-align:center;font-weight:700;">${pr.stock||0}</td>
+      <td>
+        <input type="number" class="rev-fact" data-sku="${pr.id}"
+          value="${pr.stock||0}" min="0"
+          style="width:70px;padding:5px 8px;border:1.5px solid #d1d5db;border-radius:6px;
+                 text-align:center;font-weight:700;font-size:13px;"
+          oninput="revCalcDiff(this,'${pr.id}')">
+      </td>
+      <td style="text-align:center;font-weight:700;" id="rev-diff-${pr.id}">
+        <span style="color:#6b7280;">0</span>
+      </td>
+    </tr>`).join('');
+
+  document.getElementById('modalBody').innerHTML = `
+    <div style="background:#faf5ff;border:1px solid #c4b5fd;border-radius:8px;
+                padding:10px 14px;margin-bottom:14px;font-size:12px;color:#5b21b6;
+                display:flex;align-items:flex-start;gap:8px;">
+      <span style="flex-shrink:0;font-size:16px;">📋</span>
+      <div><strong>Акт ревизии</strong> — введите фактическое количество.<br>
+      Разница спишется или добавится <strong>автоматически</strong>.<br>
+      Все изменения сохранятся в журнале движений с указанием автора.</div>
+    </div>
+    <div class="fg">
+      <div class="field"><label>Дата ревизии</label><input type="date" id="rev-date" value="${whToday()}"></div>
+      <div class="field"><label>Ответственный</label><input type="text" id="rev-author" placeholder="ФИО проводящего ревизию"></div>
+      <div class="field" style="grid-column:1/-1;">
+        <label>Причина расхождения (если есть)</label>
+        <input type="text" id="rev-reason" placeholder="Пересчёт, обнаружен брак, пересортица...">
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="background:#f9fafb;">
+          <th style="padding:8px 10px;text-align:left;border:1px solid #e5e7eb;">SKU</th>
+          <th style="padding:8px 10px;text-align:left;border:1px solid #e5e7eb;">Наименование</th>
+          <th style="padding:8px 10px;text-align:center;border:1px solid #e5e7eb;">Учётный</th>
+          <th style="padding:8px 10px;text-align:center;border:1px solid #e5e7eb;">Фактический ✏️</th>
+          <th style="padding:8px 10px;text-align:center;border:1px solid #e5e7eb;">Разница</th>
+        </tr>
+      </thead>
+      <tbody>${itemsHtml}</tbody>
+    </table>
+  `;
+  document.getElementById('modalFooterLeft').innerHTML = '';
+  document.getElementById('modalSaveBtn').textContent = '📋 Провести ревизию';
+  document.getElementById('modalSaveBtn').onclick = () => revDoSave(p ? p.id : null);
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function revCalcDiff(inp, skuId) {
+  const p    = warehouseData.find(x=>x.id===skuId); if(!p) return;
+  const fact = +inp.value || 0;
+  const diff = fact - (p.stock||0);
+  const el   = document.getElementById('rev-diff-'+skuId);
+  if (!el) return;
+  el.innerHTML = diff===0
+    ? '<span style="color:#6b7280;">0</span>'
+    : diff>0
+      ? '<span style="color:#059669;font-weight:700;">+'+diff+'</span>'
+      : '<span style="color:#dc2626;font-weight:700;">'+diff+'</span>';
+}
+
+function revDoSave(onlySkuId) {
+  const date   = document.getElementById('rev-date').value;
+  const author = document.getElementById('rev-author').value.trim() || 'Менеджер';
+  const reason = document.getElementById('rev-reason').value.trim() || 'Ревизия';
+  if (!date) { showToast('⚠️ Укажите дату ревизии'); return; }
+
+  const inputs = document.querySelectorAll('.rev-fact');
+  let changed  = 0;
+  inputs.forEach(inp => {
+    const skuId = inp.dataset.sku;
+    const p     = warehouseData.find(x=>x.id===skuId); if(!p) return;
+    const fact  = +inp.value || 0;
+    const diff  = fact - (p.stock||0);
+    if (diff === 0) return; // нет изменений
+
+    // Записываем движение
+    stockMovements.push({
+      id:       whUuid(),
+      date,
+      sku:      p.id,
+      name:     p.name,
+      type:     diff>0 ? 'REV+' : 'REV-',
+      qty:      diff,
+      price:    p.price,
+      sum:      Math.abs(diff) * p.price,
+      supplier: author,
+      docNo:    'АКТ-' + date.replace(/-/g,''),
+      comment:  'Ревизия: ' + reason,
+      author,
+    });
+    p.stock = fact;
+    changed++;
+  });
+
+  if (changed === 0) { showToast('ℹ️ Расхождений не обнаружено'); closeModal(); return; }
+
+  whSaveToStorage();
+  renderWarehouse();
+  closeModal();
+  showToast('✅ Ревизия проведена: ' + changed + ' позиций скорректировано · Автор: ' + author);
+}
+
+// ── ПРИХОДНАЯ НАКЛАДНАЯ (печать) ───────────────────────────────
+function whPrintInvoice() {
+  const today = whToday().split('-').reverse().join('.');
+  const last  = stockMovements.filter(m=>m.type==='IN').slice(-20);
+  if (!last.length){showToast('⚠️ Нет приходных операций');return;}
+  const rows = last.map((m,i)=>`
+    <tr>
+      <td style="text-align:center;">${i+1}</td>
+      <td>${m.name}</td>
+      <td>${m.sku}</td>
+      <td style="text-align:center;">${m.qty}</td>
+      <td style="text-align:right;">${whFmt(m.price)} ₸</td>
+      <td style="text-align:right;font-weight:700;">${whFmt(m.sum)} ₸</td>
+    </tr>`).join('');
+  const total = last.reduce((s,m)=>s+m.sum,0);
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Приходная накладная</title>
+    <style>
+      body{font-family:Arial,sans-serif;padding:20px;color:#000;font-size:12px;}
+      h2{font-size:16px;margin-bottom:4px;}
+      .meta{color:#6b7280;font-size:11px;margin-bottom:16px;}
+      table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+      th{background:#f3f4f6;padding:8px;text-align:left;border:1px solid #e5e7eb;font-size:11px;}
+      td{padding:7px 8px;border:1px solid #e5e7eb;}
+      .total{text-align:right;font-size:14px;font-weight:700;}
+      .sign-row{display:flex;gap:40px;margin-top:30px;}
+      .sign-box{flex:1;}
+      .sign-line{border-bottom:1px solid #000;margin-top:30px;margin-bottom:4px;}
+      .sign-label{font-size:10px;color:#6b7280;}
+    </style>
+    </head><body>
+    <h2>📋 Приходная накладная</h2>
+    <div class="meta">ТОО «Vertex Metrology» · ${today} · Склад</div>
+    <table>
+      <thead><tr><th>№</th><th>Наименование</th><th>SKU</th><th style="text-align:center;">Кол-во</th><th style="text-align:right;">Цена</th><th style="text-align:right;">Сумма</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td colspan="5" style="text-align:right;font-weight:700;">Итого:</td><td style="text-align:right;font-weight:700;">${whFmt(total)} ₸</td></tr></tfoot>
+    </table>
+    <div class="sign-row">
+      <div class="sign-box"><div class="sign-line"></div><div class="sign-label">Принял (подпись, ФИО)</div></div>
+      <div class="sign-box"><div class="sign-line"></div><div class="sign-label">Кладовщик (подпись, ФИО)</div></div>
+      <div class="sign-box"><div class="sign-line"></div><div class="sign-label">Директор (подпись, ФИО)</div></div>
+    </div>
+    <script>window.onload=()=>window.print()<\/script>
+    </body></html>`;
+  const b=new Blob([html],{type:'text/html'});
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),target:'_blank'});
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  ПРОДАЖИ — с автосписанием со склада
+// ══════════════════════════════════════════════════════════════
+
+let salesData = [];
+function salesLoadFromStorage() {
+  try { const s=JSON.parse(localStorage.getItem('u2b_sales')||'null'); if(s) salesData=s; } catch(e){}
+}
+function salesSaveToStorage() {
+  try { localStorage.setItem('u2b_sales', JSON.stringify(salesData)); } catch(e){}
+}
+
+function salesNextNo() {
+  return 'ПРД-' + String(salesData.length+1).padStart(3,'0');
+}
+
+function renderSales() {
+  salesLoadFromStorage();
+  const tbody=document.getElementById('sales-tbody'); if(!tbody) return;
+  const total=salesData.reduce((s,x)=>s+x.sum,0);
+  const paid =salesData.filter(x=>x.pay==='Оплачен').reduce((s,x)=>s+x.sum,0);
+  const wait =salesData.filter(x=>x.pay!=='Оплачен').reduce((s,x)=>s+x.sum,0);
+  const tEl=document.getElementById('sales-total'); if(tEl)tEl.textContent=whFmt(total)+' ₸';
+  const pEl=document.getElementById('sales-paid');  if(pEl)pEl.textContent=whFmt(paid)+' ₸';
+  const wEl=document.getElementById('sales-wait');  if(wEl)wEl.textContent=whFmt(wait)+' ₸';
+
+  tbody.innerHTML = salesData.length ? [...salesData].reverse().map(s=>`
+    <tr>
+      <td style="font-family:monospace;font-size:11px;">${s.no}</td>
+      <td>${s.date}</td>
+      <td style="font-weight:600;">${s.client}</td>
+      <td style="font-family:monospace;font-size:11px;color:#6b7280;">${s.sku||'—'}</td>
+      <td style="max-width:160px;font-size:12px;" title="${s.fullName||s.name}">${s.name}</td>
+      <td style="text-align:center;font-weight:700;">${s.qty}</td>
+      <td style="text-align:right;">${whFmt(s.price)} ₸</td>
+      <td style="text-align:right;font-weight:700;">${whFmt(s.sum)} ₸</td>
+      <td><span class="badge ${s.pay==='Оплачен'?'b-ok':'b-warn'}">${s.pay==='Оплачен'?'✓ Оплачен':'⏳ Ожидает'}</span></td>
+      <td><span class="badge ${s.inv==='Каспи'?'b-kaspi':s.inv==='БЦК'?'b-bck':'b-cash'}">${s.inv==='Каспи'?'🍊':s.inv==='БЦК'?'🏦':'💵'} ${s.inv}</span></td>
+      <td><div class="actions-cell">
+        <button class="act-btn" onclick="salesTogglePay(${salesData.indexOf(s)})" title="${s.pay==='Оплачен'?'Отменить оплату':'Отметить оплачено'}">${s.pay==='Оплачен'?'↩':'✓'}</button>
+      </div></td>
+    </tr>`).join('')
+  : '<tr><td colspan="11" style="text-align:center;padding:20px;color:#9ca3af;">Нет продаж</td></tr>';
+}
+
+function salesTogglePay(idx) {
+  const s=salesData[salesData.length-1-idx];
+  if(!s) return;
+  s.pay = s.pay==='Оплачен'?'Ожидает':'Оплачен';
+  salesSaveToStorage();
+  renderSales();
+  showToast(s.pay==='Оплачен'?'✅ Отмечено оплачено':'↩ Оплата отменена');
+}
+
+function salesOpenNew() {
+  modalReset();
+  whLoadFromStorage();
+  const avail = warehouseData.filter(p=>whGetFree(p)>0);
+  document.getElementById('modalTitle').textContent = '💰 Новая продажа';
+  document.getElementById('modalBadge').textContent = 'Продажа';
+  document.getElementById('modalBadge').className   = 'modal-badge badge b-ok';
+  document.getElementById('modalBody').innerHTML = `
+    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#1e3a8a;">
+      ℹ️ После сохранения количество <strong>автоматически спишется</strong> со склада
+    </div>
+    <div class="fg">
+      <div class="field"><label>Дата *</label><input type="date" id="sl-date" value="${whToday()}"></div>
+      <div class="field"><label>Клиент *</label><input type="text" id="sl-client" placeholder="ФИО или ТОО..."></div>
+      <div class="field full" style="grid-column:1/-1;">
+        <label>Товар со склада *</label>
+        <select id="sl-sku" onchange="salesOnSkuChange()">
+          <option value="">— Выберите товар —</option>
+          ${avail.map(p=>`<option value="${p.id}" data-price="${p.price}" data-stock="${whGetFree(p)}">${p.name} (свободно: ${whGetFree(p)} шт.) ${p.price?'· '+whFmt(p.price)+' ₸':''}</option>`).join('')}
+          <option value="_custom">✏️ Ввести вручную</option>
+        </select>
+      </div>
+      <div id="sl-custom-row" style="display:none;grid-column:1/-1;" class="field">
+        <label>Наименование (вручную)</label>
+        <input type="text" id="sl-custom-name" placeholder="Введите наименование">
+      </div>
+      <div class="field">
+        <label>Количество *</label>
+        <input type="number" id="sl-qty" min="1" value="1" onchange="salesCalcSum()" placeholder="0">
+        <div style="font-size:10px;color:#6b7280;margin-top:3px;" id="sl-stock-hint"></div>
+      </div>
+      <div class="field"><label>Цена за ед. (₸) *</label><input type="number" id="sl-price" value="0" onchange="salesCalcSum()"></div>
+      <div class="field"><label>Сумма (₸)</label><input type="number" id="sl-sum" value="0" readonly style="background:#f9fafb;font-weight:700;"></div>
+      <div class="field"><label>Оплата</label>
+        <select id="sl-pay"><option value="Ожидает">⏳ Ожидает</option><option value="Оплачен">✓ Оплачен</option></select>
+      </div>
+      <div class="field"><label>Счёт</label>
+        <select id="sl-inv">
+          <option value="Каспи">🍊 Каспи</option>
+          <option value="БЦК">🏦 БЦК</option>
+          <option value="Наличка">💵 Наличка</option>
+        </select>
+      </div>
+      <div class="field"><label>Комментарий</label><input type="text" id="sl-comment" placeholder="Необязательно"></div>
+    </div>
+  `;
+  document.getElementById('modalFooterLeft').innerHTML = '';
+  document.getElementById('modalSaveBtn').onclick = salesDoSave;
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('sl-client').focus(),100);
+}
+
+function salesOnSkuChange() {
+  const sel  = document.getElementById('sl-sku');
+  const opt  = sel.options[sel.selectedIndex];
+  const val  = sel.value;
+  const custom = document.getElementById('sl-custom-row');
+  custom.style.display = val==='_custom'?'block':'none';
+  if (val && val!=='_custom') {
+    const price = +opt.dataset.price||0;
+    const stock = +opt.dataset.stock||0;
+    document.getElementById('sl-price').value = price;
+    document.getElementById('sl-stock-hint').textContent = `Доступно на складе: ${stock} шт.`;
+    salesCalcSum();
+  } else {
+    document.getElementById('sl-stock-hint').textContent='';
+  }
+}
+
+function salesCalcSum() {
+  const qty   = +document.getElementById('sl-qty').value||0;
+  const price = +document.getElementById('sl-price').value||0;
+  document.getElementById('sl-sum').value = qty*price;
+}
+
+function salesDoSave() {
+  const date   = document.getElementById('sl-date').value;
+  const client = document.getElementById('sl-client').value.trim();
+  const skuVal = document.getElementById('sl-sku').value;
+  const qty    = +document.getElementById('sl-qty').value;
+  const price  = +document.getElementById('sl-price').value;
+  const pay    = document.getElementById('sl-pay').value;
+  const inv    = document.getElementById('sl-inv').value;
+
+  if (!date||!client) { showToast('⚠️ Заполните дату и клиента'); return; }
+  if (!skuVal)         { showToast('⚠️ Выберите товар');          return; }
+  if (!qty||qty<=0)    { showToast('⚠️ Укажите количество');      return; }
+
+  let sku='', name='', fullName='';
+
+  if (skuVal==='_custom') {
+    name = document.getElementById('sl-custom-name').value.trim();
+    if (!name){showToast('⚠️ Введите наименование');return;}
+    fullName=name;
+  } else {
+    // Списываем со склада
+    const no = salesNextNo();
+    const result = whDeductSale(skuVal, qty, client, no);
+    if (!result.ok) { showToast('⚠️ '+result.msg); return; }
+    sku = skuVal;
+    const p = warehouseData.find(x=>x.id===skuVal);
+    name     = p?.name||skuVal;
+    fullName = p?.full||name;
+    renderWarehouse(); // обновляем склад
+  }
+
+  const rec = {
+    no: salesNextNo(), date, client,
+    sku, name, fullName, qty, price,
+    sum: qty*price, pay, inv,
+    comment: document.getElementById('sl-comment').value,
+  };
+  salesData.push(rec);
+  salesSaveToStorage();
+  renderSales();
+  closeModal();
+  showToast(`✅ Продажа: ${name} · ${qty} шт. · ${whFmt(qty*price)} ₸${sku?' · Склад обновлён':''}`);
+}
+
+function salesExport() {
+  salesLoadFromStorage();
+  if (!salesData.length){showToast('⚠️ Нет продаж для экспорта');return;}
+  const today=whToday().split('-').reverse().join('.');
+  const rows=salesData.map((s,i)=>`
+    <tr>
+      <td>${i+1}</td><td>${s.no}</td><td>${s.date}</td><td>${s.client}</td>
+      <td>${s.name}</td><td style="text-align:center;">${s.qty}</td>
+      <td style="text-align:right;">${whFmt(s.price)}</td>
+      <td style="text-align:right;font-weight:700;">${whFmt(s.sum)}</td>
+      <td>${s.pay}</td><td>${s.inv}</td>
+    </tr>`).join('');
+  const total=salesData.reduce((s,x)=>s+x.sum,0);
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Продажи</title>
+    <style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px;}
+    table{width:100%;border-collapse:collapse;}
+    th{background:#f3f4f6;padding:6px;border:1px solid #e5e7eb;}
+    td{padding:5px 6px;border:1px solid #e5e7eb;}
+    h2{font-size:14px;}</style></head><body>
+    <h2>💰 Журнал продаж — ТОО «Vertex Metrology» · ${today}</h2>
+    <table><thead><tr><th>№</th><th>Номер</th><th>Дата</th><th>Клиент</th><th>Товар</th><th>Кол-во</th><th>Цена</th><th>Сумма</th><th>Оплата</th><th>Счёт</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="7" style="text-align:right;font-weight:700;">Итого:</td><td style="font-weight:700;">${whFmt(total)} ₸</td><td colspan="2"></td></tr></tfoot>
+    </table>
+    <script>window.onload=()=>window.print()<\/script></body></html>`;
+  const b=new Blob([html],{type:'text/html'});
+  const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),target:'_blank'});
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+
+function whTabSwitch(tab) {
+  const stock = document.getElementById('wh-pane-stock');
+  const moves = document.getElementById('wh-pane-moves');
+  const tabS  = document.getElementById('wh-tab-stock');
+  const tabM  = document.getElementById('wh-tab-moves');
+  if (!stock||!moves) return;
+  if (tab==='stock') {
+    stock.style.display='block'; moves.style.display='none';
+    tabS.style.cssText+=';border-bottom:2px solid #1a56db;color:#1a56db;font-weight:700;';
+    tabM.style.cssText=tabM.style.cssText.replace(/border-bottom:[^;]+;color:[^;]+;font-weight:[^;]+;/g,'');
+  } else {
+    stock.style.display='none'; moves.style.display='block';
+    tabM.style.cssText+=';border-bottom:2px solid #1a56db;color:#1a56db;font-weight:700;';
+    tabS.style.cssText=tabS.style.cssText.replace(/border-bottom:[^;]+;color:[^;]+;font-weight:[^;]+;/g,'');
+    renderMovements();
+  }
+}
+// ══════════════════════════════════════════════════════════════
+//  ROBOT STATUS BAR — показывает активность робота в ERP
+// ══════════════════════════════════════════════════════════════
+
+function robotBarUpdate() {
+  // Считаем сколько записей в очереди у робота
+  const allData = [
+    ...certData, ...certVdkData, ...certTecData,
+    ...notifData, ...notifVdkData, ...notifTecData,
+  ];
+
+  const inQueue  = allData.filter(r => r.oper === 'Внести в КТРМ').length;
+  const inHalf   = allData.filter(r => r.oper === 'КТРМ 70%').length;
+  const total    = inQueue + inHalf;
+
+  const bar      = document.getElementById('robotBar');
+  const countEl  = document.getElementById('robotCount');
+  const currEl   = document.getElementById('robotCurrent');
+  if (!bar) return;
+
+  if (total > 0) {
+    bar.classList.add('active');
+    countEl.textContent = total + ' в очереди';
+
+    // Показываем что сейчас обрабатывается
+    const current = allData.find(r => r.oper === 'Внести в КТРМ' || r.oper === 'КТРМ 70%');
+    if (current) {
+      const stage = current.oper === 'КТРМ 70%' ? '⏳ Подпись №2' : '🔄 Подпись №1';
+      currEl.textContent = stage + ': ' + current.fio + ' · №' + current.serial;
+    }
+  } else {
+    bar.classList.remove('active');
+  }
+}
+
+function robotBarHide() {
+  document.getElementById('robotBar').classList.remove('active');
+}
+
+// Обновляем бар каждый раз когда меняется статус
+// (вызывается из openStatusPop после смены статуса)
+function onStatusChange() {
+  robotBarUpdate();
+  renderCertStats(certData, 'cert-stats');
+}
+
+// Автообновление каждые 10 секунд (имитация polling)
+setInterval(robotBarUpdate, 10000);
 
 // ══════════════════════════════════════════════════════════════
 //  CAPSLOCK VOICE — нажал CapsLock на любом поле = микрофон
