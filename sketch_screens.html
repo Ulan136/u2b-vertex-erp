@@ -706,6 +706,7 @@
     </button>
     <div class="sb-sub open">
       <button class="sb-item" onclick="go('sales','Продажа','Журнал продаж',this)">Журнал продаж</button>
+      <button class="sb-item" onclick="go('primary','Продажа','Первичная поверка',this)">🆕 Первичная поверка</button>
     </div>
   </div>
 
@@ -1344,6 +1345,52 @@
     </div>
 
     <!-- ПРОЧИЕ, БУХГАЛТЕРИЯ, СЧЕТА -->
+    <!-- ══ ПЕРВИЧНАЯ ПОВЕРКА ══════════════════════════════════ -->
+    <div class="screen" id="s-primary">
+      <div class="page-title">Первичная поверка</div>
+      <div class="page-sub">Первичная поверка новых счётчиков · Счёт как у продажи (Каспи / БЦК / Наличка)</div>
+
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-label">🆕 Всего записей</div><div class="stat-val" id="prim-total-cnt">0</div></div>
+        <div class="stat-card ok"><div class="stat-label">✅ Оплачено</div><div class="stat-val" id="prim-paid-sum">0 ₸</div></div>
+        <div class="stat-card warn"><div class="stat-label">⏳ Ожидает оплаты</div><div class="stat-val" id="prim-wait-sum">0 ₸</div></div>
+        <div class="stat-card blue"><div class="stat-label">💰 Итого</div><div class="stat-val" id="prim-total-sum">0 ₸</div></div>
+      </div>
+
+      <div class="tbl-wrap">
+        <div class="tbl-header">
+          <span class="tbl-title" id="prim-count">Журнал первичной поверки</span>
+          <div class="btn-row">
+            <button class="btn btn-outline btn-sm" onclick="primExport()">📤 Экспорт</button>
+            <button class="btn btn-primary btn-sm" onclick="primOpenNew()">+ Новая запись</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>№</th>
+              <th>Абонент</th>
+              <th>Адрес</th>
+              <th>Мастер</th>
+              <th>Тип прибора</th>
+              <th>№ счётчика</th>
+              <th>Дата поверки</th>
+              <th>Результат</th>
+              <th>Сумма</th>
+              <th>💳 Оплата</th>
+              <th>🧾 Счёт</th>
+              <th>Статус</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody id="prim-tbody">
+            <tr><td>ПРВ-001</td><td>Алматов Б.</td><td>ул. Желтоксан 14, кв.3</td><td>Ахметов Д.С.</td><td>СГВ-15</td><td style="font-family:monospace;">12345678</td><td>01.07.2026</td><td><span class="badge b-ok">Годен</span></td><td>12 000 ₸</td><td><span class="badge b-ok">✓ Оплачен</span></td><td><span class="badge b-kaspi">🍊 Каспи</span></td><td><span class="badge b-ok">Завершён</span></td><td><div class="actions-cell"><button class="act-btn" onclick="primOpenEdit(0)">✏️</button><button class="btn-clone" onclick="primClone(0)">⎘ Клонировать</button></div></td></tr>
+            <tr><td>ПРВ-002</td><td>ТОО «СтройКом»</td><td>пр. Республики 45</td><td>—</td><td>СВК-20</td><td style="font-family:monospace;">87654321</td><td>05.07.2026</td><td>—</td><td>15 000 ₸</td><td><span class="badge b-warn">⏳ Ожидает</span></td><td><span class="badge b-bck">🏦 БЦК</span></td><td><span class="badge b-active">В работе</span></td><td><div class="actions-cell"><button class="act-btn" onclick="primOpenEdit(1)">✏️</button><button class="btn-clone" onclick="primClone(1)">⎘ Клонировать</button></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- ══ ПРОЧИЕ ОПЕРАЦИИ: ПРОЕКТ ══ -->
     <div class="screen" id="s-other-ops-proj">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
@@ -2694,6 +2741,7 @@ function go(screenId, section, page, el) {
   if (screenId==='rashody')       { rshApplyFilters(); rshRenderTree(); rshPopulateCatSels(); }
   if (screenId==='warehouse')       { whLoadFromStorage(); renderWarehouse(); }
   if (screenId==='sales')            { salesLoadFromStorage(); renderSales(); }
+  if (screenId==='primary')          { renderPrimary(); }
   if (screenId==='other-ops-proj')    { oopRenderTable('proj');    oopRenderStats('proj'); }
   if (screenId==='other-ops-tender')  { oopRenderTable('tender');  oopRenderStats('tender'); }
   if (screenId==='other-ops-service') { oopRenderTable('service'); oopRenderStats('service'); }
@@ -4089,6 +4137,187 @@ function fmtDash(n) {
   if (v >= 1000000) return (v/1000000).toFixed(1) + 'M ₸';
   if (v >= 1000)    return (v/1000).toFixed(0)    + 'K ₸';
   return v + ' ₸';
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  ПЕРВИЧНАЯ ПОВЕРКА
+// ══════════════════════════════════════════════════════════════
+let primData = [
+  {no:'ПРВ-001', client:'Алматов Б.',      addr:'ул. Желтоксан 14, кв.3', master:'Ахметов Д.С.', type:'СГВ-15', serial:'12345678', date:'01.07.2026', result:'Годен',   sum:12000, pay:'Оплачен',  inv:'Каспи',  status:'Завершён'},
+  {no:'ПРВ-002', client:'ТОО «СтройКом»', addr:'пр. Республики 45',       master:'',             type:'СВК-20', serial:'87654321', date:'05.07.2026', result:'',        sum:15000, pay:'Ожидает',  inv:'БЦК',    status:'В работе'},
+];
+
+function primNextNo() { return 'ПРВ-' + String(primData.length+1).padStart(3,'0'); }
+
+function renderPrimary() {
+  const total   = primData.length;
+  const paid    = primData.filter(r=>r.pay==='Оплачен').reduce((s,r)=>s+r.sum,0);
+  const wait    = primData.filter(r=>r.pay==='Ожидает').reduce((s,r)=>s+r.sum,0);
+  const totalS  = primData.reduce((s,r)=>s+r.sum,0);
+
+  const $ = (id,v)=>{ const e=document.getElementById(id); if(e) e.textContent=v; };
+  $('prim-total-cnt', total);
+  $('prim-paid-sum',  paid.toLocaleString('ru-KZ')+' ₸');
+  $('prim-wait-sum',  wait.toLocaleString('ru-KZ')+' ₸');
+  $('prim-total-sum', totalS.toLocaleString('ru-KZ')+' ₸');
+  $('prim-count',     'Записей: '+total);
+
+  const tbody = document.getElementById('prim-tbody'); if(!tbody) return;
+  tbody.innerHTML = primData.map((r,i)=>`
+    <tr>
+      <td style="font-family:monospace;font-size:11px;color:#6b7280;">${r.no}</td>
+      <td style="font-weight:600;">${r.client}</td>
+      <td style="font-size:12px;">${r.addr}</td>
+      <td style="font-size:12px;">${r.master||'—'}</td>
+      <td>${r.type}</td>
+      <td style="font-family:monospace;">${r.serial}</td>
+      <td>${r.date}</td>
+      <td>${r.result ? '<span class="badge b-ok">'+r.result+'</span>' : '—'}</td>
+      <td style="font-weight:700;text-align:right;">${r.sum.toLocaleString('ru-KZ')} ₸</td>
+      <td><span class="badge ${r.pay==='Оплачен'?'b-ok':'b-warn'}">${r.pay==='Оплачен'?'✓ Оплачен':'⏳ Ожидает'}</span></td>
+      <td><span class="badge ${r.inv==='Каспи'?'b-kaspi':r.inv==='БЦК'?'b-bck':'b-cash'}">${r.inv==='Каспи'?'🍊':r.inv==='БЦК'?'🏦':'💵'} ${r.inv}</span></td>
+      <td><span class="badge ${r.status==='Завершён'?'b-ok':'b-active'}">${r.status}</span></td>
+      <td><div class="actions-cell">
+        <button class="act-btn" onclick="primOpenEdit(${i})" title="Редактировать">✏️</button>
+        <button class="btn-clone" onclick="primClone(${i})">⎘ Клонировать</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function primOpenNew() {
+  modalReset();
+  document.getElementById('modalTitle').textContent = '🆕 Новая первичная поверка';
+  document.getElementById('modalBadge').textContent = 'Первичная';
+  document.getElementById('modalBadge').className   = 'modal-badge badge b-ok';
+  _primForm(null, -1);
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('pf-client')?.focus(),100);
+}
+
+function primOpenEdit(i) {
+  modalReset();
+  const r = primData[i]; if(!r) return;
+  document.getElementById('modalTitle').textContent = '✏️ '+r.no+' — '+r.client;
+  document.getElementById('modalBadge').textContent = r.no;
+  document.getElementById('modalBadge').className   = 'modal-badge badge b-active';
+  _primForm(r, i);
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function _primForm(r, idx) {
+  const v = (f,d='') => r ? (r[f]||d) : d;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="fg">
+      <div class="field"><label>Абонент / Клиент *</label><input type="text" id="pf-client" value="${v('client')}" placeholder="ФИО или ТОО..."></div>
+      <div class="field"><label>Адрес *</label><input type="text" id="pf-addr" value="${v('addr')}" placeholder="Улица, дом, кв."></div>
+      <div class="field"><label>Мастер / Поверитель</label><input type="text" id="pf-master" value="${v('master')}" placeholder="ФИО мастера"></div>
+      <div class="field"><label>Тип прибора *</label>
+        <select id="pf-type">
+          ${['СГВ-15','СВК-15','СВК-20','СГВ-20','KAZMETER Pro15C-LRW','KAZMETER Pro15H-LRW','KAZMETER Pro15C-NB','KAZMETER Pro15H-NB','VODOMER ВСКМ-15','VODOMER ВСКМ-20'].map(t=>`<option${t===v('type')?' selected':''}>${t}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>№ счётчика *</label><input type="text" id="pf-serial" value="${v('serial')}" placeholder="Серийный номер" style="font-family:monospace;"></div>
+      <div class="field"><label>Дата поверки *</label><input type="date" id="pf-date" value="${r ? r.date.split('.').reverse().join('-') : new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Результат</label>
+        <select id="pf-result">
+          <option value="">— в работе —</option>
+          <option${v('result')==='Годен'?' selected':''}>Годен</option>
+          <option${v('result')==='Не годен'?' selected':''}>Не годен</option>
+          <option${v('result')==='На доработке'?' selected':''}>На доработке</option>
+        </select>
+      </div>
+      <div class="field"><label>Сумма (₸) *</label><input type="number" id="pf-sum" value="${v('sum',0)}" placeholder="0"></div>
+      <div class="field"><label>Оплата</label>
+        <select id="pf-pay">
+          <option${v('pay')==='Ожидает'||!r?' selected':''}>Ожидает</option>
+          <option${v('pay')==='Оплачен'?' selected':''}>Оплачен</option>
+        </select>
+      </div>
+      <div class="field"><label>Счёт</label>
+        <select id="pf-inv">
+          <option${v('inv')==='Каспи'||!r?' selected':''}>Каспи</option>
+          <option${v('inv')==='БЦК'?' selected':''}>БЦК</option>
+          <option${v('inv')==='Наличка'?' selected':''}>Наличка</option>
+        </select>
+      </div>
+      <div class="field"><label>Статус</label>
+        <select id="pf-status">
+          <option${v('status')==='В работе'||!r?' selected':''}>В работе</option>
+          <option${v('status')==='Завершён'?' selected':''}>Завершён</option>
+          <option${v('status')==='Отменён'?' selected':''}>Отменён</option>
+        </select>
+      </div>
+    </div>`;
+
+  document.getElementById('modalFooterLeft').innerHTML =
+    idx>=0 ? `<button class="btn btn-outline btn-sm" style="color:#dc2626;border-color:#fca5a5;" onclick="primDelete(${idx});closeModal()">🗑 Удалить</button>` : '';
+
+  document.getElementById('modalSaveBtn').onclick = () => {
+    const client = document.getElementById('pf-client').value.trim();
+    const addr   = document.getElementById('pf-addr').value.trim();
+    const serial = document.getElementById('pf-serial').value.trim();
+    const sum    = +document.getElementById('pf-sum').value;
+    const dateV  = document.getElementById('pf-date').value;
+    if (!client||!addr||!serial) { showToast('⚠️ Заполните обязательные поля'); return; }
+    const rec = {
+      no:      idx>=0 ? primData[idx].no : primNextNo(),
+      client,
+      addr,
+      master:  document.getElementById('pf-master').value.trim(),
+      type:    document.getElementById('pf-type').value,
+      serial,
+      date:    dateV.split('-').reverse().join('.'),
+      result:  document.getElementById('pf-result').value,
+      sum,
+      pay:     document.getElementById('pf-pay').value,
+      inv:     document.getElementById('pf-inv').value,
+      status:  document.getElementById('pf-status').value,
+    };
+    if (idx>=0) primData[idx]=rec; else primData.push(rec);
+    renderPrimary();
+    closeModal();
+    showToast((idx>=0?'✅ Обновлено: ':'✅ Добавлено: ')+client);
+  };
+}
+
+function primClone(i) {
+  const r = {...primData[i], no: primNextNo(), pay:'Ожидает', status:'В работе', result:''};
+  primData.push(r);
+  renderPrimary();
+  showToast('⎘ Клонировано: '+r.client);
+}
+function primDelete(i) {
+  primData.splice(i,1);
+  renderPrimary();
+  showToast('🗑 Удалено');
+}
+
+function primExport() {
+  const today = new Date().toLocaleDateString('ru-KZ');
+  const rows  = primData.map((r,i)=>`
+    <tr>
+      <td>${i+1}</td><td>${r.no}</td><td>${r.client}</td><td>${r.addr}</td>
+      <td>${r.master||'—'}</td><td>${r.type}</td><td>${r.serial}</td>
+      <td>${r.date}</td><td>${r.result||'—'}</td>
+      <td style="text-align:right;">${r.sum.toLocaleString('ru-KZ')} ₸</td>
+      <td>${r.pay}</td><td>${r.inv}</td><td>${r.status}</td>
+    </tr>`).join('');
+  const total = primData.reduce((s,r)=>s+r.sum,0);
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Первичная поверка</title>
+    <style>body{font-family:Arial,sans-serif;padding:20px;font-size:11px;}
+    table{width:100%;border-collapse:collapse;} th{background:#f3f4f6;padding:6px;border:1px solid #e5e7eb;}
+    td{padding:5px 6px;border:1px solid #e5e7eb;} h2{font-size:14px;}</style></head><body>
+    <h2>🆕 Первичная поверка — ТОО «Vertex Metrology» · ${today}</h2>
+    <table><thead><tr><th>№</th><th>Номер</th><th>Клиент</th><th>Адрес</th><th>Мастер</th>
+    <th>Тип</th><th>№ счётчика</th><th>Дата</th><th>Результат</th>
+    <th>Сумма</th><th>Оплата</th><th>Счёт</th><th>Статус</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="9" style="text-align:right;font-weight:700;">Итого:</td>
+    <td style="font-weight:700;">${total.toLocaleString('ru-KZ')} ₸</td><td colspan="3"></td></tr></tfoot>
+    </table><script>window.onload=()=>window.print()<\/script></body></html>`;
+  const b=new Blob([html],{type:'text/html'});
+  Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),target:'_blank'}).click();
 }
 
 // ══════════════════════════════════════════════════════════════
