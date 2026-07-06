@@ -539,6 +539,114 @@
   .badge-income-green  { background:#d1fae5; color:#065f46; }
   .badge-income-purple { background:#ede9fe; color:#5b21b6; }
 
+
+  /* ══ DASHBOARD ════════════════════════════════════════════ */
+  .dash-grid {
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr 1fr;
+    gap:10px;
+    margin-bottom:14px;
+  }
+  .dash-kpi {
+    background:#fff;border:1px solid var(--border);border-radius:12px;
+    padding:14px 16px;position:relative;overflow:hidden;
+    transition:box-shadow .15s;
+  }
+  .dash-kpi:hover{box-shadow:0 4px 16px rgba(0,0,0,.08);}
+  .dash-kpi::before{
+    content:'';position:absolute;top:0;left:0;right:0;height:3px;
+    background:var(--kpi-color,#e5e7eb);
+  }
+  .dkpi-icon{font-size:22px;margin-bottom:8px;}
+  .dkpi-val{font-size:24px;font-weight:800;color:var(--text);line-height:1;margin-bottom:4px;}
+  .dkpi-lbl{font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.04em;}
+  .dkpi-sub{font-size:11px;font-weight:600;margin-top:5px;}
+
+  /* 2-col / 3-col sections */
+  .dash-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+  .dash-row.col3{grid-template-columns:1fr 1fr 1fr;}
+  .dash-row.col13{grid-template-columns:1fr 2fr;}
+  .dash-row.col31{grid-template-columns:2fr 1fr;}
+
+  /* Section cards */
+  .dash-card{background:#fff;border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+  .dash-card-head{
+    padding:11px 14px;border-bottom:1px solid #f3f4f6;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .dch-title{font-size:12px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px;}
+  .dch-link{font-size:11px;color:#1a56db;cursor:pointer;font-weight:600;}
+  .dch-link:hover{text-decoration:underline;}
+  .dash-card-body{padding:12px 14px;}
+
+  /* Mini list rows */
+  .dm-row{
+    display:flex;align-items:center;gap:10px;
+    padding:7px 0;border-bottom:1px solid #f9fafb;
+  }
+  .dm-row:last-child{border-bottom:none;}
+  .dm-ico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+  .dm-info{flex:1;min-width:0;}
+  .dm-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .dm-sub{font-size:10px;color:var(--muted);margin-top:1px;}
+  .dm-val{font-size:12px;font-weight:700;flex-shrink:0;text-align:right;}
+
+  /* Cert status pipeline mini */
+  .status-pipeline{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+  .sp-item{
+    display:flex;align-items:center;gap:5px;
+    padding:6px 10px;border-radius:20px;
+    font-size:11px;font-weight:700;cursor:pointer;
+    transition:opacity .15s;
+  }
+  .sp-item:hover{opacity:.8;}
+  .sp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .sp-count{font-size:13px;font-weight:800;margin-left:2px;}
+
+  /* Mini bar chart */
+  .mini-bar-wrap{display:flex;flex-direction:column;gap:6px;}
+  .mini-bar-row{display:flex;align-items:center;gap:8px;font-size:11px;}
+  .mini-bar-lbl{min-width:90px;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .mini-bar-track{flex:1;height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden;}
+  .mini-bar-fill{height:8px;border-radius:4px;transition:width .4s ease;}
+  .mini-bar-val{min-width:40px;text-align:right;font-weight:700;color:var(--text);}
+
+  /* Alert items */
+  .dash-alert{
+    display:flex;align-items:flex-start;gap:8px;
+    padding:8px 10px;border-radius:8px;margin-bottom:6px;
+    border-left:3px solid;font-size:12px;
+  }
+  .da-red   {background:#fef2f2;border-color:#ef4444;}
+  .da-amber {background:#fffbeb;border-color:#f59e0b;}
+  .da-blue  {background:#eff6ff;border-color:#1a56db;}
+  .da-green {background:#f0fdf4;border-color:#22c55e;}
+  .da-title{font-weight:600;color:var(--text);margin-bottom:2px;}
+  .da-sub  {color:var(--muted);font-size:11px;}
+
+  /* Finance mini */
+  .fin-account-row{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:8px 0;border-bottom:1px solid #f9fafb;
+  }
+  .fin-account-row:last-child{border-bottom:none;}
+  .fac-left{display:flex;align-items:center;gap:8px;}
+  .fac-ico{font-size:16px;}
+  .fac-name{font-size:12px;font-weight:600;color:var(--text);}
+  .fac-cat{font-size:10px;color:var(--muted);}
+  .fac-val{font-size:13px;font-weight:800;color:var(--text);}
+  .fac-val.zero{color:var(--muted2);}
+
+  /* KPI colors */
+  .kpi-blue   {--kpi-color:#1a56db;}
+  .kpi-green  {--kpi-color:#22c55e;}
+  .kpi-amber  {--kpi-color:#f59e0b;}
+  .kpi-red    {--kpi-color:#ef4444;}
+  .kpi-purple {--kpi-color:#8b5cf6;}
+  .kpi-cyan   {--kpi-color:#06b6d4;}
+  .kpi-orange {--kpi-color:#f97316;}
+  .kpi-indigo {--kpi-color:#6366f1;}
+
 </style>
 </head>
 <body>
@@ -749,26 +857,176 @@
 
     <!-- DASHBOARD -->
     <div class="screen active" id="s-dashboard">
-      <div class="stat-row">
-        <div class="stat-card"><div class="stat-label">📋 Поверка</div><div class="stat-val">19 <span class="unit">зап.</span></div></div>
-        <div class="stat-card ok"><div class="stat-label">✅ Внесено в КТРМ</div><div class="stat-val">14</div></div>
-        <div class="stat-card warn"><div class="stat-label">⏳ Ожидает оплаты</div><div class="stat-val">8</div></div>
-        <div class="stat-card blue"><div class="stat-label">📊 Общий итог</div><div class="stat-val">0 <span class="unit">₸</span></div></div>
-      </div>
-      <div class="welcome">
-        <h2>Добро пожаловать</h2>
-        <p>Выберите раздел в левом меню: Поверка, Продажа, Покупка, Склад, Сотрудники, Прочие операции, Бухгалтерия, Счета, Отчёт, Справочник или Настройка.</p>
-      </div>
-      <div class="card">
-        <div class="card-title">🔄 Цепочка передачи данных</div>
-        <div class="flow-mini">
-          <div class="flow-box">📋 Заказ / Поверка</div><div class="flow-arr">→</div>
-          <div class="flow-box">💰 Продажа</div><div class="flow-arr">→</div>
-          <div class="flow-box">🏭 Склад</div><div class="flow-arr">→</div>
-          <div class="flow-box">🛒 Закупка</div>
+
+      <!-- ══ ROW 1: KPI ══════════════════════════════════════ -->
+      <div class="dash-grid" id="dash-kpi-row">
+
+        <div class="dash-kpi kpi-blue">
+          <div class="dkpi-icon">📋</div>
+          <div class="dkpi-val" id="dk-poverka">0</div>
+          <div class="dkpi-lbl">Поверок всего</div>
+          <div class="dkpi-sub" id="dk-poverka-sub" style="color:#1a56db;"></div>
         </div>
-        <p style="font-size:12px;color:#6b7280;">Данные передаются по единому ключу <code>order_id</code> — без дублирования.</p>
+
+        <div class="dash-kpi kpi-green">
+          <div class="dkpi-icon">✅</div>
+          <div class="dkpi-val" id="dk-ktrm">0</div>
+          <div class="dkpi-lbl">Внесено в КТРМ</div>
+          <div class="dkpi-sub" id="dk-ktrm-sub" style="color:#059669;"></div>
+        </div>
+
+        <div class="dash-kpi kpi-amber">
+          <div class="dkpi-icon">⏳</div>
+          <div class="dkpi-val" id="dk-unpaid">0</div>
+          <div class="dkpi-lbl">Ожидают оплаты</div>
+          <div class="dkpi-sub" id="dk-unpaid-sub" style="color:#d97706;"></div>
+        </div>
+
+        <div class="dash-kpi kpi-purple">
+          <div class="dkpi-icon">💰</div>
+          <div class="dkpi-val" id="dk-income">0 ₸</div>
+          <div class="dkpi-lbl">Приходы (финансы)</div>
+          <div class="dkpi-sub" id="dk-income-sub" style="color:#7c3aed;"></div>
+        </div>
+
+        <div class="dash-kpi kpi-cyan">
+          <div class="dkpi-icon">🏭</div>
+          <div class="dkpi-val" id="dk-stock-ok">0</div>
+          <div class="dkpi-lbl">Позиций в норме</div>
+          <div class="dkpi-sub" id="dk-stock-sub" style="color:#0891b2;"></div>
+        </div>
+
+        <div class="dash-kpi kpi-red">
+          <div class="dkpi-icon">⚠️</div>
+          <div class="dkpi-val" id="dk-alerts">0</div>
+          <div class="dkpi-lbl">Срочных задач</div>
+          <div class="dkpi-sub" id="dk-alerts-sub" style="color:#dc2626;"></div>
+        </div>
+
+        <div class="dash-kpi kpi-orange">
+          <div class="dkpi-icon">🤖</div>
+          <div class="dkpi-val" id="dk-robot">0</div>
+          <div class="dkpi-lbl">В очереди КТРМ</div>
+          <div class="dkpi-sub" id="dk-robot-sub" style="color:#ea580c;"></div>
+        </div>
+
+        <div class="dash-kpi kpi-indigo">
+          <div class="dkpi-icon">💳</div>
+          <div class="dkpi-val" id="dk-balance">0 ₸</div>
+          <div class="dkpi-lbl">Общий баланс</div>
+          <div class="dkpi-sub" id="dk-balance-sub" style="color:#4f46e5;"></div>
+        </div>
+
       </div>
+
+      <!-- ══ ROW 2: СТАТУСЫ ПОВЕРОК + АЛЕРТЫ ════════════════ -->
+      <div class="dash-row col31">
+
+        <!-- Статусы поверки — пайплайн -->
+        <div class="dash-card">
+          <div class="dash-card-head">
+            <span class="dch-title">🔄 Статусы поверок</span>
+            <span class="dch-link" onclick="go('cert','Поверка › САМИ','Сертификат',null)">Открыть →</span>
+          </div>
+          <div class="dash-card-body">
+            <div class="status-pipeline" id="dash-status-pipeline"></div>
+            <div class="mini-bar-wrap" id="dash-cert-bars"></div>
+          </div>
+        </div>
+
+        <!-- Алерты -->
+        <div class="dash-card">
+          <div class="dash-card-head">
+            <span class="dch-title">🚨 Требуют внимания</span>
+            <span id="dash-alert-count" style="font-size:11px;font-weight:700;color:#dc2626;"></span>
+          </div>
+          <div class="dash-card-body" id="dash-alerts-body" style="padding:10px 14px;"></div>
+        </div>
+
+      </div>
+
+      <!-- ══ ROW 3: ФИНАНСЫ + СКЛАД ══════════════════════════ -->
+      <div class="dash-row">
+
+        <!-- Финансы — балансы счетов -->
+        <div class="dash-card">
+          <div class="dash-card-head">
+            <span class="dch-title">💳 Финансы — счета</span>
+            <span class="dch-link" onclick="window.open('finance_module.html','_blank')">Трекер →</span>
+          </div>
+          <div class="dash-card-body">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f3f4f6;">
+              <span style="font-size:12px;color:var(--muted);font-weight:600;">Общий баланс</span>
+              <span style="font-size:18px;font-weight:800;color:#1a56db;" id="dash-fin-total">0 ₸</span>
+            </div>
+            <div id="dash-fin-accounts"></div>
+            <div style="margin-top:10px;padding-top:8px;border-top:1px solid #f3f4f6;">
+              <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;">Последние операции</div>
+              <div id="dash-fin-ops"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Склад — остатки -->
+        <div class="dash-card">
+          <div class="dash-card-head">
+            <span class="dch-title">🏭 Склад — остатки</span>
+            <span class="dch-link" onclick="go('warehouse','Склад','Журнал склада',null)">Открыть →</span>
+          </div>
+          <div class="dash-card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+              <div style="text-align:center;padding:8px;background:#f0fdf4;border-radius:8px;">
+                <div style="font-size:18px;font-weight:800;color:#059669;" id="dash-wh-ok">0</div>
+                <div style="font-size:10px;color:var(--muted);">Норма</div>
+              </div>
+              <div style="text-align:center;padding:8px;background:#fffbeb;border-radius:8px;">
+                <div style="font-size:18px;font-weight:800;color:#d97706;" id="dash-wh-low">0</div>
+                <div style="font-size:10px;color:var(--muted);">Мало</div>
+              </div>
+              <div style="text-align:center;padding:8px;background:#fef2f2;border-radius:8px;">
+                <div style="font-size:18px;font-weight:800;color:#dc2626;" id="dash-wh-empty">0</div>
+                <div style="font-size:10px;color:var(--muted);">Нет</div>
+              </div>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;">Критичные позиции</div>
+            <div id="dash-wh-critical"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ══ ROW 4: ПОСЛЕДНИЕ ЗАПИСИ ═════════════════════════ -->
+      <div class="dash-row col3">
+
+        <!-- Последние сертификаты -->
+        <div class="dash-card">
+          <div class="dash-card-head">
+            <span class="dch-title">📋 Последние поверки</span>
+            <span class="dch-link" onclick="go('cert','Поверка › САМИ','Сертификат',null)">Все →</span>
+          </div>
+          <div class="dash-card-body" id="dash-last-certs"></div>
+        </div>
+
+        <!-- Последние продажи -->
+        <div class="dash-card">
+          <div class="dash-card-head">
+            <span class="dch-title">💰 Последние продажи</span>
+            <span class="dch-link" onclick="go('sales','Продажа','Журнал продаж',null)">Все →</span>
+          </div>
+          <div class="dash-card-body" id="dash-last-sales"></div>
+        </div>
+
+        <!-- Расходы — топ категорий -->
+        <div class="dash-card">
+          <div class="dash-card-head">
+            <span class="dch-title">💸 Расходы по категориям</span>
+            <span class="dch-link" onclick="go('rashody-stats','Расходы','Аналитика',null)">Аналитика →</span>
+          </div>
+          <div class="dash-card-body" id="dash-expenses"></div>
+        </div>
+
+      </div>
+
     </div>
 
     <!-- ══ СЕРТИФИКАТ (САМИ — с реальными данными, образец) ══ -->
@@ -3574,6 +3832,265 @@ function renderAccountSources() {
 }
 
 
+
+// ══════════════════════════════════════════════════════════════
+//  DASHBOARD — агрегирует данные из всех модулей
+// ══════════════════════════════════════════════════════════════
+
+function renderDash() {
+  // ── Загружаем все данные ───────────────────────────────────
+  whLoadFromStorage();
+  salesLoadFromStorage();
+
+  const finState = (()=>{try{return JSON.parse(localStorage.getItem('u2b_finance_v2')||'null');}catch(e){return null;}})();
+
+  // ── Все сертификаты ────────────────────────────────────────
+  const allCerts = [...certData,...certVdkData,...certTecData,...notifData,...notifVdkData,...notifTecData];
+  const totalCerts = certData.length + certVdkData.length + certTecData.length;
+
+  // Статусы
+  const byStatus = {};
+  OPER_OPTS.forEach(o=>{ byStatus[o]=0; });
+  allCerts.forEach(c=>{ if(byStatus[c.oper]!==undefined) byStatus[c.oper]++; });
+
+  const ktrmDone  = byStatus['Внесён в КТРМ'] || 0;
+  const inQueue   = (byStatus['Внести в КТРМ']||0) + (byStatus['КТРМ 70%']||0);
+  const unpaid    = allCerts.filter(c=>c.pay==='В ожидании').length;
+  const ktrmPct   = totalCerts ? Math.round(ktrmDone/totalCerts*100) : 0;
+
+  // ── Финансы ────────────────────────────────────────────────
+  const finAccts   = finState?.accts || {};
+  const finOps     = finState?.ops   || [];
+  const totalBal   = Object.values(finAccts).reduce((s,a)=>s+(a.bal||0),0);
+  const totalInc   = finOps.filter(o=>o.type==='Приход').reduce((s,o)=>s+o.amount,0);
+  const totalExp   = finOps.filter(o=>o.type==='Расход').reduce((s,o)=>s+o.amount,0);
+
+  // ── Склад ──────────────────────────────────────────────────
+  const whOk    = warehouseData.filter(p=>whGetFree(p)>=p.min&&p.stock>0).length;
+  const whLow   = warehouseData.filter(p=>whGetFree(p)>0&&whGetFree(p)<p.min).length;
+  const whEmpty = warehouseData.filter(p=>p.stock<=0).length;
+
+  // ── Расходы ────────────────────────────────────────────────
+  const expTotal = rshExp ? rshExp.reduce((s,e)=>s+(e.amount||0),0) : 0;
+
+  // ── Алерты ────────────────────────────────────────────────
+  const alerts = [];
+  // Сроки счётчиков (из archive data)
+  const overdueCount = deadlineData ? deadlineData.filter(d=>d.status==='overdue').length : 0;
+  if (overdueCount > 0)
+    alerts.push({cls:'da-red',  ico:'⏰', title:`${overdueCount} счётчиков просрочено`, sub:'Требуется срочная поверка', link:'db-deadlines'});
+  if (inQueue > 0)
+    alerts.push({cls:'da-amber',ico:'🤖', title:`${inQueue} записей ждут робота КТРМ`,  sub:'Внести в КТРМ / КТРМ 70%', link:'cert'});
+  if (unpaid > 0)
+    alerts.push({cls:'da-blue', ico:'💳', title:`${unpaid} записей ожидают оплаты`,     sub:'Проверьте статусы оплаты', link:'cert'});
+  if (whEmpty > 0)
+    alerts.push({cls:'da-red',  ico:'📦', title:`${whEmpty} позиций нет на складе`,     sub:'Требуется закупка', link:'warehouse'});
+  if (whLow > 0)
+    alerts.push({cls:'da-amber',ico:'⚠️', title:`${whLow} позиций ниже минимума`,       sub:'Пора заказывать', link:'warehouse'});
+  if (alerts.length === 0)
+    alerts.push({cls:'da-green',ico:'✅', title:'Всё в порядке!',                        sub:'Срочных задач нет', link:null});
+
+  // ══ RENDER KPI ═════════════════════════════════════════════
+  function $s(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
+
+  $s('dk-poverka',     totalCerts);
+  $s('dk-poverka-sub', ktrmPct + '% внесено в КТРМ');
+  $s('dk-ktrm',        ktrmDone);
+  $s('dk-ktrm-sub',    'из ' + totalCerts + ' поверок');
+  $s('dk-unpaid',      unpaid);
+  $s('dk-unpaid-sub',  unpaid > 0 ? 'нужна оплата' : 'все оплачены ✓');
+  $s('dk-income',      fmtDash(totalInc));
+  $s('dk-income-sub',  'расходы: ' + fmtDash(totalExp));
+  $s('dk-stock-ok',    whOk);
+  $s('dk-stock-sub',   `⚠ ${whLow} мало · 🚫 ${whEmpty} нет`);
+  $s('dk-alerts',      alerts.filter(a=>a.cls!=='da-green').length || '0');
+  $s('dk-alerts-sub',  alerts.filter(a=>a.cls!=='da-green').length ? 'требует внимания' : 'всё в порядке ✓');
+  $s('dk-robot',       inQueue);
+  $s('dk-robot-sub',   inQueue > 0 ? 'в очереди КТРМ' : 'очередь пуста ✓');
+  $s('dk-balance',     fmtDash(totalBal));
+  $s('dk-balance-sub', Object.keys(finAccts).length + ' счетов');
+
+  // ══ STATUS PIPELINE ════════════════════════════════════════
+  const pipeline = document.getElementById('dash-status-pipeline');
+  if (pipeline) {
+    const STATUS_COLORS = {
+      'В работе':       {bg:'#f3f4f6',clr:'#374151',dot:'#9ca3af'},
+      'Готова к КТРМ':  {bg:'#fff7ed',clr:'#c2410c',dot:'#f97316'},
+      'Внести в КТРМ':  {bg:'#eff6ff',clr:'#1d4ed8',dot:'#3b82f6'},
+      'КТРМ 70%':       {bg:'#f0fdf4',clr:'#15803d',dot:'#f97316'},
+      'Внесён в КТРМ':  {bg:'#dcfce7',clr:'#15803d',dot:'#22c55e'},
+    };
+    pipeline.innerHTML = OPER_OPTS.map(s=>{
+      const cnt = byStatus[s]||0;
+      if (!cnt) return '';
+      const c = STATUS_COLORS[s]||{bg:'#f3f4f6',clr:'#374151',dot:'#9ca3af'};
+      return `<div class="sp-item" style="background:${c.bg};color:${c.clr};" onclick="go('cert','Поверка › САМИ','Сертификат',null)">
+        <div class="sp-dot" style="background:${c.dot};"></div>
+        ${s} <span class="sp-count">${cnt}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Bars — по источникам
+  const certBars = document.getElementById('dash-cert-bars');
+  if (certBars) {
+    const sources = [
+      {name:'САМИ',  count:certData.length,    color:'#1a56db'},
+      {name:'ВДК',   count:certVdkData.length, color:'#0891b2'},
+      {name:'ТЭЦ',   count:certTecData.length, color:'#7c3aed'},
+    ];
+    const maxC = Math.max(...sources.map(s=>s.count), 1);
+    certBars.innerHTML = sources.map(s=>`
+      <div class="mini-bar-row">
+        <div class="mini-bar-lbl">${s.name}</div>
+        <div class="mini-bar-track">
+          <div class="mini-bar-fill" style="width:${Math.round(s.count/maxC*100)}%;background:${s.color};"></div>
+        </div>
+        <div class="mini-bar-val">${s.count}</div>
+      </div>`).join('');
+  }
+
+  // ══ ALERTS ══════════════════════════════════════════════════
+  const alertBody = document.getElementById('dash-alerts-body');
+  if (alertBody) {
+    const countEl = document.getElementById('dash-alert-count');
+    const urgent = alerts.filter(a=>a.cls!=='da-green').length;
+    if (countEl) countEl.textContent = urgent ? urgent + ' !' : '';
+    alertBody.innerHTML = alerts.map(a=>`
+      <div class="dash-alert ${a.cls}" style="cursor:${a.link?'pointer':'default'};"
+           onclick="${a.link?`go('${a.link}','','',null)`:''}">
+        <span style="font-size:16px;flex-shrink:0;">${a.ico}</span>
+        <div><div class="da-title">${a.title}</div><div class="da-sub">${a.sub}</div></div>
+      </div>`).join('');
+  }
+
+  // ══ ФИНАНСЫ ═══════════════════════════════════════════════
+  const finAccEl = document.getElementById('dash-fin-accounts');
+  if (finAccEl) {
+    finAccEl.innerHTML = Object.entries(finAccts).map(([name,a])=>`
+      <div class="fin-account-row">
+        <div class="fac-left">
+          <span class="fac-ico">${a.icon||'💳'}</span>
+          <div><div class="fac-name">${name}</div></div>
+        </div>
+        <div class="fac-val ${(a.bal||0)===0?'zero':''}">${(a.bal||0).toLocaleString('ru-KZ')} ₸</div>
+      </div>`).join('') || '<div style="color:var(--muted);font-size:12px;padding:8px 0;">Нет данных — откройте Финансы</div>';
+  }
+
+  $s('dash-fin-total', totalBal.toLocaleString('ru-KZ') + ' ₸');
+
+  const finOpsEl = document.getElementById('dash-fin-ops');
+  if (finOpsEl) {
+    const lastOps = [...finOps].reverse().slice(0,3);
+    finOpsEl.innerHTML = lastOps.map(o=>{
+      const isInc=o.type==='Приход';
+      return `<div class="dm-row">
+        <div class="dm-ico" style="background:${isInc?'#f0fdf4':'#fef2f2'}">${isInc?'💚':'🔴'}</div>
+        <div class="dm-info"><div class="dm-name">${o.name}</div><div class="dm-sub">${o.account} · ${o.date}</div></div>
+        <div class="dm-val" style="color:${isInc?'#059669':'#dc2626'}">${isInc?'+':'−'}${(o.amount||0).toLocaleString('ru-KZ')} ₸</div>
+      </div>`;
+    }).join('') || '<div style="color:var(--muted);font-size:12px;">Нет операций</div>';
+  }
+
+  // ══ СКЛАД ════════════════════════════════════════════════
+  $s('dash-wh-ok',    whOk);
+  $s('dash-wh-low',   whLow);
+  $s('dash-wh-empty', whEmpty);
+
+  const whCrit = document.getElementById('dash-wh-critical');
+  if (whCrit) {
+    const critical = warehouseData
+      .filter(p=>p.stock<=0 || whGetFree(p)<p.min)
+      .sort((a,b)=>whGetFree(a)-whGetFree(b))
+      .slice(0,5);
+    whCrit.innerHTML = critical.map(p=>{
+      const st = whStatus(p);
+      return `<div class="dm-row">
+        <div class="dm-ico" style="background:${p.stock<=0?'#fef2f2':'#fffbeb'}">${p.stock<=0?'🚫':'⚠️'}</div>
+        <div class="dm-info"><div class="dm-name">${p.name}</div><div class="dm-sub">${p.id} · мин: ${p.min} шт.</div></div>
+        <div class="dm-val" style="color:${st.color}">${whGetFree(p)} шт.</div>
+      </div>`;
+    }).join('') || '<div style="color:#059669;font-size:12px;font-weight:600;padding:8px 0;">✓ Все позиции в норме</div>';
+  }
+
+  // ══ ПОСЛЕДНИЕ ПОВЕРКИ ════════════════════════════════════
+  const lastCerts = document.getElementById('dash-last-certs');
+  if (lastCerts) {
+    const last = [...certData].reverse().slice(0,5);
+    lastCerts.innerHTML = last.map(c=>{
+      const STATUS_DOT = {
+        'В работе':'#9ca3af','Готова к КТРМ':'#f97316',
+        'Внести в КТРМ':'#3b82f6','КТРМ 70%':'#f59e0b','Внесён в КТРМ':'#22c55e'
+      };
+      return `<div class="dm-row">
+        <div class="dm-ico" style="background:#eff6ff">📋</div>
+        <div class="dm-info">
+          <div class="dm-name">${c.fio}</div>
+          <div class="dm-sub">${c.type} · №${c.serial}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+          <div style="width:8px;height:8px;border-radius:50%;background:${STATUS_DOT[c.oper]||'#9ca3af'};"></div>
+          <div style="font-size:10px;color:var(--muted);">${c.d1}</div>
+        </div>
+      </div>`;
+    }).join('') || '<div style="color:var(--muted);font-size:12px;padding:8px 0;">Нет поверок</div>';
+  }
+
+  // ══ ПОСЛЕДНИЕ ПРОДАЖИ ════════════════════════════════════
+  const lastSalesEl = document.getElementById('dash-last-sales');
+  if (lastSalesEl) {
+    const last = [...salesData].reverse().slice(0,5);
+    lastSalesEl.innerHTML = last.map(s=>`
+      <div class="dm-row">
+        <div class="dm-ico" style="background:#f0fdf4">💰</div>
+        <div class="dm-info">
+          <div class="dm-name">${s.client}</div>
+          <div class="dm-sub">${s.name} · ${s.qty} шт.</div>
+        </div>
+        <div class="dm-val" style="color:${s.pay==='Оплачен'?'#059669':'#d97706'}">
+          ${(s.sum||0).toLocaleString('ru-KZ')} ₸
+        </div>
+      </div>`).join('') || '<div style="color:var(--muted);font-size:12px;padding:8px 0;">Нет продаж</div>';
+  }
+
+  // ══ РАСХОДЫ — топ категорий ══════════════════════════════
+  const expEl = document.getElementById('dash-expenses');
+  if (expEl) {
+    const byCat = {};
+    (rshExp||[]).forEach(e=>{
+      const cat = rshCats?.find(c=>c.id===e.cat);
+      const name = cat?.name || e.cat || 'Прочие';
+      byCat[name] = (byCat[name]||0) + (e.amount||0);
+    });
+    const sorted = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const maxVal = sorted.length ? sorted[0][1] : 1;
+    if (sorted.length) {
+      expEl.innerHTML = `
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:11px;font-weight:700;">
+          <span style="color:var(--muted);">Категория</span>
+          <span style="color:#dc2626;">Итого: ${expTotal.toLocaleString('ru-KZ')} ₸</span>
+        </div>
+        <div class="mini-bar-wrap">
+          ${sorted.map(([name,val])=>`
+            <div class="mini-bar-row">
+              <div class="mini-bar-lbl">${name}</div>
+              <div class="mini-bar-track"><div class="mini-bar-fill" style="width:${Math.round(val/maxVal*100)}%;background:#ef4444;"></div></div>
+              <div class="mini-bar-val" style="color:#dc2626;">${val.toLocaleString('ru-KZ')}</div>
+            </div>`).join('')}
+        </div>`;
+    } else {
+      expEl.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0;">Нет расходов</div>';
+    }
+  }
+}
+
+function fmtDash(n) {
+  const v = Math.abs(n||0);
+  if (v >= 1000000) return (v/1000000).toFixed(1) + 'M ₸';
+  if (v >= 1000)    return (v/1000).toFixed(0)    + 'K ₸';
+  return v + ' ₸';
+}
+
 // ══════════════════════════════════════════════════════════════
 //  KTRM ROBOT — демо автозаполнение е-КТРМ
 // ══════════════════════════════════════════════════════════════
@@ -3929,9 +4446,11 @@ function ktrmScreenSuccess(r) {
 
 // ── INIT ─────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  // Load data from localStorage (don't render yet — screens not visible)
+  // Load data
   whLoadFromStorage();
   salesLoadFromStorage();
+  // Render dashboard on load
+  setTimeout(renderDash, 200);
 
   renderCertStats(certData,'cert-stats');
   renderCert(certData,'certBody');
