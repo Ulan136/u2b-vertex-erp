@@ -3,7 +3,6 @@ import { db } from '@/db';
 import { certificates } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
-// PATCH /api/certs/:id — обновить статус/данные
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -16,12 +15,11 @@ export async function PATCH(
       .where(eq(certificates.id, params.id))
       .returning();
     return NextResponse.json(updated);
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Ошибка обновления' }, { status: 500 });
   }
 }
 
-// DELETE /api/certs/:id
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -29,7 +27,7 @@ export async function DELETE(
   try {
     await db.delete(certificates).where(eq(certificates.id, params.id));
     return NextResponse.json({ ok: true });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Ошибка удаления' }, { status: 500 });
   }
 }

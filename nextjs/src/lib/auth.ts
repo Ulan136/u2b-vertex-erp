@@ -29,26 +29,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         );
         if (!ok) return null;
 
-        return {
-          id:    user.id,
-          email: user.email,
-          name:  user.name,
-          role:  user.role,
-        };
+        return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),
   ],
   callbacks: {
     jwt({ token, user }) {
-      if (user) token.role = (user as any).role;
+      if (user) token.role = (user as { role?: string }).role;
       return token;
     },
     session({ session, token }) {
-      if (session.user) (session.user as any).role = token.role;
+      if (session.user) (session.user as { role?: unknown }).role = token.role;
       return session;
     },
   },
-  pages: {
-    signIn: '/login',
-  },
+  pages: { signIn: '/login' },
 });
