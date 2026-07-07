@@ -5420,10 +5420,12 @@ async function whFetchFromApi() {
         full:     r.fullName  || r.full_name  || r.name,
         water:    r.waterType || r.water_type || '—',
         min:      Number(r.minStock ?? r.min_stock ?? (local && local.min) ?? 5),
-        // preserve locally-simulated stock/reserved; fall back to API on first load
-        stock:    local ? (local.stock || 0)    : Number(r.currentStock ?? r.current_stock ?? 0),
-        reserved: local ? (local.reserved || 0) : Number(r.reserved ?? 0),
-        price:    (local && local.price) ? local.price : Number(r.price ?? 0),
+        // Prefer locally-simulated stock once it diverges (>0, e.g. after
+        // приход/расход); otherwise use the API's seeded stock so fresh
+        // catalog quantities show even if localStorage cached 0.
+        stock:    (local && local.stock > 0)    ? local.stock    : Number(r.currentStock ?? r.current_stock ?? 0),
+        reserved: (local && local.reserved > 0) ? local.reserved : Number(r.reserved ?? 0),
+        price:    (local && local.price)        ? local.price    : Number(r.price ?? 0),
       };
     });
 
@@ -5473,8 +5475,8 @@ function whAddIncoming(skuId, qty, price, supplier, docNo, date) {
 function whDeductSale(skuId, qty, clientName, saleNo) {
   const p = warehouseData.find(x=>x.id===skuId);
   if (!p) return {ok:false, msg:'Товар не найден'};
-  const free = whGetFree(p);
-  if (free < qty) return {ok:false, msg:`Недостаточно: свободно ${free} шт., нужно ${qty} шт.`};
+  // Overselling is allowed: stock may go negative (backorder). The sales
+  // dropdown surfaces out-of-stock items, so we don't hard-block here.
   p.stock = (p.stock||0) - qty;
   stockMovements.push({
     id: whUuid(), date: whToday(),
@@ -5978,7 +5980,8 @@ function salesTogglePay(idx) {
 async function salesOpenNew() {
   modalReset();
   await whFetchFromApi();
-  const avail = warehouseData.filter(p=>whGetFree(p)>0);
+  // Show the full catalog; out-of-stock items are marked but still selectable.
+  const avail = warehouseData;
   document.getElementById('modalTitle').textContent = '💰 Новая продажа';
   document.getElementById('modalBadge').textContent = 'Продажа';
   document.getElementById('modalBadge').className   = 'modal-badge badge b-ok';
@@ -5993,7 +5996,7 @@ async function salesOpenNew() {
         <label>Товар со склада *</label>
         <select id="sl-sku" onchange="salesOnSkuChange()">
           <option value="">— Выберите товар —</option>
-          ${avail.map(p=>`<option value="${p.id}" data-price="${p.price}" data-stock="${whGetFree(p)}">${p.name} (свободно: ${whGetFree(p)} шт.) ${p.price?'· '+whFmt(p.price)+' ₸':''}</option>`).join('')}
+          ${avail.map(p=>{const free=whGetFree(p);const stockLbl=free>0?`свободно: ${free} шт.`:'⛔ нет в наличии';return `<option value="${p.id}" data-price="${p.price}" data-stock="${free}">${p.name} (${stockLbl})${p.price?' · '+whFmt(p.price)+' ₸':''}</option>`;}).join('')}
           <option value="_custom">✏️ Ввести вручную</option>
         </select>
       </div>
