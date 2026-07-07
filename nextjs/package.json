@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:seed": "tsx --env-file=.env.local src/db/seed.ts"
+    "db:seed": "tsx --env-file=.env.local src/db/seed.ts",
+    "db:seed:products": "tsx --env-file=.env.local src/db/seed-products.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
