@@ -1,5 +1,4 @@
 import bcrypt from 'bcryptjs';
-import { eq } from 'drizzle-orm';
 import { db } from './index';
 import { branches, users, certificates } from './schema';
 
