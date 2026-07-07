@@ -5978,6 +5978,7 @@ function renderSales() {
       <td><span class="badge ${s.pay==='Оплачен'?'b-ok':'b-warn'}">${s.pay==='Оплачен'?'✓ Оплачен':'⏳ Ожидает'}</span></td>
       <td><span class="badge ${s.inv==='Каспи'?'b-kaspi':s.inv==='БЦК'?'b-bck':'b-cash'}">${s.inv==='Каспи'?'🍊':s.inv==='БЦК'?'🏦':'💵'} ${s.inv}</span></td>
       <td><div class="actions-cell">
+        <button class="act-btn" onclick="salesOpenEdit(${realIdx})" title="Редактировать">✏️</button>
         <button class="act-btn" onclick="salesTogglePay(${realIdx})" title="${s.pay==='Оплачен'?'Отменить оплату':'Отметить оплачено'}">${s.pay==='Оплачен'?'↩':'✓'}</button>
       </div></td>
     </tr>`;}).join('')
@@ -5993,36 +5994,38 @@ function salesTogglePay(idx) {
   showToast(s.pay==='Оплачен'?'✅ Отмечено оплачено':'↩ Оплата отменена');
 }
 
-async function salesOpenNew() {
-  modalReset();
-  await whFetchFromApi();
-  document.getElementById('modalTitle').textContent = '💰 Новая продажа';
-  document.getElementById('modalBadge').textContent = 'Продажа';
-  document.getElementById('modalBadge').className   = 'modal-badge badge b-ok';
-  document.getElementById('modalBody').innerHTML = `
+// Build the shared sales modal body. Pass a sale record to pre-fill (edit),
+// or null for a blank new-sale form.
+function salesModalBody(sale) {
+  const date    = sale?.date || whToday();
+  const client  = sale?.client || '';
+  const ctypeV  = sale ? (sale.clientType==='Клиент' ? 'client' : 'retail') : 'retail';
+  const pay     = sale?.pay || 'Ожидает';
+  const inv     = sale?.inv || 'Каспи';
+  const comment = sale?.comment || '';
+  const items   = sale ? (sale.items || (sale.sku ? [{sku:sale.sku, qty:sale.qty, price:sale.price}] : [])) : [];
+  const rowsHtml = (items.length ? items.map(salesItemRowHtml) : [salesItemRowHtml()]).join('');
+  const opt = (v, val, label) => `<option value="${val}"${v===val?' selected':''}>${label}</option>`;
+  return `
     <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#1e3a8a;">
-      ℹ️ После сохранения количество <strong>автоматически спишется</strong> со склада
+      ℹ️ Количество <strong>списывается со склада</strong>; при изменении позиций остатки пересчитываются
     </div>
     <div class="fg">
-      <div class="field"><label>Дата *</label><input type="date" id="sl-date" value="${whToday()}"></div>
-      <div class="field"><label>Клиент *</label><input type="text" id="sl-client" placeholder="ФИО или ТОО..."></div>
+      <div class="field"><label>Дата *</label><input type="date" id="sl-date" value="${date}"></div>
+      <div class="field"><label>Клиент *</label><input type="text" id="sl-client" placeholder="ФИО или ТОО..." value="${client.replace(/"/g,'&quot;')}"></div>
       <div class="field"><label>Тип клиента *</label>
         <select id="sl-ctype" onchange="salesClientTypeChange()">
-          <option value="retail">🛒 Покупатель (розница)</option>
-          <option value="client">🤝 Клиент (скидка)</option>
+          ${opt(ctypeV,'retail','🛒 Покупатель (розница)')}
+          ${opt(ctypeV,'client','🤝 Клиент (скидка)')}
         </select>
       </div>
       <div class="field"><label>Оплата</label>
-        <select id="sl-pay"><option value="Ожидает">⏳ Ожидает</option><option value="Оплачен">✓ Оплачен</option></select>
+        <select id="sl-pay">${opt(pay,'Ожидает','⏳ Ожидает')}${opt(pay,'Оплачен','✓ Оплачен')}</select>
       </div>
       <div class="field"><label>Счёт</label>
-        <select id="sl-inv">
-          <option value="Каспи">🍊 Каспи</option>
-          <option value="БЦК">🏦 БЦК</option>
-          <option value="Наличка">💵 Наличка</option>
-        </select>
+        <select id="sl-inv">${opt(inv,'Каспи','🍊 Каспи')}${opt(inv,'БЦК','🏦 БЦК')}${opt(inv,'Наличка','💵 Наличка')}</select>
       </div>
-      <div class="field"><label>Комментарий</label><input type="text" id="sl-comment" placeholder="Необязательно"></div>
+      <div class="field"><label>Комментарий</label><input type="text" id="sl-comment" placeholder="Необязательно" value="${(comment||'').replace(/"/g,'&quot;')}"></div>
     </div>
     <div style="margin-top:6px;">
       <label style="font-size:12px;font-weight:600;color:#374151;">Товары *</label>
@@ -6036,47 +6039,78 @@ async function salesOpenNew() {
             <th style="width:34px;"></th>
           </tr>
         </thead>
-        <tbody id="sl-items"></tbody>
+        <tbody id="sl-items">${rowsHtml}</tbody>
       </table>
       <button type="button" class="btn btn-sm" style="margin-top:8px;" onclick="salesAddItem()">➕ Добавить товар</button>
     </div>
     <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid #e5e7eb;">
       <span style="font-size:13px;color:#6b7280;">Итого:</span>
       <span id="sl-total" style="font-size:18px;font-weight:800;color:#059669;">0 ₸</span>
-    </div>
-  `;
+    </div>`;
+}
+
+async function salesOpenNew() {
+  modalReset();
+  await whFetchFromApi();
+  document.getElementById('modalTitle').textContent = '💰 Новая продажа';
+  document.getElementById('modalBadge').textContent = 'Продажа';
+  document.getElementById('modalBadge').className   = 'modal-badge badge b-ok';
+  document.getElementById('modalBody').innerHTML = salesModalBody(null);
   document.getElementById('modalFooterLeft').innerHTML = '';
   document.getElementById('modalSaveBtn').onclick = salesDoSave;
   document.getElementById('modalOverlay').classList.add('open');
-  salesAddItem(); // start with one line item
+  document.querySelectorAll('#sl-items .sl-item').forEach(salesSetRowEditable);
+  salesRecalcTotal();
+  setTimeout(()=>document.getElementById('sl-client').focus(),100);
+}
+
+async function salesOpenEdit(idx) {
+  const sale = salesData[idx];
+  if (!sale) { showToast('⚠️ Продажа не найдена'); return; }
+  modalReset();
+  await whFetchFromApi();
+  document.getElementById('modalTitle').textContent = `✏️ Редактировать — ${sale.no}`;
+  document.getElementById('modalBadge').textContent = 'Продажа';
+  document.getElementById('modalBadge').className   = 'modal-badge badge b-warn';
+  document.getElementById('modalBody').innerHTML = salesModalBody(sale);
+  document.getElementById('modalFooterLeft').innerHTML = '';
+  document.getElementById('modalSaveBtn').onclick = () => salesDoUpdate(idx);
+  document.getElementById('modalOverlay').classList.add('open');
+  // Keep the saved prices; only sync the read-only state to the client type.
+  document.querySelectorAll('#sl-items .sl-item').forEach(salesSetRowEditable);
+  salesRecalcTotal();
   setTimeout(()=>document.getElementById('sl-client').focus(),100);
 }
 
 // ── SALES LINE ITEMS ──────────────────────────────────────────
-function salesProductOptions() {
+function salesProductOptions(selectedSku) {
   return warehouseData.map(p=>{
     const free    = whGetFree(p);
     const stockLbl= free>0 ? `своб. ${free}` : '⛔ нет';
     const retail  = p.price  || 0;
     const discount= p.priceD || p.price || 0;
-    return `<option value="${p.id}" data-retail="${retail}" data-discount="${discount}" data-stock="${free}">${p.name} (${stockLbl})</option>`;
+    const sel     = selectedSku && selectedSku===p.id ? ' selected' : '';
+    return `<option value="${p.id}" data-retail="${retail}" data-discount="${discount}" data-stock="${free}"${sel}>${p.name} (${stockLbl})</option>`;
   }).join('');
 }
 
-function salesItemRowHtml() {
+function salesItemRowHtml(item) {
+  const sku   = item?.sku || '';
+  const qty   = item?.qty ?? 1;
+  const price = item?.price ?? 0;
   return `<tr class="sl-item" style="border-bottom:1px solid #f3f4f6;">
     <td style="padding:5px 6px;">
       <select class="sl-it-prod" onchange="salesRowProductChange(this)" style="width:100%;font-size:12px;">
-        <option value="">— выберите товар —</option>${salesProductOptions()}
+        <option value="">— выберите товар —</option>${salesProductOptions(sku)}
       </select>
     </td>
     <td style="padding:5px 6px;text-align:center;">
-      <input type="number" class="sl-it-qty" min="1" value="1" oninput="salesRowRecalc(this)" style="width:60px;text-align:center;">
+      <input type="number" class="sl-it-qty" min="1" value="${qty}" oninput="salesRowRecalc(this)" style="width:60px;text-align:center;">
     </td>
     <td style="padding:5px 6px;text-align:right;">
-      <input type="number" class="sl-it-price" value="0" min="0" oninput="salesRowRecalc(this)" readonly style="width:96px;text-align:right;background:#f9fafb;">
+      <input type="number" class="sl-it-price" value="${price}" min="0" oninput="salesRowRecalc(this)" readonly style="width:96px;text-align:right;background:#f9fafb;">
     </td>
-    <td class="sl-it-sum" style="padding:5px 6px;text-align:right;font-weight:700;">0 ₸</td>
+    <td class="sl-it-sum" style="padding:5px 6px;text-align:right;font-weight:700;">${whFmt(qty*price)} ₸</td>
     <td style="padding:5px 6px;text-align:center;">
       <button type="button" class="act-btn" onclick="salesRemoveItem(this)" title="Удалить" style="color:#dc2626;">✕</button>
     </td>
@@ -6085,6 +6119,17 @@ function salesItemRowHtml() {
 
 function salesAddItem() {
   document.getElementById('sl-items').insertAdjacentHTML('beforeend', salesItemRowHtml());
+  const row = document.querySelector('#sl-items .sl-item:last-child');
+  if (row) salesSetRowEditable(row);
+}
+
+// Sync only the price field's editability to the current client type,
+// without overwriting the price value (used on edit-load / add-row).
+function salesSetRowEditable(row) {
+  const ctype   = document.getElementById('sl-ctype').value;
+  const priceEl = row.querySelector('.sl-it-price');
+  priceEl.readOnly = (ctype==='retail');
+  priceEl.style.background = priceEl.readOnly ? '#f9fafb' : '#fff';
 }
 
 function salesRemoveItem(btn) {
@@ -6135,17 +6180,21 @@ function salesRecalcTotal() {
   const el=document.getElementById('sl-total'); if(el) el.textContent=whFmt(t)+' ₸';
 }
 
-function salesDoSave() {
-  const date   = document.getElementById('sl-date').value;
-  const client = document.getElementById('sl-client').value.trim();
+// Read the modal's header fields (date/client/type/pay/inv/comment).
+function salesReadHeader() {
   const ctypeV = document.getElementById('sl-ctype').value;
-  const clientType = ctypeV==='retail' ? 'Покупатель' : 'Клиент';
-  const pay    = document.getElementById('sl-pay').value;
-  const inv    = document.getElementById('sl-inv').value;
+  return {
+    date:   document.getElementById('sl-date').value,
+    client: document.getElementById('sl-client').value.trim(),
+    clientType: ctypeV==='retail' ? 'Покупатель' : 'Клиент',
+    pay:    document.getElementById('sl-pay').value,
+    inv:    document.getElementById('sl-inv').value,
+    comment:document.getElementById('sl-comment').value,
+  };
+}
 
-  if (!date||!client) { showToast('⚠️ Заполните дату и клиента'); return; }
-
-  // Collect all valid line items
+// Collect all valid line items from the modal.
+function salesCollectItems() {
   const items = [];
   document.querySelectorAll('#sl-items .sl-item').forEach(row=>{
     const sku   = row.querySelector('.sl-it-prod').value;
@@ -6155,31 +6204,61 @@ function salesDoSave() {
     const p = warehouseData.find(x=>x.id===sku);
     items.push({ sku, name: p?.name||sku, fullName: p?.full||p?.name||sku, qty, price, sum: qty*price });
   });
+  return items;
+}
 
-  if (!items.length) { showToast('⚠️ Добавьте хотя бы один товар'); return; }
-
-  // Deduct each item from stock (overselling allowed — see whDeductSale)
-  const no = salesNextNo();
-  items.forEach(it => whDeductSale(it.sku, it.qty, client, no));
-  renderWarehouse();
-
-  const totalQty = items.reduce((s,i)=>s+i.qty,0);
-  const totalSum = items.reduce((s,i)=>s+i.sum,0);
-  const rec = {
-    no, date, client, clientType, items,
-    qty: totalQty, sum: totalSum, pay, inv,
-    comment: document.getElementById('sl-comment').value,
-    // summary fields kept for the journal/export
+// Derived summary fields kept on the record for the journal/export.
+function salesSummaryFields(items) {
+  return {
+    qty:   items.reduce((s,i)=>s+i.qty,0),
+    sum:   items.reduce((s,i)=>s+i.sum,0),
     name:  items.length===1 ? items[0].name : `${items[0].name} +${items.length-1}`,
     sku:   items.length===1 ? items[0].sku  : '',
     price: items.length===1 ? items[0].price : 0,
     fullName: items.map(i=>`${i.name} ×${i.qty}`).join('; '),
   };
+}
+
+function salesDoSave() {
+  const h = salesReadHeader();
+  if (!h.date||!h.client) { showToast('⚠️ Заполните дату и клиента'); return; }
+  const items = salesCollectItems();
+  if (!items.length) { showToast('⚠️ Добавьте хотя бы один товар'); return; }
+
+  // Deduct each item from stock (overselling allowed — see whDeductSale)
+  const no = salesNextNo();
+  items.forEach(it => whDeductSale(it.sku, it.qty, h.client, no));
+  renderWarehouse();
+
+  const rec = { no, ...h, clientType: h.clientType, items, ...salesSummaryFields(items) };
   salesData.push(rec);
   salesSaveToStorage();
   renderSales();
   closeModal();
-  showToast(`✅ Продажа ${no}: ${items.length} поз. · ${whFmt(totalSum)} ₸ · Склад обновлён`);
+  showToast(`✅ Продажа ${no}: ${items.length} поз. · ${whFmt(rec.sum)} ₸ · Склад обновлён`);
+}
+
+function salesDoUpdate(idx) {
+  const sale = salesData[idx];
+  if (!sale) { showToast('⚠️ Продажа не найдена'); return; }
+  const h = salesReadHeader();
+  if (!h.date||!h.client) { showToast('⚠️ Заполните дату и клиента'); return; }
+  const items = salesCollectItems();
+  if (!items.length) { showToast('⚠️ Добавьте хотя бы один товар'); return; }
+
+  // Reconcile stock: return the original quantities, then deduct the new ones.
+  const orig = sale.items || (sale.sku ? [{sku:sale.sku, qty:sale.qty}] : []);
+  orig.forEach(it=>{ if(it.sku){ const p=warehouseData.find(x=>x.id===it.sku); if(p) p.stock=(p.stock||0)+(it.qty||0); }});
+  items.forEach(it=>{ const p=warehouseData.find(x=>x.id===it.sku); if(p) p.stock=(p.stock||0)-it.qty; });
+  whSaveToStorage();
+  renderWarehouse();
+
+  // Update the record in place (keep its number).
+  Object.assign(sale, h, { clientType: h.clientType, items }, salesSummaryFields(items));
+  salesSaveToStorage();
+  renderSales();
+  closeModal();
+  showToast(`✅ Продажа ${sale.no} обновлена · ${items.length} поз. · ${whFmt(sale.sum)} ₸`);
 }
 
 function salesExport() {
