@@ -6,11 +6,15 @@ import { eq, desc, and } from 'drizzle-orm';
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const source   = searchParams.get('source');
+    const source = searchParams.get('source');
     const archived = searchParams.get('archived') === 'true';
 
     const conditions = [eq(certificates.isArchived, archived)];
-    if (source) conditions.push(eq(certificates.source, source as 'САМИ' | 'ВДК' | 'ТЭЦ' | 'Выездная' | 'Первичная'));
+    if (source) {
+      conditions.push(
+        eq(certificates.source, source as 'SAME' | 'VDK' | 'TEC' | 'Vyezdnaya' | 'Pervichnaya')
+      );
+    }
 
     const rows = await db
       .select()
@@ -20,7 +24,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(rows);
   } catch {
-    return NextResponse.json({ error: 'Ошибка БД' }, { status: 500 });
+    return NextResponse.json({ error: 'DB error' }, { status: 500 });
   }
 }
 
@@ -30,6 +34,6 @@ export async function POST(req: NextRequest) {
     const [cert] = await db.insert(certificates).values(body).returning();
     return NextResponse.json(cert, { status: 201 });
   } catch {
-    return NextResponse.json({ error: 'Ошибка создания' }, { status: 500 });
+    return NextResponse.json({ error: 'Create error' }, { status: 500 });
   }
 }

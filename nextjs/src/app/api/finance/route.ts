@@ -11,7 +11,7 @@ export async function GET() {
     ]);
     return NextResponse.json({ accounts, operations });
   } catch {
-    return NextResponse.json({ error: 'Ошибка БД' }, { status: 500 });
+    return NextResponse.json({ error: 'DB error' }, { status: 500 });
   }
 }
 
@@ -21,6 +21,6 @@ export async function POST(req: NextRequest) {
     const [op] = await db.insert(financeOperations).values(body).returning();
     return NextResponse.json(op, { status: 201 });
   } catch {
-    return NextResponse.json({ error: 'Ошибка операции' }, { status: 500 });
+    return NextResponse.json({ error: 'Op error' }, { status: 500 });
   }
 }

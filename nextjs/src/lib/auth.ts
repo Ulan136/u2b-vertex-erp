@@ -9,26 +9,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
       credentials: {
-        email:    { label: 'Email',  type: 'email' },
-        password: { label: 'Пароль', type: 'password' },
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
-
         const [user] = await db
           .select()
           .from(users)
           .where(eq(users.email, credentials.email as string))
           .limit(1);
-
         if (!user || !user.passwordHash) return null;
-
-        const ok = await bcrypt.compare(
-          credentials.password as string,
-          user.passwordHash
-        );
+        const ok = await bcrypt.compare(credentials.password as string, user.passwordHash);
         if (!ok) return null;
-
         return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),

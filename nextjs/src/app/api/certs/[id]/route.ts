@@ -16,7 +16,7 @@ export async function PATCH(
       .returning();
     return NextResponse.json(updated);
   } catch {
-    return NextResponse.json({ error: 'Ошибка обновления' }, { status: 500 });
+    return NextResponse.json({ error: 'Update error' }, { status: 500 });
   }
 }
 
@@ -28,6 +28,6 @@ export async function DELETE(
     await db.delete(certificates).where(eq(certificates.id, params.id));
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ error: 'Ошибка удаления' }, { status: 500 });
+    return NextResponse.json({ error: 'Delete error' }, { status: 500 });
   }
 }

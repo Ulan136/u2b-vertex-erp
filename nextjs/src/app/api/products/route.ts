@@ -8,7 +8,7 @@ export async function GET() {
     const rows = await db.select().from(products).where(eq(products.isActive, true));
     return NextResponse.json(rows);
   } catch {
-    return NextResponse.json({ error: 'Ошибка БД' }, { status: 500 });
+    return NextResponse.json({ error: 'DB error' }, { status: 500 });
   }
 }
 
@@ -18,6 +18,6 @@ export async function POST(req: NextRequest) {
     const [move] = await db.insert(stockMovements).values(body).returning();
     return NextResponse.json(move, { status: 201 });
   } catch {
-    return NextResponse.json({ error: 'Ошибка движения' }, { status: 500 });
+    return NextResponse.json({ error: 'Move error' }, { status: 500 });
   }
 }

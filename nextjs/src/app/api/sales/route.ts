@@ -8,7 +8,7 @@ export async function GET() {
     const rows = await db.select().from(sales).orderBy(desc(sales.createdAt));
     return NextResponse.json(rows);
   } catch {
-    return NextResponse.json({ error: 'Ошибка БД' }, { status: 500 });
+    return NextResponse.json({ error: 'DB error' }, { status: 500 });
   }
 }
 
@@ -16,23 +16,21 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const [sale] = await db.insert(sales).values(body).returning();
-
     if (body.productId && body.qty) {
       await db.insert(stockMovements).values({
-        productId:   body.productId,
-        skuCode:     body.skuCode,
+        productId: body.productId,
+        skuCode: body.skuCode,
         productName: body.productName,
-        moveType:    'OUT',
-        qty:         -Math.abs(body.qty),
-        price:       body.price,
-        totalSum:    body.totalSum,
-        comment:     'Продажа: ' + body.clientName,
-        author:      'Менеджер',
+        moveType: 'OUT',
+        qty: -Math.abs(body.qty),
+        price: body.price,
+        totalSum: body.totalSum,
+        comment: 'Sale: ' + body.clientName,
+        author: 'Manager',
       });
     }
-
     return NextResponse.json(sale, { status: 201 });
   } catch {
-    return NextResponse.json({ error: 'Ошибка продажи' }, { status: 500 });
+    return NextResponse.json({ error: 'Sale error' }, { status: 500 });
   }
 }
