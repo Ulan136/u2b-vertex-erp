@@ -85,6 +85,7 @@ export const products = pgTable('products', {
   currentStock : integer('current_stock').default(0),
   reserved     : integer('reserved').default(0),
   price        : numeric('price', { precision: 12, scale: 2 }).default('0'),
+  priceDiscount: numeric('price_discount', { precision: 12, scale: 2 }).default('0'),
   isConsumable : boolean('is_consumable').default(false),
   isActive     : boolean('is_active').default(true),
   createdAt    : timestamp('created_at', { withTimezone: true }).defaultNow(),

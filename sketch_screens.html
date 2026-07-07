@@ -1214,7 +1214,7 @@
           <thead>
             <tr>
               <th>№</th><th>Дата</th><th>Клиент</th>
-              <th>SKU</th><th>Товар</th>
+              <th>Тип</th><th>Товар</th>
               <th style="text-align:center;">Кол-во</th>
               <th style="text-align:right;">Цена</th>
               <th style="text-align:right;">Сумма</th>
@@ -5425,7 +5425,9 @@ async function whFetchFromApi() {
         // catalog quantities show even if localStorage cached 0.
         stock:    (local && local.stock > 0)    ? local.stock    : Number(r.currentStock ?? r.current_stock ?? 0),
         reserved: (local && local.reserved > 0) ? local.reserved : Number(r.reserved ?? 0),
-        price:    (local && local.price)        ? local.price    : Number(r.price ?? 0),
+        // retail (price) + discount (priceD); prefer API catalog prices
+        price:    Number(r.price) > 0 ? Number(r.price) : ((local && local.price) ? local.price : 0),
+        priceD:   Number(r.priceDiscount ?? r.price_discount ?? r.price ?? 0),
       };
     });
 
@@ -5949,27 +5951,41 @@ function renderSales() {
   const pEl=document.getElementById('sales-paid');  if(pEl)pEl.textContent=whFmt(paid)+' ₸';
   const wEl=document.getElementById('sales-wait');  if(wEl)wEl.textContent=whFmt(wait)+' ₸';
 
-  tbody.innerHTML = salesData.length ? [...salesData].reverse().map(s=>`
+  tbody.innerHTML = salesData.length ? [...salesData].reverse().map(s=>{
+    const items = s.items || [{name:s.name, qty:s.qty, price:s.price, sum:s.sum, fullName:s.fullName}];
+    const prod = items.length===1
+      ? `<span title="${items[0].fullName||items[0].name||''}">${items[0].name||'—'}</span>`
+      : `<span title="${items.map(i=>i.name+' ×'+i.qty).join('; ')}">${items[0].name} <span style="color:#6b7280;">+${items.length-1} поз.</span></span>`;
+    const totalQty  = s.qty ?? items.reduce((a,i)=>a+(i.qty||0),0);
+    const priceCell = items.length===1 ? whFmt(items[0].price)+' ₸' : '—';
+    const ct = s.clientType;
+    const ctBadge = ct==='Клиент'
+      ? '<span class="badge b-active" style="font-size:10px;">🤝 Клиент</span>'
+      : ct==='Покупатель'
+        ? '<span class="badge b-ok" style="font-size:10px;">🛒 Покупатель</span>'
+        : '—';
+    const realIdx = salesData.indexOf(s);
+    return `
     <tr>
       <td style="font-family:monospace;font-size:11px;">${s.no}</td>
       <td>${s.date}</td>
       <td style="font-weight:600;">${s.client}</td>
-      <td style="font-family:monospace;font-size:11px;color:#6b7280;">${s.sku||'—'}</td>
-      <td style="max-width:160px;font-size:12px;" title="${s.fullName||s.name}">${s.name}</td>
-      <td style="text-align:center;font-weight:700;">${s.qty}</td>
-      <td style="text-align:right;">${whFmt(s.price)} ₸</td>
+      <td>${ctBadge}</td>
+      <td style="max-width:180px;font-size:12px;">${prod}</td>
+      <td style="text-align:center;font-weight:700;">${totalQty}</td>
+      <td style="text-align:right;">${priceCell}</td>
       <td style="text-align:right;font-weight:700;">${whFmt(s.sum)} ₸</td>
       <td><span class="badge ${s.pay==='Оплачен'?'b-ok':'b-warn'}">${s.pay==='Оплачен'?'✓ Оплачен':'⏳ Ожидает'}</span></td>
       <td><span class="badge ${s.inv==='Каспи'?'b-kaspi':s.inv==='БЦК'?'b-bck':'b-cash'}">${s.inv==='Каспи'?'🍊':s.inv==='БЦК'?'🏦':'💵'} ${s.inv}</span></td>
       <td><div class="actions-cell">
-        <button class="act-btn" onclick="salesTogglePay(${salesData.indexOf(s)})" title="${s.pay==='Оплачен'?'Отменить оплату':'Отметить оплачено'}">${s.pay==='Оплачен'?'↩':'✓'}</button>
+        <button class="act-btn" onclick="salesTogglePay(${realIdx})" title="${s.pay==='Оплачен'?'Отменить оплату':'Отметить оплачено'}">${s.pay==='Оплачен'?'↩':'✓'}</button>
       </div></td>
-    </tr>`).join('')
+    </tr>`;}).join('')
   : '<tr><td colspan="11" style="text-align:center;padding:20px;color:#9ca3af;">Нет продаж</td></tr>';
 }
 
 function salesTogglePay(idx) {
-  const s=salesData[salesData.length-1-idx];
+  const s=salesData[idx];
   if(!s) return;
   s.pay = s.pay==='Оплачен'?'Ожидает':'Оплачен';
   salesSaveToStorage();
@@ -5980,8 +5996,6 @@ function salesTogglePay(idx) {
 async function salesOpenNew() {
   modalReset();
   await whFetchFromApi();
-  // Show the full catalog; out-of-stock items are marked but still selectable.
-  const avail = warehouseData;
   document.getElementById('modalTitle').textContent = '💰 Новая продажа';
   document.getElementById('modalBadge').textContent = 'Продажа';
   document.getElementById('modalBadge').className   = 'modal-badge badge b-ok';
@@ -5992,25 +6006,12 @@ async function salesOpenNew() {
     <div class="fg">
       <div class="field"><label>Дата *</label><input type="date" id="sl-date" value="${whToday()}"></div>
       <div class="field"><label>Клиент *</label><input type="text" id="sl-client" placeholder="ФИО или ТОО..."></div>
-      <div class="field full" style="grid-column:1/-1;">
-        <label>Товар со склада *</label>
-        <select id="sl-sku" onchange="salesOnSkuChange()">
-          <option value="">— Выберите товар —</option>
-          ${avail.map(p=>{const free=whGetFree(p);const stockLbl=free>0?`свободно: ${free} шт.`:'⛔ нет в наличии';return `<option value="${p.id}" data-price="${p.price}" data-stock="${free}">${p.name} (${stockLbl})${p.price?' · '+whFmt(p.price)+' ₸':''}</option>`;}).join('')}
-          <option value="_custom">✏️ Ввести вручную</option>
+      <div class="field"><label>Тип клиента *</label>
+        <select id="sl-ctype" onchange="salesClientTypeChange()">
+          <option value="retail">🛒 Покупатель (розница)</option>
+          <option value="client">🤝 Клиент (скидка)</option>
         </select>
       </div>
-      <div id="sl-custom-row" style="display:none;grid-column:1/-1;" class="field">
-        <label>Наименование (вручную)</label>
-        <input type="text" id="sl-custom-name" placeholder="Введите наименование">
-      </div>
-      <div class="field">
-        <label>Количество *</label>
-        <input type="number" id="sl-qty" min="1" value="1" onchange="salesCalcSum()" placeholder="0">
-        <div style="font-size:10px;color:#6b7280;margin-top:3px;" id="sl-stock-hint"></div>
-      </div>
-      <div class="field"><label>Цена за ед. (₸) *</label><input type="number" id="sl-price" value="0" onchange="salesCalcSum()"></div>
-      <div class="field"><label>Сумма (₸)</label><input type="number" id="sl-sum" value="0" readonly style="background:#f9fafb;font-weight:700;"></div>
       <div class="field"><label>Оплата</label>
         <select id="sl-pay"><option value="Ожидает">⏳ Ожидает</option><option value="Оплачен">✓ Оплачен</option></select>
       </div>
@@ -6023,78 +6024,162 @@ async function salesOpenNew() {
       </div>
       <div class="field"><label>Комментарий</label><input type="text" id="sl-comment" placeholder="Необязательно"></div>
     </div>
+    <div style="margin-top:6px;">
+      <label style="font-size:12px;font-weight:600;color:#374151;">Товары *</label>
+      <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:13px;">
+        <thead>
+          <tr style="background:#f9fafb;color:#6b7280;font-size:11px;text-transform:uppercase;">
+            <th style="text-align:left;padding:6px;">Товар</th>
+            <th style="text-align:center;padding:6px;width:70px;">Кол-во</th>
+            <th style="text-align:right;padding:6px;width:104px;">Цена</th>
+            <th style="text-align:right;padding:6px;width:110px;">Сумма</th>
+            <th style="width:34px;"></th>
+          </tr>
+        </thead>
+        <tbody id="sl-items"></tbody>
+      </table>
+      <button type="button" class="btn btn-sm" style="margin-top:8px;" onclick="salesAddItem()">➕ Добавить товар</button>
+    </div>
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid #e5e7eb;">
+      <span style="font-size:13px;color:#6b7280;">Итого:</span>
+      <span id="sl-total" style="font-size:18px;font-weight:800;color:#059669;">0 ₸</span>
+    </div>
   `;
   document.getElementById('modalFooterLeft').innerHTML = '';
   document.getElementById('modalSaveBtn').onclick = salesDoSave;
   document.getElementById('modalOverlay').classList.add('open');
+  salesAddItem(); // start with one line item
   setTimeout(()=>document.getElementById('sl-client').focus(),100);
 }
 
-function salesOnSkuChange() {
-  const sel  = document.getElementById('sl-sku');
-  const opt  = sel.options[sel.selectedIndex];
-  const val  = sel.value;
-  const custom = document.getElementById('sl-custom-row');
-  custom.style.display = val==='_custom'?'block':'none';
-  if (val && val!=='_custom') {
-    const price = +opt.dataset.price||0;
-    const stock = +opt.dataset.stock||0;
-    document.getElementById('sl-price').value = price;
-    document.getElementById('sl-stock-hint').textContent = `Доступно на складе: ${stock} шт.`;
-    salesCalcSum();
-  } else {
-    document.getElementById('sl-stock-hint').textContent='';
-  }
+// ── SALES LINE ITEMS ──────────────────────────────────────────
+function salesProductOptions() {
+  return warehouseData.map(p=>{
+    const free    = whGetFree(p);
+    const stockLbl= free>0 ? `своб. ${free}` : '⛔ нет';
+    const retail  = p.price  || 0;
+    const discount= p.priceD || p.price || 0;
+    return `<option value="${p.id}" data-retail="${retail}" data-discount="${discount}" data-stock="${free}">${p.name} (${stockLbl})</option>`;
+  }).join('');
 }
 
-function salesCalcSum() {
-  const qty   = +document.getElementById('sl-qty').value||0;
-  const price = +document.getElementById('sl-price').value||0;
-  document.getElementById('sl-sum').value = qty*price;
+function salesItemRowHtml() {
+  return `<tr class="sl-item" style="border-bottom:1px solid #f3f4f6;">
+    <td style="padding:5px 6px;">
+      <select class="sl-it-prod" onchange="salesRowProductChange(this)" style="width:100%;font-size:12px;">
+        <option value="">— выберите товар —</option>${salesProductOptions()}
+      </select>
+    </td>
+    <td style="padding:5px 6px;text-align:center;">
+      <input type="number" class="sl-it-qty" min="1" value="1" oninput="salesRowRecalc(this)" style="width:60px;text-align:center;">
+    </td>
+    <td style="padding:5px 6px;text-align:right;">
+      <input type="number" class="sl-it-price" value="0" min="0" oninput="salesRowRecalc(this)" readonly style="width:96px;text-align:right;background:#f9fafb;">
+    </td>
+    <td class="sl-it-sum" style="padding:5px 6px;text-align:right;font-weight:700;">0 ₸</td>
+    <td style="padding:5px 6px;text-align:center;">
+      <button type="button" class="act-btn" onclick="salesRemoveItem(this)" title="Удалить" style="color:#dc2626;">✕</button>
+    </td>
+  </tr>`;
+}
+
+function salesAddItem() {
+  document.getElementById('sl-items').insertAdjacentHTML('beforeend', salesItemRowHtml());
+}
+
+function salesRemoveItem(btn) {
+  const rows = document.querySelectorAll('#sl-items .sl-item');
+  if (rows.length<=1) { showToast('⚠️ Нужна хотя бы одна позиция'); return; }
+  btn.closest('tr').remove();
+  salesRecalcTotal();
+}
+
+// Fill a row's price from the selected product according to the client type:
+// Покупатель → retail price, read-only; Клиент → discount price, editable.
+function salesApplyRowPrice(row) {
+  const sel     = row.querySelector('.sl-it-prod');
+  const priceEl = row.querySelector('.sl-it-price');
+  const ctype   = document.getElementById('sl-ctype').value;
+  const opt     = sel.options[sel.selectedIndex];
+  if (sel.value && opt) {
+    const retail   = +opt.dataset.retail   || 0;
+    const discount = +opt.dataset.discount || 0;
+    priceEl.value      = ctype==='retail' ? retail : discount;
+    priceEl.readOnly   = (ctype==='retail');
+    priceEl.style.background = priceEl.readOnly ? '#f9fafb' : '#fff';
+  }
+  salesRowRecalc(priceEl);
+}
+
+function salesRowProductChange(sel) { salesApplyRowPrice(sel.closest('tr')); }
+
+function salesClientTypeChange() {
+  document.querySelectorAll('#sl-items .sl-item').forEach(salesApplyRowPrice);
+}
+
+function salesRowRecalc(el) {
+  const row   = el.closest('tr');
+  const qty   = +row.querySelector('.sl-it-qty').value   || 0;
+  const price = +row.querySelector('.sl-it-price').value || 0;
+  row.querySelector('.sl-it-sum').textContent = whFmt(qty*price)+' ₸';
+  salesRecalcTotal();
+}
+
+function salesRecalcTotal() {
+  let t=0;
+  document.querySelectorAll('#sl-items .sl-item').forEach(r=>{
+    const q = +r.querySelector('.sl-it-qty').value   || 0;
+    const p = +r.querySelector('.sl-it-price').value || 0;
+    t += q*p;
+  });
+  const el=document.getElementById('sl-total'); if(el) el.textContent=whFmt(t)+' ₸';
 }
 
 function salesDoSave() {
   const date   = document.getElementById('sl-date').value;
   const client = document.getElementById('sl-client').value.trim();
-  const skuVal = document.getElementById('sl-sku').value;
-  const qty    = +document.getElementById('sl-qty').value;
-  const price  = +document.getElementById('sl-price').value;
+  const ctypeV = document.getElementById('sl-ctype').value;
+  const clientType = ctypeV==='retail' ? 'Покупатель' : 'Клиент';
   const pay    = document.getElementById('sl-pay').value;
   const inv    = document.getElementById('sl-inv').value;
 
   if (!date||!client) { showToast('⚠️ Заполните дату и клиента'); return; }
-  if (!skuVal)         { showToast('⚠️ Выберите товар');          return; }
-  if (!qty||qty<=0)    { showToast('⚠️ Укажите количество');      return; }
 
-  let sku='', name='', fullName='';
+  // Collect all valid line items
+  const items = [];
+  document.querySelectorAll('#sl-items .sl-item').forEach(row=>{
+    const sku   = row.querySelector('.sl-it-prod').value;
+    const qty   = +row.querySelector('.sl-it-qty').value   || 0;
+    const price = +row.querySelector('.sl-it-price').value || 0;
+    if (!sku || qty<=0) return;
+    const p = warehouseData.find(x=>x.id===sku);
+    items.push({ sku, name: p?.name||sku, fullName: p?.full||p?.name||sku, qty, price, sum: qty*price });
+  });
 
-  if (skuVal==='_custom') {
-    name = document.getElementById('sl-custom-name').value.trim();
-    if (!name){showToast('⚠️ Введите наименование');return;}
-    fullName=name;
-  } else {
-    // Списываем со склада
-    const no = salesNextNo();
-    const result = whDeductSale(skuVal, qty, client, no);
-    if (!result.ok) { showToast('⚠️ '+result.msg); return; }
-    sku = skuVal;
-    const p = warehouseData.find(x=>x.id===skuVal);
-    name     = p?.name||skuVal;
-    fullName = p?.full||name;
-    renderWarehouse(); // обновляем склад
-  }
+  if (!items.length) { showToast('⚠️ Добавьте хотя бы один товар'); return; }
 
+  // Deduct each item from stock (overselling allowed — see whDeductSale)
+  const no = salesNextNo();
+  items.forEach(it => whDeductSale(it.sku, it.qty, client, no));
+  renderWarehouse();
+
+  const totalQty = items.reduce((s,i)=>s+i.qty,0);
+  const totalSum = items.reduce((s,i)=>s+i.sum,0);
   const rec = {
-    no: salesNextNo(), date, client,
-    sku, name, fullName, qty, price,
-    sum: qty*price, pay, inv,
+    no, date, client, clientType, items,
+    qty: totalQty, sum: totalSum, pay, inv,
     comment: document.getElementById('sl-comment').value,
+    // summary fields kept for the journal/export
+    name:  items.length===1 ? items[0].name : `${items[0].name} +${items.length-1}`,
+    sku:   items.length===1 ? items[0].sku  : '',
+    price: items.length===1 ? items[0].price : 0,
+    fullName: items.map(i=>`${i.name} ×${i.qty}`).join('; '),
   };
   salesData.push(rec);
   salesSaveToStorage();
   renderSales();
   closeModal();
-  showToast(`✅ Продажа: ${name} · ${qty} шт. · ${whFmt(qty*price)} ₸${sku?' · Склад обновлён':''}`);
+  showToast(`✅ Продажа ${no}: ${items.length} поз. · ${whFmt(totalSum)} ₸ · Склад обновлён`);
 }
 
 function salesExport() {
