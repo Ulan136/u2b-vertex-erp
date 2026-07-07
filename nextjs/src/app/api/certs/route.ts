@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const conditions = [eq(certificates.isArchived, archived)];
     if (source) {
       conditions.push(
-        eq(certificates.source, source as 'SAME' | 'VDK' | 'TEC' | 'Vyezdnaya' | 'Pervichnaya')
+        eq(certificates.source, source as typeof certificates.source.enumValues[number])
       );
     }
 
