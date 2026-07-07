@@ -15,7 +15,8 @@ export async function PATCH(
       .where(eq(certificates.id, params.id))
       .returning();
     return NextResponse.json(updated);
-  } catch {
+  } catch (err) {
+    console.error('[PATCH /api/certs/[id]]', err);
     return NextResponse.json({ error: 'Update error' }, { status: 500 });
   }
 }
@@ -27,7 +28,8 @@ export async function DELETE(
   try {
     await db.delete(certificates).where(eq(certificates.id, params.id));
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    console.error('[DELETE /api/certs/[id]]', err);
     return NextResponse.json({ error: 'Delete error' }, { status: 500 });
   }
 }

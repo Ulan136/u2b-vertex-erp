@@ -7,7 +7,8 @@ export async function GET() {
   try {
     const rows = await db.select().from(sales).orderBy(desc(sales.createdAt));
     return NextResponse.json(rows);
-  } catch {
+  } catch (err) {
+    console.error('[GET /api/sales]', err);
     return NextResponse.json({ error: 'DB error' }, { status: 500 });
   }
 }
@@ -30,7 +31,8 @@ export async function POST(req: NextRequest) {
       });
     }
     return NextResponse.json(sale, { status: 201 });
-  } catch {
+  } catch (err) {
+    console.error('[POST /api/sales]', err);
     return NextResponse.json({ error: 'Sale error' }, { status: 500 });
   }
 }

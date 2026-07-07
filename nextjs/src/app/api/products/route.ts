@@ -7,7 +7,8 @@ export async function GET() {
   try {
     const rows = await db.select().from(products).where(eq(products.isActive, true));
     return NextResponse.json(rows);
-  } catch {
+  } catch (err) {
+    console.error('[GET /api/products]', err);
     return NextResponse.json({ error: 'DB error' }, { status: 500 });
   }
 }
@@ -17,7 +18,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const [move] = await db.insert(stockMovements).values(body).returning();
     return NextResponse.json(move, { status: 201 });
-  } catch {
+  } catch (err) {
+    console.error('[POST /api/products]', err);
     return NextResponse.json({ error: 'Move error' }, { status: 500 });
   }
 }

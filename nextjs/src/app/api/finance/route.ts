@@ -10,7 +10,8 @@ export async function GET() {
       db.select().from(financeOperations).orderBy(desc(financeOperations.createdAt)).limit(50),
     ]);
     return NextResponse.json({ accounts, operations });
-  } catch {
+  } catch (err) {
+    console.error('[GET /api/finance]', err);
     return NextResponse.json({ error: 'DB error' }, { status: 500 });
   }
 }
@@ -20,7 +21,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const [op] = await db.insert(financeOperations).values(body).returning();
     return NextResponse.json(op, { status: 201 });
-  } catch {
+  } catch (err) {
+    console.error('[POST /api/finance]', err);
     return NextResponse.json({ error: 'Op error' }, { status: 500 });
   }
 }

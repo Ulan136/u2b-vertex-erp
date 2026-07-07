@@ -23,7 +23,8 @@ export async function GET(req: NextRequest) {
       .orderBy(desc(certificates.createdAt));
 
     return NextResponse.json(rows);
-  } catch {
+  } catch (err) {
+    console.error('[GET /api/certs]', err);
     return NextResponse.json({ error: 'DB error' }, { status: 500 });
   }
 }
@@ -33,7 +34,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const [cert] = await db.insert(certificates).values(body).returning();
     return NextResponse.json(cert, { status: 201 });
-  } catch {
+  } catch (err) {
+    console.error('[POST /api/certs]', err);
     return NextResponse.json({ error: 'Create error' }, { status: 500 });
   }
 }
