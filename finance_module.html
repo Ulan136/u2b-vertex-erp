@@ -4,428 +4,305 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Финансы — U2B-Vertex</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{
-  --bg:#0A0B0F; --surface:#13151C; --s2:#1C1F2A; --s3:#252935;
-  --border:#2A2D3A; --border2:#353849;
-  --accent:#F5C842; --accent2:#E6B800;
-  --green:#22C55E; --red:#EF4444; --blue:#3B82F6;
-  --text:#F0F2FF; --t2:#9BA3C2; --t3:#5C6280;
-  --gold-glow:rgba(245,200,66,0.15);
-  --r:16px; --r-sm:10px;
+  --bg:#f5f6fa; --card:#fff; --border:#e5e7eb;
+  --blue:#1a56db; --blue2:#0ea5e9;
+  --green:#22c55e; --red:#ef4444; --amber:#f59e0b;
+  --text:#111827; --muted:#6b7280; --muted2:#9ca3af;
 }
-html,body{height:100%;overscroll-behavior:none;}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);}
 
 /* ── HEADER ── */
-.hdr{background:var(--surface);position:sticky;top:0;z-index:200;border-bottom:1px solid var(--border);}
-.hdr-inner{padding:14px 14px 0;}
+.hdr{background:linear-gradient(135deg,#1a56db,#0ea5e9);position:sticky;top:0;z-index:200;}
+.hdr-inner{padding:14px 16px 0;}
 .hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
-.hdr-logo{display:flex;align-items:center;gap:8px;}
-.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),#FF9900);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem;box-shadow:0 2px 12px rgba(245,200,66,.35);}
-.logo-texts .lt{font-family:'Playfair Display',Georgia,serif;color:var(--accent);font-size:1.15rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
-.logo-texts .ls{font-size:.54rem;color:var(--t3);letter-spacing:.5px;font-style:italic;}
+.hdr-logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+.logo-texts .lt{color:#fff;font-size:15px;font-weight:800;letter-spacing:.5px;}
+.logo-texts .ls{font-size:10px;color:rgba(255,255,255,.7);}
 .hdr-right{text-align:right;}
-.total-lbl{font-size:.56rem;color:var(--t3);text-transform:uppercase;letter-spacing:1px;font-style:italic;}
-.total-val{font-family:'Playfair Display',Georgia,serif;color:var(--accent);font-size:1.45rem;font-weight:700;}
+.total-lbl{font-size:10px;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.06em;}
+.total-val{color:#fff;font-size:22px;font-weight:800;}
 
 /* Балансы chips */
 .bal-row{display:flex;gap:8px;overflow-x:auto;padding-bottom:12px;scrollbar-width:none;}
 .bal-row::-webkit-scrollbar{display:none;}
-.bal-chip{background:var(--s2);border:1px solid var(--border);border-radius:12px;padding:9px 13px;min-width:105px;flex-shrink:0;cursor:pointer;transition:all .2s;}
-.bal-chip:hover,.bal-chip.sel{border-color:var(--accent);background:var(--gold-glow);}
-.bc-cat{font-size:.55rem;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:1px;}
-.bc-name{font-size:.65rem;font-weight:600;color:var(--t2);}
-.bc-val{font-family:'Playfair Display',Georgia,serif;font-size:1.0rem;font-weight:700;color:var(--text);margin-top:2px;}
+.bal-chip{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:9px 13px;min-width:110px;flex-shrink:0;cursor:pointer;transition:all .2s;}
+.bal-chip:hover,.bal-chip.sel{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.4);}
+.bc-cat{font-size:10px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;}
+.bc-name{font-size:11px;font-weight:500;color:rgba(255,255,255,.8);}
+.bc-val{font-size:14px;font-weight:800;color:#fff;margin-top:2px;}
 
 /* Tabs */
-.tabs{display:flex;border-top:1px solid var(--border);}
-.tab{flex:1;padding:9px 2px 10px;text-align:center;font-size:.54rem;font-weight:700;color:var(--t3);border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:.3px;}
-.tab .ico{font-size:1.25rem;display:block;margin-bottom:2px;}
-.tab.on{color:var(--accent);border-bottom-color:var(--accent);}
+.tabs{display:flex;background:rgba(0,0,0,.15);border-top:1px solid rgba(255,255,255,.1);}
+.tab{flex:1;padding:9px 2px 10px;text-align:center;font-size:9px;font-weight:700;color:rgba(255,255,255,.6);border-bottom:2px solid transparent;cursor:pointer;transition:all .2s;text-transform:uppercase;letter-spacing:.3px;}
+.tab .ico{font-size:20px;display:block;margin-bottom:2px;}
+.tab.on{color:#fff;border-bottom-color:#fff;}
 
-/* Swipe panes */
+/* Swipe */
 .swipe-wrap{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;width:100%;}
 .swipe-wrap::-webkit-scrollbar{display:none;}
-.pane{flex:0 0 100%;scroll-snap-align:start;min-width:100%;padding:12px 12px 100px;}
+.pane{min-width:100%;scroll-snap-align:start;padding:14px;overflow-y:auto;}
 
-/* Cards */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:12px;}
-.card-hd{font-size:.7rem;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;}
+/* ── CARDS ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.card-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;}
 
 /* Type toggle */
-.tgl{display:flex;gap:8px;margin:8px 0 4px;}
-.tgl-btn{flex:1;padding:12px 6px;border-radius:var(--r-sm);border:1.5px solid var(--border);background:var(--s2);font-weight:700;font-size:.88rem;cursor:pointer;transition:all .18s;color:var(--t3);}
-.tgl-btn.inc.on{background:rgba(34,197,94,.08);border-color:var(--green);color:var(--green);}
-.tgl-btn.exp.on{background:rgba(239,68,68,.08);border-color:var(--red);color:var(--red);}
+.type-tgl{display:flex;background:#f3f4f6;border-radius:10px;padding:3px;gap:3px;margin-bottom:14px;}
+.tgl-btn{flex:1;padding:9px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:var(--muted);transition:all .2s;}
+.tgl-btn.on.inc{background:#fff;color:var(--green);box-shadow:0 1px 4px rgba(0,0,0,.1);}
+.tgl-btn.on.exp{background:#fff;color:var(--red);box-shadow:0 1px 4px rgba(0,0,0,.1);}
 
-/* Mode tint */
-#pane-ops.mode-income .card:first-child{border-color:rgba(34,197,94,.22);background:linear-gradient(180deg,rgba(34,197,94,.06) 0%,var(--surface) 70px);}
-#pane-ops.mode-expense .card:first-child{border-color:rgba(239,68,68,.22);background:linear-gradient(180deg,rgba(239,68,68,.06) 0%,var(--surface) 70px);}
+/* Inputs */
+.inp-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px;margin-top:10px;}
+.inp-lbl:first-child{margin-top:0;}
+.inp{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;color:var(--text);background:#fff;outline:none;font-family:inherit;transition:border-color .15s;}
+.inp:focus{border-color:var(--blue);}
+select.inp{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+.amt-inp{width:100%;padding:12px 13px;border:1.5px solid var(--border);border-radius:10px;font-size:22px;font-weight:800;color:var(--text);background:#f9fafb;outline:none;font-family:inherit;transition:all .15s;cursor:pointer;}
+.amt-inp:focus{border-color:var(--blue);background:#fff;}
+.op-preview{padding:8px 12px;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;font-size:13px;font-weight:600;color:var(--green);margin-top:6px;display:none;}
 
-/* Labels & inputs */
-.lbl{font-size:.65rem;font-weight:600;color:var(--t3);margin-bottom:5px;margin-top:12px;display:block;text-transform:uppercase;letter-spacing:.5px;}
-.lbl:first-child{margin-top:0;}
-select,input[type=text],input[type=number],input[type=date]{
-  width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);
-  font-size:.9rem;color:var(--text);background:var(--s2);appearance:none;outline:none;
-  transition:border-color .18s;font-family:'Inter',sans-serif;
-}
-select:focus,input:focus{border-color:var(--accent);background:var(--s3);box-shadow:0 0 0 3px var(--gold-glow);}
-select option{background:var(--s2);}
-input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.7);}
+/* Save btn */
+.save-btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;margin-top:14px;transition:all .15s;}
+.save-btn:active{transform:scale(.97);}
+.btn-green{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;box-shadow:0 4px 14px rgba(34,197,94,.3);}
+.btn-red{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;box-shadow:0 4px 14px rgba(239,68,68,.3);}
+.btn-blue{background:linear-gradient(135deg,#1a56db,#0ea5e9);color:#fff;box-shadow:0 4px 16px rgba(26,86,219,.3);}
 
-/* Calc input */
-.calc-wrap{position:relative;}
-.calc-input{width:100%;padding:11px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:1rem;color:var(--text);background:var(--s2);outline:none;transition:all .18s;font-family:'SF Mono','Fira Code',monospace;font-weight:700;}
-.calc-input:focus{border-color:var(--accent);background:var(--s3);box-shadow:0 0 0 3px var(--gold-glow);}
-.calc-preview{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:.78rem;font-weight:700;color:var(--accent);pointer-events:none;background:rgba(245,200,66,.12);padding:2px 7px;border-radius:6px;display:none;}
-.calc-break{margin-top:4px;font-size:.7rem;color:var(--t3);padding:0 3px;display:none;}
+/* Op list */
+.op-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f9fafb;}
+.op-item:last-child{border-bottom:none;}
+.op-ico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.op-inc{background:#f0fdf4;} .op-exp{background:#fef2f2;} .op-trf{background:#eff6ff;}
+.op-info{flex:1;min-width:0;}
+.op-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.op-meta{font-size:10px;color:var(--muted);margin-top:2px;}
+.op-amt{font-size:13px;font-weight:700;flex-shrink:0;}
+.amt-inc{color:var(--green);} .amt-exp{color:var(--red);} .amt-trf{color:var(--muted);}
 
-/* Buttons */
-.btn{width:100%;padding:14px;border:none;border-radius:12px;font-size:.93rem;font-weight:700;cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;}
-.btn:active{transform:scale(.97);}
-.btn-gold{background:linear-gradient(135deg,var(--accent),#E6A800);color:#0A0B0F;font-weight:800;box-shadow:0 4px 20px rgba(245,200,66,.3);}
-.btn-green{background:linear-gradient(135deg,#22C55E,#16A34A);color:#fff;box-shadow:0 4px 14px rgba(34,197,94,.25);}
-.btn-red{background:linear-gradient(135deg,#EF4444,#DC2626);color:#fff;}
-.btn-purple{background:linear-gradient(135deg,#A855F7,#7C3AED);color:#fff;}
-.btn-ghost{background:var(--s2);border:1.5px solid var(--border);color:var(--t2);font-size:.8rem;font-weight:600;padding:9px 13px;border-radius:var(--r-sm);width:auto;}
-.btn-sm{width:auto;padding:8px 14px;font-size:.8rem;border-radius:9px;}
-.row2{display:flex;gap:8px;align-items:flex-end;}
-.row2>*{flex:1;}
+/* Acct item */
+.acct-item{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid #f9fafb;cursor:pointer;}
+.acct-item:last-child{border-bottom:none;}
+.acct-ico{font-size:22px;}
+.acct-info{flex:1;}
+.acct-name{font-size:13px;font-weight:700;}
+.acct-cat{font-size:10px;color:var(--muted);}
+.acct-bal{font-size:16px;font-weight:800;}
 
-/* History columns */
-.hcols{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;}
-.hcols::-webkit-scrollbar{display:none;}
-.hcol{min-width:160px;flex:1;display:flex;flex-direction:column;}
-.hcol-hd{padding:10px;border-radius:10px 10px 0 0;color:#fff;font-size:.75rem;font-weight:700;text-align:center;}
-.hcol-hd-bal{font-size:.7rem;opacity:.82;margin-top:2px;}
-.hcol-body{flex:1;background:var(--s2);border:1px solid var(--border);border-top:none;border-bottom:none;}
-.hrow{display:flex;align-items:center;justify-content:space-between;padding:7px 9px;border-bottom:1px solid var(--border);gap:5px;}
-.hrow-left{flex:1;min-width:0;}
-.hrow-name{font-size:.74rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.hrow-date{font-size:.6rem;color:var(--t3);margin-top:1px;}
-.hrow-amt{font-size:.78rem;font-weight:700;flex-shrink:0;}
-.hrow-amt.inc{color:var(--green);}
-.hrow-amt.exp{color:var(--red);}
-.hrow-amt.trf-from{color:var(--red);}
-.hrow-amt.trf-to{color:var(--t2);}
-.hcol-foot{display:flex;justify-content:space-between;padding:7px 9px;background:var(--s3);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;font-size:.72rem;font-weight:700;}
-.hist-date-balances{display:none;margin-bottom:10px;}
-.hdb-inner{display:flex;gap:6px;flex-wrap:wrap;padding:10px;background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);}
-.hdb-lbl{width:100%;font-size:.58rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;}
-.hdb-chip{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:5px 9px;flex:1;min-width:80px;text-align:center;}
-.hdb-chip-name{font-size:.56rem;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;}
-.hdb-chip-val{font-family:'Playfair Display',Georgia,serif;font-size:.84rem;font-weight:700;color:var(--text);}
+/* Fav item */
+.fav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#f9fafb;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;}
+.fav-ico{font-size:18px;}
+.fav-info{flex:1;}
+.fav-name{font-size:13px;font-weight:600;}
+.fav-meta{font-size:10px;color:var(--muted);}
+.fav-amt{font-size:13px;font-weight:700;color:var(--blue);}
 
-/* Favs */
-.fav-item{background:var(--s2);border:1.5px solid var(--border);border-radius:var(--r-sm);padding:11px 12px;margin-bottom:8px;}
-.fav-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
-.fav-name{font-size:.85rem;font-weight:700;color:var(--text);}
-.fav-del{background:none;border:none;color:var(--t3);font-size:1rem;cursor:pointer;padding:2px 5px;}
-.fav-del:hover{color:var(--red);}
-.fav-row{display:flex;gap:6px;align-items:center;}
-.fav-acct{font-size:.65rem;color:var(--t3);background:var(--s3);border-radius:5px;padding:2px 7px;}
-.fav-type-inc{color:var(--green);font-size:.7rem;font-weight:700;}
-.fav-type-exp{color:var(--red);font-size:.7rem;font-weight:700;}
-.fav-amt-input{flex:1;padding:8px 10px;background:var(--s3);border:1px solid var(--border);border-radius:8px;font-size:.9rem;font-weight:700;color:var(--text);font-family:'SF Mono',monospace;outline:none;text-align:right;}
-.batch-date-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
-.batch-total{font-size:.85rem;font-weight:700;color:var(--t2);}
-.batch-total span{color:var(--accent);}
+/* Section label */
+.sec-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px;display:flex;align-items:center;gap:6px;}
+.sec-lbl::after{content:'';flex:1;height:1px;background:var(--border);}
 
-/* Category manage */
-.cat-section{margin-bottom:16px;}
-.cat-section-title{font-size:.7rem;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
-.cat-item{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--s2);border:1px solid var(--border);border-radius:9px;margin-bottom:6px;}
-.ci-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.ci-name{flex:1;font-size:.85rem;font-weight:600;color:var(--text);}
-.ci-count{font-size:.65rem;color:var(--t3);background:var(--s3);padding:2px 7px;border-radius:10px;}
-.ci-del{background:none;border:none;color:var(--t3);cursor:pointer;font-size:.9rem;padding:2px 4px;}
-.ci-del:hover{color:var(--red);}
-.acct-item{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--s2);border:1px solid var(--border);border-radius:9px;margin-bottom:6px;}
-.ai-icon{font-size:1.1rem;}
-.ai-info{flex:1;}
-.ai-name{font-size:.85rem;font-weight:700;color:var(--text);}
-.ai-cat{font-size:.63rem;color:var(--t3);}
-.ai-bal{font-family:'Playfair Display',Georgia,serif;font-size:1rem;font-weight:700;color:var(--text);cursor:pointer;border-bottom:1px dashed var(--t3);}
-.ai-bal:hover{color:var(--accent);}
-
-/* Add box */
-.add-box{background:var(--s2);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px;margin-top:6px;display:none;}
-
-/* Empty */
-.empty-box{text-align:center;padding:32px 16px;color:var(--t3);}
-.empty-ico{font-size:2.2rem;margin-bottom:8px;}
-
-/* Numpad */
-.np-overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;}
-.np-sheet{width:100%;background:#1C1F2B;border-radius:14px 14px 0 0;padding-bottom:env(safe-area-inset-bottom,6px);box-shadow:0 -2px 20px rgba(0,0,0,.5);}
-.np-top{display:flex;align-items:center;justify-content:space-between;padding:9px 14px 7px;border-bottom:1px solid rgba(255,255,255,.07);gap:10px;}
-.np-top-left{flex:1;}
-.np-lbl{font-size:.56rem;font-weight:600;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;}
-.np-disp{font-family:'Playfair Display',Georgia,serif;font-size:1.5rem;font-weight:700;color:#fff;letter-spacing:-.5px;word-break:break-all;}
-.np-expr{font-size:.63rem;color:var(--accent);font-weight:600;margin-top:2px;min-height:14px;}
-.np-close{background:rgba(255,255,255,.07);border:none;color:rgba(255,255,255,.45);font-size:.63rem;font-weight:600;padding:5px 11px;border-radius:20px;cursor:pointer;}
-.np-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,.06);border-top:1px solid rgba(255,255,255,.06);}
-.np-btn{background:#1C1F2B;height:52px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:500;color:#fff;cursor:pointer;user-select:none;transition:background .08s;}
-.np-btn:active{background:#2C3040;}
-.np-btn.op{color:var(--accent);font-size:1.2rem;font-weight:700;background:#181B26;}
-.np-btn.del{color:#ff7070;background:#181B26;}
-.np-btn.ok{background:var(--green);color:#fff;font-weight:700;font-size:1.25rem;}
-
-/* Hist edit */
-.hrow.editable .hrow-amt{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px;}
-.hist-edit-btn{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:9px;background:var(--s2);border:1.5px solid var(--border);color:var(--t2);font-size:.75rem;font-weight:600;cursor:pointer;transition:all .15s;}
-.hist-edit-btn.active{background:rgba(245,200,66,.12);border-color:var(--accent);color:var(--accent);}
+/* Batch row */
+.batch-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f9fafb;}
+.batch-row:last-child{border-bottom:none;}
+.batch-chk{width:18px;height:18px;accent-color:var(--blue);}
 
 /* Toast */
-.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--s3);color:var(--text);border:1px solid var(--border2);padding:10px 20px;border-radius:50px;font-size:.85rem;font-weight:600;z-index:9999;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;white-space:nowrap;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(8px);background:#111827;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;font-weight:500;z-index:999;opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-::-webkit-scrollbar{width:3px;height:3px;}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:10px;}
+
+/* Numpad */
+.np-ov{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.4);display:none;align-items:flex-end;justify-content:center;}
+.np-ov.open{display:flex;}
+.np-sheet{width:100%;max-width:430px;background:#fff;border-radius:20px 20px 0 0;padding-bottom:8px;}
+.np-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);}
+.np-disp-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;}
+.np-disp{font-size:28px;font-weight:800;color:var(--text);margin-top:2px;}
+.np-close{background:var(--bg);border:none;color:var(--muted);font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;cursor:pointer;}
+.np-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);}
+.np-btn{background:#fff;height:56px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:500;cursor:pointer;transition:background .1s;}
+.np-btn:active{background:#f3f4f6;}
+.np-btn.op{color:var(--blue);font-weight:700;}
+.np-btn.del{color:var(--red);}
+.np-btn.ok{background:var(--green);color:#fff;font-weight:800;font-size:22px;}
+
+@media(min-width:430px){body{display:flex;justify-content:center;background:#e5e7eb;} .frame{width:390px;box-shadow:0 0 40px rgba(0,0,0,.2);}}
+.frame{display:flex;flex-direction:column;height:100vh;background:var(--bg);overflow:hidden;width:100%;}
 </style>
 </head>
 <body>
+<div class="frame">
 
 <!-- HEADER -->
 <div class="hdr">
-<div class="hdr-inner">
-<div class="hdr-top">
-  <div class="hdr-logo">
-    <div class="logo-icon">💳</div>
-    <div class="logo-texts">
-      <div class="lt">U‑Pay</div>
-      <div class="ls">Vertex Metrology · Финансы</div>
+  <div class="hdr-inner">
+    <div class="hdr-top">
+      <div class="hdr-logo">
+        <div class="logo-icon">💳</div>
+        <div class="logo-texts">
+          <div class="lt">U-PAY</div>
+          <div class="ls">Vertex Metrology · Финансы</div>
+        </div>
+      </div>
+      <div class="hdr-right">
+        <div class="total-lbl">Общий баланс</div>
+        <div class="total-val" id="total-val">0 ₸</div>
+      </div>
     </div>
+    <div class="bal-row" id="bal-row"></div>
   </div>
-  <div class="hdr-right">
-    <div class="total-lbl">Общий баланс</div>
-    <div class="total-val" id="total-val">—</div>
+  <div class="tabs">
+    <div class="tab on" onclick="swipeTo(0,this)"><span class="ico">💸</span>Операции</div>
+    <div class="tab" onclick="swipeTo(1,this)"><span class="ico">🔄</span>Переводы</div>
+    <div class="tab" onclick="swipeTo(2,this)"><span class="ico">⭐</span>Избранные</div>
+    <div class="tab" onclick="swipeTo(3,this)"><span class="ico">📋</span>История</div>
+    <div class="tab" onclick="swipeTo(4,this)"><span class="ico">🏦</span>Счета</div>
   </div>
 </div>
 
-<!-- BALANCE CHIPS -->
-<div class="bal-row" id="bal-row"></div>
-
-<!-- TABS -->
-<div class="tabs">
-  <div class="tab on" onclick="swipeTo(0,this)"><span class="ico">💳</span>Операции</div>
-  <div class="tab" onclick="swipeTo(1,this)"><span class="ico">🔄</span>Переводы</div>
-  <div class="tab" onclick="swipeTo(2,this)"><span class="ico">⭐</span>Избранные</div>
-  <div class="tab" onclick="swipeTo(3,this)"><span class="ico">📊</span>История</div>
-  <div class="tab" onclick="swipeTo(4,this)"><span class="ico">🗂</span>Счета</div>
-</div>
-</div>
-</div>
-
-<!-- SWIPE PANES -->
 <div class="swipe-wrap" id="swipe-wrap">
 
-<!-- PANE 0: ОПЕРАЦИИ -->
-<div class="pane" id="pane-ops">
-  <div class="card">
-    <div class="card-hd">Новая операция</div>
-    <div class="tgl">
-      <button class="tgl-btn inc on" id="tgl-inc" onclick="setType('income')">＋ Приход</button>
-      <button class="tgl-btn exp" id="tgl-exp" onclick="setType('expense')">－ Расход</button>
-    </div>
-    <label class="lbl">Дата</label>
-    <input type="date" id="op-date">
-    <label class="lbl">Наименование</label>
-    <div class="row2" style="margin-bottom:0;">
-      <select id="op-name"></select>
-      <button class="btn-ghost btn-sm" onclick="toggleAdd('add-name')">＋ Новое</button>
-    </div>
-    <div class="add-box" id="add-name">
-      <div class="row2">
-        <input type="text" id="new-name-val" placeholder="Новое наименование">
-        <button class="btn-ghost btn-sm" onclick="saveNewName()">Сохранить</button>
-        <button class="btn-ghost btn-sm" onclick="toggleAdd('add-name')">✕</button>
+  <!-- PANE 0: ОПЕРАЦИИ -->
+  <div class="pane" id="pane-ops">
+    <div class="card">
+      <div class="card-title">Новая операция</div>
+      <div class="type-tgl">
+        <button class="tgl-btn on inc" id="tgl-inc" onclick="setType('income')">＋ Приход</button>
+        <button class="tgl-btn exp" id="tgl-exp" onclick="setType('expense')">－ Расход</button>
       </div>
-    </div>
-    <label class="lbl">Счёт</label>
-    <select id="op-acct"></select>
-    <label class="lbl">Сумма (₸)</label>
-    <div class="calc-wrap">
-      <input class="calc-input" id="op-amt" type="text" inputmode="decimal" placeholder="— нажмите для ввода" readonly onclick="openNumpad('op-amt','op-preview','op-break','Сумма операции')">
-      <div class="calc-preview" id="op-preview"></div>
-    </div>
-    <div class="calc-break" id="op-break"></div>
-    <label class="lbl">Комментарий</label>
-    <input type="text" id="op-comment" placeholder="Необязательно">
-    <div style="margin-top:14px;">
-      <button class="btn btn-gold" onclick="saveOp()">💾 Сохранить операцию</button>
-    </div>
-  </div>
-</div>
-
-<!-- PANE 1: ПЕРЕВОДЫ -->
-<div class="pane" id="pane-trf">
-  <div class="card">
-    <div class="card-hd">Перевод между счетами</div>
-    <label class="lbl">Дата</label>
-    <input type="date" id="trf-date">
-    <label class="lbl">Со счёта</label>
-    <select id="trf-from"></select>
-    <div style="text-align:center;padding:6px 0;font-size:1.3rem;color:var(--t3);">⇅</div>
-    <label class="lbl">На счёт</label>
-    <select id="trf-to"></select>
-    <label class="lbl">Сумма (₸)</label>
-    <div class="calc-wrap">
-      <input class="calc-input" id="trf-amt" type="text" inputmode="decimal" placeholder="— нажмите для ввода" readonly onclick="openNumpad('trf-amt','trf-preview','trf-break','Сумма перевода')">
-      <div class="calc-preview" id="trf-preview"></div>
-    </div>
-    <div class="calc-break" id="trf-break"></div>
-    <label class="lbl">Комментарий</label>
-    <input type="text" id="trf-comment" placeholder="Необязательно">
-    <div style="margin-top:14px;">
-      <button class="btn btn-purple" onclick="saveTrf()">🔄 Провести перевод</button>
-    </div>
-  </div>
-</div>
-
-<!-- PANE 2: ИЗБРАННЫЕ -->
-<div class="pane" id="pane-favs">
-  <div class="card">
-    <div class="card-hd">➕ Новый избранный платёж</div>
-    <div class="row2">
-      <div style="flex:2;">
-        <label class="lbl">Наименование</label>
-        <input type="text" id="fav-new-name" placeholder="Зарплата, Аренда...">
+      <label class="inp-lbl">Дата</label>
+      <input class="inp" type="date" id="op-date">
+      <label class="inp-lbl">Наименование</label>
+      <div style="display:flex;gap:8px;">
+        <select class="inp" id="op-name" style="flex:1;"></select>
+        <button onclick="addNewName()" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;background:#fff;font-size:18px;cursor:pointer;white-space:nowrap;">+ Новое</button>
       </div>
-      <div>
-        <label class="lbl">Счёт</label>
-        <select id="fav-new-acct"></select>
+      <label class="inp-lbl">Счёт</label>
+      <select class="inp" id="op-acct"></select>
+      <label class="inp-lbl">Сумма (₸)</label>
+      <input class="amt-inp" id="op-amt" type="text" placeholder="— нажмите для ввода" readonly onclick="openNP('op-amt')">
+      <div class="op-preview" id="op-preview"></div>
+      <label class="inp-lbl">Комментарий</label>
+      <input class="inp" id="op-comment" placeholder="Необязательно">
+      <button class="save-btn btn-green" id="save-op-btn" onclick="saveOp()">💾 Сохранить операцию</button>
+    </div>
+    <!-- Last ops -->
+    <div class="sec-lbl">Последние операции</div>
+    <div class="card" id="recent-ops-card">
+      <div id="recent-ops" style="color:var(--muted2);font-size:13px;">Нет операций</div>
+    </div>
+  </div>
+
+  <!-- PANE 1: ПЕРЕВОДЫ -->
+  <div class="pane">
+    <div class="card">
+      <div class="card-title">Перевод между счетами</div>
+      <label class="inp-lbl">Дата</label>
+      <input class="inp" type="date" id="trf-date">
+      <label class="inp-lbl">Со счёта</label>
+      <select class="inp" id="trf-from"></select>
+      <div style="text-align:center;padding:8px 0;font-size:22px;color:var(--muted2);">⇅</div>
+      <label class="inp-lbl">На счёт</label>
+      <select class="inp" id="trf-to"></select>
+      <label class="inp-lbl">Сумма (₸)</label>
+      <input class="amt-inp" id="trf-amt" type="text" placeholder="— нажмите" readonly onclick="openNP('trf-amt')">
+      <label class="inp-lbl">Комментарий</label>
+      <input class="inp" id="trf-comment" placeholder="Необязательно">
+      <button class="save-btn btn-blue" onclick="saveTrf()">🔄 Выполнить перевод</button>
+    </div>
+  </div>
+
+  <!-- PANE 2: ИЗБРАННЫЕ -->
+  <div class="pane">
+    <div class="card">
+      <div class="card-title">Избранные операции</div>
+      <div class="type-tgl">
+        <button class="tgl-btn on inc" id="fav-tgl-inc" onclick="setFavType('income')">＋ Приход</button>
+        <button class="tgl-btn exp" id="fav-tgl-exp" onclick="setFavType('expense')">－ Расход</button>
       </div>
+      <div id="fav-list" style="margin-bottom:12px;"></div>
+      <div class="sec-lbl">Добавить в избранное</div>
+      <label class="inp-lbl">Наименование</label>
+      <input class="inp" id="fav-new-name" placeholder="Название">
+      <label class="inp-lbl">Счёт</label>
+      <select class="inp" id="fav-new-acct"></select>
+      <label class="inp-lbl">Сумма (₸)</label>
+      <input class="amt-inp" id="fav-new-amt" type="text" placeholder="— нажмите" readonly onclick="openNP('fav-new-amt')">
+      <button class="save-btn btn-blue" onclick="saveFav()">⭐ Добавить в избранное</button>
     </div>
-    <div class="tgl" style="margin-top:10px;">
-      <button class="tgl-btn inc on" id="fav-tgl-inc" onclick="setFavType('income')">＋ Приход</button>
-      <button class="tgl-btn exp" id="fav-tgl-exp" onclick="setFavType('expense')">－ Расход</button>
-    </div>
-    <label class="lbl">Сумма по умолчанию (₸)</label>
-    <div class="calc-wrap">
-      <input class="calc-input" id="fav-new-amt" type="text" inputmode="decimal" placeholder="0" readonly onclick="openNumpad('fav-new-amt','fav-preview','fav-break','Сумма')">
-      <div class="calc-preview" id="fav-preview"></div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:12px;">
-      <button class="btn btn-gold btn-sm" onclick="addFav()">Сохранить</button>
-      <button class="btn btn-ghost btn-sm" onclick="clearFavForm()">Отмена</button>
-    </div>
-  </div>
-
-  <div class="batch-date-row">
-    <div style="flex:1;">
-      <label class="lbl" style="margin-top:0;">Дата проведения</label>
-      <input type="date" id="batch-date">
-    </div>
-    <div style="flex:1;text-align:right;align-self:flex-end;padding-bottom:1px;">
-      <div class="total-lbl">Итого</div>
-      <div class="batch-total">— <span id="batch-total">0</span> ₸</div>
+    <!-- Batch -->
+    <div class="card">
+      <div class="card-title">Batch — провести несколько</div>
+      <div id="batch-list"></div>
+      <button class="save-btn btn-green" onclick="batchRun()" style="margin-top:10px;">▶ Провести выбранные</button>
     </div>
   </div>
 
-  <div id="fav-list"></div>
-
-  <button class="btn btn-green" id="batch-btn" onclick="doBatch()" style="display:none;margin-top:4px;">
-    🚀 Провести все платежи
-  </button>
-</div>
-
-<!-- PANE 3: ИСТОРИЯ -->
-<div class="pane" id="pane-hist">
-  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-    <div style="flex:1;min-width:100px;">
-      <label class="lbl" style="margin-top:0;">От</label>
-      <input type="date" id="h-from" onchange="loadHist()">
-    </div>
-    <div style="flex:1;min-width:100px;">
-      <label class="lbl" style="margin-top:0;">До</label>
-      <div style="display:flex;gap:5px;">
-        <input type="date" id="h-to" onchange="loadHist()" style="flex:1;">
-        <button class="btn-ghost btn-sm" onclick="clearHist()">✕</button>
+  <!-- PANE 3: ИСТОРИЯ -->
+  <div class="pane">
+    <div class="card">
+      <div class="card-title">История операций</div>
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <input class="inp" type="date" id="hist-from" style="flex:1;">
+        <input class="inp" type="date" id="hist-to" style="flex:1;">
+        <button onclick="loadHist()" style="padding:10px 14px;border:1.5px solid var(--blue);border-radius:10px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer;">→</button>
       </div>
+      <div id="hist-list" style="color:var(--muted2);font-size:13px;">Загрузка...</div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-    <span class="lbl" style="margin:0;" id="h-count">—</span>
-    <div style="display:flex;gap:8px;">
-      <button class="hist-edit-btn" id="hist-edit-btn" onclick="toggleHistEdit()">✏️ Редактировать</button>
-      <button class="btn-ghost btn-sm" onclick="doPdf()">📄 PDF</button>
+
+  <!-- PANE 4: СЧЕТА -->
+  <div class="pane">
+    <div class="card">
+      <div class="card-title">Мои счета</div>
+      <div id="accts-list"></div>
     </div>
-  </div>
-  <div id="hist-date-balances"></div>
-  <div id="hist-cols"></div>
-</div>
-
-<!-- PANE 4: СЧЕТА И КАТЕГОРИИ -->
-<div class="pane" id="pane-accts">
-  <div class="card">
-    <div class="card-hd">🗂 Категории денег</div>
-
-    <div id="cats-list"></div>
-
-    <div style="margin-top:8px;">
-      <button class="btn btn-ghost btn-sm" onclick="toggleAdd('add-cat-box')">+ Категория</button>
+    <!-- New account -->
+    <div class="card">
+      <div class="card-title">Добавить счёт</div>
+      <label class="inp-lbl">Название</label>
+      <input class="inp" id="new-acct-name" placeholder="Каспи Голд">
+      <label class="inp-lbl">Категория</label>
+      <select class="inp" id="new-acct-cat"></select>
+      <label class="inp-lbl">Иконка</label>
+      <input class="inp" id="new-acct-icon" placeholder="🍊" maxlength="4">
+      <label class="inp-lbl">Начальный баланс (₸)</label>
+      <input class="amt-inp" id="new-acct-bal" type="text" placeholder="0" readonly onclick="openNP('new-acct-bal')">
+      <button class="save-btn btn-blue" onclick="addAcct()">＋ Добавить счёт</button>
     </div>
-    <div class="add-box" id="add-cat-box">
-      <div class="row2" style="margin-top:0;">
-        <input type="text" id="new-cat-name" placeholder="Название категории">
-        <input type="text" id="new-cat-icon" placeholder="Иконка" style="max-width:60px;">
-        <button class="btn-ghost btn-sm" onclick="saveNewCat()">Сохранить</button>
-        <button class="btn-ghost btn-sm" onclick="toggleAdd('add-cat-box')">✕</button>
+    <!-- PDF -->
+    <div class="card">
+      <div class="card-title">Отчёт</div>
+      <div style="display:flex;gap:8px;">
+        <input class="inp" type="date" id="pdf-from" style="flex:1;">
+        <input class="inp" type="date" id="pdf-to" style="flex:1;">
       </div>
+      <button class="save-btn btn-blue" onclick="exportPDF()" style="margin-top:10px;">📄 Скачать PDF отчёт</button>
     </div>
   </div>
-
-  <div class="card">
-    <div class="card-hd">💳 Счета</div>
-    <div id="accts-list"></div>
-    <div style="margin-top:8px;">
-      <button class="btn btn-ghost btn-sm" onclick="toggleAdd('add-acct-box')">+ Счёт</button>
-    </div>
-    <div class="add-box" id="add-acct-box">
-      <div class="row2" style="margin-top:0;flex-wrap:wrap;gap:6px;">
-        <input type="text" id="new-acct-name" placeholder="Название счёта" style="flex:2;min-width:120px;">
-        <select id="new-acct-cat" style="flex:1;min-width:100px;"></select>
-        <button class="btn-ghost btn-sm" onclick="saveNewAcct()">Сохранить</button>
-        <button class="btn-ghost btn-sm" onclick="toggleAdd('add-acct-box')">✕</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 </div><!-- /swipe-wrap -->
+</div><!-- /frame -->
 
 <!-- NUMPAD -->
-<div class="np-overlay" id="np-overlay" style="display:none;" onclick="if(event.target===this)npClose()">
+<div class="np-ov" id="np-ov" onclick="if(event.target===this)npClose()">
   <div class="np-sheet">
     <div class="np-top">
-      <div class="np-top-left">
-        <div class="np-lbl" id="np-label">Сумма</div>
-        <div class="np-disp" id="np-display">0</div>
-        <div class="np-expr" id="np-expr"></div>
+      <div>
+        <div class="np-disp-lbl" id="np-lbl">Сумма</div>
+        <div class="np-disp" id="np-disp">0</div>
       </div>
       <button class="np-close" onclick="npClose()">✕ Готово</button>
     </div>
     <div class="np-grid">
-      <div class="np-btn" onclick="npKey('7')">7</div>
-      <div class="np-btn" onclick="npKey('8')">8</div>
-      <div class="np-btn" onclick="npKey('9')">9</div>
-      <div class="np-btn del" onclick="npDel()">⌫</div>
-      <div class="np-btn" onclick="npKey('4')">4</div>
-      <div class="np-btn" onclick="npKey('5')">5</div>
-      <div class="np-btn" onclick="npKey('6')">6</div>
-      <div class="np-btn op" onclick="npKey('-')">−</div>
-      <div class="np-btn" onclick="npKey('1')">1</div>
-      <div class="np-btn" onclick="npKey('2')">2</div>
-      <div class="np-btn" onclick="npKey('3')">3</div>
-      <div class="np-btn op" onclick="npKey('+')">+</div>
-      <div class="np-btn" onclick="npKey('.')">.</div>
-      <div class="np-btn" onclick="npKey('0')">0</div>
-      <div class="np-btn" onclick="npKey('00')">00</div>
-      <div class="np-btn ok" onclick="npOk()">✓</div>
+      <div class="np-btn" onclick="npK('7')">7</div><div class="np-btn" onclick="npK('8')">8</div><div class="np-btn" onclick="npK('9')">9</div><div class="np-btn del" onclick="npDel()">⌫</div>
+      <div class="np-btn" onclick="npK('4')">4</div><div class="np-btn" onclick="npK('5')">5</div><div class="np-btn" onclick="npK('6')">6</div><div class="np-btn op" onclick="npK('+')">+</div>
+      <div class="np-btn" onclick="npK('1')">1</div><div class="np-btn" onclick="npK('2')">2</div><div class="np-btn" onclick="npK('3')">3</div><div class="np-btn op" onclick="npK('-')">−</div>
+      <div class="np-btn" onclick="npK('.')">.</div><div class="np-btn" onclick="npK('0')">0</div><div class="np-btn" onclick="npK('00')">00</div><div class="np-btn ok" onclick="npOk()">✓</div>
     </div>
   </div>
 </div>
@@ -433,6 +310,7 @@ input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.7);}
 <div class="toast" id="toast"></div>
 
 <script>
+
 // ══════════════════════════════════════════════════════════════
 //  STATE — localStorage persistence
 // ══════════════════════════════════════════════════════════════
@@ -505,9 +383,9 @@ function renderHeader() {
       <div class="bc-cat">${g.cat.icon} ${g.cat.name}</div>
       ${g.accts.map(a=>`<div class="bc-name">${a.name}</div><div class="bc-val">${fmtNum(a.bal)}</div>`).join('')}
     </div>`).join('') +
-    `<div class="bal-chip" style="border-color:var(--accent);min-width:90px;">
-      <div class="bc-cat" style="color:var(--accent);">💰 Итого</div>
-      <div class="bc-val" style="color:var(--accent);">${fmtNum(getTotal())}</div>
+    `<div class="bal-chip" style="border-color:var(--blue);min-width:90px;">
+      <div class="bc-cat" style="color:var(--blue);">💰 Итого</div>
+      <div class="bc-val" style="color:var(--blue);">${fmtNum(getTotal())}</div>
     </div>`;
 }
 
@@ -702,7 +580,7 @@ function onHistDateChange(){
     const accts=Object.keys(S.accts);
     const chips=accts.map(a=>`<div class="hdb-chip"><div class="hdb-chip-name">${a.slice(0,10)}</div><div class="hdb-chip-val">${fmtNum(calcBalAtDate(a,ref))}</div></div>`).join('');
     const total=accts.reduce((s,a)=>s+calcBalAtDate(a,ref),0);
-    dbEl.innerHTML=`<div class="hdb-inner"><div class="hdb-lbl">📅 Остатки на ${ref.split('-').reverse().join('.')}</div>${chips}<div class="hdb-chip" style="border-color:var(--accent);"><div class="hdb-chip-name" style="color:var(--accent);">Итого</div><div class="hdb-chip-val" style="color:var(--accent);">${fmtNum(total)}</div></div></div>`;
+    dbEl.innerHTML=`<div class="hdb-inner"><div class="hdb-lbl">📅 Остатки на ${ref.split('-').reverse().join('.')}</div>${chips}<div class="hdb-chip" style="border-color:var(--blue);"><div class="hdb-chip-name" style="color:var(--blue);">Итого</div><div class="hdb-chip-val" style="color:var(--blue);">${fmtNum(total)}</div></div></div>`;
     dbEl.style.display='block';
   } else dbEl.style.display='none';
 }
@@ -754,7 +632,7 @@ function renderHistCols(){
       const edCls=histEditMode?'editable':'';
       const edClick=histEditMode&&op.type!=='Перевод'?`onclick="openNumpadEditOp(${op._gi},'${op.name}')"` : '';
       return `<div class="hrow ${edCls}"><div class="hrow-left"><div class="hrow-name" title="${op.name}">${name}</div><div class="hrow-date">${op.date}</div></div><div class="hrow-amt ${cls}" ${edClick}>${sign}${fmtNum(op.amount)}</div></div>`;
-    }).join('')||'<div class="hrow" style="justify-content:center;color:var(--t3);font-size:.74rem;">Нет операций</div>';
+    }).join('')||'<div class="hrow" style="justify-content:center;color:var(--muted2);font-size:.74rem;">Нет операций</div>';
     return `<div class="hcol"><div class="hcol-hd" style="background:${clr}"><div>${acct.slice(0,14)}</div><div class="hcol-hd-bal">${fmtNum(bal)} ₸</div></div><div class="hcol-body">${rows}</div><div class="hcol-foot"><span style="color:var(--green);">+${fmtNum(inc)}</span><span style="color:var(--red);">−${fmtNum(exp)}</span></div></div>`;
   }).join('');
   document.getElementById('hist-cols').innerHTML=`<div class="hcols">${cols}</div>`;
@@ -771,7 +649,7 @@ function renderAcctsPane() {
       <div class="ci-dot" style="background:${c.color};"></div>
       <div style="flex:1;">
         <div style="font-size:.85rem;font-weight:700;color:var(--text);">${c.icon} ${c.name}</div>
-        <div style="font-size:.62rem;color:var(--t3);">${acctCount} счетов · ${fmtNum(total)} ₸</div>
+        <div style="font-size:.62rem;color:var(--muted2);">${acctCount} счетов · ${fmtNum(total)} ₸</div>
       </div>
       <button class="ci-del" onclick="delCat('${c.id}')">🗑</button>
     </div>`;
@@ -950,7 +828,7 @@ function doPdf(){
   <h2 style="font-size:16px;margin-bottom:4px;">💰 Финансовый отчёт · Vertex Metrology</h2>
   <p style="font-size:11px;color:#8A8F98;margin-bottom:14px;">Период: ${per} · Записей: ${S.hist.length}</p>
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">${accts.map(a=>`<div style="background:#F0F2F5;border-radius:8px;padding:8px 14px;"><div style="font-size:10px;font-weight:700;color:#8A8F98;text-transform:uppercase;">${a}</div><div style="font-size:15px;font-weight:800;">${fmtNum(S.accts[a]?.bal||0)} ₸</div></div>`).join('')}
-  <div style="background:#F5C842;border-radius:8px;padding:8px 14px;"><div style="font-size:10px;font-weight:700;color:#7A6200;">ОБЩИЙ БАЛАНС</div><div style="font-size:15px;font-weight:800;color:#0A0B0F;">${fmtNum(total)} ₸</div></div></div>
+  <div style="background:#F5C842;border-radius:8px;padding:8px 14px;"><div style="font-size:10px;font-weight:700;color:#7A6200;">ОБЩИЙ БАЛАНС</div><div style="font-size:15px;font-weight:800;color:var(--bg);">${fmtNum(total)} ₸</div></div></div>
   <div style="display:flex;gap:10px;align-items:flex-start;">${colsHtml}</div>
   <p style="margin-top:18px;font-size:9px;color:#C7C7CC;text-align:center;">Сформировано: ${new Date().toLocaleString('ru-KZ')}</p>
   <script>window.onload=()=>window.print()<\/script></body></html>`;
@@ -970,6 +848,7 @@ function init(){
   setType('income');
 }
 window.addEventListener('DOMContentLoaded', init);
+
 </script>
 </body>
 </html>
