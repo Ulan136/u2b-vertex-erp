@@ -2739,7 +2739,7 @@ function go(screenId, section, page, el) {
   if (screenId==='cert-tec')  { renderCert(certTecData,'certTecBody'); }
   if (screenId==='notif-tec') { renderNotif(notifTecData,'notifTecBody'); }
   if (screenId==='rashody')       { rshApplyFilters(); rshRenderTree(); rshPopulateCatSels(); }
-  if (screenId==='warehouse')       { whLoadFromStorage(); renderWarehouse(); }
+  if (screenId==='warehouse')       { renderWarehouse(); whFetchFromApi().then(renderWarehouse); }
   if (screenId==='sales')            { salesLoadFromStorage(); renderSales(); }
   if (screenId==='primary')          { renderPrimary(); }
   if (screenId==='other-ops-proj')    { oopRenderTable('proj');    oopRenderStats('proj'); }
@@ -4678,6 +4678,9 @@ window.addEventListener('DOMContentLoaded', () => {
   // Load data
   whLoadFromStorage();
   salesLoadFromStorage();
+  // Pull the product catalog from the API, then refresh the warehouse view
+  // if it's the visible screen (renderWarehouse no-ops when it isn't).
+  whFetchFromApi().then(() => renderWarehouse());
   // Render dashboard on load
   setTimeout(renderDash, 200);
 
@@ -5333,9 +5336,10 @@ function injectFinanceWidget() {
 // ══════════════════════════════════════════════════════════════
 
 const PRODUCT_GROUPS = [
-  { id:'radio',   name:'Приборы со встроенным радиомодулем', icon:'📡' },
-  { id:'impulse', name:'Приборы с импульсными выходами',     icon:'⚡' },
-  { id:'modem',   name:'Радиомодемы ExpDevice',              icon:'📶' },
+  { id:'radio',      name:'Приборы со встроенным радиомодулем', icon:'📡' },
+  { id:'impulse',    name:'Приборы с импульсными выходами',     icon:'⚡' },
+  { id:'modem',      name:'Радиомодемы ExpDevice',              icon:'📶' },
+  { id:'consumable', name:'Расходные материалы',                icon:'📦' },
 ];
 
 let warehouseData = [
@@ -5384,6 +5388,54 @@ function whSaveToStorage() {
       movements: stockMovements,
     }));
   } catch(e) {}
+}
+
+// ── PRODUCT CATALOG FROM API ──────────────────────────────────
+// Fetches the product catalog from the ERP API and merges it into
+// warehouseData. Stock/reserved are simulated locally in this prototype,
+// so they are preserved from localStorage; catalog fields (name, group,
+// price, min) come from the API. Falls back to the local catalog offline.
+const PRODUCTS_API = 'https://u2b-api.vercel.app/api/products';
+let whProductsFetched = false;
+
+async function whFetchFromApi() {
+  try {
+    const res = await fetch(PRODUCTS_API, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();
+    if (!Array.isArray(rows) || rows.length === 0) throw new Error('empty response');
+
+    // Load local stock/movements so we can preserve simulated quantities.
+    whLoadFromStorage();
+    const localBySku = {};
+    warehouseData.forEach(p => { localBySku[p.id] = p; });
+
+    warehouseData = rows.map(r => {
+      const id    = r.skuCode || r.sku_code || r.id;
+      const local = localBySku[id];
+      return {
+        id,
+        group:    r.groupId   || r.group_id   || (local && local.group) || 'other',
+        name:     r.name,
+        full:     r.fullName  || r.full_name  || r.name,
+        water:    r.waterType || r.water_type || '—',
+        min:      Number(r.minStock ?? r.min_stock ?? (local && local.min) ?? 5),
+        // preserve locally-simulated stock/reserved; fall back to API on first load
+        stock:    local ? (local.stock || 0)    : Number(r.currentStock ?? r.current_stock ?? 0),
+        reserved: local ? (local.reserved || 0) : Number(r.reserved ?? 0),
+        price:    (local && local.price) ? local.price : Number(r.price ?? 0),
+      };
+    });
+
+    whProductsFetched = true;
+    whSaveToStorage();
+    return true;
+  } catch (e) {
+    // Offline or API error — keep whatever catalog we have (local/hardcoded).
+    console.warn('[products API] using local catalog fallback:', e.message);
+    whLoadFromStorage();
+    return false;
+  }
 }
 
 // ── HELPERS ──────────────────────────────────────────────────
@@ -5518,10 +5570,11 @@ function renderMovements() {
 }
 
 // ── МОДАЛ: ПРИХОД ─────────────────────────────────────────────
-function whOpenIncoming(skuId) {
+async function whOpenIncoming(skuId) {
   modalReset();
   // If no skuId given (general button), show SKU selector first
   if (!skuId) {
+    await whFetchFromApi();
     document.getElementById('modalTitle').textContent = '📥 Приход товара';
     document.getElementById('modalBadge').textContent = 'Склад';
     document.getElementById('modalBadge').className   = 'modal-badge badge b-ok';
@@ -5922,9 +5975,9 @@ function salesTogglePay(idx) {
   showToast(s.pay==='Оплачен'?'✅ Отмечено оплачено':'↩ Оплата отменена');
 }
 
-function salesOpenNew() {
+async function salesOpenNew() {
   modalReset();
-  whLoadFromStorage();
+  await whFetchFromApi();
   const avail = warehouseData.filter(p=>whGetFree(p)>0);
   document.getElementById('modalTitle').textContent = '💰 Новая продажа';
   document.getElementById('modalBadge').textContent = 'Продажа';
