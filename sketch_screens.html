@@ -1116,7 +1116,7 @@
         <div class="tbl-header">
           <span class="tbl-title">Список сертификатов ВДК</span>
           <div class="btn-row">
-            <button class="btn btn-outline btn-sm">📤 Экспорт</button>
+            <button class="btn btn-outline btn-sm" onclick="certExport(certVdkData,'ВДК')">📤 Экспорт</button>
             <button class="btn btn-primary btn-sm" onclick="openNew('ВДК')">+ Новый</button>
           </div>
         </div>
@@ -1153,7 +1153,7 @@
       <div class="tbl-wrap">
         <div class="tbl-header">
           <span class="tbl-title">Список сертификатов ТЭЦ</span>
-          <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="openNew('ТЭЦ')">+ Новый</button></div>
+          <div class="btn-row"><button class="btn btn-outline btn-sm" onclick="certExport(certTecData,'ТЭЦ')">📤 Экспорт</button><button class="btn btn-primary btn-sm" onclick="openNew('ТЭЦ')">+ Новый</button></div>
         </div>
         <div style="overflow-x:auto;"><table><thead><tr>
           <th>№</th><th>ФИО / Объект</th><th>Адрес</th><th>Тип прибора</th><th>№ счётчика</th>
@@ -2688,10 +2688,10 @@ function certFormHTML(r, readonlyN) {
       <label>Тип поверительного клейма</label>
       <div id="vf-seal-type" style="display:flex;gap:16px;align-items:center;padding-top:8px;">
         <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer;margin:0;">
-          <input type="checkbox" id="vf-seal-plomba" checked> Пломба
+          <input type="checkbox" id="vf-seal-plomba" ${r.sealPlomba===false?'':'checked'}> Пломба
         </label>
         <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer;margin:0;">
-          <input type="checkbox" id="vf-seal-kleimo" checked> Клеймо
+          <input type="checkbox" id="vf-seal-kleimo" ${r.sealKleimo===false?'':'checked'}> Клеймо
         </label>
       </div>
     </div>
@@ -2750,8 +2750,21 @@ function certFormHTML(r, readonlyN) {
   </div>`;
 }
 
+// Which dataset / table / stats container a registry uses, keyed by source org.
+// certEditCtx remembers what the open modal is editing so saveCertModal persists it.
+let certEditCtx = null;
+function certDatasetFor(org) {
+  if (org === 'ВДК') return { org: 'ВДК',  arr: certVdkData, tbodyId: 'certVdkBody', statsId: 'cert-vdk-stats' };
+  if (org === 'ТЭЦ') return { org: 'ТЭЦ',  arr: certTecData, tbodyId: 'certTecBody', statsId: null };
+  return               { org: 'САМИ', arr: certData,    tbodyId: 'certBody',    statsId: 'cert-stats' };
+}
+function certNextNo(arr) { return arr.length ? Math.max(...arr.map(x=>x.n||0)) + 1 : 1; }
+
 function openNew(org) {
-  const blank = {n:certData.length+1, fio:'', addr:'', type:'СГВ-15', serial:'', year:'', seal:'+', d1:'', d2:'', stamp:'', water:'х/в', val:0, note:'', phone:'', oper:'В работе', pay:'В ожидании', inv:'Каспи'};
+  modalReset();
+  const ds = certDatasetFor(org);
+  const blank = {n:certNextNo(ds.arr), fio:'', addr:'', type:'СГВ-15', serial:'', year:'', seal:'+', d1:'', d2:'', stamp:'', water:'х/в', val:0, note:'', phone:'', sealType:'', sealPlomba:true, sealKleimo:true, oper:'В работе', pay:'В ожидании', inv:'Каспи'};
+  certEditCtx = { org: ds.org, idx: -1 };
   document.getElementById('modalTitle').textContent = `Новый сертификат — ${org}`;
   document.getElementById('modalBadge').textContent = org;
   document.getElementById('modalBody').innerHTML = certFormHTML(blank, false);
@@ -2759,9 +2772,12 @@ function openNew(org) {
 }
 
 function openEdit(idx, tbodyId) {
+  modalReset();
   const dataMap = {certBody:certData, certVdkBody:certVdkData, certTecBody:certTecData};
   const arr = dataMap[tbodyId] || certData;
   const r = arr[idx];
+  const org = tbodyId==='certVdkBody' ? 'ВДК' : tbodyId==='certTecBody' ? 'ТЭЦ' : 'САМИ';
+  certEditCtx = { org, idx };
   document.getElementById('modalTitle').textContent = `Сертификат #${r.n} — ${r.fio}`;
   document.getElementById('modalBadge').textContent = 'Редактировать';
   document.getElementById('modalBody').innerHTML = certFormHTML(r, true);
@@ -5282,6 +5298,42 @@ function saveCertModal() {
     dedMsgs.push(`${c.label} -1 шт · ${c.sku}`);
   });
   if (dedMsgs.length) renderWarehouse();
+
+  // ── Персист записи сертификата в реестр (новая или редактируемая) ──
+  const toRuDate  = v => v ? v.split('-').reverse().join('.') : '';
+  const operEl    = selects[selects.length - 3]; // третий с конца = Операция
+  const oper      = operEl ? operEl.value : 'В работе';
+  const sealPlomba = !!(document.getElementById('vf-seal-plomba') && document.getElementById('vf-seal-plomba').checked);
+  const sealKleimo = !!(document.getElementById('vf-seal-kleimo') && document.getElementById('vf-seal-kleimo').checked);
+  const sealType   = [sealPlomba && 'Пломба', sealKleimo && 'Клеймо'].filter(Boolean).join(' + ') || '—';
+  const rec = {
+    fio,
+    addr:   getVal('vf-addr'),
+    type:   getVal('vf-type'),
+    serial,
+    year:   +getVal('vf-year') || '',
+    seal:   getVal('vf-seal') || '+',
+    d1:     toRuDate(getVal('vf-d1')),
+    d2:     toRuDate(getVal('vf-d2')),
+    stamp:  getVal('vf-stamp'),
+    water:  getVal('vf-water'),
+    val:    +getVal('vf-val') || 0,
+    note:   getVal('vf-note'),
+    phone,
+    sealType, sealPlomba, sealKleimo,
+    oper, pay, inv,
+  };
+  const ctx = certEditCtx || { org: 'САМИ', idx: -1 };
+  const ds  = certDatasetFor(ctx.org);
+  if (ctx.idx >= 0 && ds.arr[ctx.idx]) {
+    rec.n = ds.arr[ctx.idx].n;                       // keep number on edit
+    ds.arr[ctx.idx] = { ...ds.arr[ctx.idx], ...rec };
+  } else {
+    rec.n = +certNo || certNextNo(ds.arr);           // new record
+    ds.arr.push(rec);
+  }
+  renderCert(ds.arr, ds.tbodyId);
+  if (ds.statsId) renderCertStats(ds.arr, ds.statsId);
 
   const wasAlreadyPaid = saveCertModal._prevPay === 'Оплачено';
   const isNowPaid      = pay === 'Оплачено';
