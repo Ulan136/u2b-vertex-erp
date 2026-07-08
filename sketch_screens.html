@@ -2487,7 +2487,14 @@ function openStatusPop(e, field, btn) {
     item.innerHTML = `<span style="margin-right:6px;">${meta.ico}</span>${opt}`;
     item.onclick = ev => {
       ev.stopPropagation();
-      if(arr && arr[idx]) arr[idx][field] = opt;
+      if(arr && arr[idx]) {
+        arr[idx][field] = opt;
+        // Sync status change to the API for certificate rows
+        if (arr[idx].id && tbodyId.startsWith('cert')) {
+          const colMap = { oper:'operStatus', pay:'payStatus', inv:'invoiceType' };
+          certApiPatch(arr[idx].id, { [colMap[field]]: opt });
+        }
+      }
       tbodyId.startsWith('notif') ? renderNotif(arr, tbodyId) : renderCert(arr, tbodyId);
       renderCertStats(certData,'cert-stats');
       popup.remove();
@@ -2760,6 +2767,137 @@ function certDatasetFor(org) {
 }
 function certNextNo(arr) { return arr.length ? Math.max(...arr.map(x=>x.n||0)) + 1 : 1; }
 
+// ══════════════════════════════════════════════════════════════
+//  CERTIFICATES ↔ NEON API  (fetch / POST / PATCH · graceful)
+// ══════════════════════════════════════════════════════════════
+const CERTS_API = 'https://u2b-api.vercel.app/api/certs';
+const certLoaded = {}; // org → true once loaded from API
+
+// dd.mm.yyyy → yyyy-mm-dd (or null)
+function certDateToApi(d) {
+  if (!d) return null;
+  const p = String(d).split('.');
+  return p.length===3 ? `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}` : null;
+}
+// yyyy-mm-dd / ISO → dd.mm.yyyy
+function certDateFromApi(d) {
+  if (!d) return '';
+  const p = String(d).slice(0,10).split('-');
+  return p.length===3 ? `${p[2]}.${p[1]}.${p[0]}` : '';
+}
+
+// API row → frontend record
+function certFromApi(row) {
+  return {
+    id:       row.id,
+    fio:      row.fio || '',
+    addr:     row.address || '',
+    type:     row.meterType || 'СГВ-15',
+    serial:   row.serialNo || '',
+    year:     row.yearMade || '',
+    seal:     row.seal === false ? '-' : '+',
+    d1:       certDateFromApi(row.checkDate),
+    d2:       certDateFromApi(row.nextCheckDate),
+    stamp:    row.stampNo || '',
+    water:    row.waterType || 'х/в',
+    val:      row.readings != null ? Number(row.readings) : 0,
+    note:     row.note || '',
+    phone:    row.phone || '',
+    sealType: row.sealType || '',
+    oper:     row.operStatus || 'В работе',
+    pay:      row.payStatus || 'В ожидании',
+    inv:      row.invoiceType || 'Каспи',
+  };
+}
+
+// frontend record → API body (whitelisted columns only)
+function certToApi(rec, source) {
+  const body = {
+    fio:           rec.fio || '',
+    address:       rec.addr || '',
+    meterType:     rec.type || null,
+    serialNo:      rec.serial || null,
+    yearMade:      rec.year ? Number(rec.year) : null,
+    waterType:     rec.water || 'х/в',
+    seal:          rec.seal !== '-',
+    checkDate:     certDateToApi(rec.d1),
+    nextCheckDate: certDateToApi(rec.d2),
+    stampNo:       rec.stamp || null,
+    readings:      (rec.val===0 || rec.val) ? String(rec.val) : null,
+    note:          rec.note || null,
+    phone:         rec.phone || null,
+    sealType:      rec.sealType || null,
+    operStatus:    rec.oper || 'В работе',
+    payStatus:     rec.pay || 'В ожидании',
+    invoiceType:   rec.inv || 'Каспи',
+  };
+  if (source) body.source = source;
+  return body;
+}
+
+function certShowLoading(tbodyId) {
+  const tb = document.getElementById(tbodyId);
+  if (tb) tb.innerHTML = `<tr><td colspan="20" style="text-align:center;padding:26px;color:#6b7280;">⏳ Загрузка из API…</td></tr>`;
+}
+function certShowError(tbodyId, org, msg) {
+  const tb = document.getElementById(tbodyId);
+  if (tb) tb.innerHTML = `<tr><td colspan="20" style="text-align:center;padding:22px;color:#dc2626;">⚠️ Не удалось загрузить (${org})${msg?': '+msg:''}. <button class="btn btn-outline btn-sm" onclick="certFetch('${org}')">↻ Повторить</button></td></tr>`;
+}
+
+// GET certs for a source and populate the matching array
+async function certFetch(org) {
+  const ds = certDatasetFor(org);
+  if (!certLoaded[org]) certShowLoading(ds.tbodyId);
+  try {
+    const res = await fetch(`${CERTS_API}?source=${encodeURIComponent(org)}`, { cache:'no-store' });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const rows = await res.json();
+    if (!Array.isArray(rows)) throw new Error('неверный ответ');
+    const mapped = rows.map((r,i)=>({ ...certFromApi(r), n:i+1 }));
+    if (org==='ВДК')      certVdkData = mapped;
+    else if (org==='ТЭЦ') certTecData = mapped;
+    else                  certData    = mapped;
+    renderCert(mapped, ds.tbodyId);
+    if (ds.statsId) renderCertStats(mapped, ds.statsId);
+    certLoaded[org] = true;
+  } catch (e) {
+    console.warn('[certs API GET]', org, e.message);
+    if (!certLoaded[org]) certShowError(ds.tbodyId, org, e.message);
+    showToast(`⚠️ API (${org}): ${e.message} — работаем локально`);
+  }
+}
+
+// Persist a saved record: POST when new (no id), PATCH when it has an id.
+async function certApiSync(recRef, org) {
+  const body = certToApi(recRef, org);
+  try {
+    if (recRef.id) {
+      const res = await fetch(`${CERTS_API}/${recRef.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+    } else {
+      const res = await fetch(CERTS_API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      const created = await res.json();
+      if (created && created.id) recRef.id = created.id;   // link local record ↔ DB row
+    }
+  } catch (e) {
+    console.warn('[certs API sync]', e.message);
+    showToast('⚠️ Не синхронизировано с API (сохранено локально)');
+  }
+}
+
+// PATCH a single field change (status badges: oper/pay/inv)
+async function certApiPatch(id, patchBody) {
+  if (!id) return;
+  try {
+    const res = await fetch(`${CERTS_API}/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(patchBody) });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+  } catch (e) {
+    console.warn('[certs API patch]', e.message);
+    showToast('⚠️ Статус не синхронизирован с API');
+  }
+}
+
 function openNew(org) {
   modalReset();
   const ds = certDatasetFor(org);
@@ -2853,11 +2991,11 @@ function go(screenId, section, page, el) {
   if (el) el.classList.add('active');
   document.getElementById('content').scrollTop=0;
   // init renders on first visit
-  if (screenId==='cert')      { renderCertStats(certData,'cert-stats'); renderCert(certData,'certBody'); }
+  if (screenId==='cert')      { if(certLoaded['САМИ']){ renderCertStats(certData,'cert-stats'); renderCert(certData,'certBody'); } else certFetch('САМИ'); }
   if (screenId==='notif')     { renderCert(certData,'notif-stats'); renderNotif(notifData,'notifBody'); }
-  if (screenId==='cert-vdk')  { renderCertStats(certVdkData,'cert-vdk-stats'); renderCert(certVdkData,'certVdkBody'); }
+  if (screenId==='cert-vdk')  { if(certLoaded['ВДК']){ renderCertStats(certVdkData,'cert-vdk-stats'); renderCert(certVdkData,'certVdkBody'); } else certFetch('ВДК'); }
   if (screenId==='notif-vdk') { renderNotif(notifVdkData,'notifVdkBody'); }
-  if (screenId==='cert-tec')  { renderCert(certTecData,'certTecBody'); }
+  if (screenId==='cert-tec')  { if(certLoaded['ТЭЦ']){ renderCert(certTecData,'certTecBody'); } else certFetch('ТЭЦ'); }
   if (screenId==='notif-tec') { renderNotif(notifTecData,'notifTecBody'); }
   if (screenId==='rashody')       { rshApplyFilters(); rshRenderTree(); rshPopulateCatSels(); }
   if (screenId==='warehouse')       { renderWarehouse(); whFetchFromApi().then(renderWarehouse); }
@@ -4807,6 +4945,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   renderCertStats(certData,'cert-stats');
   renderCert(certData,'certBody');
+  // Load the САМИ registry from the Neon API on page load (ВДК/ТЭЦ load on open)
+  certFetch('САМИ');
   renderNotif(notifData,'notifBody');
   // invoice screens
   ['poverka','sales','other','branch'].forEach(t=>{invRender(t);invRenderStats(t);});
@@ -5325,15 +5465,21 @@ function saveCertModal() {
   };
   const ctx = certEditCtx || { org: 'САМИ', idx: -1 };
   const ds  = certDatasetFor(ctx.org);
+  let savedRec;
   if (ctx.idx >= 0 && ds.arr[ctx.idx]) {
-    rec.n = ds.arr[ctx.idx].n;                       // keep number on edit
+    rec.n  = ds.arr[ctx.idx].n;                       // keep number on edit
+    rec.id = ds.arr[ctx.idx].id;                      // keep DB id on edit
     ds.arr[ctx.idx] = { ...ds.arr[ctx.idx], ...rec };
+    savedRec = ds.arr[ctx.idx];
   } else {
-    rec.n = +certNo || certNextNo(ds.arr);           // new record
+    rec.n = +certNo || certNextNo(ds.arr);            // new record
     ds.arr.push(rec);
+    savedRec = rec;
   }
   renderCert(ds.arr, ds.tbodyId);
   if (ds.statsId) renderCertStats(ds.arr, ds.statsId);
+  // Sync to Neon: POST when new (no id), PATCH when editing — non-blocking, graceful
+  certApiSync(savedRec, ctx.org);
 
   const wasAlreadyPaid = saveCertModal._prevPay === 'Оплачено';
   const isNowPaid      = pay === 'Оплачено';

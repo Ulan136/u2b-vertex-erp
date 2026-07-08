@@ -3,6 +3,17 @@ import { db } from '@/db';
 import { certificates } from '@/db/schema';
 import { eq, desc, and } from 'drizzle-orm';
 
+// Certificates are read/written cross-origin by the prototype pages.
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+export function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -22,10 +33,10 @@ export async function GET(req: NextRequest) {
       .where(and(...conditions))
       .orderBy(desc(certificates.createdAt));
 
-    return NextResponse.json(rows);
+    return NextResponse.json(rows, { headers: CORS_HEADERS });
   } catch (err) {
     console.error('[GET /api/certs]', err);
-    return NextResponse.json({ error: 'DB error' }, { status: 500 });
+    return NextResponse.json({ error: 'DB error' }, { status: 500, headers: CORS_HEADERS });
   }
 }
 
@@ -33,9 +44,9 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const [cert] = await db.insert(certificates).values(body).returning();
-    return NextResponse.json(cert, { status: 201 });
+    return NextResponse.json(cert, { status: 201, headers: CORS_HEADERS });
   } catch (err) {
     console.error('[POST /api/certs]', err);
-    return NextResponse.json({ error: 'Create error' }, { status: 500 });
+    return NextResponse.json({ error: 'Create error' }, { status: 500, headers: CORS_HEADERS });
   }
 }

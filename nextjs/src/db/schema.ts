@@ -58,6 +58,8 @@ export const certificates = pgTable('certificates', {
   stampNo       : varchar('stamp_no', { length: 20 }),
   readings      : numeric('readings', { precision: 10, scale: 2 }),
   note          : text('note'),
+  phone         : varchar('phone', { length: 30 }),
+  sealType      : varchar('seal_type', { length: 40 }),
   operStatus    : operStatusEnum('oper_status').default('В работе'),
   payStatus     : payStatusEnum('pay_status').default('В ожидании'),
   invoiceType   : invoiceTypeEnum('invoice_type').default('Каспи'),
