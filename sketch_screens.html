@@ -1055,7 +1055,7 @@
             </select>
           </div>
           <div class="btn-row">
-            <button class="btn btn-outline btn-sm">📤 Экспорт</button>
+            <button class="btn btn-outline btn-sm" onclick="certExport(certData,'САМИ')">📤 Экспорт</button>
             <button class="btn btn-primary btn-sm" onclick="openNew('САМИ')">+ Новый</button>
           </div>
         </div>
@@ -2545,6 +2545,77 @@ function cloneNotif(idx, tbodyId) {
 // ── FILTERS ──────────────────────────────────────────────────────
 function certFilter(q) { activeFilters.q = q.toLowerCase(); renderCert(certData,'certBody'); }
 function certFilterField(f,v) { activeFilters[f]=v; renderCert(certData,'certBody'); }
+
+// ── ПЕЧАТЬ РЕЕСТРА ПОВЕРКИ ─────────────────────────────────────────
+// Generates a printable registry document in the official column order.
+// Телефон is a no-print column: visible on screen, hidden when printed.
+function certExport(arr, org) {
+  const data  = arr || certData;
+  const label = org || 'САМИ';
+  const today = new Date().toLocaleDateString('ru-KZ');
+  // Seal type per record (Пломба/Клеймо). Records may not carry it yet;
+  // fall back to a dash. Supports r.sealType string or r.sealPlomba/sealKleimo flags.
+  const sealTypeOf = r => {
+    if (r.sealType) return r.sealType;
+    const t = [];
+    if (r.sealPlomba) t.push('Пломба');
+    if (r.sealKleimo) t.push('Клеймо');
+    return t.length ? t.join(' + ') : '—';
+  };
+  const rows = data.map((r,i)=>{
+    const stampCell = `${r.stamp||'—'}<br><span style="font-size:9px;color:#555;">${sealTypeOf(r)}</span>`;
+    return `
+    <tr>
+      <td style="text-align:center;">${i+1}</td>
+      <td>${r.fio||''}</td>
+      <td>${r.addr||''}</td>
+      <td>${r.type||''}</td>
+      <td style="font-family:monospace;">${r.serial||''}</td>
+      <td>${r.d1||''}</td>
+      <td>${r.d2||''}</td>
+      <td style="font-family:monospace;">${stampCell}</td>
+      <td style="text-align:right;">${(r.val||0).toLocaleString('ru-KZ')}</td>
+      <td style="text-align:center;">${r.seal==='+'?'Есть':'Нет'}</td>
+      <td style="text-align:center;">${r.water||''}</td>
+      <td style="text-align:center;">${r.year||''}</td>
+      <td class="no-print">${r.phone||'—'}</td>
+    </tr>`;
+  }).join('');
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Реестр поверки — ${label}</title>
+    <style>
+      @media print { .no-print { display:none !important; } }
+      body{font-family:Arial,sans-serif;padding:20px;font-size:11px;color:#111;}
+      h2{font-size:15px;margin-bottom:2px;}
+      .sub{color:#6b7280;font-size:11px;margin-bottom:12px;}
+      table{width:100%;border-collapse:collapse;}
+      th{background:#f3f4f6;padding:6px;border:1px solid #d1d5db;font-size:10px;text-align:left;vertical-align:bottom;}
+      td{padding:5px 6px;border:1px solid #e5e7eb;vertical-align:top;font-size:10px;}
+    </style></head><body>
+    <h2>📋 Реестр счётчиков, прошедших поверку — ТОО «Vertex Metrology»</h2>
+    <div class="sub">Источник: ${label} · ${today} · всего записей: ${data.length}</div>
+    <table>
+      <thead><tr>
+        <th style="width:26px;text-align:center;">№</th>
+        <th>ФИО абонента</th>
+        <th>Адрес абонента</th>
+        <th>Тип прибора учёта</th>
+        <th>Номер счётчика</th>
+        <th>Дата поверки</th>
+        <th>Дата очередной поверки</th>
+        <th>Номер клейма + тип</th>
+        <th style="text-align:right;">Показания м³</th>
+        <th style="text-align:center;">Наличие пломбы</th>
+        <th style="text-align:center;">Гор/хол вода</th>
+        <th style="text-align:center;">Год выпуска</th>
+        <th class="no-print">Телефон</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <script>window.onload=()=>window.print()<\/script></body></html>`;
+  const b = new Blob([html],{type:'text/html'});
+  const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),target:'_blank'});
+  a.click(); URL.revokeObjectURL(a.href);
+}
 
 // ── MODAL FORM ────────────────────────────────────────────────────
 function certFormHTML(r, readonlyN) {
