@@ -1041,7 +1041,7 @@
         <div class="tbl-header">
           <span class="tbl-title" id="cert-count">Список сертификатов</span>
           <div class="tbl-filters">
-            <input class="f-search" placeholder="🔍 ФИО, адрес, № счётчика..." oninput="certFilter(this.value)">
+            <input class="f-search" placeholder="🔍 ФИО, адрес, Заводской номер..." oninput="certFilter(this.value)">
             <select class="f-select" onchange="certFilterField('oper',this.value)">
               <option value="">Операция: все</option>
               <option>В работе</option><option>Внесен в КТРМ</option>
@@ -1085,8 +1085,20 @@
         <div id="cert-wait-accordion" style="padding:8px 12px;"></div>
       </div>
 
-      <!-- Блок 3: История — accordion по датам, С фильтрами -->
-      <div class="section-lbl" style="margin-top:22px;">🗂️ Блок 3 · История</div>
+      <!-- Блок 3: Извещение о непригодности (certs с результатом «Не годен») -->
+      <div class="section-lbl" style="margin-top:22px;">📄 БЛОК 3 · ИЗВЕЩЕНИЕ О НЕПРИГОДНОСТИ</div>
+      <div class="tbl-wrap">
+        <div class="tbl-header">
+          <span class="tbl-title" id="cert-unfit-count">Извещение о непригодности</span>
+          <div class="btn-row">
+            <button class="btn btn-outline btn-sm" onclick="certExportUnfit(certData,'САМИ')">📤 Экспорт извещения</button>
+          </div>
+        </div>
+        <div id="cert-unfit-list" style="padding:8px 12px;"></div>
+      </div>
+
+      <!-- Блок 4: История — accordion по датам, С фильтрами -->
+      <div class="section-lbl" style="margin-top:22px;">🗂️ Блок 4 · История</div>
       <div class="tbl-wrap">
         <div class="tbl-header">
           <span class="tbl-title" id="cert-hist-count">История</span>
@@ -2444,6 +2456,7 @@ function renderCert(arr, tbodyId) {
   // Keep Block 2 (Ожидание оплаты) and Block 3 (История) in sync with the registry
   if (tbodyId === 'certBody') {
     if (typeof renderCertWaiting === 'function') renderCertWaiting();
+    if (typeof renderCertUnfit === 'function') renderCertUnfit();
     if (typeof renderCertHistory === 'function') renderCertHistory();
   }
 }
@@ -2534,6 +2547,88 @@ function renderCertHistory() {
   const cntEl = document.getElementById('cert-hist-count');
   if (cntEl) cntEl.textContent = `История · ${list.length}`;
   cont.innerHTML = certAccordionHtml(list, 'Нет записей за выбранный период');
+}
+
+// ── BLOCK 3: Извещение о непригодности — certs with result «Не годен» ──
+function renderCertUnfit() {
+  const cont = document.getElementById('cert-unfit-list');
+  if (!cont) return;
+  const unfit = certData.filter(r => r.result === 'Не годен');
+  const cntEl = document.getElementById('cert-unfit-count');
+  if (cntEl) cntEl.textContent = `Извещение о непригодности · ${unfit.length}`;
+  if (!unfit.length) {
+    cont.innerHTML = '<div style="padding:16px;text-align:center;color:#9ca3af;">Нет непригодных счётчиков (результат «Не годен»)</div>';
+    return;
+  }
+  cont.innerHTML = `<table style="width:100%;font-size:12px;"><tbody>${unfit.map(r=>`
+    <tr>
+      <td style="color:#9ca3af;">${r.n}</td>
+      <td><strong>${r.fio}</strong></td>
+      <td style="font-size:11px;color:#6b7280;">${r.addr}</td>
+      <td style="font-family:monospace;font-size:11px;">${r.serial}</td>
+      <td>${r.d1||''}</td>
+      <td><span class="badge b-err" style="font-size:10px;">⛔ Не годен</span></td>
+      <td><button class="act-btn" title="Редактировать" onclick="openEdit(${certData.indexOf(r)},'certBody')">✏️</button></td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+// ── ПЕЧАТЬ: Извещение о непригодности (реестр «Не годен») ──────────
+function certExportUnfit(arr, org) {
+  const data  = (arr || certData).filter(r => r.result === 'Не годен');
+  const label = org || 'САМИ';
+  const today = new Date().toLocaleDateString('ru-KZ');
+  if (!data.length) { showToast('⚠️ Нет непригодных счётчиков для экспорта'); return; }
+  const rows = data.map((r,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td class="wrap">${r.fio||''}</td>
+      <td class="wrap">${r.addr||''}</td>
+      <td>${r.type||''}</td>
+      <td>${r.serial||''}</td>
+      <td>${r.d1||''}</td>
+      <td>${r.water||''}</td>
+      <td>${r.year||''}</td>
+    </tr>`).join('');
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Извещение о непригодности — ${label}</title>
+    <style>
+      @page { size: A4 landscape; margin: 8mm; }
+      * { box-sizing: border-box; }
+      body { font-family: Arial, sans-serif; color:#000; margin:0; padding:6mm; }
+      .sub { font-size:10px; color:#444; margin-bottom:8px; }
+      table { width:100%; border-collapse:collapse; font-size:9px; table-layout:fixed; }
+      td { border:1px solid #000; padding:3px 4px; vertical-align:middle; text-align:center; word-break:normal; white-space:nowrap; }
+      th { border:1px solid #000; background:#eee; text-align:center; vertical-align:middle;
+           writing-mode:horizontal-tb; white-space:normal; word-break:normal; padding:7px 5px; line-height:1.3; font-weight:700; }
+      .wrap { white-space:normal; min-width:80px; text-align:left; }
+      @media print { .no-print-meta { display:none !important; } }
+    </style></head><body>
+    <div style="text-align:center;margin-bottom:10px;">
+      <div style="font-size:17px;font-weight:800;letter-spacing:2px;">РЕЕСТР</div>
+      <div style="font-size:11px;">извещение о непригодности</div>
+    </div>
+    <div class="sub no-print-meta" style="text-align:right;">Источник: ${label} · ${today} · записей: ${data.length}</div>
+    <table>
+      <colgroup>
+        <col style="width:5%"><col style="width:20%"><col style="width:27%"><col style="width:12%">
+        <col style="width:15%"><col style="width:11%"><col style="width:5%"><col style="width:5%">
+      </colgroup>
+      <thead><tr>
+        <th>№</th>
+        <th>ФИО абонента</th>
+        <th>Адрес абонента</th>
+        <th>Тип прибора учёта</th>
+        <th>Заводской номер</th>
+        <th>Дата поверки</th>
+        <th>Гор/хол вода</th>
+        <th>Год выпуска</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div style="margin-top:30px;font-weight:bold;text-align:center;">Директор &nbsp;&nbsp;&nbsp; _________________ &nbsp;&nbsp;&nbsp; М.Молдабаев</div>
+    <script>window.onload=()=>window.print()<\/script></body></html>`;
+  const b = new Blob([html],{type:'text/html'});
+  const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),target:'_blank'});
+  a.click(); URL.revokeObjectURL(a.href);
 }
 
 // ── RENDER NOTIF TABLE ────────────────────────────────────────────
@@ -2858,6 +2953,13 @@ function certFormHTML(r, readonlyN) {
       </div>
     </div>
     <div class="field">
+      <label>Результат поверки</label>
+      <select id="vf-result">
+        <option value="Годен"${r.result==='Не годен'?'':' selected'}>✅ Годен</option>
+        <option value="Не годен"${r.result==='Не годен'?' selected':''}>⛔ Не годен</option>
+      </select>
+    </div>
+    <div class="field">
       <label>Тип воды</label>
       <div class="voice-wrap">
         <select id="vf-water">
@@ -2953,6 +3055,7 @@ function certFromApi(row) {
     phone:    row.phone || '',
     client:   row.client || '',
     sealType: row.sealType || '',
+    result:   row.result || 'Годен',
     oper:     row.operStatus || 'В работе',
     pay:      row.payStatus || 'В ожидании',
     inv:      row.invoiceType || 'Каспи',
@@ -3050,7 +3153,7 @@ async function certApiPatch(id, patchBody) {
 function openNew(org) {
   modalReset();
   const ds = certDatasetFor(org);
-  const blank = {n:certNextNo(ds.arr), fio:'', addr:'', type:'СГВ-15', serial:'', year:'', seal:'+', d1:'', d2:'', stamp:'', water:'х/в', val:0, note:'', phone:'', client:'', sealType:'СЛ', oper:'В работе', pay:'В ожидании', inv:'Каспи'};
+  const blank = {n:certNextNo(ds.arr), fio:'', addr:'', type:'СГВ-15', serial:'', year:'', seal:'+', d1:'', d2:'', stamp:'', water:'х/в', val:0, note:'', phone:'', client:'', sealType:'СЛ', result:'Годен', oper:'В работе', pay:'В ожидании', inv:'Каспи'};
   certEditCtx = { org: ds.org, idx: -1 };
   document.getElementById('modalTitle').textContent = `Новый сертификат — ${org}`;
   document.getElementById('modalBadge').textContent = org;
@@ -5611,6 +5714,7 @@ function saveCertModal() {
     phone,
     client: getVal('vf-client'),
     sealType,
+    result: getVal('vf-result') || 'Годен',
     oper, pay, inv,
   };
   const ctx = certEditCtx || { org: 'САМИ', idx: -1 };
