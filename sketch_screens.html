@@ -1036,6 +1036,7 @@
       <div class="page-title">Сертификат — САМИ</div>
       <div class="page-sub">Реестр счётчиков прошедших поверку · ТОО «VERTEX METROLOGY» · 2026 г.</div>
       <div id="cert-stats" class="stat-row"></div>
+      <div class="section-lbl">✏️ Блок 1 · Редактирование</div>
       <div class="tbl-wrap">
         <div class="tbl-header">
           <span class="tbl-title" id="cert-count">Список сертификатов</span>
@@ -1062,10 +1063,11 @@
         <div style="overflow-x:auto;">
         <table id="certTable">
           <thead><tr>
-            <th>№</th><th>ФИО абонента</th><th>Адрес</th>
-            <th>Тип прибора</th><th>№ счётчика</th><th>Год</th><th>Пломба</th>
-            <th>Дата поверки</th><th>Действ. до</th><th>№ клейма</th>
-            <th>Вода</th><th>Показания м³</th><th>Прим.</th>
+            <th>№</th><th>ФИО абонента</th><th>Адрес абонента</th>
+            <th>Тип прибора</th><th>Номер счётчика</th>
+            <th>Дата поверки</th><th>Дата очередной поверки</th><th>Номер клейма</th>
+            <th>Показания м³</th><th>Гор/хол вода</th><th>Год выпуска</th><th>Прим.</th>
+            <th>Телефон</th><th>Клиент</th>
             <th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th>
             <th style="text-align:center;">Действия</th>
           </tr></thead>
@@ -1073,6 +1075,28 @@
         </table>
         </div>
       </div>
+
+      <!-- Блок 2: Ожидание оплаты (accordion по датам) -->
+      <div class="section-lbl" style="margin-top:22px;">⏳ Блок 2 · Ожидание оплаты</div>
+      <div class="tbl-wrap">
+        <div class="tbl-header">
+          <span class="tbl-title" id="cert-wait-count">Ожидание оплаты</span>
+          <div class="tbl-filters">
+            <label style="font-size:11px;color:#6b7280;">с <input type="date" id="cert-wait-from" onchange="renderCertWaiting()" style="font-size:11px;"></label>
+            <label style="font-size:11px;color:#6b7280;">по <input type="date" id="cert-wait-to" onchange="renderCertWaiting()" style="font-size:11px;"></label>
+            <select class="f-select" id="cert-wait-days" onchange="renderCertWaiting()">
+              <option value="7">Последние 7 дней</option>
+              <option value="14">Последние 14 дней</option>
+              <option value="30">Последние 30 дней</option>
+              <option value="0" selected>Все</option>
+            </select>
+          </div>
+        </div>
+        <div id="cert-wait-accordion" style="padding:8px 12px;"></div>
+      </div>
+
+      <!-- Блок 3: зарезервировано (в разработке) -->
+      <div id="cert-block3" style="display:none;"></div>
     </div>
 
     <!-- ══ ИЗВЕЩЕНИЕ (САМИ) ══ -->
@@ -1121,9 +1145,10 @@
           </div>
         </div>
         <div style="overflow-x:auto;"><table><thead><tr>
-          <th>№</th><th>ФИО / Объект</th><th>Адрес</th><th>Тип прибора</th><th>№ счётчика</th>
-          <th>Год</th><th>Пломба</th><th>Дата поверки</th><th>Действ. до</th><th>№ клейма</th>
-          <th>Вода</th><th>Показания м³</th><th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th>
+          <th>№</th><th>ФИО / Объект</th><th>Адрес абонента</th><th>Тип прибора</th><th>Номер счётчика</th>
+          <th>Дата поверки</th><th>Дата очередной поверки</th><th>Номер клейма</th>
+          <th>Показания м³</th><th>Гор/хол вода</th><th>Год выпуска</th><th>Прим.</th>
+          <th>Телефон</th><th>Клиент</th><th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th>
           <th style="text-align:center;">Действия</th>
         </tr></thead><tbody id="certVdkBody"></tbody></table></div>
       </div>
@@ -1156,9 +1181,10 @@
           <div class="btn-row"><button class="btn btn-outline btn-sm" onclick="certExport(certTecData,'ТЭЦ')">📤 Экспорт</button><button class="btn btn-primary btn-sm" onclick="openNew('ТЭЦ')">+ Новый</button></div>
         </div>
         <div style="overflow-x:auto;"><table><thead><tr>
-          <th>№</th><th>ФИО / Объект</th><th>Адрес</th><th>Тип прибора</th><th>№ счётчика</th>
-          <th>Год</th><th>Пломба</th><th>Дата поверки</th><th>Действ. до</th><th>№ клейма</th>
-          <th>Вода</th><th>Показания м³</th><th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th>
+          <th>№</th><th>ФИО / Объект</th><th>Адрес абонента</th><th>Тип прибора</th><th>Номер счётчика</th>
+          <th>Дата поверки</th><th>Дата очередной поверки</th><th>Номер клейма</th>
+          <th>Показания м³</th><th>Гор/хол вода</th><th>Год выпуска</th><th>Прим.</th>
+          <th>Телефон</th><th>Клиент</th><th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th>
           <th style="text-align:center;">Действия</th>
         </tr></thead><tbody id="certTecBody"></tbody></table></div>
       </div>
@@ -2385,14 +2411,15 @@ function renderCert(arr, tbodyId) {
       <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;font-size:11px;">${r.addr}</td>
       <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:10px;">${r.type}</code></td>
       <td style="font-family:monospace;font-size:11px;">${r.serial}</td>
-      <td style="color:#6b7280;">${r.year}</td>
-      <td><span class="badge b-ok">✓</span></td>
       <td style="font-size:11px;">${r.d1}</td>
       <td><span class="badge b-ok" style="font-size:10px;">${r.d2}</span></td>
       <td style="font-family:monospace;font-size:11px;">${r.stamp}</td>
-      <td>${waterBadge(r.water)}</td>
       <td style="text-align:right;font-weight:600;font-size:11px;">${r.val.toLocaleString('ru')} м³</td>
+      <td>${waterBadge(r.water)}</td>
+      <td style="color:#6b7280;">${r.year}</td>
       <td style="color:#c2410c;font-size:11px;font-weight:700;">${r.note}</td>
+      <td style="font-size:11px;color:#6b7280;">${r.phone||'—'}</td>
+      <td style="font-size:11px;">${r.client||'—'}</td>
       <td class="status-cell">${operBadge(r.oper)}</td>
       <td class="status-cell">${payBadge(r.pay)}</td>
       <td class="status-cell">${invBadge(r.inv)}</td>
@@ -2408,6 +2435,82 @@ function renderCert(arr, tbodyId) {
         </div>
       </td>
     </tr>`).join('');
+  // Keep Block 2 (Ожидание оплаты) in sync with the САМИ registry
+  if (tbodyId === 'certBody' && typeof renderCertWaiting === 'function') renderCertWaiting();
+}
+
+// ── AUTO next-check date: check date + 5 years (same day/month) ──────
+function certCalcNextDate() {
+  const d1 = document.getElementById('vf-d1');
+  const d2 = document.getElementById('vf-d2');
+  if (!d1 || !d2 || !d1.value) return;
+  const [y, m, d] = d1.value.split('-');   // yyyy-mm-dd
+  d2.value = `${(+y + 5)}-${m}-${d}`;
+}
+
+// ── BLOCK 2: Ожидание оплаты — waiting-for-payment certs grouped by date ──
+function renderCertWaiting() {
+  const cont = document.getElementById('cert-wait-accordion');
+  if (!cont) return;
+  const parseRu  = s => { if (!s) return null; const p = String(s).split('.'); return p.length===3 ? new Date(+p[2], +p[1]-1, +p[0]) : null; };
+  // Parse the yyyy-mm-dd date inputs as LOCAL midnight (matches parseRu),
+  // otherwise new Date('yyyy-mm-dd') is UTC and shifts a day in Almaty (UTC+5/6).
+  const parseIso = v => { if (!v) return null; const p = v.split('-'); return p.length===3 ? new Date(+p[0], +p[1]-1, +p[2]) : null; };
+  const fromEl = document.getElementById('cert-wait-from');
+  const toEl   = document.getElementById('cert-wait-to');
+  const daysEl = document.getElementById('cert-wait-days');
+  const from = fromEl ? parseIso(fromEl.value) : null;
+  const to   = toEl ? parseIso(toEl.value) : null;
+  const days = daysEl ? +daysEl.value : 0;
+
+  let waiting = certData.filter(r => r.pay === 'В ожидании');
+  waiting = waiting.filter(r => {
+    const d = parseRu(r.d1);
+    if (!d) return false;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    if (!from && !to && days > 0) {
+      const cutoff = new Date(); cutoff.setHours(0,0,0,0); cutoff.setDate(cutoff.getDate() - days);
+      if (d < cutoff) return false;
+    }
+    return true;
+  });
+
+  const cntEl = document.getElementById('cert-wait-count');
+  if (cntEl) cntEl.textContent = `Ожидание оплаты · ${waiting.length}`;
+
+  // group by check date
+  const groups = {};
+  waiting.forEach(r => { (groups[r.d1] = groups[r.d1] || []).push(r); });
+  const dates = Object.keys(groups).sort((a,b) => parseRu(b) - parseRu(a));
+  if (!dates.length) {
+    cont.innerHTML = '<div style="padding:18px;text-align:center;color:#9ca3af;">Нет сертификатов, ожидающих оплаты</div>';
+    return;
+  }
+  cont.innerHTML = dates.map(date => {
+    const items = groups[date];
+    const rows = items.map(r => `
+      <tr>
+        <td style="color:#9ca3af;">${r.n}</td>
+        <td><strong>${r.fio}</strong></td>
+        <td style="font-size:11px;color:#6b7280;">${r.addr}</td>
+        <td style="font-family:monospace;font-size:11px;">${r.serial}</td>
+        <td class="status-cell">${invBadge(r.inv)}</td>
+        <td><button class="act-btn" title="Открыть" onclick="openEdit(${certData.indexOf(r)},'certBody')">✏️</button></td>
+      </tr>`).join('');
+    return `
+      <div style="border:1px solid #e5e7eb;border-radius:8px;margin-bottom:6px;overflow:hidden;">
+        <div onclick="const b=this.nextElementSibling;b.style.display=b.style.display==='none'?'block':'none';this.querySelector('.acc-caret').textContent=b.style.display==='none'?'▸':'▾';"
+             style="cursor:pointer;padding:9px 12px;background:#fffbeb;display:flex;align-items:center;gap:10px;font-size:12px;font-weight:600;">
+          <span class="acc-caret">▸</span>
+          <span>📅 ${date}</span>
+          <span class="badge b-warn" style="font-size:10px;">${items.length} шт.</span>
+        </div>
+        <div style="display:none;">
+          <table style="width:100%;font-size:12px;"><tbody>${rows}</tbody></table>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // ── RENDER NOTIF TABLE ────────────────────────────────────────────
@@ -2560,17 +2663,8 @@ function certExport(arr, org) {
   const data  = arr || certData;
   const label = org || 'САМИ';
   const today = new Date().toLocaleDateString('ru-KZ');
-  // Stamp number + seal type with a checkmark (Пломба ☑️ / Клеймо ☑️).
-  const sealCell = r => {
-    const st = r.sealType || '';
-    const plomba = /Пломба/i.test(st) || r.sealPlomba;
-    const kleimo = /Клеймо/i.test(st) || r.sealKleimo;
-    const badges = [];
-    if (plomba) badges.push('Пломба ☑️');
-    if (kleimo) badges.push('Клеймо ☑️');
-    const typeLine = badges.length ? badges.join(' ') : '—';
-    return `<strong>${r.stamp || '—'}</strong><br><span style="font-size:8px;">${typeLine}</span>`;
-  };
+  // Print shows ONLY the stamp number in the seal column — the type (ПП/СЛ)
+  // is internal (used for stock deduction), not printed.
   const rows = data.map((r,i)=>`
     <tr>
       <td>${i+1}</td>
@@ -2580,9 +2674,8 @@ function certExport(arr, org) {
       <td>${r.serial||''}</td>
       <td>${r.d1||''}</td>
       <td>${r.d2||''}</td>
-      <td class="seal">${sealCell(r)}</td>
+      <td>${r.stamp||'—'}</td>
       <td>${(r.val||0).toLocaleString('ru-KZ')}</td>
-      <td>${r.seal==='+'?'Есть':'Нет'}</td>
       <td>${r.water||''}</td>
       <td>${r.year||''}</td>
     </tr>`).join('');
@@ -2604,9 +2697,9 @@ function certExport(arr, org) {
     <div class="sub">Источник: ${label} · ${today} · всего записей: ${data.length}</div>
     <table>
       <colgroup>
-        <col style="width:4%"><col style="width:13%"><col style="width:17%"><col style="width:7%">
-        <col style="width:12%"><col style="width:8%"><col style="width:8%"><col style="width:13%">
-        <col style="width:6%"><col style="width:5%"><col style="width:4%"><col style="width:3%">
+        <col style="width:4%"><col style="width:14%"><col style="width:19%"><col style="width:8%">
+        <col style="width:13%"><col style="width:9%"><col style="width:9%"><col style="width:10%">
+        <col style="width:6%"><col style="width:4%"><col style="width:4%">
       </colgroup>
       <thead><tr>
         <th>№</th>
@@ -2618,7 +2711,6 @@ function certExport(arr, org) {
         <th>Дата очередной поверки</th>
         <th>Номер и тип поверительного клейма</th>
         <th>Показания м³</th>
-        <th>Наличие пломбы</th>
         <th>Гор/хол вода</th>
         <th>Год выпуска</th>
       </tr></thead>
@@ -2636,6 +2728,7 @@ function certFormHTML(r, readonlyN) {
   // mic button helper
   const M = (id, hint) =>
     `<button type="button" class="mic-btn" onclick="voiceStart('${id}','${hint}')" title="🎤 ${hint}">🎤</button>`;
+  const sealVal = r.sealType === 'СЛ' ? 'СЛ' : 'ПП';   // seal type radio: one of ПП / СЛ
   return `
   <div class="section-lbl" style="display:flex;align-items:center;">
     📋 Данные поверки
@@ -2679,7 +2772,7 @@ function certFormHTML(r, readonlyN) {
     <div class="field">
       <label>Дата поверки</label>
       <div class="voice-wrap">
-        <input id="vf-d1" type="date" value="${(r.d1||'').split('.').reverse().join('-')}">
+        <input id="vf-d1" type="date" value="${(r.d1||'').split('.').reverse().join('-')}" onchange="certCalcNextDate()">
         ${M('vf-d1','Дата поверки')}
       </div>
     </div>
@@ -2699,12 +2792,12 @@ function certFormHTML(r, readonlyN) {
     </div>
     <div class="field">
       <label>Тип поверительного клейма</label>
-      <div id="vf-seal-type" style="display:flex;gap:16px;align-items:center;padding-top:8px;">
-        <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer;margin:0;">
-          <input type="checkbox" id="vf-seal-plomba" ${r.sealPlomba===false?'':'checked'}> Пломба
+      <div id="vf-seal-type" style="display:flex;flex-direction:column;gap:6px;padding-top:6px;">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin:0;">
+          <input type="radio" name="vf-seal-type" value="ПП" ${sealVal==='ПП'?'checked':''}> ПП (Пластиковое пломбо)
         </label>
-        <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer;margin:0;">
-          <input type="checkbox" id="vf-seal-kleimo" ${r.sealKleimo===false?'':'checked'}> Клеймо
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin:0;">
+          <input type="radio" name="vf-seal-type" value="СЛ" ${sealVal==='СЛ'?'checked':''}> СЛ (Самоклеющийся лейбл)
         </label>
       </div>
     </div>
@@ -2714,13 +2807,6 @@ function certFormHTML(r, readonlyN) {
         <input id="vf-val" type="number" value="${r.val||0}">
         ${M('vf-val','Показания в кубометрах')}
       </div>
-    </div>
-    <div class="field">
-      <label>Пломба (наличие)</label>
-      <select id="vf-seal">
-        <option value="+"${r.seal==='+'?' selected':''}>Есть</option>
-        <option value="-"${r.seal!=='+'?' selected':''}>Нет</option>
-      </select>
     </div>
     <div class="field">
       <label>Тип воды</label>
@@ -2744,6 +2830,13 @@ function certFormHTML(r, readonlyN) {
       <div class="voice-wrap">
         <input id="vf-phone" type="tel" value="${r.phone||''}" placeholder="+7 700 000 00 00">
         ${M('vf-phone','Телефон')}
+      </div>
+    </div>
+    <div class="field">
+      <label>Клиент <span style="font-size:10px;color:#9ca3af;">(справочник — позже)</span></label>
+      <div class="voice-wrap">
+        <input id="vf-client" value="${r.client||''}" placeholder="Название клиента / ТОО">
+        ${M('vf-client','Клиент')}
       </div>
     </div>
     <div class="field">
@@ -2809,6 +2902,7 @@ function certFromApi(row) {
     val:      row.readings != null ? Number(row.readings) : 0,
     note:     row.note || '',
     phone:    row.phone || '',
+    client:   row.client || '',
     sealType: row.sealType || '',
     oper:     row.operStatus || 'В работе',
     pay:      row.payStatus || 'В ожидании',
@@ -2907,7 +3001,7 @@ async function certApiPatch(id, patchBody) {
 function openNew(org) {
   modalReset();
   const ds = certDatasetFor(org);
-  const blank = {n:certNextNo(ds.arr), fio:'', addr:'', type:'СГВ-15', serial:'', year:'', seal:'+', d1:'', d2:'', stamp:'', water:'х/в', val:0, note:'', phone:'', sealType:'', sealPlomba:true, sealKleimo:true, oper:'В работе', pay:'В ожидании', inv:'Каспи'};
+  const blank = {n:certNextNo(ds.arr), fio:'', addr:'', type:'СГВ-15', serial:'', year:'', seal:'+', d1:'', d2:'', stamp:'', water:'х/в', val:0, note:'', phone:'', client:'', sealType:'ПП', oper:'В работе', pay:'В ожидании', inv:'Каспи'};
   certEditCtx = { org: ds.org, idx: -1 };
   document.getElementById('modalTitle').textContent = `Новый сертификат — ${org}`;
   document.getElementById('modalBadge').textContent = org;
@@ -5426,39 +5520,39 @@ function saveCertModal() {
   const pay = payEl ? payEl.value : '';
   const inv = invEl ? invEl.value : '';
 
-  // ── Списание расходников по типу поверительного клейма ──
-  // Пломба ☑️ → SKU-023, Клеймо ☑️ → SKU-024 (по 1 шт)
+  // ── Списание расходника по типу поверительного клейма (радио → один) ──
+  // ПП → SKU-023 (Пломба), СЛ → SKU-024 (Клеймо/Лейбл)
   whLoadFromStorage();
   const dedMsgs = [], warnMsgs = [];
-  const consumables = [
-    { cb:'vf-seal-plomba', sku:'SKU-023', label:'Пломба' },
-    { cb:'vf-seal-kleimo', sku:'SKU-024', label:'Клеймо' },
-  ];
-  consumables.forEach(c => {
-    const box = document.getElementById(c.cb);
-    if (!box || !box.checked) return;
-    const p = warehouseData.find(x => x.id === c.sku);
-    if (!p) { warnMsgs.push(`${c.label} (${c.sku}) не найден на складе`); return; }
-    if (whGetFree(p) <= 0) warnMsgs.push(`${c.label} (${c.sku}) — нет на складе!`);
-    whDeductSale(c.sku, 1, fio || 'Поверка', certNo || '—');
-    dedMsgs.push(`${c.label} -1 шт · ${c.sku}`);
-  });
+  const sealSel  = document.querySelector('input[name="vf-seal-type"]:checked');
+  const sealType = sealSel ? sealSel.value : '';   // 'ПП' | 'СЛ' | ''
+  const sealMap  = {
+    'ПП': { sku:'SKU-023', label:'Пломба (ПП)' },
+    'СЛ': { sku:'SKU-024', label:'Лейбл (СЛ)' },
+  };
+  const cm = sealMap[sealType];
+  if (cm) {
+    const p = warehouseData.find(x => x.id === cm.sku);
+    if (!p) { warnMsgs.push(`${cm.label} (${cm.sku}) не найден на складе`); }
+    else {
+      if (whGetFree(p) <= 0) warnMsgs.push(`${cm.label} (${cm.sku}) — нет на складе!`);
+      whDeductSale(cm.sku, 1, fio || 'Поверка', certNo || '—');
+      dedMsgs.push(`${cm.label} -1 шт · ${cm.sku}`);
+    }
+  }
   if (dedMsgs.length) renderWarehouse();
 
   // ── Персист записи сертификата в реестр (новая или редактируемая) ──
   const toRuDate  = v => v ? v.split('-').reverse().join('.') : '';
   const operEl    = selects[selects.length - 3]; // третий с конца = Операция
   const oper      = operEl ? operEl.value : 'В работе';
-  const sealPlomba = !!(document.getElementById('vf-seal-plomba') && document.getElementById('vf-seal-plomba').checked);
-  const sealKleimo = !!(document.getElementById('vf-seal-kleimo') && document.getElementById('vf-seal-kleimo').checked);
-  const sealType   = [sealPlomba && 'Пломба', sealKleimo && 'Клеймо'].filter(Boolean).join(' + ') || '—';
   const rec = {
     fio,
     addr:   getVal('vf-addr'),
     type:   getVal('vf-type'),
     serial,
     year:   +getVal('vf-year') || '',
-    seal:   getVal('vf-seal') || '+',
+    seal:   '+',
     d1:     toRuDate(getVal('vf-d1')),
     d2:     toRuDate(getVal('vf-d2')),
     stamp:  getVal('vf-stamp'),
@@ -5466,7 +5560,8 @@ function saveCertModal() {
     val:    +getVal('vf-val') || 0,
     note:   getVal('vf-note'),
     phone,
-    sealType, sealPlomba, sealKleimo,
+    client: getVal('vf-client'),
+    sealType,
     oper, pay, inv,
   };
   const ctx = certEditCtx || { org: 'САМИ', idx: -1 };
