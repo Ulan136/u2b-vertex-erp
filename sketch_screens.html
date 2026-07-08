@@ -2554,67 +2554,73 @@ function certFilter(q) { activeFilters.q = q.toLowerCase(); renderCert(certData,
 function certFilterField(f,v) { activeFilters[f]=v; renderCert(certData,'certBody'); }
 
 // ── ПЕЧАТЬ РЕЕСТРА ПОВЕРКИ ─────────────────────────────────────────
-// Generates a printable registry document in the official column order.
-// Телефон is a no-print column: visible on screen, hidden when printed.
+// Printable registry in the official column order (A4 landscape).
+// Phone is NOT printed — it is intentionally absent from the document.
 function certExport(arr, org) {
   const data  = arr || certData;
   const label = org || 'САМИ';
   const today = new Date().toLocaleDateString('ru-KZ');
-  // Seal type per record (Пломба/Клеймо). Records may not carry it yet;
-  // fall back to a dash. Supports r.sealType string or r.sealPlomba/sealKleimo flags.
-  const sealTypeOf = r => {
-    if (r.sealType) return r.sealType;
-    const t = [];
-    if (r.sealPlomba) t.push('Пломба');
-    if (r.sealKleimo) t.push('Клеймо');
-    return t.length ? t.join(' + ') : '—';
+  // Stamp number + seal type with a checkmark (Пломба ☑️ / Клеймо ☑️).
+  const sealCell = r => {
+    const st = r.sealType || '';
+    const plomba = /Пломба/i.test(st) || r.sealPlomba;
+    const kleimo = /Клеймо/i.test(st) || r.sealKleimo;
+    const badges = [];
+    if (plomba) badges.push('Пломба ☑️');
+    if (kleimo) badges.push('Клеймо ☑️');
+    const typeLine = badges.length ? badges.join(' ') : '—';
+    return `<strong>${r.stamp || '—'}</strong><br><span style="font-size:8px;">${typeLine}</span>`;
   };
-  const rows = data.map((r,i)=>{
-    const stampCell = `${r.stamp||'—'}<br><span style="font-size:9px;color:#555;">${sealTypeOf(r)}</span>`;
-    return `
+  const rows = data.map((r,i)=>`
     <tr>
-      <td style="text-align:center;">${i+1}</td>
-      <td>${r.fio||''}</td>
-      <td>${r.addr||''}</td>
+      <td>${i+1}</td>
+      <td class="wrap">${r.fio||''}</td>
+      <td class="wrap">${r.addr||''}</td>
       <td>${r.type||''}</td>
-      <td style="font-family:monospace;">${r.serial||''}</td>
+      <td>${r.serial||''}</td>
       <td>${r.d1||''}</td>
       <td>${r.d2||''}</td>
-      <td style="font-family:monospace;">${stampCell}</td>
-      <td style="text-align:right;">${(r.val||0).toLocaleString('ru-KZ')}</td>
-      <td style="text-align:center;">${r.seal==='+'?'Есть':'Нет'}</td>
-      <td style="text-align:center;">${r.water||''}</td>
-      <td style="text-align:center;">${r.year||''}</td>
-      <td class="no-print">${r.phone||'—'}</td>
-    </tr>`;
-  }).join('');
+      <td class="seal">${sealCell(r)}</td>
+      <td>${(r.val||0).toLocaleString('ru-KZ')}</td>
+      <td>${r.seal==='+'?'Есть':'Нет'}</td>
+      <td>${r.water||''}</td>
+      <td>${r.year||''}</td>
+    </tr>`).join('');
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Реестр поверки — ${label}</title>
     <style>
-      @media print { .no-print { display:none !important; } }
-      body{font-family:Arial,sans-serif;padding:20px;font-size:11px;color:#111;}
-      h2{font-size:15px;margin-bottom:2px;}
-      .sub{color:#6b7280;font-size:11px;margin-bottom:12px;}
-      table{width:100%;border-collapse:collapse;}
-      th{background:#f3f4f6;padding:6px;border:1px solid #d1d5db;font-size:10px;text-align:left;vertical-align:bottom;}
-      td{padding:5px 6px;border:1px solid #e5e7eb;vertical-align:top;font-size:10px;}
+      @page { size: A4 landscape; margin: 8mm; }
+      * { box-sizing: border-box; }
+      body { font-family: Arial, sans-serif; color:#000; margin:0; padding:6mm; }
+      h2 { font-size:13px; margin:0 0 2px; }
+      .sub { font-size:10px; color:#444; margin-bottom:8px; }
+      table { width:100%; border-collapse:collapse; font-size:9px; table-layout:fixed; }
+      th, td { border:1px solid #000; padding:3px 4px; vertical-align:middle; text-align:center; word-break:normal; white-space:nowrap; }
+      th { background:#eee; }
+      /* ФИО и Адрес — переносятся по словам, не сжимаются вертикально */
+      .wrap { white-space:normal; min-width:80px; text-align:left; }
+      .seal { white-space:normal; }
     </style></head><body>
     <h2>📋 Реестр счётчиков, прошедших поверку — ТОО «Vertex Metrology»</h2>
     <div class="sub">Источник: ${label} · ${today} · всего записей: ${data.length}</div>
     <table>
+      <colgroup>
+        <col style="width:4%"><col style="width:13%"><col style="width:17%"><col style="width:7%">
+        <col style="width:12%"><col style="width:8%"><col style="width:8%"><col style="width:13%">
+        <col style="width:6%"><col style="width:5%"><col style="width:4%"><col style="width:3%">
+      </colgroup>
       <thead><tr>
-        <th style="width:26px;text-align:center;">№</th>
+        <th>№</th>
         <th>ФИО абонента</th>
         <th>Адрес абонента</th>
         <th>Тип прибора учёта</th>
         <th>Номер счётчика</th>
         <th>Дата поверки</th>
         <th>Дата очередной поверки</th>
-        <th>Номер клейма + тип</th>
-        <th style="text-align:right;">Показания м³</th>
-        <th style="text-align:center;">Наличие пломбы</th>
-        <th style="text-align:center;">Гор/хол вода</th>
-        <th style="text-align:center;">Год выпуска</th>
-        <th class="no-print">Телефон</th>
+        <th>Номер и тип поверительного клейма</th>
+        <th>Показания м³</th>
+        <th>Наличие пломбы</th>
+        <th>Гор/хол вода</th>
+        <th>Год выпуска</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
