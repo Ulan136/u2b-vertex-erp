@@ -1037,7 +1037,7 @@
       <div class="page-sub">Реестр счётчиков прошедших поверку · ТОО «VERTEX METROLOGY» · 2026 г.</div>
       <div id="cert-stats" class="stat-row"></div>
       <div class="section-lbl">✏️ Блок 1 · Редактирование</div>
-      <div class="tbl-wrap" style="overflow:visible;">
+      <div class="tbl-wrap">
         <div class="tbl-header">
           <span class="tbl-title" id="cert-count">Список сертификатов</span>
           <div class="tbl-filters">
@@ -1060,8 +1060,8 @@
             <button class="btn btn-primary btn-sm" onclick="openNew('САМИ')">+ Новый</button>
           </div>
         </div>
-        <div>
-        <table id="certTable" style="width:100%;">
+        <div style="overflow-x:auto;min-height:420px;">
+        <table id="certTable">
           <thead><tr>
             <th>№</th><th>ФИО абонента</th><th>Адрес абонента</th>
             <th>Тип прибора</th><th>Номер счётчика</th>
@@ -2641,9 +2641,26 @@ function openStatusPop(e, field, btn) {
     };
     popup.appendChild(item);
   });
-  btn.parentElement.style.position='relative';
-  btn.parentElement.appendChild(popup);
-  setTimeout(()=>document.addEventListener('click',()=>popup.remove(),{once:true}),0);
+  // Position as FIXED (viewport-relative) + append to <body> so overflow:auto
+  // parents (the horizontally-scrollable table wrapper) never clip it.
+  popup.style.position = 'fixed';
+  popup.style.zIndex = '9999';
+  popup.style.visibility = 'hidden';
+  document.body.appendChild(popup);
+  const rect = btn.getBoundingClientRect();
+  const ph = popup.offsetHeight, pw = popup.offsetWidth;
+  const spaceBelow = window.innerHeight - rect.bottom;
+  // Flip above the badge when there isn't room below.
+  const top = (spaceBelow < ph + 8 && rect.top > ph + 8) ? (rect.top - ph - 2) : (rect.bottom + 2);
+  let left = rect.left;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  popup.style.top  = top + 'px';
+  popup.style.left = Math.max(8, left) + 'px';
+  popup.style.visibility = 'visible';
+  // Dismiss on outside click or on any scroll (fixed popup won't follow the badge).
+  const close = () => { popup.remove(); window.removeEventListener('scroll', close, true); };
+  setTimeout(()=>document.addEventListener('click', close, {once:true}), 0);
+  window.addEventListener('scroll', close, true);
 }
 
 // ── CLONE ─────────────────────────────────────────────────────────
@@ -2718,13 +2735,14 @@ function certExport(arr, org) {
       /* ФИО и Адрес — переносятся по словам, не сжимаются вертикально */
       .wrap { white-space:normal; min-width:80px; text-align:left; }
       .seal { white-space:normal; }
+      @media print { .no-print-meta { display:none; } }
     </style></head><body>
     <div style="text-align:center;margin-bottom:10px;">
       <div style="font-size:17px;font-weight:800;letter-spacing:2px;">РЕЕСТР</div>
       <div style="font-size:11px;">счётчиков, прошедших поверку за ${new Date().getFullYear()} г.</div>
       <div style="font-size:11px;">специалистом ТОО «VERTEX METROLOGY»</div>
     </div>
-    <div class="sub" style="text-align:right;">Источник: ${label} · ${today} · записей: ${data.length}</div>
+    <div class="sub no-print-meta" style="text-align:right;">Источник: ${label} · ${today} · записей: ${data.length}</div>
     <table>
       <colgroup>
         <col style="width:4%"><col style="width:14%"><col style="width:19%"><col style="width:8%">
@@ -2746,7 +2764,7 @@ function certExport(arr, org) {
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div style="margin-top:28px;font-size:12px;">Директор&nbsp;&nbsp;_________________&nbsp;&nbsp;М.Молдабаев</div>
+    <div style="margin-top:28px;font-size:12px;text-align:center;">Директор&nbsp;&nbsp;_________________&nbsp;&nbsp;М.Молдабаев</div>
     <script>window.onload=()=>window.print()<\/script></body></html>`;
   const b = new Blob([html],{type:'text/html'});
   const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),target:'_blank'});
