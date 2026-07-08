@@ -1064,7 +1064,7 @@
         <table id="certTable">
           <thead><tr>
             <th>№</th><th>ФИО абонента</th><th>Адрес абонента</th>
-            <th>Тип прибора</th><th>Номер счётчика</th>
+            <th>Тип прибора</th><th>Заводской номер</th>
             <th>Дата поверки</th><th>Дата очередной поверки</th><th>Номер клейма</th>
             <th>Показания м³</th><th>Гор/хол вода</th><th>Год выпуска</th><th>Прим.</th>
             <th>Телефон</th><th>Клиент</th>
@@ -1151,7 +1151,7 @@
           </div>
         </div>
         <div style="overflow-x:auto;"><table><thead><tr>
-          <th>№</th><th>ФИО / Объект</th><th>Адрес абонента</th><th>Тип прибора</th><th>Номер счётчика</th>
+          <th>№</th><th>ФИО / Объект</th><th>Адрес абонента</th><th>Тип прибора</th><th>Заводской номер</th>
           <th>Дата поверки</th><th>Дата очередной поверки</th><th>Номер клейма</th>
           <th>Показания м³</th><th>Гор/хол вода</th><th>Год выпуска</th><th>Прим.</th>
           <th>Телефон</th><th>Клиент</th><th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th>
@@ -1187,7 +1187,7 @@
           <div class="btn-row"><button class="btn btn-outline btn-sm" onclick="certExport(certTecData,'ТЭЦ')">📤 Экспорт</button><button class="btn btn-primary btn-sm" onclick="openNew('ТЭЦ')">+ Новый</button></div>
         </div>
         <div style="overflow-x:auto;"><table><thead><tr>
-          <th>№</th><th>ФИО / Объект</th><th>Адрес абонента</th><th>Тип прибора</th><th>Номер счётчика</th>
+          <th>№</th><th>ФИО / Объект</th><th>Адрес абонента</th><th>Тип прибора</th><th>Заводской номер</th>
           <th>Дата поверки</th><th>Дата очередной поверки</th><th>Номер клейма</th>
           <th>Показания м³</th><th>Гор/хол вода</th><th>Год выпуска</th><th>Прим.</th>
           <th>Телефон</th><th>Клиент</th><th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th>
@@ -2754,7 +2754,7 @@ function certExport(arr, org) {
         <th>ФИО абонента</th>
         <th>Адрес абонента</th>
         <th>Тип прибора учёта</th>
-        <th>Номер счётчика</th>
+        <th>Заводской номер</th>
         <th>Дата поверки</th>
         <th>Дата очередной поверки</th>
         <th>Номер и тип поверительного клейма</th>
@@ -2764,7 +2764,7 @@ function certExport(arr, org) {
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div style="margin-top:28px;font-size:12px;text-align:center;">Директор&nbsp;&nbsp;_________________&nbsp;&nbsp;М.Молдабаев</div>
+    <div style="margin-top:30px;font-weight:bold;text-align:center;">Директор &nbsp;&nbsp;&nbsp; _________________ &nbsp;&nbsp;&nbsp; М.Молдабаев</div>
     <script>window.onload=()=>window.print()<\/script></body></html>`;
   const b = new Blob([html],{type:'text/html'});
   const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),target:'_blank'});
@@ -2812,7 +2812,7 @@ function certFormHTML(r, readonlyN) {
       </div>
     </div>
     <div class="field">
-      <label>№ счётчика</label>
+      <label>Заводской номер</label>
       <div class="voice-wrap">
         <input id="vf-serial" value="${r.serial}" placeholder="Серийный номер" style="font-family:monospace">
         ${M('vf-serial','Номер счётчика')}
