@@ -5,6 +5,7 @@
 <title>Скетч — Водоканал ERP</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  @media print { .no-print { display: none !important; } }
   body { font-family: 'Segoe UI', sans-serif; background: #f0f0f0; display: flex; height: 100vh; overflow: hidden; }
 
   /* ── SIDEBAR ── */
@@ -2561,6 +2562,7 @@ function certFormHTML(r, readonlyN) {
       🎤 Заполнить голосом
     </button>
   </div>
+  <input type="hidden" id="vf-num" value="${r.n}">
   <div class="fg">
     <div class="field">
       <label>ФИО абонента</label>
@@ -2591,10 +2593,17 @@ function certFormHTML(r, readonlyN) {
       </div>
     </div>
     <div class="field">
-      <label>Год выпуска</label>
+      <label>Дата поверки</label>
       <div class="voice-wrap">
-        <input id="vf-year" type="number" value="${r.year}" placeholder="2020">
-        ${M('vf-year','Год выпуска')}
+        <input id="vf-d1" type="date" value="${(r.d1||'').split('.').reverse().join('-')}">
+        ${M('vf-d1','Дата поверки')}
+      </div>
+    </div>
+    <div class="field">
+      <label>Дата очередной поверки</label>
+      <div class="voice-wrap">
+        <input id="vf-d2" type="date" value="${(r.d2||'').split('.').reverse().join('-')}">
+        ${M('vf-d2','Дата очередной поверки')}
       </div>
     </div>
     <div class="field">
@@ -2605,10 +2614,14 @@ function certFormHTML(r, readonlyN) {
       </div>
     </div>
     <div class="field">
-      <label>Дата поверки</label>
-      <div class="voice-wrap">
-        <input id="vf-d1" type="date" value="${r.d1.split('.').reverse().join('-')}">
-        ${M('vf-d1','Дата поверки')}
+      <label>Тип поверительного клейма</label>
+      <div id="vf-seal-type" style="display:flex;gap:16px;align-items:center;padding-top:8px;">
+        <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer;margin:0;">
+          <input type="checkbox" id="vf-seal-plomba" checked> Пломба
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-weight:400;cursor:pointer;margin:0;">
+          <input type="checkbox" id="vf-seal-kleimo" checked> Клеймо
+        </label>
       </div>
     </div>
     <div class="field">
@@ -2619,6 +2632,13 @@ function certFormHTML(r, readonlyN) {
       </div>
     </div>
     <div class="field">
+      <label>Пломба (наличие)</label>
+      <select id="vf-seal">
+        <option value="+"${r.seal==='+'?' selected':''}>Есть</option>
+        <option value="-"${r.seal!=='+'?' selected':''}>Нет</option>
+      </select>
+    </div>
+    <div class="field">
       <label>Тип воды</label>
       <div class="voice-wrap">
         <select id="vf-water">
@@ -2626,6 +2646,20 @@ function certFormHTML(r, readonlyN) {
           <option${r.water==='г/в'?' selected':''}>г/в</option>
         </select>
         ${M('vf-water','Тип воды')}
+      </div>
+    </div>
+    <div class="field">
+      <label>Год выпуска</label>
+      <div class="voice-wrap">
+        <input id="vf-year" type="number" value="${r.year}" placeholder="2020">
+        ${M('vf-year','Год выпуска')}
+      </div>
+    </div>
+    <div class="field no-print">
+      <label>Телефон <span style="font-size:10px;color:#9ca3af;">(не печатается)</span></label>
+      <div class="voice-wrap">
+        <input id="vf-phone" type="tel" value="${r.phone||''}" placeholder="+7 700 000 00 00">
+        ${M('vf-phone','Телефон')}
       </div>
     </div>
     <div class="field">
@@ -2646,7 +2680,7 @@ function certFormHTML(r, readonlyN) {
 }
 
 function openNew(org) {
-  const blank = {n:certData.length+1, fio:'', addr:'', type:'СГВ-15', serial:'', year:'', seal:'+', d1:'', d2:'', stamp:'', water:'х/в', val:0, note:'', oper:'В работе', pay:'В ожидании', inv:'Каспи'};
+  const blank = {n:certData.length+1, fio:'', addr:'', type:'СГВ-15', serial:'', year:'', seal:'+', d1:'', d2:'', stamp:'', water:'х/в', val:0, note:'', phone:'', oper:'В работе', pay:'В ожидании', inv:'Каспи'};
   document.getElementById('modalTitle').textContent = `Новый сертификат — ${org}`;
   document.getElementById('modalBadge').textContent = org;
   document.getElementById('modalBody').innerHTML = certFormHTML(blank, false);
@@ -4789,6 +4823,7 @@ const CERT_FIELDS = [
   {id:'vf-year',   hint:'Год выпуска',            type:'digits'},
   {id:'vf-stamp',  hint:'Номер клейма (цифры)',   type:'digits'},
   {id:'vf-val',    hint:'Показания в кубометрах', type:'digits'},
+  {id:'vf-phone',  hint:'Телефон (цифры)',        type:'digits'},
 ];
 const NOTIF_FIELDS = [
   {id:'nf-fio',    hint:'ФИО абонента',          type:'text'},
@@ -5145,8 +5180,11 @@ function saveCertModal() {
   const sb = document.getElementById('modalSaveBtn');
   if (sb) { sb.textContent = '💾 Сохранить'; sb.onclick = saveCertModal; }
   // Собираем данные из формы
-  const fio    = document.getElementById('vf-fio')    ? document.getElementById('vf-fio').value    : '';
-  const serial = document.getElementById('vf-serial') ? document.getElementById('vf-serial').value : '';
+  const getVal = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const fio    = getVal('vf-fio');
+  const serial = getVal('vf-serial');
+  const phone  = getVal('vf-phone');   // сохраняется в системе, НЕ печатается
+  const certNo = getVal('vf-num');     // номер сертификата — для docNo списания
 
   // Получаем все select из статусов (последние 3 в модалке)
   const selects = document.querySelectorAll('#modalBody select');
@@ -5155,10 +5193,30 @@ function saveCertModal() {
   const pay = payEl ? payEl.value : '';
   const inv = invEl ? invEl.value : '';
 
+  // ── Списание расходников по типу поверительного клейма ──
+  // Пломба ☑️ → SKU-023, Клеймо ☑️ → SKU-024 (по 1 шт)
+  whLoadFromStorage();
+  const dedMsgs = [], warnMsgs = [];
+  const consumables = [
+    { cb:'vf-seal-plomba', sku:'SKU-023', label:'Пломба' },
+    { cb:'vf-seal-kleimo', sku:'SKU-024', label:'Клеймо' },
+  ];
+  consumables.forEach(c => {
+    const box = document.getElementById(c.cb);
+    if (!box || !box.checked) return;
+    const p = warehouseData.find(x => x.id === c.sku);
+    if (!p) { warnMsgs.push(`${c.label} (${c.sku}) не найден на складе`); return; }
+    if (whGetFree(p) <= 0) warnMsgs.push(`${c.label} (${c.sku}) — нет на складе!`);
+    whDeductSale(c.sku, 1, fio || 'Поверка', certNo || '—');
+    dedMsgs.push(`${c.label} -1 шт · ${c.sku}`);
+  });
+  if (dedMsgs.length) renderWarehouse();
+
   const wasAlreadyPaid = saveCertModal._prevPay === 'Оплачено';
   const isNowPaid      = pay === 'Оплачено';
 
   // ── Если только что отметили "Оплачено" — создаём приход ──
+  let saveMsg = '✅ Сохранено!';
   if (isNowPaid && !wasAlreadyPaid && inv) {
     // Запрашиваем сумму через простой prompt (в продакшне — поле в форме)
     const amtStr = prompt(
@@ -5173,15 +5231,23 @@ function saveCertModal() {
         date:    finToday(),
         source:  'поверка САМИ',
       });
-      showToast(`✅ Сохранено + приход ${(+amtStr).toLocaleString('ru-KZ')} ₸ → ${inv}`);
+      saveMsg = `✅ Сохранено + приход ${(+amtStr).toLocaleString('ru-KZ')} ₸ → ${inv}`;
       // Показываем баннер
       showFinanceBanner('income', inv, +amtStr, fio);
     } else {
-      showToast('✅ Сохранено (без записи в финансы)');
+      saveMsg = '✅ Сохранено (без записи в финансы)';
     }
-  } else {
-    showToast('✅ Сохранено!');
   }
+
+  // Итоговый тост: если было списание — показываем его (с предупреждениями)
+  let finalMsg = saveMsg;
+  if (dedMsgs.length) {
+    finalMsg = `📦 Списано: ${dedMsgs.join(' · ')}`;
+    if (warnMsgs.length) finalMsg = `⚠️ ${warnMsgs.join(' · ')} — ` + finalMsg;
+  } else if (warnMsgs.length) {
+    finalMsg = `⚠️ ${warnMsgs.join(' · ')}`;
+  }
+  showToast(finalMsg);
 
   saveCertModal._prevPay = pay;
   closeModal();
