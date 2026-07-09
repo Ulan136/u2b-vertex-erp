@@ -1,6 +1,6 @@
 import {
   pgTable, pgEnum, uuid, varchar, text, boolean,
-  timestamp, date, numeric, integer, smallint
+  timestamp, date, numeric, integer, smallint, jsonb
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -195,12 +195,15 @@ export const orders = pgTable('orders', {
   id        : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
   orderNo   : varchar('order_no', { length: 20 }),
   orderDate : date('order_date'),
+  clientName: varchar('client_name', { length: 150 }),
   address   : text('address'),
   phone     : varchar('phone', { length: 30 }),
   qty       : integer('qty').default(1),
   waterType : varchar('water_type', { length: 20 }),
+  // positions: [{ address, qty, water }] — multiple meter locations per order
+  positions : jsonb('positions').$type<Array<{ address: string; qty: number; water: string }>>().default([]),
   comment   : text('comment'),
-  status    : varchar('status', { length: 20 }).default('В работе'),   // 'В работе' | 'Готова'
+  status    : varchar('status', { length: 20 }).default('В работе'),   // 'В работе' | 'Готова' | 'Отменён'
   createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

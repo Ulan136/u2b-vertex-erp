@@ -754,16 +754,21 @@ function mmRenderOrders(){
   const list = document.getElementById('mm-orders-list'); if(!list) return;
   if(!mmOrders.length){ list.innerHTML='<div style="text-align:center;color:#9ca3af;padding:24px;">Нет заявок</div>'; return; }
   list.innerHTML = mmOrders.map(o=>{
-    const done = o.status==='Готова';
+    const st = o.status==='Готова' ? {c:'#059669',t:'✅ Готова'}
+             : o.status==='Отменён' ? {c:'#dc2626',t:'❌ Отменён'}
+             : {c:'#1d4ed8',t:'🔄 В работе'};
+    const positions = (Array.isArray(o.positions) && o.positions.length) ? o.positions : [{address:o.address,qty:o.qty,water:o.waterType}];
+    const posHtml = positions.map(p=>`<div style="font-size:12px;color:#374151;">📍 ${p.address||''} — <b>${p.qty||0} шт.</b> · ${p.water||''}</div>`).join('');
     return `<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <span style="font-family:monospace;font-size:12px;color:#6b7280;">${o.orderNo||''}</span>
-        <span style="font-size:11px;font-weight:700;color:${done?'#059669':'#1d4ed8'};">${done?'✅ Готова':'🔄 В работе'}</span>
+        <span style="font-size:11px;font-weight:700;color:${st.c};">${st.t}</span>
       </div>
-      <div style="font-weight:700;font-size:14px;">${o.address||''}</div>
-      <div style="font-size:12px;color:#6b7280;margin:3px 0;">📞 ${o.phone||'—'} · 💧 ${o.waterType||''} · 🔢 ${o.qty||0} шт.</div>
-      ${o.comment?`<div style="font-size:12px;color:#6b7280;">💬 ${o.comment}</div>`:''}
-      ${done?'':`<button onclick="mmOrderDone('${o.id}')" style="margin-top:8px;width:100%;border:none;background:#059669;color:#fff;border-radius:8px;padding:9px;font-weight:700;font-size:13px;cursor:pointer;">✅ Отметить «Готова»</button>`}
+      ${o.clientName?`<div style="font-weight:700;font-size:14px;">${o.clientName}</div>`:''}
+      <div style="font-size:12px;color:#6b7280;margin:2px 0 6px;">📞 ${o.phone||'—'}</div>
+      ${posHtml}
+      ${o.comment?`<div style="font-size:12px;color:#6b7280;margin-top:4px;">💬 ${o.comment}</div>`:''}
+      ${o.status==='В работе'?`<button onclick="mmOrderDone('${o.id}')" style="margin-top:8px;width:100%;border:none;background:#059669;color:#fff;border-radius:8px;padding:9px;font-weight:700;font-size:13px;cursor:pointer;">✅ Отметить «Готова»</button>`:''}
     </div>`;
   }).join('');
 }
