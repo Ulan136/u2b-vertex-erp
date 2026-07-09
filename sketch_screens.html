@@ -702,8 +702,16 @@
       </div>
       <button class="sb-group" onclick="toggleGroup(this)" style="padding-left:24px;font-size:11px;"><span>🆕 Первичная поверка</span><span class="arrow">▾</span></button>
       <div class="sb-sub">
-        <button class="sb-item" onclick="go('cert-primary','Поверка › Первичная','Сертификат',this)">Сертификат</button>
-        <button class="sb-item" onclick="go('izv-primary','Поверка › Первичная','Извещение',this)">Извещение</button>
+        <button class="sb-group" onclick="toggleGroup(this)" style="padding-left:34px;font-size:11px;"><span>KAZMETER</span><span class="arrow">▾</span></button>
+        <div class="sb-sub">
+          <button class="sb-item" onclick="go('cert-primary-km','Первичная › KAZMETER','Сертификат',this)">Сертификат</button>
+          <button class="sb-item" onclick="go('izv-primary-km','Первичная › KAZMETER','Извещение',this)">Извещение</button>
+        </div>
+        <button class="sb-group" onclick="toggleGroup(this)" style="padding-left:34px;font-size:11px;"><span>AQUA</span><span class="arrow">▾</span></button>
+        <div class="sb-sub">
+          <button class="sb-item" onclick="go('cert-primary-ak','Первичная › AQUA','Сертификат',this)">Сертификат</button>
+          <button class="sb-item" onclick="go('izv-primary-ak','Первичная › AQUA','Извещение',this)">Извещение</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2411,13 +2419,16 @@ let certVdkData  = [];
 let certTecData  = [];
 // Extra cert sections (own data + API source). Screens built by buildCertExtraScreens.
 let certFieldData   = [];   // source = 'Выездная'
-let certPrimaryData = [];   // source = 'Первичная'
+let certKmData      = [];   // source = 'Первичная-КМ' (KAZMETER)
+let certAkData      = [];   // source = 'Первичная-АК' (AQUA)
 let certAstanaData  = [];   // source = 'Астана'
 const CERT_EXTRA = {
-  'cert-field':   { key:'field',   org:'Выездная',  label:'Выездная поверка',  tbodyId:'cert-field-body' },
-  'cert-primary': { key:'primary', org:'Первичная', label:'Первичная поверка', tbodyId:'cert-primary-body' },
-  'cert-astana':  { key:'astana',  org:'Астана',    label:'Астана — выездная', tbodyId:'cert-astana-body' },
+  'cert-field':      { key:'field',      org:'Выездная',     label:'Выездная поверка',     tbodyId:'cert-field-body',      arr:()=>certFieldData },
+  'cert-primary-km': { key:'primary-km', org:'Первичная-КМ', label:'Первичная — KAZMETER', tbodyId:'cert-primary-km-body', arr:()=>certKmData },
+  'cert-primary-ak': { key:'primary-ak', org:'Первичная-АК', label:'Первичная — AQUA',     tbodyId:'cert-primary-ak-body', arr:()=>certAkData },
+  'cert-astana':     { key:'astana',     org:'Астана',       label:'Астана — выездная',    tbodyId:'cert-astana-body',     arr:()=>certAstanaData },
 };
+const certExtraByOrg = org => Object.values(CERT_EXTRA).find(c => c.org === org);
 let notifData    = BASE.map((r,i)=>({n:i+1, fio:r.fio, addr:r.addr, serial:r.serial, d1:r.d1, d2:r.d2, oper:r.oper, pay:r.pay, inv:r.inv, sent: i<10 ? r.d1 : '—', status: i<10 ? 'Отправлено' : 'Не отправлено'}));
 let notifVdkData = [];
 let notifTecData = [];
@@ -2494,7 +2505,9 @@ function renderCert(arr, tbodyId) {
       </td>
     </tr>`).join('');
   // Keep Block 2 (Ожидание оплаты) and Block 3 (История) in sync with the registry
-  const _blkPrefix = { certBody:'cert', 'cert-field-body':'cert-field', 'cert-primary-body':'cert-primary', 'cert-astana-body':'cert-astana' }[tbodyId];
+  // Block prefix: 'certBody' → 'cert'; any 'cert-<key>-body' → 'cert-<key>' (excludes certVdkBody/certTecBody)
+  const _blkPrefix = (tbodyId==='certBody') ? 'cert'
+    : (tbodyId.startsWith('cert-') && tbodyId.endsWith('-body')) ? tbodyId.slice(0, -5) : null;
   if (_blkPrefix) {
     renderCertWaiting(arr, _blkPrefix, tbodyId);
     renderCertUnfit(arr, _blkPrefix, tbodyId);
@@ -2675,10 +2688,10 @@ function certExportUnfit(arr, org) {
 // ══════════════════════════════════════════════════════════════
 //  ИЗВЕЩЕНИЕ — reduced cert-style module, per section (separate data)
 // ══════════════════════════════════════════════════════════════
-const IZV_LABEL  = { sami:'САМИ', vdk:'ВДК', tec:'ТЭЦ', field:'Выездная', primary:'Первичная', astana:'Астана (выездная)' };
+const IZV_LABEL  = { sami:'САМИ', vdk:'ВДК', tec:'ТЭЦ', field:'Выездная', 'primary-km':'Первичная — KAZMETER', 'primary-ak':'Первичная — AQUA', astana:'Астана (выездная)' };
 // Извещение shares the certificates table (docType='izv'); each section maps to a source.
-const IZV_SOURCE = { sami:'САМИ', vdk:'ВДК', tec:'ТЭЦ', field:'Выездная', primary:'Первичная', astana:'Астана' };
-const izvData    = { sami: [], vdk: [], tec: [], field: [], primary: [], astana: [] };
+const IZV_SOURCE = { sami:'САМИ', vdk:'ВДК', tec:'ТЭЦ', field:'Выездная', 'primary-km':'Первичная-КМ', 'primary-ak':'Первичная-АК', astana:'Астана' };
+const izvData    = { sami: [], vdk: [], tec: [], field: [], 'primary-km': [], 'primary-ak': [], astana: [] };
 const izvLoaded  = {};
 let izvEditCtx = null; // {key, idx}
 
@@ -2978,8 +2991,8 @@ function openStatusPop(e, field, btn) {
   const idx  = +row.dataset.idx;
   const dataMap = {certBody:certData, notifBody:notifData, certVdkBody:certVdkData, notifVdkBody:notifVdkData, certTecBody:certTecData, notifTecBody:notifTecData};
   const izvKey = tbodyId.startsWith('izv-') ? tbodyId.slice(4, -5) : null;   // izv-<key>-body
-  const extraOrg = { 'cert-field-body':'Выездная', 'cert-primary-body':'Первичная', 'cert-astana-body':'Астана' }[tbodyId];
-  const arr  = izvKey ? izvData[izvKey] : (extraOrg ? certDatasetFor(extraOrg).arr : dataMap[tbodyId]);
+  const extraEntry = Object.values(CERT_EXTRA).find(c => c.tbodyId === tbodyId);
+  const arr  = izvKey ? izvData[izvKey] : (extraEntry ? certDatasetFor(extraEntry.org).arr : dataMap[tbodyId]);
   const popup = document.createElement('div');
   popup.className = 's-popup open';
   const OPER_ICONS = {
@@ -3300,12 +3313,11 @@ function certFormHTML(r, readonlyN) {
 // certEditCtx remembers what the open modal is editing so saveCertModal persists it.
 let certEditCtx = null;
 function certDatasetFor(org) {
-  if (org === 'ВДК')       return { org: 'ВДК',       arr: certVdkData,     tbodyId: 'certVdkBody',     statsId: 'cert-vdk-stats' };
-  if (org === 'ТЭЦ')       return { org: 'ТЭЦ',       arr: certTecData,     tbodyId: 'certTecBody',     statsId: null };
-  if (org === 'Выездная')  return { org: 'Выездная',  arr: certFieldData,   tbodyId: 'cert-field-body',   statsId: null };
-  if (org === 'Первичная') return { org: 'Первичная', arr: certPrimaryData, tbodyId: 'cert-primary-body', statsId: null };
-  if (org === 'Астана')    return { org: 'Астана',    arr: certAstanaData,  tbodyId: 'cert-astana-body',  statsId: null };
-  return                        { org: 'САМИ',      arr: certData,        tbodyId: 'certBody',        statsId: 'cert-stats' };
+  if (org === 'ВДК')       return { org: 'ВДК',  arr: certVdkData, tbodyId: 'certVdkBody', statsId: 'cert-vdk-stats' };
+  if (org === 'ТЭЦ')       return { org: 'ТЭЦ',  arr: certTecData, tbodyId: 'certTecBody', statsId: null };
+  const extra = certExtraByOrg(org);
+  if (extra) return { org, arr: extra.arr(), tbodyId: extra.tbodyId, statsId: null };
+  return                        { org: 'САМИ', arr: certData,    tbodyId: 'certBody',    statsId: 'cert-stats' };
 }
 function certNextNo(arr) { return arr.length ? Math.max(...arr.map(x=>x.n||0)) + 1 : 1; }
 
@@ -3400,12 +3412,13 @@ async function certFetch(org) {
     const rows = await res.json();
     if (!Array.isArray(rows)) throw new Error('неверный ответ');
     const mapped = rows.map((r,i)=>({ ...certFromApi(r), n:i+1 }));
-    if (org==='ВДК')            certVdkData     = mapped;
-    else if (org==='ТЭЦ')       certTecData     = mapped;
-    else if (org==='Выездная')  certFieldData   = mapped;
-    else if (org==='Первичная') certPrimaryData = mapped;
-    else if (org==='Астана')    certAstanaData  = mapped;
-    else                        certData        = mapped;
+    if (org==='ВДК')                certVdkData    = mapped;
+    else if (org==='ТЭЦ')           certTecData    = mapped;
+    else if (org==='Выездная')      certFieldData  = mapped;
+    else if (org==='Первичная-КМ')  certKmData     = mapped;
+    else if (org==='Первичная-АК')  certAkData     = mapped;
+    else if (org==='Астана')        certAstanaData = mapped;
+    else                            certData       = mapped;
     renderCert(mapped, ds.tbodyId);
     if (ds.statsId) renderCertStats(mapped, ds.statsId);
     certLoaded[org] = true;
@@ -3547,9 +3560,7 @@ function go(screenId, section, page, el) {
   if (screenId==='cert-tec')  { if(certLoaded['ТЭЦ']){ renderCert(certTecData,'certTecBody'); } else certFetch('ТЭЦ'); }
   if (screenId==='notif-tec') { renderNotif(notifTecData,'notifTecBody'); }
   if (screenId.startsWith('izv-')) { const k=screenId.slice(4); izvLoaded[k] ? renderIzv(k) : izvFetch(k); }
-  if (screenId==='cert-field')   { certLoaded['Выездная']  ? renderCert(certFieldData,'cert-field-body')     : certFetch('Выездная'); }
-  if (screenId==='cert-primary') { certLoaded['Первичная'] ? renderCert(certPrimaryData,'cert-primary-body') : certFetch('Первичная'); }
-  if (screenId==='cert-astana')  { certLoaded['Астана']    ? renderCert(certAstanaData,'cert-astana-body')   : certFetch('Астана'); }
+  if (CERT_EXTRA[screenId]) { const c=CERT_EXTRA[screenId]; certLoaded[c.org] ? renderCert(c.arr(), c.tbodyId) : certFetch(c.org); }
   if (screenId==='rashody')       { rshApplyFilters(); rshRenderTree(); rshPopulateCatSels(); }
   if (screenId==='warehouse')       { renderWarehouse(); whFetchFromApi().then(renderWarehouse); }
   if (screenId==='sales')            { salesLoadFromStorage(); renderSales(); }
