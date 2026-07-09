@@ -13,6 +13,6 @@ export function OPTIONS() {
 // Public URL where external clients submit field-service requests.
 // The external cabinet page will be built later; this just makes the endpoint ready.
 export function GET() {
-  const base = process.env.EXTERNAL_CABINET_URL || 'https://u2b-vertex-erp.vercel.app/cabinet';
+  const base = process.env.EXTERNAL_CABINET_URL || 'https://u2b-api.vercel.app/cabinet';
   return NextResponse.json({ url: base }, { headers: CORS_HEADERS });
 }
