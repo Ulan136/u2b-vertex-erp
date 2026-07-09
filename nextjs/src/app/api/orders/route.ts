@@ -27,6 +27,16 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    // Auto-assign order number (ЗАК-NNN) when the client didn't provide one
+    // (e.g. external client cabinet submissions).
+    if (!body.orderNo) {
+      const rows = await db.select({ no: orders.orderNo }).from(orders);
+      const max = rows.reduce((m, r) => {
+        const n = parseInt((r.no || '').replace(/\D/g, ''), 10);
+        return isNaN(n) ? m : Math.max(m, n);
+      }, 0);
+      body.orderNo = 'ЗАК-' + String(max + 1).padStart(3, '0');
+    }
     const [order] = await db.insert(orders).values(body).returning();
     return NextResponse.json(order, { status: 201, headers: CORS_HEADERS });
   } catch (err) {
