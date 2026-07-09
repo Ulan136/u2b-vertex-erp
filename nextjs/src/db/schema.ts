@@ -10,7 +10,7 @@ export const operStatusEnum  = pgEnum('oper_status',      ['В работе','Г
 export const payStatusEnum   = pgEnum('pay_status',       ['В ожидании','Оплачено']);
 export const invoiceTypeEnum = pgEnum('invoice_type',     ['Каспи','БЦК','Наличка','Каспи Голд']);
 export const waterTypeEnum   = pgEnum('water_type',       ['х/в','г/в']);
-export const certSourceEnum  = pgEnum('cert_source',      ['САМИ','ВДК','ТЭЦ','Выездная','Первичная']);
+export const certSourceEnum  = pgEnum('cert_source',      ['САМИ','ВДК','ТЭЦ','Выездная','Первичная','Астана']);
 export const stockMoveEnum   = pgEnum('stock_move_type',  ['IN','OUT','REV+','REV-']);
 export const financeOpEnum   = pgEnum('finance_op_type',  ['Приход','Расход','Перевод']);
 export const accountCatEnum  = pgEnum('account_category', ['kaspi','bck','nalichka','other']);
@@ -60,6 +60,7 @@ export const certificates = pgTable('certificates', {
   note          : text('note'),
   phone         : varchar('phone', { length: 30 }),
   sealType      : varchar('seal_type', { length: 40 }),
+  result        : varchar('result', { length: 20 }).default('Годен'),
   operStatus    : operStatusEnum('oper_status').default('В работе'),
   payStatus     : payStatusEnum('pay_status').default('В ожидании'),
   invoiceType   : invoiceTypeEnum('invoice_type').default('Каспи'),
