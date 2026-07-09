@@ -910,15 +910,7 @@
 
       <div class="section-lbl">📝 Блок 1 · Создать заявку</div>
       <div class="tbl-wrap" style="padding:14px;">
-        <div class="fg">
-          <div class="field"><label>Дата</label><input type="date" id="fo-date"></div>
-          <div class="field"><label>Адрес *</label><input id="fo-addr" placeholder="Адрес объекта"></div>
-          <div class="field"><label>Телефон</label><input id="fo-phone" type="tel" placeholder="+7 700 000 00 00"></div>
-          <div class="field"><label>Кол-во счётчиков</label><input id="fo-qty" type="number" min="1" value="1"></div>
-          <div class="field"><label>Тип воды</label><select id="fo-water"><option>Холодная</option><option>Горячая</option></select></div>
-          <div class="field" style="grid-column:1/-1;"><label>Комментарий</label><textarea id="fo-comment" rows="2" style="width:100%;resize:vertical;font-family:inherit;font-size:13px;padding:6px 8px;border:1px solid #d1d5db;border-radius:6px;" placeholder="Доп. информация"></textarea></div>
-        </div>
-        <div style="margin-top:12px;"><button class="btn btn-primary" onclick="submitFieldOrder()">📤 Отправить заявку</button></div>
+        <button class="btn btn-primary" onclick="openOrderModal()">+ Создать заявку</button>
       </div>
 
       <div class="section-lbl" style="margin-top:22px;">📦 Блок 2 · Заказы в обработке</div>
@@ -2922,10 +2914,6 @@ let fieldOrders = [];
 let ordersLoaded = false;
 let extUrl = '';
 
-function ordersNextNo() {
-  const nums = fieldOrders.map(o => parseInt(String(o.no).replace(/\D/g,''),10)).filter(n=>!isNaN(n));
-  return 'ЗАК-' + String((nums.length ? Math.max(...nums) : 0) + 1).padStart(3,'0');
-}
 function orderFromApi(r) {
   return {
     id: r.id, no: r.orderNo || '', date: r.orderDate ? String(r.orderDate).slice(0,10).split('-').reverse().join('.') : '',
@@ -2960,6 +2948,7 @@ function renderFieldOrders() {
     const positions = (o.positions && o.positions.length) ? o.positions : [{ address:o.addr, qty:o.qty, water:o.water }];
     const posHtml = positions.map(p => `📍 ${p.address||''} — <strong>${p.qty||0} шт.</strong> · ${p.water||''}`).join('<br>');
     const btns = [];
+    if (o.id) btns.push(`<button class="act-btn" onclick="openOrderModal('${o.id}')" title="Изменить">✏️</button>`);
     if (o.status==='Готова') btns.push(`<button class="btn btn-outline btn-sm" onclick="orderToCert('${o.id||o.no}')">→ В сертификат</button>`);
     if (o.id && o.status!=='Отменён') btns.push(`<button class="act-btn" onclick="ordersCancel('${o.id}')" title="Отменить" style="color:#c2410c;">❌</button>`);
     if (o.id) btns.push(`<button class="act-btn" onclick="ordersDelete('${o.id}')" title="Удалить" style="color:#dc2626;">🗑️</button>`);
@@ -2975,34 +2964,84 @@ function renderFieldOrders() {
     </tr>`;
   }).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:#9ca3af;">Нет заявок</td></tr>';
 }
-async function submitFieldOrder() {
-  const date = document.getElementById('fo-date').value;
-  const addr = document.getElementById('fo-addr').value.trim();
-  const phone = document.getElementById('fo-phone').value.trim();
-  const qty = +document.getElementById('fo-qty').value || 1;
-  const water = document.getElementById('fo-water').value;
-  const comment = document.getElementById('fo-comment').value.trim();
-  if (!addr) { showToast('⚠️ Укажите адрес'); return; }
-  const no = ordersNextNo();
-  const positions = [{ address:addr, qty, water }];
-  const rec = { no, date: date ? date.split('-').reverse().join('.') : '', addr, phone, qty, water, positions, comment, status:'В работе' };
-  fieldOrders.unshift(rec);
-  renderFieldOrders();
+// ── Модальная форма заявки (создание / редактирование, много позиций) ──
+let orderEditId = null;
+function orderPosRow(p) {
+  p = p || { address:'', qty:1, water:'Холодная' };
+  const esc = (p.address||'').replace(/"/g,'&quot;');
+  return `<tr class="om-pos">
+    <td style="padding:3px;"><input class="om-p-addr" value="${esc}" placeholder="Адрес" style="width:100%;"></td>
+    <td style="padding:3px;"><input class="om-p-qty" type="number" min="1" value="${p.qty||1}" style="width:100%;text-align:center;"></td>
+    <td style="padding:3px;"><select class="om-p-water" style="width:100%;"><option${p.water==='Холодная'?' selected':''}>Холодная</option><option${p.water==='Горячая'?' selected':''}>Горячая</option></select></td>
+    <td style="padding:3px;text-align:center;"><button type="button" class="act-btn" onclick="omRemovePosition(this)" style="color:#dc2626;">✕</button></td>
+  </tr>`;
+}
+function omAddPosition() { document.getElementById('om-positions').insertAdjacentHTML('beforeend', orderPosRow()); }
+function omRemovePosition(btn) {
+  if (document.querySelectorAll('#om-positions .om-pos').length <= 1) { showToast('⚠️ Нужна хотя бы одна позиция'); return; }
+  btn.closest('tr').remove();
+}
+function orderModalHTML(o) {
+  const positions = o ? ((o.positions && o.positions.length) ? o.positions : [{ address:o.addr, qty:o.qty, water:o.water }]) : [{ address:'', qty:1, water:'Холодная' }];
+  const dateVal = o && o.date ? o.date.split('.').reverse().join('-') : whToday();
+  return `
+    <div class="fg">
+      <div class="field"><label>Дата</label><input type="date" id="om-date" value="${dateVal}"></div>
+      <div class="field"><label>Телефон</label><input id="om-phone" type="tel" value="${o?(o.phone||''):''}" placeholder="+7 700 000 00 00"></div>
+      <div class="field" style="grid-column:1/-1;"><label>Клиент</label><input id="om-client" value="${o?((o.clientName||'').replace(/"/g,'&quot;')):''}" placeholder="ФИО / ТОО"></div>
+    </div>
+    <div class="section-lbl" style="margin-top:10px;">📍 Позиции</div>
+    <table style="width:100%;font-size:13px;">
+      <thead><tr style="color:#6b7280;font-size:11px;"><th style="text-align:left;padding:4px;">Адрес</th><th style="width:70px;">Кол-во</th><th style="width:120px;">Тип воды</th><th style="width:34px;"></th></tr></thead>
+      <tbody id="om-positions">${positions.map(orderPosRow).join('')}</tbody>
+    </table>
+    <button type="button" class="btn btn-sm" style="margin-top:8px;" onclick="omAddPosition()">➕ Добавить позицию</button>
+    <div class="field" style="margin-top:12px;"><label>Комментарий</label><input id="om-comment" value="${o?((o.comment||'').replace(/"/g,'&quot;')):''}" placeholder="Доп. информация"></div>
+    ${o ? `<div class="field" style="margin-top:8px;"><label>Статус</label><select id="om-status">${['В работе','Готова','Отменён'].map(st=>`<option${o.status===st?' selected':''}>${st}</option>`).join('')}</select></div>` : ''}`;
+}
+function openOrderModal(id) {
+  modalReset();
+  const o = id ? fieldOrders.find(x => x.id===id || x.no===id) : null;
+  orderEditId = o ? (o.id || null) : null;
+  document.getElementById('modalTitle').textContent = o ? `Заявка ${o.no||''}` : 'Новая заявка';
+  document.getElementById('modalBadge').textContent = 'Заявка';
+  document.getElementById('modalBadge').className = 'modal-badge badge b-active';
+  document.getElementById('modalBody').innerHTML = orderModalHTML(o);
+  document.getElementById('modalFooterLeft').innerHTML = '';
+  document.getElementById('modalSaveBtn').onclick = saveOrderModal;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+async function saveOrderModal() {
+  const g = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const date = g('om-date'), phone = g('om-phone').trim(), client = g('om-client').trim(), comment = g('om-comment').trim();
+  const statusEl = document.getElementById('om-status');
+  const status = statusEl ? statusEl.value : 'В работе';
+  const positions = [];
+  document.querySelectorAll('#om-positions .om-pos').forEach(r => {
+    const address = r.querySelector('.om-p-addr').value.trim();
+    if (!address) return;
+    positions.push({ address, qty: +r.querySelector('.om-p-qty').value || 1, water: r.querySelector('.om-p-water').value });
+  });
+  if (!positions.length) { showToast('⚠️ Добавьте хотя бы одну позицию с адресом'); return; }
+  const body = {
+    clientName: client||null, phone: phone||null, comment: comment||null, status,
+    positions, address: positions[0].address, qty: positions.reduce((s,p)=>s+p.qty,0), waterType: positions[0].water,
+    orderDate: date||null,
+  };
   try {
-    const body = { orderNo:no, orderDate: date||null, address:addr, phone:phone||null, qty, waterType:water, positions, comment:comment||null, status:'В работе' };
-    const res = await fetch(ORDERS_API, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-    if (!res.ok) throw new Error('HTTP '+res.status);
-    const created = await res.json();
-    if (created && created.id) rec.id = created.id;
-    showToast(`📤 Заявка ${no} отправлена мастеру`);
-  } catch (e) {
-    console.warn('[orders POST]', e.message);
-    showToast('⚠️ Заявка сохранена локально ('+e.message+')');
-  }
-  document.getElementById('fo-addr').value='';
-  document.getElementById('fo-phone').value='';
-  document.getElementById('fo-qty').value='1';
-  document.getElementById('fo-comment').value='';
+    if (orderEditId) {
+      const res = await fetch(ORDERS_API+'/'+orderEditId, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      showToast('💾 Заявка обновлена');
+    } else {
+      const res = await fetch(ORDERS_API, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      const created = await res.json();
+      showToast(`📤 Заявка ${created.orderNo||''} создана`);
+    }
+    closeModal();
+    ordersFetch();
+  } catch (e) { showToast('⚠️ '+e.message); }
 }
 // «Готова» order → create a new Выездная cert entry (persists to Neon)
 function orderToCert(idOrNo) {
