@@ -589,6 +589,15 @@ html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:
     </div>
   </div>
 
+  <!-- ══ ЗАЯВКИ (incoming field-service orders) ══ -->
+  <div class="screen" id="screen-orders">
+    <div style="padding:14px 16px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;background:#fff;">
+      <div style="font-weight:800;font-size:16px;">📥 Заявки</div>
+      <button onclick="mmOrdersFetch()" style="border:none;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;">🔄 Обновить</button>
+    </div>
+    <div id="mm-orders-list" style="overflow-y:auto;flex:1;padding:12px;background:#f5f6fa;"></div>
+  </div>
+
   <!-- ══ NAV BAR ══ -->
   <div class="nav-bar">
     <div class="nav-item active" id="nav-tasks" onclick="goScreen('tasks')">
@@ -597,6 +606,10 @@ html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:
         <div class="nav-badge">3</div>
       </div>
       <div class="nav-label">Задания</div>
+    </div>
+    <div class="nav-item" id="nav-orders" onclick="goScreen('orders')">
+      <div class="nav-icon">📥</div>
+      <div class="nav-label">Заявки</div>
     </div>
     <div class="nav-item" id="nav-archive" onclick="goScreen('archive')">
       <div class="nav-icon">🗂</div>
@@ -717,8 +730,51 @@ function goScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-'+id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const navMap={tasks:'nav-tasks',archive:'nav-archive',profile:'nav-profile'};
+  const navMap={tasks:'nav-tasks',orders:'nav-orders',archive:'nav-archive',profile:'nav-profile'};
   if(navMap[id]) document.getElementById(navMap[id]).classList.add('active');
+  if(id==='orders') mmOrdersFetch();
+}
+
+// ── ЗАЯВКИ: fetch incoming orders from ERP, mark «Готова» (PATCH) ──
+const MM_ORDERS_API = 'https://u2b-api.vercel.app/api/orders';
+let mmOrders = [];
+async function mmOrdersFetch(){
+  const list = document.getElementById('mm-orders-list'); if(!list) return;
+  list.innerHTML = '<div style="text-align:center;color:#9ca3af;padding:24px;">Загрузка…</div>';
+  try {
+    const res = await fetch(MM_ORDERS_API, {cache:'no-store'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    mmOrders = await res.json();
+    mmRenderOrders();
+  } catch(e){
+    list.innerHTML = '<div style="text-align:center;color:#dc2626;padding:24px;">⚠️ Ошибка: '+e.message+'</div>';
+  }
+}
+function mmRenderOrders(){
+  const list = document.getElementById('mm-orders-list'); if(!list) return;
+  if(!mmOrders.length){ list.innerHTML='<div style="text-align:center;color:#9ca3af;padding:24px;">Нет заявок</div>'; return; }
+  list.innerHTML = mmOrders.map(o=>{
+    const done = o.status==='Готова';
+    return `<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <span style="font-family:monospace;font-size:12px;color:#6b7280;">${o.orderNo||''}</span>
+        <span style="font-size:11px;font-weight:700;color:${done?'#059669':'#1d4ed8'};">${done?'✅ Готова':'🔄 В работе'}</span>
+      </div>
+      <div style="font-weight:700;font-size:14px;">${o.address||''}</div>
+      <div style="font-size:12px;color:#6b7280;margin:3px 0;">📞 ${o.phone||'—'} · 💧 ${o.waterType||''} · 🔢 ${o.qty||0} шт.</div>
+      ${o.comment?`<div style="font-size:12px;color:#6b7280;">💬 ${o.comment}</div>`:''}
+      ${done?'':`<button onclick="mmOrderDone('${o.id}')" style="margin-top:8px;width:100%;border:none;background:#059669;color:#fff;border-radius:8px;padding:9px;font-weight:700;font-size:13px;cursor:pointer;">✅ Отметить «Готова»</button>`}
+    </div>`;
+  }).join('');
+}
+async function mmOrderDone(id){
+  try {
+    const res = await fetch(MM_ORDERS_API+'/'+id, {method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status:'Готова'})});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const o = mmOrders.find(x=>x.id===id); if(o) o.status='Готова';
+    mmRenderOrders();
+    showToast('✅ Заявка готова — отправлено в ERP');
+  } catch(e){ showToast('⚠️ Ошибка: '+e.message); }
 }
 function goBack(){ goScreen('tasks'); }
 

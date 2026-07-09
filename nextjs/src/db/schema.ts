@@ -190,6 +190,21 @@ export const expenses = pgTable('expenses', {
   createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── FIELD-SERVICE ORDERS (Заявки на выездную поверку) ─────────
+export const orders = pgTable('orders', {
+  id        : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  orderNo   : varchar('order_no', { length: 20 }),
+  orderDate : date('order_date'),
+  address   : text('address'),
+  phone     : varchar('phone', { length: 30 }),
+  qty       : integer('qty').default(1),
+  waterType : varchar('water_type', { length: 20 }),
+  comment   : text('comment'),
+  status    : varchar('status', { length: 20 }).default('В работе'),   // 'В работе' | 'Готова'
+  createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt : timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 // ── TYPES ─────────────────────────────────────────────────────
 export type Branch           = typeof branches.$inferSelect;
 export type User             = typeof users.$inferSelect;
