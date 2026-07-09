@@ -2959,9 +2959,11 @@ function renderFieldOrders() {
   tb.innerHTML = fieldOrders.length ? fieldOrders.map(o => {
     const positions = (o.positions && o.positions.length) ? o.positions : [{ address:o.addr, qty:o.qty, water:o.water }];
     const posHtml = positions.map(p => `📍 ${p.address||''} — <strong>${p.qty||0} шт.</strong> · ${p.water||''}`).join('<br>');
-    const action = o.status==='Готова'
-      ? `<button class="btn btn-outline btn-sm" onclick="orderToCert('${o.id||o.no}')">→ В сертификат</button>`
-      : '<span style="color:#9ca3af;font-size:11px;">—</span>';
+    const btns = [];
+    if (o.status==='Готова') btns.push(`<button class="btn btn-outline btn-sm" onclick="orderToCert('${o.id||o.no}')">→ В сертификат</button>`);
+    if (o.id && o.status!=='Отменён') btns.push(`<button class="act-btn" onclick="ordersCancel('${o.id}')" title="Отменить" style="color:#c2410c;">❌</button>`);
+    if (o.id) btns.push(`<button class="act-btn" onclick="ordersDelete('${o.id}')" title="Удалить" style="color:#dc2626;">🗑️</button>`);
+    const action = btns.length ? `<div class="actions-cell">${btns.join('')}</div>` : '<span style="color:#9ca3af;font-size:11px;">—</span>';
     return `<tr>
       <td style="font-family:monospace;font-size:11px;">${o.no}</td>
       <td>${o.date}</td>
@@ -3021,6 +3023,24 @@ function orderToCert(idOrNo) {
   certLoaded['Выездная'] = true;
   showToast(`✅ Создано сертификатов: ${positions.length} (из заявки ${o.no})`);
   go('cert-field','Поверка › Выездная','Сертификат');
+}
+// Cancel / delete an order (syncs to Neon → reflected in master + cabinet)
+async function ordersCancel(id) {
+  try {
+    const res = await fetch(ORDERS_API+'/'+id, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ status:'Отменён' }) });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    showToast('❌ Заявка отменена');
+    ordersFetch();
+  } catch (e) { showToast('⚠️ '+e.message); }
+}
+async function ordersDelete(id) {
+  if (!confirm('Удалить заявку?')) return;
+  try {
+    const res = await fetch(ORDERS_API+'/'+id, { method:'DELETE' });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    showToast('🗑️ Заявка удалена');
+    ordersFetch();
+  } catch (e) { showToast('⚠️ '+e.message); }
 }
 async function ordersLoadExtUrl() {
   const el = document.getElementById('fo-ext-url'); if (!el) return;

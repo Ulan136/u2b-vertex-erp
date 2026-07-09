@@ -110,6 +110,21 @@ export default function CabinetPage() {
     }
   }
 
+  async function cancel(o: Order) {
+    if (o.status === 'Отменён') return;
+    if (!confirm(`Отменить заявку ${o.orderNo || ''}?`)) return;
+    try {
+      const res = await fetch(`/api/orders/${o.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Отменён' }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      await load();
+    } catch (e) {
+      alert('Ошибка отмены: ' + (e instanceof Error ? e.message : ''));
+    }
+  }
+
   const input: React.CSSProperties = { width: '100%', padding: '10px 11px', fontSize: 14, border: '1px solid #d1d5db', borderRadius: 9, outline: 'none', background: '#fff', color: '#111', boxSizing: 'border-box' };
   const label: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4, display: 'block' };
 
@@ -156,10 +171,13 @@ export default function CabinetPage() {
                     </div>
                   ))}
                 </div>
-                {o.comment && <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>💬 {o.comment}</div>}
-                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                  <button onClick={() => openEdit(o)} style={{ flex: 1, background: '#eef2ff', color: BRAND, border: 'none', borderRadius: 9, padding: '9px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>✏️ Изменить</button>
-                  <button onClick={() => del(o)} style={{ flex: 1, background: '#fef2f2', color: '#dc2626', border: 'none', borderRadius: 9, padding: '9px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>🗑️ Удалить</button>
+                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>💬 {o.comment || <span style={{ color: '#c0c4cc' }}>без комментария</span>}</div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                  <button onClick={() => openEdit(o)} style={{ flex: '1 1 30%', background: '#eef2ff', color: BRAND, border: 'none', borderRadius: 9, padding: '9px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>✏️ Изменить</button>
+                  {o.status !== 'Отменён' && (
+                    <button onClick={() => cancel(o)} style={{ flex: '1 1 30%', background: '#fff7ed', color: '#c2410c', border: 'none', borderRadius: 9, padding: '9px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>❌ Отменить</button>
+                  )}
+                  <button onClick={() => del(o)} style={{ flex: '1 1 30%', background: '#fef2f2', color: '#dc2626', border: 'none', borderRadius: 9, padding: '9px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>🗑️ Удалить</button>
                 </div>
               </div>
             );
