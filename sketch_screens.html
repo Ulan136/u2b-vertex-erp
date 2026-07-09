@@ -2675,16 +2675,65 @@ function certExportUnfit(arr, org) {
 // ══════════════════════════════════════════════════════════════
 //  ИЗВЕЩЕНИЕ — reduced cert-style module, per section (separate data)
 // ══════════════════════════════════════════════════════════════
-const IZV_LABEL = { sami:'САМИ', vdk:'ВДК', tec:'ТЭЦ', field:'Выездная', primary:'Первичная', astana:'Астана (выездная)' };
-const izvData = {
-  sami: [
-    {n:1, fio:'Ким В.А.',    addr:'мкр 5, дом 12, кв.4',   type:'СГВ-15', serial:'55012341', d1:'03.07.2026', water:'х/в', year:2016, result:'Не годен', phone:'+7 701 111 22 33', client:'', note:'коррозия', oper:'В работе', pay:'В ожидании', inv:'Каспи'},
-    {n:2, fio:'Ли С.Н.',     addr:'ул. Абая, дом 7, кв.19', type:'СВК-15', serial:'55012999', d1:'04.07.2026', water:'г/в', year:2014, result:'Не годен', phone:'', client:'', note:'не крутит', oper:'В работе', pay:'В ожидании', inv:'БЦК'},
-    {n:3, fio:'Сон А.',      addr:'мкр 3, дом 1, кв.55',   type:'СГВ-15', serial:'55013050', d1:'05.07.2026', water:'х/в', year:2020, result:'Годен',    phone:'', client:'', note:'', oper:'В работе', pay:'Оплачено', inv:'Наличка'},
-  ],
-  vdk: [], tec: [], field: [], primary: [], astana: [],
-};
+const IZV_LABEL  = { sami:'САМИ', vdk:'ВДК', tec:'ТЭЦ', field:'Выездная', primary:'Первичная', astana:'Астана (выездная)' };
+// Извещение shares the certificates table (docType='izv'); each section maps to a source.
+const IZV_SOURCE = { sami:'САМИ', vdk:'ВДК', tec:'ТЭЦ', field:'Выездная', primary:'Первичная', astana:'Астана' };
+const izvData    = { sami: [], vdk: [], tec: [], field: [], primary: [], astana: [] };
+const izvLoaded  = {};
 let izvEditCtx = null; // {key, idx}
+
+// API row (docType='izv') → izv record  /  izv record → API body
+function izvFromApi(row) {
+  return {
+    id: row.id, fio: row.fio||'', addr: row.address||'', type: row.meterType||'СГВ-15', serial: row.serialNo||'',
+    d1: certDateFromApi(row.checkDate), water: row.waterType||'х/в', year: row.yearMade||'',
+    result: row.result||'Годен', phone: row.phone||'', client: row.client||'', note: row.note||'',
+    oper: row.operStatus||'В работе', pay: row.payStatus||'В ожидании', inv: row.invoiceType||'Каспи',
+  };
+}
+function izvToApi(rec, key) {
+  return {
+    fio: rec.fio||'', address: rec.addr||'', meterType: rec.type||null, serialNo: rec.serial||null,
+    yearMade: rec.year?Number(rec.year):null, waterType: rec.water||'х/в', checkDate: certDateToApi(rec.d1),
+    note: rec.note||null, phone: rec.phone||null, client: rec.client||null, result: rec.result||'Годен',
+    operStatus: rec.oper||'В работе', payStatus: rec.pay||'В ожидании', invoiceType: rec.inv||'Каспи',
+    source: IZV_SOURCE[key], docType: 'izv',
+  };
+}
+// GET izv records for a section (source + type=izv) and populate izvData[key]
+async function izvFetch(key) {
+  const src = IZV_SOURCE[key]; if (!src) return;
+  try {
+    const res = await fetch(`${CERTS_API}?source=${encodeURIComponent(src)}&type=izv`, { cache:'no-store' });
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const rows = await res.json();
+    if (!Array.isArray(rows)) throw new Error('неверный ответ');
+    izvData[key] = rows.map((r,i)=>({ ...izvFromApi(r), n:i+1 }));
+    izvLoaded[key] = true;
+  } catch (e) {
+    console.warn('[izv API GET]', key, e.message);
+    showToast(`⚠️ Извещение (${IZV_LABEL[key]}): ${e.message} — локально`);
+  }
+  renderIzv(key);
+}
+// POST when new (no id), PATCH when it has an id — non-blocking, graceful
+async function izvApiSync(recRef, key) {
+  const body = izvToApi(recRef, key);
+  try {
+    if (recRef.id) {
+      const res = await fetch(`${CERTS_API}/${recRef.id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+    } else {
+      const res = await fetch(CERTS_API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      const created = await res.json();
+      if (created && created.id) recRef.id = created.id;
+    }
+  } catch (e) {
+    console.warn('[izv API sync]', e.message);
+    showToast('⚠️ Извещение не синхронизировано (сохранено локально)');
+  }
+}
 function izvNextNo(arr){ return arr.length ? Math.max(...arr.map(x=>x.n||0)) + 1 : 1; }
 
 // Render the reduced 15-column table for a section into #izv-<key>-body
@@ -2777,9 +2826,11 @@ function saveIzvModal() {
   };
   const ctx = izvEditCtx || { key:'sami', idx:-1 };
   const arr = izvData[ctx.key] || (izvData[ctx.key] = []);
-  if (ctx.idx >= 0 && arr[ctx.idx]) { rec.n = arr[ctx.idx].n; arr[ctx.idx] = { ...arr[ctx.idx], ...rec }; }
-  else { rec.n = izvNextNo(arr); arr.push(rec); }
+  let savedRec;
+  if (ctx.idx >= 0 && arr[ctx.idx]) { rec.n = arr[ctx.idx].n; rec.id = arr[ctx.idx].id; arr[ctx.idx] = { ...arr[ctx.idx], ...rec }; savedRec = arr[ctx.idx]; }
+  else { rec.n = izvNextNo(arr); arr.push(rec); savedRec = rec; }
   renderIzv(ctx.key);
+  izvApiSync(savedRec, ctx.key);   // POST/PATCH to Neon (docType='izv')
   closeModal();
   showToast('✅ Извещение сохранено');
 }
@@ -2948,8 +2999,8 @@ function openStatusPop(e, field, btn) {
       ev.stopPropagation();
       if(arr && arr[idx]) {
         arr[idx][field] = opt;
-        // Sync status change to the API for certificate rows
-        if (arr[idx].id && tbodyId.startsWith('cert')) {
+        // Sync status change to the API for certificate + извещение rows
+        if (arr[idx].id && (tbodyId.startsWith('cert') || izvKey)) {
           const colMap = { oper:'operStatus', pay:'payStatus', inv:'invoiceType' };
           certApiPatch(arr[idx].id, { [colMap[field]]: opt });
         }
@@ -3321,6 +3372,7 @@ function certToApi(rec, source) {
     phone:         rec.phone || null,
     sealType:      rec.sealType || null,
     result:        rec.result || 'Годен',
+    docType:       'cert',
     operStatus:    rec.oper || 'В работе',
     payStatus:     rec.pay || 'В ожидании',
     invoiceType:   rec.inv || 'Каспи',
@@ -3494,7 +3546,7 @@ function go(screenId, section, page, el) {
   if (screenId==='notif-vdk') { renderNotif(notifVdkData,'notifVdkBody'); }
   if (screenId==='cert-tec')  { if(certLoaded['ТЭЦ']){ renderCert(certTecData,'certTecBody'); } else certFetch('ТЭЦ'); }
   if (screenId==='notif-tec') { renderNotif(notifTecData,'notifTecBody'); }
-  if (screenId.startsWith('izv-')) { renderIzv(screenId.slice(4)); }
+  if (screenId.startsWith('izv-')) { const k=screenId.slice(4); izvLoaded[k] ? renderIzv(k) : izvFetch(k); }
   if (screenId==='cert-field')   { certLoaded['Выездная']  ? renderCert(certFieldData,'cert-field-body')     : certFetch('Выездная'); }
   if (screenId==='cert-primary') { certLoaded['Первичная'] ? renderCert(certPrimaryData,'cert-primary-body') : certFetch('Первичная'); }
   if (screenId==='cert-astana')  { certLoaded['Астана']    ? renderCert(certAstanaData,'cert-astana-body')   : certFetch('Астана'); }

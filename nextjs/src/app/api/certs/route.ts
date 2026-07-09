@@ -19,8 +19,12 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const source = searchParams.get('source');
     const archived = searchParams.get('archived') === 'true';
+    const type = searchParams.get('type') || 'cert';   // 'cert' | 'izv'
 
-    const conditions = [eq(certificates.isArchived, archived)];
+    const conditions = [
+      eq(certificates.isArchived, archived),
+      eq(certificates.docType, type),
+    ];
     if (source) {
       conditions.push(
         eq(certificates.source, source as typeof certificates.source.enumValues[number])
