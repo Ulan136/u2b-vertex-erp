@@ -14,6 +14,7 @@ export const certSourceEnum  = pgEnum('cert_source',      ['САМИ','ВДК','
 export const stockMoveEnum   = pgEnum('stock_move_type',  ['IN','OUT','REV+','REV-']);
 export const financeOpEnum   = pgEnum('finance_op_type',  ['Приход','Расход','Перевод']);
 export const accountCatEnum  = pgEnum('account_category', ['kaspi','bck','nalichka','other']);
+export const orderSourceEnum = pgEnum('order_source',     ['field_check','tec']);
 
 // ── BRANCHES ──────────────────────────────────────────────────
 export const branches = pgTable('branches', {
@@ -204,6 +205,8 @@ export const orders = pgTable('orders', {
   positions : jsonb('positions').$type<Array<{ address: string; qty: number; water: string }>>().default([]),
   comment   : text('comment'),
   status    : varchar('status', { length: 20 }).default('В работе'),   // 'В работе' | 'Готова' | 'Отменён'
+  // origin channel: 'field_check' (Выездная поверка) | 'tec' (ТЭЦ). Separate order streams + numbering.
+  source    : orderSourceEnum('source').notNull().default('field_check'),
   createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

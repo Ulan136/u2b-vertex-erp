@@ -742,7 +742,8 @@ async function mmOrdersFetch(){
   const list = document.getElementById('mm-orders-list'); if(!list) return;
   list.innerHTML = '<div style="text-align:center;color:#9ca3af;padding:24px;">Загрузка…</div>';
   try {
-    const res = await fetch(MM_ORDERS_API, {cache:'no-store'});
+    // мастер выездной поверки видит только заявки Выездной (не ТЭЦ)
+    const res = await fetch(MM_ORDERS_API+'?source=field_check', {cache:'no-store'});
     if(!res.ok) throw new Error('HTTP '+res.status);
     mmOrders = await res.json();
     mmRenderOrders();

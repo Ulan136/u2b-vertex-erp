@@ -1,23 +1,31 @@
 import { ordersRepo } from '@/server/repositories/orders.repo';
-import { orderCreateSchema, orderUpdateSchema } from '@/server/dto/orders.dto';
+import {
+  orderCreateSchema, orderUpdateSchema,
+  nextOrderNoFor, filterOrdersBySource, externalCabinetUrl,
+  type OrderSource,
+} from '@/server/dto/orders.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
-// Auto-assign ЗАК-NNN (max existing + 1) when the client didn't provide one.
-async function nextOrderNo(): Promise<string> {
-  const rows = await ordersRepo.listNos();
-  const max = rows.reduce((m, r) => {
-    const n = parseInt((r.no ?? '').replace(/\D/g, ''), 10);
-    return isNaN(n) ? m : Math.max(m, n);
-  }, 0);
-  return 'ЗАК-' + String(max + 1).padStart(3, '0');
+const FIELD_CABINET_URL = () => process.env.EXTERNAL_CABINET_URL || 'https://u2b-api.vercel.app/cabinet';
+
+function asSource(v: string | null | undefined): OrderSource | null {
+  return v === 'field_check' || v === 'tec' ? v : null;
 }
 
 export const ordersService = {
-  list: () => ordersRepo.list(),
+  // No source → all orders (back-compat); source → only that stream.
+  async list(source?: string | null) {
+    const rows = await ordersRepo.list();
+    const s = asSource(source);
+    return s ? filterOrdersBySource(rows, s) : rows;
+  },
 
   async create(input: unknown) {
     const data = orderCreateSchema.parse(input);
-    if (!data.orderNo) data.orderNo = await nextOrderNo();
+    if (!data.orderNo) {
+      const nos = (await ordersRepo.listNos()).map(r => r.no);
+      data.orderNo = nextOrderNoFor(data.source, nos);
+    }
     return ordersRepo.create(data);
   },
 
@@ -35,7 +43,7 @@ export const ordersService = {
     return { ok: true };
   },
 
-  externalUrl: () => ({
-    url: process.env.EXTERNAL_CABINET_URL || 'https://u2b-api.vercel.app/cabinet',
+  externalUrl: (source?: string | null) => ({
+    url: externalCabinetUrl(FIELD_CABINET_URL(), asSource(source) ?? 'field_check'),
   }),
 };
