@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <title>Скетч — Водоканал ERP</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+:root{
+  --ink:#0f172a; --ink2:#334155; --muted:#64748b; --line:#e2e8f0;
+  --bg:#f8fafc; --surface:#ffffff;
+  --blue:#0ea5e9; --green:#10b981; --amber:#f59e0b; --red:#ef4444;
+  --mono:'JetBrains Mono','SF Mono',ui-monospace,Menlo,monospace;
+}
   * { box-sizing: border-box; margin: 0; padding: 0; }
   @media print { .no-print { display: none !important; } }
   body { font-family: 'Segoe UI', sans-serif; background: #f0f0f0; display: flex; height: 100vh; overflow: hidden; }
@@ -648,6 +655,134 @@
   .kpi-orange {--kpi-color:#f97316;}
   .kpi-indigo {--kpi-color:#6366f1;}
 
+  /* ══════════════════════════════════════════════════════════════
+     DESIGN SYSTEM v2 — overrides the base styles (later in cascade)
+     ══════════════════════════════════════════════════════════════ */
+  body { background: var(--bg); color: var(--ink); }
+  #content { background: var(--bg); }
+  .page-title { color: var(--ink); font-weight: 800; letter-spacing: -.02em; }
+  .page-sub { color: var(--muted); }
+
+  /* ── SIDEBAR — dark + collapse ── */
+  #sidebar { background: var(--ink); border-right: 1px solid rgba(255,255,255,.06); transition: width .18s ease; }
+  #sidebar::-webkit-scrollbar { width: 6px; }
+  #sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 3px; }
+  .sb-logo { border-bottom: 1px solid rgba(255,255,255,.08); position: relative; }
+  .sb-logo-name { color: #f1f5f9; }
+  .sb-logo-name span { color: var(--blue); }
+  .sb-logo-desc { color: #64748b; }
+  .sb-logo-badge { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.09); color: #7dd3fc; }
+  .sb-section { border-bottom: 1px solid rgba(255,255,255,.05); }
+  .sb-group { color: #94a3b8; }
+  .sb-group:hover { background: rgba(255,255,255,.04); }
+  .sb-group .arrow { color: #475569; }
+  .sb-item { color: #cbd5e1; }
+  .sb-item:hover { background: rgba(14,165,233,.12); color: #7dd3fc; }
+  .sb-item.active { background: rgba(14,165,233,.16); color: #7dd3fc; border-left: 3px solid var(--blue); }
+  .sb-direct { color: #cbd5e1; }
+  .sb-direct:hover { background: rgba(14,165,233,.12); color: #7dd3fc; }
+  .sb-direct.active { background: rgba(14,165,233,.16); color: #7dd3fc; border-left: 3px solid var(--blue); }
+  /* income sections on dark — keep the coloured accent bar, lighten text */
+  .sb-section.income-blue   .sb-group { color:#7dd3fc !important; }
+  .sb-section.income-green  .sb-group { color:#6ee7b7 !important; }
+  .sb-section.income-purple .sb-group { color:#c4b5fd !important; }
+  .sb-section.income-blue > .sb-group,
+  .sb-section.income-green > .sb-group,
+  .sb-section.income-purple > .sb-group { background: rgba(255,255,255,.03) !important; }
+  .sb-section.income-blue .sb-item,
+  .sb-section.income-green .sb-item,
+  .sb-section.income-purple .sb-item { color:#cbd5e1 !important; }
+  .sb-section.income-blue .sb-item:hover,  .sb-section.income-blue .sb-item.active,
+  .sb-section.income-green .sb-item:hover, .sb-section.income-green .sb-item.active,
+  .sb-section.income-purple .sb-item:hover,.sb-section.income-purple .sb-item.active {
+    background: rgba(14,165,233,.14) !important; color:#7dd3fc !important;
+  }
+  /* collapse toggle + collapsed rail (hover to re-expand) */
+  .sb-collapse { position:absolute; top:12px; right:8px; width:24px; height:24px; border-radius:6px;
+    background:rgba(255,255,255,.06); color:#94a3b8; border:none; cursor:pointer; font-size:15px; line-height:1;
+    display:flex; align-items:center; justify-content:center; transition:all .15s; z-index:2; }
+  .sb-collapse:hover { background:rgba(255,255,255,.14); color:#fff; }
+  #sidebar.collapsed .sb-collapse { transform: rotate(180deg); }
+  #sidebar.collapsed { width: 60px; }
+  #sidebar.collapsed:hover { width: 220px; box-shadow: 4px 0 26px rgba(0,0,0,.4); }
+  #sidebar.collapsed:not(:hover) .sb-logo-text,
+  #sidebar.collapsed:not(:hover) .sb-logo-badge,
+  #sidebar.collapsed:not(:hover) .sb-collapse,
+  #sidebar.collapsed:not(:hover) .sb-sub,
+  #sidebar.collapsed:not(:hover) .sb-group .arrow { display: none; }
+  #sidebar.collapsed:not(:hover) .sb-group,
+  #sidebar.collapsed:not(:hover) .sb-direct { overflow: hidden; white-space: nowrap; padding-left: 18px; }
+
+  /* ── TOPBAR — clean white + breadcrumb ── */
+  #topbar { background: var(--surface); border-bottom: 1px solid var(--line); color: var(--muted); }
+  #topbar strong { color: var(--ink); }
+  #breadcrumb span { color: #cbd5e1; }
+  .topbar-brand { border-left: 1px solid var(--line); }
+  .topbar-brand strong { color: var(--ink2); }
+  .topbar-user { border: 1px solid var(--line); background: #fff; color: var(--ink2); }
+  .topbar-user:hover { background: var(--bg); }
+  .topbar-avatar { background: linear-gradient(135deg, var(--blue), #0284c7); }
+
+  /* ── BUTTONS ── */
+  .btn-primary { background: linear-gradient(135deg, var(--blue), #0284c7); color:#fff; box-shadow: 0 1px 3px rgba(14,165,233,.35); }
+  .btn-primary:hover { background: linear-gradient(135deg, #0284c7, #0369a1); }
+  .btn-outline { border: 1px solid var(--line); color: var(--ink2); background:#fff; }
+  .btn-outline:hover { background: var(--bg); border-color: #cbd5e1; }
+  .act-btn { width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center;
+    border:1px solid var(--line); border-radius:7px; background:#fff; color:var(--muted); font-size:13px; }
+  .act-btn:hover { background: var(--bg); color: var(--ink2); border-color:#cbd5e1; }
+  .act-btn-text { width:auto; padding:0 10px; gap:5px; font-size:12px; font-weight:600; }
+
+  /* ── TABLES — light, thin rows, hover, mono codes ── */
+  .tbl-wrap { border: 1px solid var(--line); border-radius: 12px; }
+  .tbl-header { border-bottom: 1px solid var(--line); }
+  .tbl-title { color: var(--ink); }
+  .f-search, .f-select { border: 1px solid var(--line); border-radius: 8px; }
+  .f-search:focus, .f-select:focus { border-color: var(--blue); }
+  thead tr { background: var(--surface); }
+  th { color: var(--muted); border-bottom: 1px solid var(--line); }
+  td { border-bottom: 1px solid var(--line); color: var(--ink2); }
+  tr:hover td { background: var(--bg); }
+  tr.row-hot td { background: #fff7ed; }
+  td[style*="monospace"], code, .mono { font-family: var(--mono) !important; font-variant-ligatures: none; }
+  code { background:#f1f5f9; color: var(--ink2); }
+
+  /* ── STAT CARDS — 2px top accent ── */
+  .stat-card { --card-accent: var(--blue); background: var(--surface); border: 1px solid var(--line);
+    border-top: 2px solid var(--card-accent); border-radius: 12px; }
+  .stat-label { color: var(--muted); font-size: 11px; font-weight: 500; }
+  .stat-val { color: var(--ink); font-weight: 800; letter-spacing: -.02em; }
+  .stat-card.ok   { --card-accent: var(--green); }  .stat-card.ok .stat-val   { color: var(--green); }
+  .stat-card.warn { --card-accent: var(--amber); }  .stat-card.warn .stat-val { color: var(--amber); }
+  .stat-card.err  { --card-accent: var(--red); }    .stat-card.err .stat-val  { color: var(--red); }
+  .stat-card.blue { --card-accent: var(--blue); }   .stat-card.blue .stat-val { color: var(--blue); }
+
+  /* ── STATUS PILLS — new palette, keep classes + sp-* aliases ── */
+  .badge, .status-btn { border-radius: 999px; padding: 3px 10px; font-weight: 600; letter-spacing:.01em; }
+  .b-work,   .sp-work   { background:#f1f5f9; color:var(--ink2); border:1px solid var(--line); }
+  .b-ready,  .sp-ready  { background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; }
+  .b-submit, .sp-submit { background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; animation:submitPulse 2s infinite; }
+  .b-ktrm70, .sp-70     { background:linear-gradient(90deg,#dcfce7 0 70%,#fff7ed 70% 100%); color:#15803d; border:1px solid #86efac; }
+  .b-ktrm,   .sp-done   { background:#dcfce7; color:#15803d; border:1px solid #86efac; }
+  .b-ok, .b-paid { background:#dcfce7; color:#166534; }
+  .b-warn, .b-wait { background:#fef3c7; color:#92400e; }
+  .b-err { background:#fee2e2; color:#991b1b; }
+  .b-active { background:#e0f2fe; color:#0369a1; }
+  .b-kaspi { background:#fce7f3; color:#9d174d; }
+  .b-bck { background:#ede9fe; color:#5b21b6; }
+  .b-cash { background:#dcfce7; color:#166534; }
+  .b-cold { background:#e0f2fe; color:#0369a1; }
+  .b-hot { background:#fee2e2; color:#991b1b; }
+  @keyframes submitPulse { 0%,100%{box-shadow:0 0 0 0 rgba(14,165,233,.4);} 50%{box-shadow:0 0 0 5px rgba(14,165,233,0);} }
+  .s-popup { border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 28px rgba(15,23,42,.14); }
+
+  /* ── ROBOT BAR — dark gradient blue ── */
+  .robot-bar { background: linear-gradient(135deg, #1e3a5f, #1e40af); border-bottom: 1px solid rgba(255,255,255,.08); }
+
+  /* ── CARDS ── */
+  .card, .welcome { border: 1px solid var(--line); border-radius: 12px; }
+  .card-title { color: var(--ink); }
+
 </style>
 </head>
 <body>
@@ -657,6 +792,7 @@
 
   <!-- LOGO -->
   <div class="sb-logo">
+    <button class="sb-collapse" onclick="toggleSidebar()" title="Свернуть / развернуть меню">‹</button>
     <div class="sb-logo-top">
       <div class="sb-logo-mark" id="logoMark">💧</div>
       <div class="sb-logo-text">
@@ -3819,6 +3955,18 @@ function toggleGroup(btn) {
   const sub = btn.nextElementSibling;
   if (sub && sub.classList.contains('sb-sub')) sub.classList.toggle('open');
 }
+
+// Collapse / expand the sidebar (60px icon rail ⇄ full). State persisted.
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  sb.classList.toggle('collapsed');
+  try { localStorage.setItem('u2b_sidebar_collapsed', sb.classList.contains('collapsed') ? '1' : '0'); } catch (e) {}
+}
+try {
+  if (localStorage.getItem('u2b_sidebar_collapsed') === '1') {
+    document.addEventListener('DOMContentLoaded', () => document.getElementById('sidebar').classList.add('collapsed'));
+  }
+} catch (e) {}
 
 // ══════════════════════════════════════════════════════════════
 // РАСХОДЫ — DATA & LOGIC
