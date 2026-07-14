@@ -208,6 +208,29 @@ export const orders = pgTable('orders', {
   updatedAt : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── CLIENT CATEGORIES (per-branch) ────────────────────────────
+// Each branch owns its own independent list of client categories.
+export const clientCategories = pgTable('client_categories', {
+  id        : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  branchId  : uuid('branch_id').references(() => branches.id, { onDelete: 'cascade' }).notNull(),
+  name      : varchar('name', { length: 100 }).notNull(),
+  createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+// ── CLIENTS (per-branch) ──────────────────────────────────────
+// Each branch owns its own independent list of clients; clients of one
+// branch are never visible in another. category_id must belong to the same
+// branch (enforced in the service layer); on category delete → set null.
+export const clients = pgTable('clients', {
+  id         : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  branchId   : uuid('branch_id').references(() => branches.id, { onDelete: 'cascade' }).notNull(),
+  name       : varchar('name', { length: 150 }).notNull(),
+  phone      : varchar('phone', { length: 20 }),            // normalized to +7XXXXXXXXXX
+  categoryId : uuid('category_id').references(() => clientCategories.id, { onDelete: 'set null' }),
+  createdAt  : timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt  : timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 // ── TYPES ─────────────────────────────────────────────────────
 export type Branch           = typeof branches.$inferSelect;
 export type User             = typeof users.$inferSelect;
@@ -218,8 +241,12 @@ export type Sale             = typeof sales.$inferSelect;
 export type FinanceAccount   = typeof financeAccounts.$inferSelect;
 export type FinanceOperation = typeof financeOperations.$inferSelect;
 export type Expense          = typeof expenses.$inferSelect;
+export type ClientCategory   = typeof clientCategories.$inferSelect;
+export type Client           = typeof clients.$inferSelect;
 
 export type NewCertificate = typeof certificates.$inferInsert;
+export type NewClient         = typeof clients.$inferInsert;
+export type NewClientCategory = typeof clientCategories.$inferInsert;
 export type NewProduct     = typeof products.$inferInsert;
 export type NewSale        = typeof sales.$inferInsert;
 export type NewStockMove   = typeof stockMovements.$inferInsert;
