@@ -29,7 +29,7 @@ export default function CabinetPage() {
     if (!phone.trim()) { setError('Укажите телефон'); return; }
     setError(''); setSuccess(''); setSending(true);
     try {
-      const res = await fetch('/api/orders', {
+      const res = await fetch('/api/v2/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
