@@ -1,27 +1,22 @@
 import { db } from '@/db';
 import { clientCategories } from '@/db/schema';
-import { and, eq, asc } from 'drizzle-orm';
+import { eq, asc } from 'drizzle-orm';
 
 type CategoryInsert = typeof clientCategories.$inferInsert;
 
-// Data access for client categories — one branch's categories are never
-// visible to another, so every read is scoped by branchId.
+// Data access for client categories — organization-wide.
 export const clientCategoriesRepo = {
-  listByBranch: (branchId: string) =>
-    db.select().from(clientCategories).where(eq(clientCategories.branchId, branchId)).orderBy(asc(clientCategories.name)),
+  list: () =>
+    db.select().from(clientCategories).orderBy(asc(clientCategories.name)),
 
   async findById(id: string) {
     const [row] = await db.select().from(clientCategories).where(eq(clientCategories.id, id)).limit(1);
     return row ?? null;
   },
 
-  // Guard against duplicate category names within the same branch.
-  async findByName(branchId: string, name: string) {
-    const [row] = await db
-      .select()
-      .from(clientCategories)
-      .where(and(eq(clientCategories.branchId, branchId), eq(clientCategories.name, name)))
-      .limit(1);
+  // Guard against duplicate category names.
+  async findByName(name: string) {
+    const [row] = await db.select().from(clientCategories).where(eq(clientCategories.name, name)).limit(1);
     return row ?? null;
   },
 

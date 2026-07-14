@@ -5,22 +5,22 @@ import { and, or, eq, ilike, isNull, desc, type SQL } from 'drizzle-orm';
 type ClientInsert = typeof clients.$inferInsert;
 
 export type ClientListFilter = {
-  branchId: string;
   categoryId?: string | null;   // uuid → that category, 'none' → uncategorized, undefined → all
   q?: string | null;            // search over name / phone
 };
 
 // Data access for clients — the only place that talks to Drizzle for this table.
 export const clientsRepo = {
-  list({ branchId, categoryId, q }: ClientListFilter) {
-    const conds: SQL[] = [eq(clients.branchId, branchId)];
+  list({ categoryId, q }: ClientListFilter) {
+    const conds: SQL[] = [];
     if (categoryId === 'none') conds.push(isNull(clients.categoryId));
     else if (categoryId) conds.push(eq(clients.categoryId, categoryId));
     if (q && q.trim()) {
       const like = `%${q.trim()}%`;
       conds.push(or(ilike(clients.name, like), ilike(clients.phone, like))!);
     }
-    return db.select().from(clients).where(and(...conds)).orderBy(desc(clients.createdAt));
+    const query = db.select().from(clients);
+    return (conds.length ? query.where(and(...conds)) : query).orderBy(desc(clients.createdAt));
   },
 
   async findById(id: string) {

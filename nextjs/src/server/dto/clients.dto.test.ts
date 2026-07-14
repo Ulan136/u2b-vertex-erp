@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizePhone, assertCategoryInBranch } from './clients.dto';
+import { normalizePhone, clientCreateSchema } from './clients.dto';
 import { ApiError } from '@/server/lib/errors';
 
 // ── normalizePhone → +7XXXXXXXXXX ────────────────────────────
@@ -35,30 +35,29 @@ test('normalizePhone: invalid length throws 400', () => {
   assert.throws(() => normalizePhone('12345678901'), (e: unknown) => e instanceof ApiError && e.status === 400);
 });
 
-// ── assertCategoryInBranch (category must belong to client's branch) ──
-const BR_A = '11111111-1111-1111-1111-111111111111';
-const BR_B = '22222222-2222-2222-2222-222222222222';
-const CAT  = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+// ── clientCreateSchema (organization-wide, no branch) ────────
+const CAT = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';  // valid v4 UUID
 
-test('assertCategoryInBranch: no category (null) is always allowed', () => {
-  assert.doesNotThrow(() => assertCategoryInBranch(null, BR_A, null));
-  assert.doesNotThrow(() => assertCategoryInBranch(undefined, BR_A, undefined));
+test('clientCreateSchema: name only is valid (no branch required)', () => {
+  const parsed = clientCreateSchema.parse({ name: 'ТОО Ромашка' });
+  assert.equal(parsed.name, 'ТОО Ромашка');
 });
 
-test('assertCategoryInBranch: category in the same branch passes', () => {
-  assert.doesNotThrow(() => assertCategoryInBranch({ id: CAT, branchId: BR_A }, BR_A, CAT));
+test('clientCreateSchema: phone and category are optional', () => {
+  const parsed = clientCreateSchema.parse({ name: 'x', phone: '+7 700 000 00 00', categoryId: CAT });
+  assert.equal(parsed.categoryId, CAT);
 });
 
-test('assertCategoryInBranch: category from another branch throws 400', () => {
-  assert.throws(
-    () => assertCategoryInBranch({ id: CAT, branchId: BR_B }, BR_A, CAT),
-    (e: unknown) => e instanceof ApiError && e.status === 400,
-  );
+test('clientCreateSchema: name is required', () => {
+  assert.throws(() => clientCreateSchema.parse({ phone: '7000000000' }));
+  assert.throws(() => clientCreateSchema.parse({ name: '   ' }));
 });
 
-test('assertCategoryInBranch: categoryId given but category not found throws 400', () => {
-  assert.throws(
-    () => assertCategoryInBranch(null, BR_A, CAT),
-    (e: unknown) => e instanceof ApiError && e.status === 400,
-  );
+test('clientCreateSchema: strips unknown keys like branchId', () => {
+  const parsed = clientCreateSchema.parse({ name: 'x', branchId: 'whatever' }) as Record<string, unknown>;
+  assert.equal('branchId' in parsed, false);
+});
+
+test('clientCreateSchema: non-uuid categoryId is rejected', () => {
+  assert.throws(() => clientCreateSchema.parse({ name: 'x', categoryId: 'not-a-uuid' }));
 });

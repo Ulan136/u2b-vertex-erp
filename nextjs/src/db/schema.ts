@@ -208,22 +208,19 @@ export const orders = pgTable('orders', {
   updatedAt : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
-// ── CLIENT CATEGORIES (per-branch) ────────────────────────────
-// Each branch owns its own independent list of client categories.
+// ── CLIENT CATEGORIES ─────────────────────────────────────────
+// Organization-wide list of client categories (e.g. «ТЭЦ»).
 export const clientCategories = pgTable('client_categories', {
   id        : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
-  branchId  : uuid('branch_id').references(() => branches.id, { onDelete: 'cascade' }).notNull(),
   name      : varchar('name', { length: 100 }).notNull(),
   createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
-// ── CLIENTS (per-branch) ──────────────────────────────────────
-// Each branch owns its own independent list of clients; clients of one
-// branch are never visible in another. category_id must belong to the same
-// branch (enforced in the service layer); on category delete → set null.
+// ── CLIENTS ───────────────────────────────────────────────────
+// Organization-wide clients; the only grouping is category_id.
+// On category delete → set null («без категории»).
 export const clients = pgTable('clients', {
   id         : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
-  branchId   : uuid('branch_id').references(() => branches.id, { onDelete: 'cascade' }).notNull(),
   name       : varchar('name', { length: 150 }).notNull(),
   phone      : varchar('phone', { length: 20 }),            // normalized to +7XXXXXXXXXX
   categoryId : uuid('category_id').references(() => clientCategories.id, { onDelete: 'set null' }),

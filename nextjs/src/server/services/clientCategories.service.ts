@@ -4,15 +4,12 @@ import { categoryCreateSchema, categoryUpdateSchema } from '@/server/dto/clients
 import { badRequest, notFound, conflict } from '@/server/lib/errors';
 
 export const clientCategoriesService = {
-  list(branchId: string | null | undefined) {
-    if (!branchId) throw badRequest('branchId (филиал) обязателен');
-    return clientCategoriesRepo.listByBranch(branchId);
-  },
+  list: () => clientCategoriesRepo.list(),
 
   async create(input: unknown) {
     const data = categoryCreateSchema.parse(input);
-    const dup = await clientCategoriesRepo.findByName(data.branchId, data.name);
-    if (dup) throw conflict('Категория с таким названием уже есть в этом филиале');
+    const dup = await clientCategoriesRepo.findByName(data.name);
+    if (dup) throw conflict('Категория с таким названием уже есть');
     return clientCategoriesRepo.create(data);
   },
 
@@ -21,8 +18,8 @@ export const clientCategoriesService = {
     const data = categoryUpdateSchema.parse(input);
     const existing = await clientCategoriesRepo.findById(id);
     if (!existing) throw notFound('Категория не найдена');
-    const dup = await clientCategoriesRepo.findByName(existing.branchId, data.name);
-    if (dup && dup.id !== id) throw conflict('Категория с таким названием уже есть в этом филиале');
+    const dup = await clientCategoriesRepo.findByName(data.name);
+    if (dup && dup.id !== id) throw conflict('Категория с таким названием уже есть');
     const row = await clientCategoriesRepo.update(id, data);
     if (!row) throw notFound('Категория не найдена');
     return row;

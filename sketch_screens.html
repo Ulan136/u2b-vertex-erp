@@ -2482,11 +2482,8 @@
 
       <!-- TAB: КЛИЕНТЫ -->
       <div id="stab-clients" style="display:none;">
-        <div style="font-size:13px;color:#6b7280;margin-bottom:12px;">У каждого филиала — свой независимый список клиентов и категорий.</div>
-
         <!-- Фильтры -->
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-          <select id="clFilterBranch" onchange="clOnBranchChange()" style="padding:8px 10px;font-size:12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111;min-width:170px;"></select>
           <select id="clFilterCat" onchange="clLoadClients()" style="padding:8px 10px;font-size:12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111;min-width:150px;"><option value="">Все категории</option></select>
           <input id="clSearch" oninput="clDebouncedLoad()" placeholder="🔍 Имя или телефон" style="padding:8px 10px;font-size:12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111;flex:1;min-width:160px;">
           <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="clOpenModal()">+ Добавить клиента</button>
@@ -2561,7 +2558,6 @@
       <div class="modal" style="width:440px;">
         <div class="modal-head"><h3 id="clModalTitle">👤 Новый клиент</h3><button class="modal-close" onclick="clCloseModal()">✕</button></div>
         <div class="modal-body" style="padding:18px;">
-          <div id="clModalBranch" style="font-size:12px;color:#6b7280;margin-bottom:12px;"></div>
           <div class="fg">
             <div class="field full" style="grid-column:1/-1;"><label>Имя *</label><input id="clName" placeholder="ФИО или организация"></div>
             <div class="field full" style="grid-column:1/-1;"><label>Телефон</label><input id="clPhone" placeholder="+7 700 000 00 00"></div>
@@ -2580,8 +2576,7 @@
       <div class="modal" style="width:400px;">
         <div class="modal-head"><h3>🏷 Новая категория</h3><button class="modal-close" onclick="clCloseCatModal()">✕</button></div>
         <div class="modal-body" style="padding:18px;">
-          <div id="clCatModalBranch" style="font-size:12px;color:#6b7280;margin-bottom:12px;"></div>
-          <div class="field full"><label>Название категории *</label><input id="clCatName" placeholder="Например: ОСИ, Частники, Бюджет"></div>
+          <div class="field full"><label>Название категории *</label><input id="clCatName" placeholder="Например: ТЭЦ, ОСИ, Частники"></div>
         </div>
         <div class="modal-foot">
           <button class="btn btn-primary" onclick="clSaveCat()">✅ Создать</button>
@@ -4563,57 +4558,37 @@ function saveBranch(){
 function deleteBranch(id){branches=branches.filter(b=>b.id!==id);renderSettingsBranches();showToast('🗑 Филиал удалён');}
 
 // ── КЛИЕНТЫ (вкладка настроек) ─────────────────────────────────
-// Каждый филиал — свой независимый список клиентов и категорий.
-// Данные живут в реальной БД через /api/v2 (branches / client-categories / clients).
+// Клиенты общие для организации. Единственная группировка — категория.
+// Данные живут в реальной БД через /api/v2 (client-categories / clients).
 const CLIENTS_API     = 'https://u2b-api.vercel.app/api/v2/clients';
 const CLIENT_CATS_API = 'https://u2b-api.vercel.app/api/v2/client-categories';
-const BRANCHES_API    = 'https://u2b-api.vercel.app/api/v2/branches';
 
-let clBranches = [];        // [{id,name}] — реальные филиалы из БД
-let clCats     = [];        // категории выбранного филиала
+let clCats     = [];        // категории организации
 let clClients  = [];        // клиенты (уже отфильтрованные сервером)
-let clBranchId = '';        // id выбранного филиала
 let clEditId   = null;      // редактируемый клиент (или null = новый)
 let clSearchTimer = null;
 
 const clEsc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
 async function initClientsTab(){
-  if(!clBranches.length){
-    try{ const r = await fetch(BRANCHES_API); clBranches = r.ok ? await r.json() : []; }
-    catch(e){ clBranches = []; }
-    const sel = document.getElementById('clFilterBranch');
-    if(sel){
-      sel.innerHTML = clBranches.length
-        ? clBranches.map(b=>`<option value="${b.id}">${clEsc(b.name)}</option>`).join('')
-        : '<option value="">— нет филиалов —</option>';
-    }
-    clBranchId = clBranches[0]?.id || '';
-  }
-  await clOnBranchChange();
-}
-
-async function clOnBranchChange(){
-  clBranchId = document.getElementById('clFilterBranch').value || clBranchId;
   await clLoadCats();
   await clLoadClients();
 }
 
 async function clLoadCats(){
-  if(!clBranchId){ clCats=[]; clRenderCatBadges(); clFillCatSelects(); return; }
-  try{ const r = await fetch(`${CLIENT_CATS_API}?branchId=${clBranchId}`); clCats = r.ok ? await r.json() : []; }
+  try{ const r = await fetch(CLIENT_CATS_API); clCats = r.ok ? await r.json() : []; }
   catch(e){ clCats=[]; }
   clRenderCatBadges(); clFillCatSelects();
 }
 
 async function clLoadClients(){
-  if(!clBranchId){ clClients=[]; clRenderTable(); return; }
-  const params = new URLSearchParams({ branchId: clBranchId });
+  const params = new URLSearchParams();
   const cat = document.getElementById('clFilterCat').value;
   const q   = document.getElementById('clSearch').value.trim();
   if(cat) params.set('categoryId', cat);
   if(q)   params.set('q', q);
-  try{ const r = await fetch(`${CLIENTS_API}?${params.toString()}`); clClients = r.ok ? await r.json() : []; }
+  const qs = params.toString();
+  try{ const r = await fetch(qs ? `${CLIENTS_API}?${qs}` : CLIENTS_API); clClients = r.ok ? await r.json() : []; }
   catch(e){ clClients=[]; }
   clRenderTable();
 }
@@ -4624,8 +4599,7 @@ function clCatName(id){ const c = clCats.find(x=>x.id===id); return c ? c.name :
 
 function clRenderCatBadges(){
   const el = document.getElementById('clCatBadges'); if(!el) return;
-  if(!clBranchId){ el.innerHTML = '<span style="font-size:11px;color:#9ca3af;">выберите филиал</span>'; return; }
-  if(!clCats.length){ el.innerHTML = '<span style="font-size:11px;color:#9ca3af;">У этого филиала пока нет категорий. Нажмите «+ Категория».</span>'; return; }
+  if(!clCats.length){ el.innerHTML = '<span style="font-size:11px;color:#9ca3af;">Пока нет категорий. Нажмите «+ Категория».</span>'; return; }
   el.innerHTML = clCats.map(c=>`<span class="badge b-active" style="display:inline-flex;align-items:center;gap:5px;font-size:11px;">${clEsc(c.name)}<span onclick="clDeleteCat('${c.id}')" title="Удалить категорию" style="cursor:pointer;font-weight:700;opacity:.55;">✕</span></span>`).join('');
 }
 
@@ -4643,14 +4617,9 @@ function clFillCatSelects(){
 function clRenderTable(){
   const body = document.getElementById('clTableBody'), empty = document.getElementById('clEmpty');
   if(!body) return;
-  if(!clBranchId){
-    body.innerHTML=''; empty.style.display='block';
-    empty.innerHTML='Нет филиалов. Сначала добавьте филиал во вкладке «Филиалы».';
-    return;
-  }
   if(!clClients.length){
     body.innerHTML=''; empty.style.display='block';
-    empty.innerHTML='У этого филиала пока нет клиентов.<br>Нажмите «+ Добавить клиента».';
+    empty.innerHTML='Пока нет клиентов.<br>Нажмите «+ Добавить клиента».';
     return;
   }
   empty.style.display='none';
@@ -4669,13 +4638,9 @@ function clRenderTable(){
   }).join('');
 }
 
-function clBranchLabel(){ const b = clBranches.find(x=>x.id===clBranchId); return b ? b.name : '—'; }
-
 function clOpenModal(c){
-  if(!clBranchId){ showToast('⚠️ Сначала добавьте филиал'); return; }
   clEditId = c ? c.id : null;
   document.getElementById('clModalTitle').textContent = c ? '✏️ Редактировать клиента' : '👤 Новый клиент';
-  document.getElementById('clModalBranch').innerHTML = `Филиал: <strong style="color:#374151;">${clEsc(clBranchLabel())}</strong>`;
   clFillCatSelects();
   document.getElementById('clName').value  = c ? (c.name||'')  : '';
   document.getElementById('clPhone').value = c ? (c.phone||'') : '';
@@ -4697,7 +4662,7 @@ async function clSave(){
   try{
     const r = editing
       ? await fetch(`${CLIENTS_API}/${clEditId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-      : await fetch(CLIENTS_API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ...payload, branchId: clBranchId }) });
+      : await fetch(CLIENTS_API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     if(!r.ok){ const e = await r.json().catch(()=>({})); throw new Error(e.error || ('HTTP '+r.status)); }
     clCloseModal(); await clLoadClients(); showToast(editing ? '✅ Клиент обновлён' : '✅ Клиент добавлен');
   }catch(e){ showToast('⚠️ '+e.message); }
@@ -4713,8 +4678,6 @@ async function clDelete(id){
 }
 
 function clOpenCatModal(){
-  if(!clBranchId){ showToast('⚠️ Сначала добавьте филиал'); return; }
-  document.getElementById('clCatModalBranch').innerHTML = `Филиал: <strong style="color:#374151;">${clEsc(clBranchLabel())}</strong>`;
   document.getElementById('clCatName').value = '';
   document.getElementById('clCatModalOverlay').classList.add('open');
 }
@@ -4724,7 +4687,7 @@ async function clSaveCat(){
   const name = document.getElementById('clCatName').value.trim();
   if(!name){ showToast('⚠️ Введите название'); return; }
   try{
-    const r = await fetch(CLIENT_CATS_API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ branchId: clBranchId, name }) });
+    const r = await fetch(CLIENT_CATS_API, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name }) });
     if(!r.ok){ const e = await r.json().catch(()=>({})); throw new Error(e.error || ('HTTP '+r.status)); }
     clCloseCatModal(); await clLoadCats(); showToast('✅ Категория добавлена');
   }catch(e){ showToast('⚠️ '+e.message); }

@@ -4,11 +4,10 @@ import { clientsService } from '@/server/services/clients.service';
 
 export const OPTIONS = optionsHandler;
 
-// collection: /api/v2/clients?branchId=..&categoryId=..&q=..
+// collection: /api/v2/clients?categoryId=..&q=..
 export const GET = withApi(async (req: NextRequest) => {
   const sp = new URL(req.url).searchParams;
   return clientsService.list({
-    branchId: sp.get('branchId'),
     categoryId: sp.get('categoryId'),
     q: sp.get('q'),
   });

@@ -1,29 +1,24 @@
 import { clientsRepo, type ClientListFilter } from '@/server/repositories/clients.repo';
 import { clientCategoriesRepo } from '@/server/repositories/clientCategories.repo';
-import {
-  clientCreateSchema, clientUpdateSchema,
-  normalizePhone, assertCategoryInBranch,
-} from '@/server/dto/clients.dto';
+import { clientCreateSchema, clientUpdateSchema, normalizePhone } from '@/server/dto/clients.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
-// Validate that categoryId (if given) exists and belongs to `branchId`.
-async function checkCategory(branchId: string, categoryId: string | null | undefined) {
+// If a category is given, it must exist (organization-wide, no branch scoping).
+async function checkCategory(categoryId: string | null | undefined) {
   if (categoryId == null) return;
   const cat = await clientCategoriesRepo.findById(categoryId);
-  assertCategoryInBranch(cat, branchId, categoryId);
+  if (!cat) throw badRequest('Категория не найдена');
 }
 
 export const clientsService = {
-  list(filter: { branchId?: string | null; categoryId?: string | null; q?: string | null }) {
-    if (!filter.branchId) throw badRequest('branchId (филиал) обязателен');
-    return clientsRepo.list(filter as ClientListFilter);
+  list(filter: ClientListFilter) {
+    return clientsRepo.list(filter);
   },
 
   async create(input: unknown) {
     const data = clientCreateSchema.parse(input);
-    await checkCategory(data.branchId, data.categoryId);
+    await checkCategory(data.categoryId);
     return clientsRepo.create({
-      branchId: data.branchId,
       name: data.name,
       phone: normalizePhone(data.phone),
       categoryId: data.categoryId ?? null,
@@ -36,8 +31,7 @@ export const clientsService = {
     const existing = await clientsRepo.findById(id);
     if (!existing) throw notFound('Клиент не найден');
 
-    // category is re-validated against the client's (immutable) branch
-    if (data.categoryId !== undefined) await checkCategory(existing.branchId, data.categoryId);
+    if (data.categoryId !== undefined) await checkCategory(data.categoryId);
 
     const patch: Record<string, unknown> = {};
     if (data.name !== undefined) patch.name = data.name;

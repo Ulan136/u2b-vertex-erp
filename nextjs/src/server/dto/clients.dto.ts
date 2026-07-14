@@ -23,31 +23,14 @@ export function normalizePhone(raw: string | null | undefined): string | null {
   return '+7' + local;
 }
 
-// ── Category ↔ branch guard ───────────────────────────────────
-// A client's category must belong to the same branch as the client.
-// `category` is the looked-up category row (or null when none/unknown).
-// Kept pure (no DB) so it can be unit tested directly.
-export function assertCategoryInBranch(
-  category: { id: string; branchId: string } | null | undefined,
-  branchId: string,
-  categoryId: string | null | undefined,
-): void {
-  if (categoryId == null) return;                     // "без категории" is always allowed
-  if (!category) throw badRequest('Категория не найдена');
-  if (category.branchId !== branchId) {
-    throw badRequest('Категория принадлежит другому филиалу');
-  }
-}
-
 // ── Zod schemas ───────────────────────────────────────────────
+// Clients are organization-wide; the only grouping is category.
 export const clientCreateSchema = z.object({
-  branchId: z.string().uuid('branchId должен быть UUID филиала'),
   name: z.string().trim().min(1, 'Имя обязательно'),
   phone: z.string().nullish(),
   categoryId: z.string().uuid().nullish(),
 });
 
-// branchId is fixed after creation — clients never move between branches.
 export const clientUpdateSchema = z.object({
   name: z.string().trim().min(1).optional(),
   phone: z.string().nullish(),
@@ -55,7 +38,6 @@ export const clientUpdateSchema = z.object({
 });
 
 export const categoryCreateSchema = z.object({
-  branchId: z.string().uuid('branchId должен быть UUID филиала'),
   name: z.string().trim().min(1, 'Название обязательно'),
 });
 

@@ -4,11 +4,8 @@ import { clientCategoriesService } from '@/server/services/clientCategories.serv
 
 export const OPTIONS = optionsHandler;
 
-// collection: /api/v2/client-categories?branchId=..
-export const GET = withApi(async (req: NextRequest) => {
-  const sp = new URL(req.url).searchParams;
-  return clientCategoriesService.list(sp.get('branchId'));
-});
+// collection: /api/v2/client-categories
+export const GET = withApi(async () => clientCategoriesService.list());
 export const POST = withApi(async (req: NextRequest) => created(await clientCategoriesService.create(await req.json())));
 
 // item: /api/v2/client-categories/[id]
