@@ -8,4 +8,6 @@ export const financeService = {
     const data = financeOperationSchema.parse(input);
     return financeRepo.createOperation(data);
   },
+
+  removeOperation: (id: string) => financeRepo.removeOperation(id),
 };

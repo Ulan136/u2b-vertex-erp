@@ -918,6 +918,14 @@
     </div>
   </div>
 
+  <!-- ДОЛГИ -->
+  <div class="sb-section">
+    <button class="sb-group open" onclick="toggleGroup(this)"><span>💳 ДОЛГИ</span><span class="arrow">▾</span></button>
+    <div class="sb-sub open">
+      <button class="sb-item" onclick="go('debts','Долги','Дебиторка / Кредиторка',this)">Дебиторка / Кредиторка</button>
+    </div>
+  </div>
+
   <!-- СКЛАД -->
   <div class="sb-section">
     <button class="sb-group open" onclick="toggleGroup(this)"><span>🏭 СКЛАД</span><span class="arrow">▾</span></button>
@@ -1038,6 +1046,58 @@
     <!-- Выездная поверка (source=field_check) и ТЭЦ (source=tec): один компонент, разный источник -->
     <div class="screen" id="s-field-orders"></div>
     <div class="screen" id="s-tec-orders"></div>
+
+    <!-- ══ ДОЛГИ (дебиторка / кредиторка) ══ -->
+    <div class="screen" id="s-debts">
+      <div class="page-title">Долги</div>
+      <div class="page-sub">Дебиторка (нам должны) · Кредиторка (мы должны) · Погашения через счета</div>
+
+      <!-- SUMMARY -->
+      <div class="stat-row">
+        <div class="stat-card ok"><div class="stat-label">📥 Нам должны</div><div class="stat-val" id="debt-sum-debit">0 ₸</div></div>
+        <div class="stat-card blue"><div class="stat-label">📤 Мы должны</div><div class="stat-val" id="debt-sum-credit">0 ₸</div></div>
+        <div class="stat-card err"><div class="stat-label">⏰ Просрочено</div><div class="stat-val" id="debt-sum-overdue">0 ₸</div></div>
+      </div>
+
+      <!-- TABS -->
+      <div style="display:flex;gap:0;border-bottom:2px solid #e5e7eb;margin-bottom:14px;">
+        <button class="btn btn-ghost btn-sm" id="debt-tab-all" onclick="debtSetTab('all')"
+          style="border-radius:0;border-bottom:2px solid #1a56db;margin-bottom:-2px;color:#1a56db;font-weight:700;">Все</button>
+        <button class="btn btn-ghost btn-sm" id="debt-tab-debit" onclick="debtSetTab('debit')"
+          style="border-radius:0;margin-bottom:-2px;">📥 Дебит</button>
+        <button class="btn btn-ghost btn-sm" id="debt-tab-credit" onclick="debtSetTab('credit')"
+          style="border-radius:0;margin-bottom:-2px;">📤 Кредит</button>
+      </div>
+
+      <div class="tbl-wrap">
+        <!-- FILTERS -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <select id="debt-f-status" onchange="debtLoad()" style="padding:8px 10px;font-size:12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111;">
+            <option value="">Все статусы</option>
+            <option value="open">Открыт</option>
+            <option value="partial">Частично</option>
+            <option value="closed">Закрыт</option>
+          </select>
+          <select id="debt-f-account" onchange="debtLoad()" style="padding:8px 10px;font-size:12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111;min-width:150px;"><option value="">Все счета</option></select>
+          <input id="debt-f-q" oninput="debtDebouncedLoad()" placeholder="🔍 Контрагент" style="padding:8px 10px;font-size:12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111;flex:1;min-width:150px;">
+          <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="debtOpenModal()">+ Добавить долг</button>
+        </div>
+
+        <div style="overflow-x:auto;">
+        <table><thead><tr>
+          <th>Контрагент</th>
+          <th style="text-align:right;">Сумма</th>
+          <th style="text-align:right;">Погашено</th>
+          <th style="text-align:right;">Остаток</th>
+          <th>Счёт</th>
+          <th>Срок</th>
+          <th>Статус</th>
+          <th style="text-align:center;">Действия</th>
+        </tr></thead><tbody id="debt-tbody"></tbody></table>
+        </div>
+        <div id="debt-empty" style="display:none;padding:38px 20px;text-align:center;color:#9ca3af;font-size:13px;line-height:1.6;"></div>
+      </div>
+    </div>
 
     <!-- DASHBOARD -->
     <div class="screen active" id="s-dashboard">
@@ -2562,6 +2622,63 @@
       </div>
     </div>
 
+    <!-- MODAL: ДОБАВИТЬ / РЕДАКТИРОВАТЬ ДОЛГ -->
+    <div class="modal-overlay" id="debtModalOverlay" onclick="if(event.target===this)debtCloseModal()">
+      <div class="modal" style="width:480px;">
+        <div class="modal-head"><h3 id="debtModalTitle">💳 Новый долг</h3><button class="modal-close" onclick="debtCloseModal()">✕</button></div>
+        <div class="modal-body" style="padding:18px;">
+          <div class="fg">
+            <div class="field" style="grid-column:1/-1;"><label>Тип долга *</label>
+              <select id="debt-type">
+                <option value="debit">📥 Дебит — нам должны</option>
+                <option value="credit">📤 Кредит — мы должны</option>
+              </select>
+            </div>
+            <div class="field" style="grid-column:1/-1;"><label>Контрагент *</label>
+              <select id="debt-client" onchange="debtOnClientChange()">
+                <option value="">— ввести вручную —</option>
+              </select>
+            </div>
+            <div class="field" style="grid-column:1/-1;" id="debt-name-wrap"><label>Название контрагента (если не из справочника)</label>
+              <input id="debt-name" placeholder="ФИО / ТОО / ИП">
+            </div>
+            <div class="field"><label>Сумма долга (₸) *</label><input id="debt-amount" type="number" min="0" step="0.01" placeholder="0"></div>
+            <div class="field"><label>Срок погашения</label><input id="debt-due" type="date"></div>
+            <div class="field" style="grid-column:1/-1;"><label>Счёт (ожидаемой оплаты)</label>
+              <select id="debt-account"><option value="">— без счёта —</option></select>
+            </div>
+            <div class="field" style="grid-column:1/-1;"><label>Комментарий</label><input id="debt-comment" placeholder="Доп. информация"></div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-primary" onclick="debtSave()">✅ Сохранить</button>
+          <button class="btn btn-outline" onclick="debtCloseModal()">Отмена</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: ПОГАСИТЬ ДОЛГ -->
+    <div class="modal-overlay" id="debtPayOverlay" onclick="if(event.target===this)debtClosePay()">
+      <div class="modal" style="width:420px;">
+        <div class="modal-head"><h3 id="debtPayTitle">💵 Погашение долга</h3><button class="modal-close" onclick="debtClosePay()">✕</button></div>
+        <div class="modal-body" style="padding:18px;">
+          <div id="debtPayInfo" style="font-size:12px;color:#6b7280;margin-bottom:12px;"></div>
+          <div class="fg">
+            <div class="field"><label>Сумма погашения (₸) *</label><input id="debt-pay-amount" type="number" min="0" step="0.01" placeholder="0"></div>
+            <div class="field"><label>Дата</label><input id="debt-pay-date" type="date"></div>
+            <div class="field" style="grid-column:1/-1;"><label>Счёт (приход/расход)</label>
+              <select id="debt-pay-account"><option value="">— без счёта —</option></select>
+            </div>
+            <div class="field" style="grid-column:1/-1;"><label>Комментарий</label><input id="debt-pay-comment" placeholder="Доп. информация"></div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-primary" onclick="debtSavePay()">✅ Провести</button>
+          <button class="btn btn-outline" onclick="debtClosePay()">Отмена</button>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 
@@ -4022,6 +4139,7 @@ function go(screenId, section, page, el) {
   if (screenId==='rashody')       { rshApplyFilters(); rshRenderTree(); rshPopulateCatSels(); }
   if (screenId==='warehouse')       { renderWarehouse(); whFetchFromApi().then(renderWarehouse); }
   if (screenId==='sales')            { salesLoadFromStorage(); renderSales(); }
+  if (screenId==='debts')            { initDebtsScreen(); }
   if (screenId==='primary')          { renderPrimary(); }
   if (screenId==='other-ops-proj')    { oopRenderTable('proj');    oopRenderStats('proj'); }
   if (screenId==='other-ops-tender')  { oopRenderTable('tender');  oopRenderStats('tender'); }
@@ -4739,6 +4857,206 @@ async function clDeleteCat(id){
     const r = await fetch(`${CLIENT_CATS_API}/${id}`, { method:'DELETE' });
     if(!r.ok) throw new Error('HTTP '+r.status);
     await clLoadCats(); await clLoadClients(); showToast('🗑 Категория удалена');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// ── ДОЛГИ (дебиторка / кредиторка) ─────────────────────────────
+// Данные в реальной БД через /api/v2/debts. Погашение создаёт операцию по
+// счёту (Приход для дебита, Расход для кредита) и связывается с ней.
+const DEBTS_API         = 'https://u2b-api.vercel.app/api/v2/debts';
+const FINANCE_API       = 'https://u2b-api.vercel.app/api/v2/finance';
+
+let debtAccounts = [];   // счета из финансового модуля [{id,name}]
+let debtClients  = [];   // клиенты из справочника [{id,name}]
+let debtList     = [];   // текущий (отфильтрованный) список долгов
+let debtAll      = [];   // все долги — для сводки сверху
+let debtTab      = 'all';// all | debit | credit
+let debtPayId    = null; // долг, который погашаем
+let debtSearchTimer = null;
+let debtInited   = false;
+
+const debtEsc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const debtFmt = n => (Number(n)||0).toLocaleString('ru-KZ');
+const debtToday = () => new Date().toISOString().slice(0,10);
+function debtSetText(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; }
+
+async function initDebtsScreen(){
+  if(!debtInited){
+    try{ const r=await fetch(FINANCE_API); const j=r.ok?await r.json():{}; debtAccounts=Array.isArray(j.accounts)?j.accounts:[]; }catch(e){ debtAccounts=[]; }
+    try{ const r=await fetch(CLIENTS_API); debtClients=r.ok?await r.json():[]; }catch(e){ debtClients=[]; }
+    debtFillAccountSelects(); debtFillClientSelect();
+    debtInited=true;
+  }
+  await debtLoad();
+}
+
+function debtFillAccountSelects(){
+  const optHtml = debtAccounts.map(a=>`<option value="${a.id}">${debtEsc(a.name)}</option>`).join('');
+  const f=document.getElementById('debt-f-account'); if(f){ const cur=f.value; f.innerHTML=`<option value="">Все счета</option>`+optHtml; f.value=cur; }
+  const m=document.getElementById('debt-account');     if(m) m.innerHTML=`<option value="">— без счёта —</option>`+optHtml;
+  const p=document.getElementById('debt-pay-account'); if(p) p.innerHTML=`<option value="">— без счёта —</option>`+optHtml;
+}
+function debtFillClientSelect(){
+  const m=document.getElementById('debt-client');
+  if(m) m.innerHTML=`<option value="">— ввести вручную —</option>`+debtClients.map(c=>`<option value="${c.id}">${debtEsc(c.name)}</option>`).join('');
+}
+
+function debtSetTab(t){
+  debtTab=t;
+  ['all','debit','credit'].forEach(k=>{
+    const b=document.getElementById('debt-tab-'+k); if(!b) return;
+    const on=(k===t);
+    b.style.borderBottom = on?'2px solid #1a56db':'2px solid transparent';
+    b.style.color = on?'#1a56db':'';
+    b.style.fontWeight = on?'700':'';
+  });
+  debtLoad();
+}
+
+async function debtLoad(){
+  // таблица — фильтрация на сервере
+  const params=new URLSearchParams();
+  if(debtTab!=='all') params.set('type', debtTab);
+  const st=document.getElementById('debt-f-status').value; if(st) params.set('status', st);
+  const acc=document.getElementById('debt-f-account').value; if(acc) params.set('accountId', acc);
+  const q=document.getElementById('debt-f-q').value.trim(); if(q) params.set('q', q);
+  const qs=params.toString();
+  try{ const r=await fetch(qs?`${DEBTS_API}?${qs}`:DEBTS_API); debtList=r.ok?await r.json():[]; }catch(e){ debtList=[]; }
+  // сводка — по всем долгам, независимо от вкладки/фильтров
+  try{ const r=await fetch(DEBTS_API); debtAll=r.ok?await r.json():[]; }catch(e){ debtAll=debtList.slice(); }
+  debtRenderSummary(); debtRenderTable();
+}
+function debtDebouncedLoad(){ clearTimeout(debtSearchTimer); debtSearchTimer=setTimeout(debtLoad, 300); }
+
+function debtRemaining(d){ return Math.max(0, (Number(d.amount)||0)-(Number(d.paidAmount)||0)); }
+function debtCounterparty(d){ return d.clientName || d.counterpartyName || '—'; }
+function debtIsOverdue(d){ return d.status!=='closed' && d.dueDate && String(d.dueDate).slice(0,10) < debtToday(); }
+function debtStatusBadge(d){
+  if(debtIsOverdue(d)) return '<span class="badge b-err"    style="font-size:10px;">⏰ Просрочен</span>';
+  if(d.status==='closed')  return '<span class="badge b-ok"     style="font-size:10px;">✅ Закрыт</span>';
+  if(d.status==='partial') return '<span class="badge b-warn"   style="font-size:10px;">◐ Частично</span>';
+  return                          '<span class="badge b-active" style="font-size:10px;">● Открыт</span>';
+}
+
+function debtRenderSummary(){
+  const today=debtToday();
+  let debit=0, credit=0, overdue=0;
+  debtAll.forEach(d=>{
+    if(d.status==='closed') return;
+    const rem=debtRemaining(d);
+    if(d.type==='debit') debit+=rem; else credit+=rem;
+    if(d.dueDate && String(d.dueDate).slice(0,10)<today) overdue+=rem;
+  });
+  debtSetText('debt-sum-debit', debtFmt(debit)+' ₸');
+  debtSetText('debt-sum-credit', debtFmt(credit)+' ₸');
+  debtSetText('debt-sum-overdue', debtFmt(overdue)+' ₸');
+}
+
+function debtRenderTable(){
+  const tb=document.getElementById('debt-tbody'), empty=document.getElementById('debt-empty');
+  if(!tb) return;
+  if(!debtList.length){ tb.innerHTML=''; empty.style.display='block'; empty.innerHTML='Пока нет долгов.<br>Нажмите «+ Добавить долг».'; return; }
+  empty.style.display='none';
+  tb.innerHTML=debtList.map(d=>{
+    const rem=debtRemaining(d);
+    const ico=d.type==='debit'?'📥':'📤';
+    const due=d.dueDate?String(d.dueDate).slice(0,10).split('-').reverse().join('.'):'—';
+    const canPay=d.status!=='closed';
+    return `<tr>
+      <td>${ico} ${debtEsc(debtCounterparty(d))}</td>
+      <td style="text-align:right;">${debtFmt(d.amount)} ₸</td>
+      <td style="text-align:right;color:#059669;">${debtFmt(d.paidAmount)} ₸</td>
+      <td style="text-align:right;font-weight:700;">${debtFmt(rem)} ₸</td>
+      <td style="font-size:11px;color:#6b7280;">${debtEsc(d.accountName||'—')}</td>
+      <td style="font-size:11px;">${due}</td>
+      <td>${debtStatusBadge(d)}</td>
+      <td style="text-align:center;white-space:nowrap;">
+        ${canPay?`<button class="btn btn-outline btn-sm" style="font-size:11px;" onclick="debtOpenPay('${d.id}')">Погасить</button>`:''}
+        <button class="act-btn" title="Удалить" style="color:#dc2626;" onclick="debtDelete('${d.id}')">🗑️</button>
+      </td></tr>`;
+  }).join('');
+}
+
+// ── Модалка долга ──
+function debtOpenModal(){
+  document.getElementById('debtModalTitle').textContent='💳 Новый долг';
+  document.getElementById('debt-type').value='debit';
+  document.getElementById('debt-client').value='';
+  document.getElementById('debt-name').value='';
+  document.getElementById('debt-amount').value='';
+  document.getElementById('debt-due').value='';
+  document.getElementById('debt-account').value='';
+  document.getElementById('debt-comment').value='';
+  debtOnClientChange();
+  document.getElementById('debtModalOverlay').classList.add('open');
+}
+function debtCloseModal(){ document.getElementById('debtModalOverlay').classList.remove('open'); }
+function debtOnClientChange(){
+  const hasClient=!!document.getElementById('debt-client').value;
+  const wrap=document.getElementById('debt-name-wrap'); if(wrap) wrap.style.opacity=hasClient?'0.45':'1';
+  const nm=document.getElementById('debt-name'); if(nm){ nm.disabled=hasClient; if(hasClient) nm.value=''; }
+}
+async function debtSave(){
+  const clientId=document.getElementById('debt-client').value;
+  const name=document.getElementById('debt-name').value.trim();
+  const amount=Number(document.getElementById('debt-amount').value);
+  if(!clientId && !name){ showToast('⚠️ Укажите контрагента (клиент или название)'); return; }
+  if(!(amount>0)){ showToast('⚠️ Введите сумму больше 0'); return; }
+  const payload={
+    type: document.getElementById('debt-type').value,
+    counterpartyClientId: clientId||null,
+    counterpartyName: clientId? null : (name||null),
+    amount,
+    accountId: document.getElementById('debt-account').value||null,
+    dueDate: document.getElementById('debt-due').value||null,
+    comment: document.getElementById('debt-comment').value.trim()||null,
+  };
+  try{
+    const r=await fetch(DEBTS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||('HTTP '+r.status)); }
+    debtCloseModal(); await debtLoad(); showToast('✅ Долг добавлен');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// ── Модалка погашения ──
+function debtOpenPay(id){
+  const d=debtList.find(x=>x.id===id); if(!d) return;
+  debtPayId=id;
+  const rem=debtRemaining(d);
+  document.getElementById('debtPayTitle').textContent=(d.type==='debit'?'📥 Приход':'📤 Расход')+' — погашение';
+  document.getElementById('debtPayInfo').innerHTML=`${debtEsc(debtCounterparty(d))} · Остаток: <strong style="color:#111;">${debtFmt(rem)} ₸</strong>`;
+  document.getElementById('debt-pay-amount').value=rem;
+  document.getElementById('debt-pay-date').value=debtToday();
+  document.getElementById('debt-pay-account').value=d.accountId||'';
+  document.getElementById('debt-pay-comment').value='';
+  document.getElementById('debtPayOverlay').classList.add('open');
+}
+function debtClosePay(){ document.getElementById('debtPayOverlay').classList.remove('open'); debtPayId=null; }
+async function debtSavePay(){
+  const d=debtList.find(x=>x.id===debtPayId); if(!d){ debtClosePay(); return; }
+  const amount=Number(document.getElementById('debt-pay-amount').value);
+  const rem=debtRemaining(d);
+  if(!(amount>0)){ showToast('⚠️ Введите сумму больше 0'); return; }
+  if(amount>rem+0.001){ showToast('⚠️ Сумма больше остатка ('+debtFmt(rem)+' ₸)'); return; }
+  const payload={
+    amount,
+    accountId: document.getElementById('debt-pay-account').value||null,
+    payDate: document.getElementById('debt-pay-date').value||null,
+    comment: document.getElementById('debt-pay-comment').value.trim()||null,
+  };
+  try{
+    const r=await fetch(`${DEBTS_API}/${debtPayId}/payments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||('HTTP '+r.status)); }
+    debtClosePay(); await debtLoad(); showToast('✅ Погашение проведено');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+async function debtDelete(id){
+  if(!confirm('Удалить долг? Связанные погашения и операции по счетам будут откачены.')) return;
+  try{
+    const r=await fetch(`${DEBTS_API}/${id}`,{method:'DELETE'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    await debtLoad(); showToast('🗑️ Долг удалён');
   }catch(e){ showToast('⚠️ '+e.message); }
 }
 

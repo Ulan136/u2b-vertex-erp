@@ -15,6 +15,8 @@ export const stockMoveEnum   = pgEnum('stock_move_type',  ['IN','OUT','REV+','RE
 export const financeOpEnum   = pgEnum('finance_op_type',  ['Приход','Расход','Перевод']);
 export const accountCatEnum  = pgEnum('account_category', ['kaspi','bck','nalichka','other']);
 export const orderSourceEnum = pgEnum('order_source',     ['field_check','tec']);
+export const debtTypeEnum    = pgEnum('debt_type',        ['debit','credit']);   // debit = нам должны, credit = мы должны
+export const debtStatusEnum  = pgEnum('debt_status',      ['open','partial','closed']);
 
 // ── BRANCHES ──────────────────────────────────────────────────
 export const branches = pgTable('branches', {
@@ -231,6 +233,40 @@ export const clients = pgTable('clients', {
   updatedAt  : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── DEBTS (дебиторка / кредиторка) ────────────────────────────
+// A debt owed to us (debit) or by us (credit). status is derived from
+// paid_amount (see computeStatus in the debts service/DTO).
+export const debts = pgTable('debts', {
+  id                   : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  type                 : debtTypeEnum('type').notNull(),
+  // counterparty: either a client from the directory OR a free-text name (one required)
+  counterpartyClientId : uuid('counterparty_client_id').references(() => clients.id, { onDelete: 'set null' }),
+  counterpartyName     : varchar('counterparty_name', { length: 200 }),
+  amount               : numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  paidAmount           : numeric('paid_amount', { precision: 12, scale: 2 }).notNull().default('0'),
+  accountId            : uuid('account_id').references(() => financeAccounts.id, { onDelete: 'set null' }),
+  dueDate              : date('due_date'),
+  comment              : text('comment'),
+  status               : debtStatusEnum('status').notNull().default('open'),
+  createdAt            : timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt            : timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// ── DEBT PAYMENTS (погашения) ─────────────────────────────────
+// A payment against a debt. It reuses the finance ledger: each payment
+// creates a finance_operation (Приход for debit, Расход for credit) whose id
+// is stored here so deleting the payment rolls that operation back.
+export const debtPayments = pgTable('debt_payments', {
+  id          : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  debtId      : uuid('debt_id').references(() => debts.id, { onDelete: 'cascade' }).notNull(),
+  amount      : numeric('amount', { precision: 12, scale: 2 }).notNull(),
+  accountId   : uuid('account_id').references(() => financeAccounts.id, { onDelete: 'set null' }),
+  financeOpId : uuid('finance_op_id').references(() => financeOperations.id, { onDelete: 'set null' }),
+  payDate     : date('pay_date').default(sql`CURRENT_DATE`),
+  comment     : text('comment'),
+  createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
 // ── TYPES ─────────────────────────────────────────────────────
 export type Branch           = typeof branches.$inferSelect;
 export type User             = typeof users.$inferSelect;
@@ -243,6 +279,8 @@ export type FinanceOperation = typeof financeOperations.$inferSelect;
 export type Expense          = typeof expenses.$inferSelect;
 export type ClientCategory   = typeof clientCategories.$inferSelect;
 export type Client           = typeof clients.$inferSelect;
+export type Debt             = typeof debts.$inferSelect;
+export type DebtPayment      = typeof debtPayments.$inferSelect;
 
 export type NewCertificate = typeof certificates.$inferInsert;
 export type NewClient         = typeof clients.$inferInsert;

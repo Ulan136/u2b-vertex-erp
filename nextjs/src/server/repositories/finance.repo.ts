@@ -1,6 +1,6 @@
 import { db } from '@/db';
 import { financeAccounts, financeOperations } from '@/db/schema';
-import { desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 
 type OpInsert = typeof financeOperations.$inferInsert;
 
@@ -17,4 +17,7 @@ export const financeRepo = {
     const [row] = await db.insert(financeOperations).values(data as unknown as OpInsert).returning();
     return row;
   },
+
+  // Roll back a ledger operation (used when a debt payment is deleted).
+  removeOperation: (id: string) => db.delete(financeOperations).where(eq(financeOperations.id, id)),
 };
