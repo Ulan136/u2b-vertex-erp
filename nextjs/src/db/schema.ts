@@ -17,6 +17,7 @@ export const accountCatEnum  = pgEnum('account_category', ['kaspi','bck','nalich
 export const orderSourceEnum = pgEnum('order_source',     ['field_check','tec']);
 export const debtTypeEnum    = pgEnum('debt_type',        ['debit','credit']);   // debit = нам должны, credit = мы должны
 export const debtStatusEnum  = pgEnum('debt_status',      ['open','partial','closed']);
+export const taskStatusEnum  = pgEnum('task_status',      ['new','accepted','in_progress','done']);
 
 // ── BRANCHES ──────────────────────────────────────────────────
 export const branches = pgTable('branches', {
@@ -267,6 +268,22 @@ export const debtPayments = pgTable('debt_payments', {
   createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── TASKS (задачи сотрудникам) ────────────────────────────────
+// status flow: new → accepted → in_progress → done.
+// completed_at is stamped when a task moves to 'done'.
+export const tasks = pgTable('tasks', {
+  id          : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  title       : varchar('title', { length: 200 }).notNull(),
+  description : text('description'),
+  assigneeId  : uuid('assignee_id').references(() => users.id, { onDelete: 'set null' }),
+  dueDate     : date('due_date'),
+  status      : taskStatusEnum('status').notNull().default('new'),
+  createdBy   : uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt   : timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  completedAt : timestamp('completed_at', { withTimezone: true }),
+});
+
 // ── TYPES ─────────────────────────────────────────────────────
 export type Branch           = typeof branches.$inferSelect;
 export type User             = typeof users.$inferSelect;
@@ -281,6 +298,7 @@ export type ClientCategory   = typeof clientCategories.$inferSelect;
 export type Client           = typeof clients.$inferSelect;
 export type Debt             = typeof debts.$inferSelect;
 export type DebtPayment      = typeof debtPayments.$inferSelect;
+export type Task             = typeof tasks.$inferSelect;
 
 export type NewCertificate = typeof certificates.$inferInsert;
 export type NewClient         = typeof clients.$inferInsert;

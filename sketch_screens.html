@@ -926,6 +926,14 @@
     </div>
   </div>
 
+  <!-- ЗАДАЧИ -->
+  <div class="sb-section">
+    <button class="sb-group open" onclick="toggleGroup(this)"><span>✅ ЗАДАЧИ</span><span class="arrow">▾</span></button>
+    <div class="sb-sub open">
+      <button class="sb-item" onclick="go('tasks','Задачи','Задачи сотрудникам',this)">Задачи сотрудникам</button>
+    </div>
+  </div>
+
   <!-- СКЛАД -->
   <div class="sb-section">
     <button class="sb-group open" onclick="toggleGroup(this)"><span>🏭 СКЛАД</span><span class="arrow">▾</span></button>
@@ -1096,6 +1104,32 @@
         </tr></thead><tbody id="debt-tbody"></tbody></table>
         </div>
         <div id="debt-empty" style="display:none;padding:38px 20px;text-align:center;color:#9ca3af;font-size:13px;line-height:1.6;"></div>
+      </div>
+    </div>
+
+    <!-- ══ ЗАДАЧИ ══ -->
+    <div class="screen" id="s-tasks">
+      <div class="page-title">Задачи</div>
+      <div class="page-sub">Постановка задач сотрудникам · статусы · сроки</div>
+
+      <!-- Создать + фильтры -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="btn btn-primary" onclick="taskOpenModal()">+ Создать задачу</button>
+        <select id="task-f-assignee" onchange="taskLoad()" style="padding:8px 10px;font-size:12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111;min-width:160px;margin-left:auto;"><option value="">Все исполнители</option></select>
+        <input id="task-f-q" oninput="taskDebouncedLoad()" placeholder="🔍 Название задачи" style="padding:8px 10px;font-size:12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111;min-width:160px;">
+      </div>
+
+      <div id="task-empty" style="display:none;padding:44px 20px;text-align:center;color:#9ca3af;font-size:13px;line-height:1.6;" class="tbl-wrap">Пока нет задач.<br>Нажмите «+ Создать задачу».</div>
+
+      <!-- Активные блоки по статусам -->
+      <div id="task-active-blocks"></div>
+
+      <!-- Готовые (свёрнуто, по исполнителям) -->
+      <div class="tbl-wrap" id="task-done-wrap" style="margin-top:16px;">
+        <div class="tbl-header" style="cursor:pointer;" onclick="taskToggleDone()">
+          <span class="tbl-title"><span id="task-done-caret">▸</span> ✅ Готовые <span id="task-done-count" style="color:#9ca3af;font-weight:400;"></span></span>
+        </div>
+        <div id="task-done-body" style="display:none;"></div>
       </div>
     </div>
 
@@ -2679,6 +2713,35 @@
       </div>
     </div>
 
+    <!-- MODAL: СОЗДАТЬ / РЕДАКТИРОВАТЬ ЗАДАЧУ -->
+    <div class="modal-overlay" id="taskModalOverlay" onclick="if(event.target===this)taskCloseModal()">
+      <div class="modal" style="width:480px;">
+        <div class="modal-head"><h3 id="taskModalTitle">✅ Новая задача</h3><button class="modal-close" onclick="taskCloseModal()">✕</button></div>
+        <div class="modal-body" style="padding:18px;">
+          <div class="fg">
+            <div class="field" style="grid-column:1/-1;"><label>Название *</label><input id="task-title" placeholder="Что нужно сделать"></div>
+            <div class="field" style="grid-column:1/-1;"><label>Описание</label><textarea id="task-desc" rows="3" style="width:100%;resize:vertical;font-family:inherit;" placeholder="Подробности"></textarea></div>
+            <div class="field"><label>Срок</label><input id="task-due" type="date"></div>
+            <div class="field"><label>Исполнитель</label>
+              <select id="task-assignee"><option value="">— не назначен —</option></select>
+            </div>
+            <div class="field" id="task-status-wrap" style="grid-column:1/-1;display:none;"><label>Статус</label>
+              <select id="task-status">
+                <option value="new">🆕 Новая</option>
+                <option value="accepted">📋 Принята</option>
+                <option value="in_progress">🔧 В работе</option>
+                <option value="done">✅ Готова</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-primary" onclick="taskSave()">✅ Сохранить</button>
+          <button class="btn btn-outline" onclick="taskCloseModal()">Отмена</button>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 
@@ -4140,6 +4203,7 @@ function go(screenId, section, page, el) {
   if (screenId==='warehouse')       { renderWarehouse(); whFetchFromApi().then(renderWarehouse); }
   if (screenId==='sales')            { salesLoadFromStorage(); renderSales(); }
   if (screenId==='debts')            { initDebtsScreen(); }
+  if (screenId==='tasks')            { initTasksScreen(); }
   if (screenId==='primary')          { renderPrimary(); }
   if (screenId==='other-ops-proj')    { oopRenderTable('proj');    oopRenderStats('proj'); }
   if (screenId==='other-ops-tender')  { oopRenderTable('tender');  oopRenderStats('tender'); }
@@ -5057,6 +5121,175 @@ async function debtDelete(id){
     const r=await fetch(`${DEBTS_API}/${id}`,{method:'DELETE'});
     if(!r.ok) throw new Error('HTTP '+r.status);
     await debtLoad(); showToast('🗑️ Долг удалён');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// ── ЗАДАЧИ ─────────────────────────────────────────────────────
+// Данные в реальной БД через /api/v2/tasks. Исполнители — из /api/v2/users.
+const TASKS_API = 'https://u2b-api.vercel.app/api/v2/tasks';
+const USERS_API = 'https://u2b-api.vercel.app/api/v2/users';
+
+let taskUsers  = [];    // [{id,name,position}]
+let taskList   = [];    // текущий список (фильтрация на сервере)
+let taskEditId = null;
+let taskSearchTimer = null;
+let taskDoneOpen = false;
+let taskInited = false;
+
+const taskEsc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const taskToday = () => new Date().toISOString().slice(0,10);
+const taskDMY = d => String(d).slice(0,10).split('-').reverse().join('.');
+
+async function initTasksScreen(){
+  if(!taskInited){
+    try{ const r=await fetch(USERS_API); taskUsers=r.ok?await r.json():[]; }catch(e){ taskUsers=[]; }
+    taskFillAssigneeSelects();
+    taskInited=true;
+  }
+  await taskLoad();
+}
+function taskFillAssigneeSelects(){
+  const opts=taskUsers.map(u=>`<option value="${u.id}">${taskEsc(u.name)}</option>`).join('');
+  const f=document.getElementById('task-f-assignee'); if(f){ const cur=f.value; f.innerHTML=`<option value="">Все исполнители</option>`+opts; f.value=cur; }
+  const m=document.getElementById('task-assignee'); if(m) m.innerHTML=`<option value="">— не назначен —</option>`+opts;
+}
+async function taskLoad(){
+  const params=new URLSearchParams();
+  const a=document.getElementById('task-f-assignee').value; if(a) params.set('assigneeId', a);
+  const q=document.getElementById('task-f-q').value.trim(); if(q) params.set('q', q);
+  const qs=params.toString();
+  try{ const r=await fetch(qs?`${TASKS_API}?${qs}`:TASKS_API); taskList=r.ok?await r.json():[]; }catch(e){ taskList=[]; }
+  taskRender();
+}
+function taskDebouncedLoad(){ clearTimeout(taskSearchTimer); taskSearchTimer=setTimeout(taskLoad,300); }
+
+function taskUserName(id){ const u=taskUsers.find(x=>x.id===id); return u?u.name:''; }
+function taskIsOverdue(t){ return t.status!=='done' && t.dueDate && String(t.dueDate).slice(0,10) < taskToday(); }
+function taskDueCell(t){
+  if(!t.dueDate) return '<span style="color:#9ca3af;font-size:11px;">—</span>';
+  const d=taskDMY(t.dueDate);
+  return taskIsOverdue(t) ? `<span class="badge b-err" style="font-size:10px;">⏰ ${d}</span>` : `<span style="font-size:12px;">${d}</span>`;
+}
+function taskStatusBadge(s){
+  const M={new:['b-active','🆕 Новая'],accepted:['b-warn','📋 Принята'],in_progress:['b-purple','🔧 В работе'],done:['b-ok','✅ Готова']};
+  const m=M[s]||M.new; return `<span class="badge ${m[0]}" style="font-size:10px;">${m[1]}</span>`;
+}
+function taskNextBtn(t){
+  if(t.status==='new')         return `<button class="btn btn-outline btn-sm" style="font-size:11px;" onclick="taskAdvance('${t.id}','accepted')">Принять</button>`;
+  if(t.status==='accepted')    return `<button class="btn btn-outline btn-sm" style="font-size:11px;" onclick="taskAdvance('${t.id}','in_progress')">В работу</button>`;
+  if(t.status==='in_progress') return `<button class="btn btn-outline btn-sm" style="font-size:11px;color:#059669;border-color:#a7f3d0;" onclick="taskAdvance('${t.id}','done')">Готово</button>`;
+  return '';
+}
+function taskRowHtml(t){
+  return `<tr>
+    <td><div style="font-weight:600;">${taskEsc(t.title)}</div>${t.description?`<div style="font-size:11px;color:#6b7280;margin-top:2px;">${taskEsc(t.description)}</div>`:''}</td>
+    <td style="font-size:12px;">${taskEsc(t.assigneeName||taskUserName(t.assigneeId)||'—')}</td>
+    <td>${taskDueCell(t)}</td>
+    <td>${taskStatusBadge(t.status)}</td>
+    <td style="text-align:center;white-space:nowrap;"><div class="actions-cell">${taskNextBtn(t)}
+      <button class="act-btn" title="Изменить" onclick="taskEdit('${t.id}')">✏️</button>
+      <button class="act-btn" title="Удалить" style="color:#dc2626;" onclick="taskDelete('${t.id}')">🗑️</button></div></td>
+  </tr>`;
+}
+function taskBlockHtml(cfg, items){
+  return `<div class="tbl-wrap" style="margin-bottom:14px;">
+    <div class="tbl-header"><span class="tbl-title">${cfg.ico} ${cfg.label} <span style="color:#9ca3af;font-weight:400;">· ${items.length}</span></span></div>
+    <div style="overflow-x:auto;"><table><thead><tr>
+      <th>Задача</th><th>Исполнитель</th><th>Срок</th><th>Статус</th><th style="text-align:center;">Действия</th>
+    </tr></thead><tbody>${items.map(taskRowHtml).join('')}</tbody></table></div>
+  </div>`;
+}
+function taskRender(){
+  const empty=document.getElementById('task-empty');
+  const active=document.getElementById('task-active-blocks');
+  const doneWrap=document.getElementById('task-done-wrap');
+  if(!active) return;
+  if(!taskList.length){
+    empty.style.display='block'; active.innerHTML=''; doneWrap.style.display='none';
+    document.getElementById('task-done-body').innerHTML='';
+    return;
+  }
+  empty.style.display='none'; doneWrap.style.display='';
+  const BLOCKS=[{key:'new',ico:'🆕',label:'Новые'},{key:'accepted',ico:'📋',label:'Принятые'},{key:'in_progress',ico:'🔧',label:'В работе'}];
+  active.innerHTML=BLOCKS.map(b=>{ const items=taskList.filter(t=>t.status===b.key); return items.length?taskBlockHtml(b,items):''; }).join('');
+  // Готовые: группировка по исполнителю, внутри — по completed_at (свежие сверху)
+  const done=taskList.filter(t=>t.status==='done');
+  document.getElementById('task-done-count').textContent='· '+done.length;
+  const body=document.getElementById('task-done-body');
+  if(!done.length){
+    body.innerHTML='<div style="padding:16px;text-align:center;color:#9ca3af;font-size:12px;">Нет готовых задач</div>';
+  } else {
+    const groups={};
+    done.forEach(t=>{ const k=t.assigneeId||'__none__'; (groups[k]=groups[k]||[]).push(t); });
+    let html='';
+    Object.keys(groups).forEach(k=>{
+      const items=groups[k].slice().sort((a,b)=>String(b.completedAt||'').localeCompare(String(a.completedAt||'')));
+      const nm = k==='__none__' ? 'Без исполнителя' : (taskUserName(k)||items[0].assigneeName||'—');
+      html+=`<div style="padding:8px 14px;background:#f9fafb;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;border-top:1px solid #f0f0f0;">👤 ${taskEsc(nm)} · ${items.length}</div>`;
+      html+=`<div style="overflow-x:auto;"><table><tbody>${items.map(t=>`<tr>
+        <td style="font-weight:600;">${taskEsc(t.title)}</td>
+        <td style="font-size:11px;color:#6b7280;">✅ ${t.completedAt?taskDMY(t.completedAt):''}</td>
+        <td style="text-align:center;"><button class="act-btn" title="Удалить" style="color:#dc2626;" onclick="taskDelete('${t.id}')">🗑️</button></td>
+      </tr>`).join('')}</tbody></table></div>`;
+    });
+    body.innerHTML=html;
+  }
+  body.style.display = taskDoneOpen ? 'block' : 'none';
+  document.getElementById('task-done-caret').textContent = taskDoneOpen ? '▾' : '▸';
+}
+function taskToggleDone(){
+  taskDoneOpen=!taskDoneOpen;
+  document.getElementById('task-done-body').style.display=taskDoneOpen?'block':'none';
+  document.getElementById('task-done-caret').textContent=taskDoneOpen?'▾':'▸';
+}
+
+async function taskAdvance(id, status){
+  try{
+    const r=await fetch(`${TASKS_API}/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status})});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    await taskLoad(); showToast('✅ Статус обновлён');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+function taskOpenModal(t){
+  taskEditId = t && t.id ? t.id : null;
+  document.getElementById('taskModalTitle').textContent = taskEditId ? '✏️ Редактировать задачу' : '✅ Новая задача';
+  document.getElementById('task-title').value = t?(t.title||''):'';
+  document.getElementById('task-desc').value = t?(t.description||''):'';
+  document.getElementById('task-due').value = t&&t.dueDate?String(t.dueDate).slice(0,10):'';
+  document.getElementById('task-assignee').value = t&&t.assigneeId?t.assigneeId:'';
+  const sw=document.getElementById('task-status-wrap');
+  if(taskEditId){ sw.style.display=''; document.getElementById('task-status').value=t.status; } else { sw.style.display='none'; }
+  document.getElementById('taskModalOverlay').classList.add('open');
+}
+function taskCloseModal(){ document.getElementById('taskModalOverlay').classList.remove('open'); taskEditId=null; }
+function taskEdit(id){ const t=taskList.find(x=>x.id===id); if(t) taskOpenModal(t); }
+
+async function taskSave(){
+  const title=document.getElementById('task-title').value.trim();
+  if(!title){ showToast('⚠️ Введите название'); return; }
+  const editing=!!taskEditId;
+  const payload={
+    title,
+    description: document.getElementById('task-desc').value.trim()||null,
+    dueDate: document.getElementById('task-due').value||null,
+    assigneeId: document.getElementById('task-assignee').value||null,
+  };
+  if(editing) payload.status=document.getElementById('task-status').value;
+  try{
+    const r = editing
+      ? await fetch(`${TASKS_API}/${taskEditId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      : await fetch(TASKS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||('HTTP '+r.status)); }
+    taskCloseModal(); await taskLoad(); showToast(editing?'✅ Задача обновлена':'✅ Задача создана');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+async function taskDelete(id){
+  if(!confirm('Удалить задачу?')) return;
+  try{
+    const r=await fetch(`${TASKS_API}/${id}`,{method:'DELETE'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    await taskLoad(); showToast('🗑️ Задача удалена');
   }catch(e){ showToast('⚠️ '+e.message); }
 }
 
