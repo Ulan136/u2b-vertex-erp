@@ -1515,6 +1515,7 @@
                 <th style="text-align:center;">Свободно</th>
                 <th style="text-align:center;">Мин.</th>
                 <th style="text-align:right;">Цена</th>
+                <th style="text-align:right;">Цена со скидкой</th>
                 <th>Статус</th>
                 <th>Действия</th>
               </tr>
@@ -6944,9 +6945,10 @@ async function whFetchFromApi() {
         // catalog quantities show even if localStorage cached 0.
         stock:    (local && local.stock > 0)    ? local.stock    : Number(r.currentStock ?? r.current_stock ?? 0),
         reserved: (local && local.reserved > 0) ? local.reserved : Number(r.reserved ?? 0),
-        // retail (price) + discount (priceD); prefer API catalog prices
+        // retail (price) + discount (priceD); prefer API catalog prices.
+        // priceD is strictly the discount — 0 when unset (shown as «—»), no fallback to price.
         price:    Number(r.price) > 0 ? Number(r.price) : ((local && local.price) ? local.price : 0),
-        priceD:   Number(r.priceDiscount ?? r.price_discount ?? r.price ?? 0),
+        priceD:   Number(r.priceDiscount ?? r.price_discount ?? 0),
       };
     });
 
@@ -7036,7 +7038,7 @@ function renderWarehouse() {
   PRODUCT_GROUPS.forEach(g => {
     const items = warehouseData.filter(p=>p.group===g.id);
     if (!items.length) return;
-    rows += `<tr style="background:#f9fafb;"><td colspan="9" style="padding:7px 12px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">${g.icon} ${g.name}</td></tr>`;
+    rows += `<tr style="background:#f9fafb;"><td colspan="10" style="padding:7px 12px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;">${g.icon} ${g.name}</td></tr>`;
     items.forEach(p => {
       const free = whGetFree(p);
       const st   = whStatus(p);
@@ -7049,6 +7051,7 @@ function renderWarehouse() {
         <td style="text-align:center;font-weight:700;color:${st.color};">${free}</td>
         <td style="text-align:center;color:#6b7280;">${p.min}</td>
         <td style="text-align:right;color:#374151;">${whFmt(p.price)} ₸</td>
+        <td style="text-align:right;color:#374151;">${p.priceD>0 ? whFmt(p.priceD)+' ₸' : '—'}</td>
         <td><span class="badge ${st.cls}">${st.txt}</span></td>
         <td>
           <div class="actions-cell">
