@@ -1026,6 +1026,16 @@
       </div>
     </div>
     <div class="topbar-right-group">
+      <!-- Кто онлайн -->
+      <div style="position:relative;">
+        <button onclick="toggleOnline(event)" class="btn btn-outline btn-sm" style="font-size:11px;" title="Кто онлайн">🟢 Онлайн: <span id="online-count">0</span></button>
+        <div id="online-panel" style="display:none;position:absolute;right:0;top:34px;width:250px;max-height:360px;overflow-y:auto;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.14);z-index:1200;"></div>
+      </div>
+      <!-- Уведомления -->
+      <div style="position:relative;">
+        <button onclick="toggleNotif(event)" class="btn btn-outline btn-sm" style="font-size:15px;position:relative;padding:5px 9px;" title="Уведомления">🔔<span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;font-size:9px;font-weight:700;border-radius:9px;min-width:16px;height:16px;line-height:16px;text-align:center;padding:0 3px;">0</span></button>
+        <div id="notif-panel" style="display:none;position:absolute;right:0;top:34px;width:330px;max-height:420px;overflow-y:auto;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.14);z-index:1200;"></div>
+      </div>
       <div style="font-size:11px;color:#6b7280;">ТОО «Vertex Metrology»</div>
       <div class="topbar-user" title="Текущий пользователь">
         <div class="topbar-avatar" id="me-avatar">—</div>
@@ -2794,6 +2804,18 @@
       </div>
     </div>
 
+    <!-- MODAL: КОММЕНТАРИИ -->
+    <div class="modal-overlay" id="commentsOverlay" onclick="if(event.target===this)closeComments()">
+      <div class="modal" style="width:540px;max-height:82vh;display:flex;flex-direction:column;">
+        <div class="modal-head"><h3 id="commentsTitle">💬 Комментарии</h3><button class="modal-close" onclick="closeComments()">✕</button></div>
+        <div id="commentsList" style="padding:14px 18px;overflow-y:auto;flex:1;min-height:140px;"></div>
+        <div class="modal-foot" style="gap:8px;">
+          <input id="commentInput" placeholder="Написать комментарий…" style="flex:1;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;" onkeydown="if(event.key==='Enter')sendComment()">
+          <button class="btn btn-primary" onclick="sendComment()">Отправить</button>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /content -->
 </div><!-- /main -->
 
@@ -3390,6 +3412,7 @@ async function ordersFetch(srcKey) {
     console.warn('[orders GET]', e.message);
     showToast('⚠️ Заявки: '+e.message+' — работаем локально');
   }
+  await loadCommentCounts('order');
   renderOrders(srcKey);
 }
 function fieldOrderBadge(status) {
@@ -3405,6 +3428,7 @@ function renderOrders(srcKey) {
     const positions = (o.positions && o.positions.length) ? o.positions : [{ address:o.addr, qty:o.qty, water:o.water }];
     const posHtml = positions.map(p => `📍 ${p.address||''} — <strong>${p.qty||0} шт.</strong> · ${p.water||''}`).join('<br>');
     const btns = [];
+    if (o.id) btns.push(`<button class="act-btn" onclick="openComments('order','${o.id}','Заявка ${o.no}')" title="Комментарии">💬${commentCountFor('order',o.id)}</button>`);
     if (o.id) btns.push(`<button class="act-btn" onclick="openOrderModal('${cfg.key}','${o.id}')" title="Изменить">✏️</button>`);
     if (o.status==='Готова') btns.push(`<button class="btn btn-outline btn-sm" onclick="orderToCert('${cfg.key}','${o.id||o.no}')">→ В сертификат</button>`);
     if (o.id && o.status!=='Отменён') btns.push(`<button class="act-btn" onclick="ordersCancel('${cfg.key}','${o.id}')" title="Отменить" style="color:#c2410c;">❌</button>`);
@@ -5216,6 +5240,7 @@ async function taskLoad(){
   const q=document.getElementById('task-f-q').value.trim(); if(q) params.set('q', q);
   const qs=params.toString();
   try{ const r=await fetch(qs?`${TASKS_API}?${qs}`:TASKS_API); taskList=r.ok?await r.json():[]; }catch(e){ taskList=[]; }
+  await loadCommentCounts('task');
   taskRender();
 }
 function taskDebouncedLoad(){ clearTimeout(taskSearchTimer); taskSearchTimer=setTimeout(taskLoad,300); }
@@ -5244,6 +5269,7 @@ function taskRowHtml(t){
     <td>${taskDueCell(t)}</td>
     <td>${taskStatusBadge(t.status)}</td>
     <td style="text-align:center;white-space:nowrap;"><div class="actions-cell">${taskNextBtn(t)}
+      <button class="act-btn" title="Комментарии" onclick="openComments('task','${t.id}','Задача')">💬${commentCountFor('task',t.id)}</button>
       <button class="act-btn" title="Изменить" onclick="taskEdit('${t.id}')">✏️</button>
       <button class="act-btn" title="Удалить" style="color:#dc2626;" onclick="taskDelete('${t.id}')">🗑️</button></div></td>
   </tr>`;
@@ -5486,6 +5512,7 @@ async function initPermissions(){
   setTxt('me-avatar', (nm[0]||'—').toUpperCase());
   applyMenuPermissions();
   goToStartScreen();
+  startRealtimePolling();   // колокольчик + онлайн, поллинг раз в 30 сек
 }
 
 function applyMenuPermissions(){
@@ -5658,6 +5685,129 @@ async function permToggle(role, screenKey, allowed){
 
 // загрузка прав ролей + фильтрация меню под текущую «роль просмотра»
 initPermissions();
+
+// ── КОММЕНТАРИИ ────────────────────────────────────────────────
+const COMMENTS_API = '/api/v2/comments';
+let commentCounts = { order:{}, task:{} };
+let commentCtx = { entityType:null, entityId:null };
+const cEsc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const cWhen = ts => ts ? new Date(ts).toLocaleString('ru-KZ',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+
+function commentCountFor(entityType,id){ const n=(commentCounts[entityType]||{})[id]||0; return n?' '+n:''; }
+async function loadCommentCounts(entityType){
+  try{ const r=await fetch(`${COMMENTS_API}/counts?entityType=${entityType}`); const rows=r.ok?await r.json():[]; const m={}; rows.forEach(x=>{m[x.entityId]=x.count;}); commentCounts[entityType]=m; }
+  catch(e){ commentCounts[entityType]={}; }
+}
+function openComments(entityType, entityId, label){
+  commentCtx = { entityType, entityId };
+  document.getElementById('commentsTitle').textContent = '💬 Комментарии · '+label;
+  document.getElementById('commentInput').value='';
+  document.getElementById('commentsOverlay').classList.add('open');
+  loadComments();
+}
+function closeComments(){ document.getElementById('commentsOverlay').classList.remove('open'); }
+async function loadComments(){
+  const box=document.getElementById('commentsList');
+  box.innerHTML='<div style="color:#9ca3af;text-align:center;padding:20px;">Загрузка…</div>';
+  try{
+    const r=await fetch(`${COMMENTS_API}?entityType=${commentCtx.entityType}&entityId=${commentCtx.entityId}`);
+    const list=r.ok?await r.json():[];
+    box.innerHTML = list.length ? list.map(c=>{
+      const canDel = meUser && (c.authorId===meUser.id || meUser.role==='admin');
+      return `<div style="padding:8px 0;border-bottom:1px solid #f0f0f0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#6b7280;">
+          <span><strong style="color:#374151;">${cEsc(c.authorName||'—')}</strong> · ${cWhen(c.createdAt)}</span>
+          ${canDel?`<span onclick="deleteComment('${c.id}')" title="Удалить" style="cursor:pointer;color:#dc2626;">🗑</span>`:''}
+        </div>
+        <div style="font-size:13px;color:#111;margin-top:3px;white-space:pre-wrap;">${cEsc(c.text)}</div>
+      </div>`;
+    }).join('') : '<div style="color:#9ca3af;text-align:center;padding:24px;">Пока нет комментариев. Напишите первый.</div>';
+    box.scrollTop = box.scrollHeight;   // свежие снизу
+  }catch(e){ box.innerHTML='<div style="color:#dc2626;text-align:center;padding:20px;">Ошибка загрузки</div>'; }
+}
+async function sendComment(){
+  const inp=document.getElementById('commentInput'); const text=inp.value.trim();
+  if(!text) return;
+  try{
+    const r=await fetch(COMMENTS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entityType:commentCtx.entityType,entityId:commentCtx.entityId,text})});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||('HTTP '+r.status)); }
+    inp.value=''; await loadComments(); await refreshCommentCount(commentCtx.entityType);
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+async function deleteComment(id){
+  if(!confirm('Удалить комментарий?')) return;
+  try{
+    const r=await fetch(`${COMMENTS_API}/${id}`,{method:'DELETE'});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||('HTTP '+r.status)); }
+    await loadComments(); await refreshCommentCount(commentCtx.entityType);
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+async function refreshCommentCount(entityType){
+  await loadCommentCounts(entityType);
+  if(entityType==='order'){ if(typeof renderOrders==='function'){ renderOrders('field_check'); renderOrders('tec'); } }
+  else { if(typeof taskRender==='function') taskRender(); }
+}
+
+// ── УВЕДОМЛЕНИЯ + КТО ОНЛАЙН ───────────────────────────────────
+const NOTIF_API='/api/v2/notifications'; const PRESENCE_API='/api/v2/presence';
+let notifData={unread:0,items:[]}; let presenceData={onlineCount:0,users:[]};
+let realtimeStarted=false;
+
+function startRealtimePolling(){
+  if(realtimeStarted) return; realtimeStarted=true;
+  pollNotifications(); pollPresence();
+  setInterval(()=>{ pollNotifications(); pollPresence(); }, 30000);
+  document.addEventListener('click',()=>{ const n=document.getElementById('notif-panel'),o=document.getElementById('online-panel'); if(n)n.style.display='none'; if(o)o.style.display='none'; });
+}
+async function pollNotifications(){
+  try{ const r=await fetch(NOTIF_API); if(r.ok){ notifData=await r.json(); renderNotifBadge(); if(document.getElementById('notif-panel').style.display!=='none') renderNotifPanel(); } }catch(e){}
+}
+async function pollPresence(){
+  try{ const r=await fetch(PRESENCE_API); if(r.ok){ presenceData=await r.json(); const c=document.getElementById('online-count'); if(c)c.textContent=presenceData.onlineCount; if(document.getElementById('online-panel').style.display!=='none') renderOnlinePanel(); } }catch(e){}
+}
+function renderNotifBadge(){ const b=document.getElementById('notif-badge'); if(!b)return; if(notifData.unread>0){ b.style.display='block'; b.textContent=notifData.unread>99?'99+':notifData.unread; } else b.style.display='none'; }
+function toggleNotif(ev){ ev.stopPropagation(); const p=document.getElementById('notif-panel'); const show=p.style.display==='none'; document.getElementById('online-panel').style.display='none'; p.style.display=show?'block':'none'; if(show) renderNotifPanel(); }
+function toggleOnline(ev){ ev.stopPropagation(); const p=document.getElementById('online-panel'); const show=p.style.display==='none'; document.getElementById('notif-panel').style.display='none'; p.style.display=show?'block':'none'; if(show) renderOnlinePanel(); }
+function renderNotifPanel(){
+  const p=document.getElementById('notif-panel'); if(!p)return;
+  const head=`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid #f0f0f0;"><strong style="font-size:12px;">Уведомления</strong>${notifData.unread?`<span onclick="notifReadAll(event)" style="cursor:pointer;font-size:11px;color:#1d4ed8;">Прочитать все</span>`:''}</div>`;
+  const body = (notifData.items&&notifData.items.length) ? notifData.items.map(n=>`
+    <div onclick="notifClick(event,'${n.id}','${n.link||''}')" style="padding:9px 12px;border-bottom:1px solid #f5f5f5;cursor:pointer;background:${n.isRead?'#fff':'#eff6ff'};">
+      <div style="font-size:12px;color:#111;line-height:1.3;">${cEsc(n.title)}</div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:3px;">${cWhen(n.createdAt)}</div>
+    </div>`).join('') : '<div style="padding:22px;text-align:center;color:#9ca3af;font-size:12px;">Нет уведомлений</div>';
+  p.innerHTML=head+body;
+}
+async function notifClick(ev,id,link){
+  ev.stopPropagation();
+  try{ await fetch(`${NOTIF_API}/${id}/read`,{method:'POST'}); }catch(e){}
+  document.getElementById('notif-panel').style.display='none';
+  await pollNotifications();
+  goByLink(link);
+}
+async function notifReadAll(ev){ ev.stopPropagation(); try{ await fetch(`${NOTIF_API}/read-all`,{method:'POST'}); }catch(e){} await pollNotifications(); renderNotifPanel(); }
+function goByLink(link){
+  if(!link) return;
+  const entry = Object.values(SCREEN_ENTRY).find(e=>e[0]===link);
+  const id = entry?entry[0]:link, sec=entry?entry[1]:'', pg=entry?entry[2]:'';
+  const btn=[...document.querySelectorAll('#sidebar .sb-item, #sidebar .sb-direct')].find(b=>(b.getAttribute('onclick')||'').includes("go('"+id+"'"));
+  go(id, sec||id, pg||id, btn||null);
+}
+function renderOnlinePanel(){
+  const p=document.getElementById('online-panel'); if(!p)return;
+  const rows=(presenceData.users||[]).map(u=>{
+    if(u.online) return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0;"></span><div><div style="font-size:12px;color:#111;">${cEsc(u.name)}</div><div style="font-size:10px;color:#9ca3af;">${ROLE_LABEL(u.role)}</div></div></div>`;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;"><span style="width:8px;height:8px;border-radius:50%;background:#d1d5db;flex-shrink:0;"></span><div><div style="font-size:12px;color:#9ca3af;">${cEsc(u.name)}</div><div style="font-size:10px;color:#c7ccd4;">${ROLE_LABEL(u.role)} · ${lastSeenText(u.lastSeenAt)}</div></div></div>`;
+  }).join('');
+  p.innerHTML=`<div style="padding:9px 10px;border-bottom:1px solid #f0f0f0;font-size:12px;font-weight:700;">🟢 Онлайн: ${presenceData.onlineCount}</div>`+(rows||'<div style="padding:16px;text-align:center;color:#9ca3af;font-size:12px;">Нет сотрудников</div>');
+}
+function lastSeenText(ts){
+  if(!ts) return 'ещё не заходил(а)';
+  const m=Math.floor((Date.now()-new Date(ts).getTime())/60000);
+  if(m<1) return 'только что'; if(m<60) return 'был(а) '+m+' мин назад';
+  const h=Math.floor(m/60); if(h<24) return 'был(а) '+h+' ч назад';
+  return 'был(а) '+Math.floor(h/24)+' дн назад';
+}
 
 // hook go() for invoice + settings screens
 

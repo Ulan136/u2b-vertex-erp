@@ -10,6 +10,11 @@ export const ordersRepo = {
 
   listNos: () => db.select({ no: orders.orderNo }).from(orders),
 
+  async findById(id: string) {
+    const [row] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+    return row ?? null;
+  },
+
   async create(data: Record<string, unknown>) {
     const [row] = await db.insert(orders).values(data as unknown as OrderInsert).returning();
     return row;

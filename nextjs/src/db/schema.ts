@@ -18,6 +18,7 @@ export const orderSourceEnum = pgEnum('order_source',     ['field_check','tec'])
 export const debtTypeEnum    = pgEnum('debt_type',        ['debit','credit']);   // debit = нам должны, credit = мы должны
 export const debtStatusEnum  = pgEnum('debt_status',      ['open','partial','closed']);
 export const taskStatusEnum  = pgEnum('task_status',      ['new','accepted','in_progress','done']);
+export const commentEntityEnum = pgEnum('comment_entity', ['order','task']);
 
 // ── BRANCHES ──────────────────────────────────────────────────
 export const branches = pgTable('branches', {
@@ -42,6 +43,7 @@ export const users = pgTable('users', {
   passwordHash : varchar('password_hash', { length: 255 }),
   isActive     : boolean('is_active').default(true),
   lastLogin    : timestamp('last_login', { withTimezone: true }),
+  lastSeenAt   : timestamp('last_seen_at', { withTimezone: true }),   // presence (обновляется на авторизованных запросах)
   createdAt    : timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt    : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
@@ -281,6 +283,28 @@ export const rolePermissions = pgTable('role_permissions', {
   updatedAt : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── COMMENTS (комментарии к заявкам/задачам) ──────────────────
+export const comments = pgTable('comments', {
+  id         : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  entityType : commentEntityEnum('entity_type').notNull(),   // 'order' | 'task'
+  entityId   : uuid('entity_id').notNull(),                  // orders.id / tasks.id (полиморфно, без FK)
+  authorId   : uuid('author_id').references(() => users.id, { onDelete: 'set null' }),
+  text       : text('text').notNull(),
+  createdAt  : timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+// ── NOTIFICATIONS (уведомления) ───────────────────────────────
+// Не более 100 последних на пользователя (старые удаляются в сервисе).
+export const notifications = pgTable('notifications', {
+  id        : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  userId    : uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  type      : varchar('type', { length: 40 }).notNull(),
+  title     : varchar('title', { length: 300 }).notNull(),
+  link      : varchar('link', { length: 200 }),
+  isRead    : boolean('is_read').notNull().default(false),
+  createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
 // ── TASKS (задачи сотрудникам) ────────────────────────────────
 // status flow: new → accepted → in_progress → done.
 // completed_at is stamped when a task moves to 'done'.
@@ -313,6 +337,8 @@ export type Debt             = typeof debts.$inferSelect;
 export type DebtPayment      = typeof debtPayments.$inferSelect;
 export type Task             = typeof tasks.$inferSelect;
 export type RolePermission   = typeof rolePermissions.$inferSelect;
+export type Comment          = typeof comments.$inferSelect;
+export type Notification     = typeof notifications.$inferSelect;
 
 export type NewCertificate = typeof certificates.$inferInsert;
 export type NewClient         = typeof clients.$inferInsert;

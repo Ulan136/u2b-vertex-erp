@@ -12,8 +12,8 @@ export const GET = withApi(async (req: NextRequest) => {
     q: sp.get('q'),
   });
 });
-export const POST = withApi(async (req: NextRequest) => created(await tasksService.create(await req.json())));
+export const POST = withApi(async (req: NextRequest, ctx) => created(await tasksService.create(await req.json(), ctx.user?.id ?? null)));
 
 // item: /api/v2/tasks/[id]  (PATCH handles field edits and status change)
-export const PATCH = withApi(async (req: NextRequest, ctx) => tasksService.update(ctx.params!.id, await req.json()));
+export const PATCH = withApi(async (req: NextRequest, ctx) => tasksService.update(ctx.params!.id, await req.json(), ctx.user?.id ?? null));
 export const DELETE = withApi(async (req: NextRequest, ctx) => tasksService.remove(ctx.params!.id));

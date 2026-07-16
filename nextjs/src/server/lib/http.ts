@@ -6,6 +6,7 @@ import { currentUser, type SessionUser } from './session';
 import { isCabinetPublicApi, apiScreenFor } from './apiAccess';
 import { permissionsRepo } from '@/server/repositories/permissions.repo';
 import { isScreenAllowed } from '@/server/dto/permissions.dto';
+import { presenceService } from '@/server/services/presence.service';
 
 // ── Response helpers ──────────────────────────────────────────────
 export function json(data: unknown, status = 200) {
@@ -34,6 +35,7 @@ export function withApi(handler: Handler) {
       if (!isCabinetPublicApi(req.method, path)) {
         user = await currentUser();
         if (!user) return json({ error: 'Требуется вход' }, 401);
+        await presenceService.touch(user.id);   // presence (throttled to ≤1 write/min)
         const screen = url ? apiScreenFor(req.method, path, url.searchParams) : null;
         if (screen) {
           const perms = await permissionsRepo.list();

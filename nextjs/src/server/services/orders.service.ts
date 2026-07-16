@@ -1,9 +1,12 @@
 import { ordersRepo } from '@/server/repositories/orders.repo';
+import { usersRepo } from '@/server/repositories/users.repo';
+import { notificationsService } from '@/server/services/notifications.service';
 import {
   orderCreateSchema, orderUpdateSchema,
   nextOrderNoFor, filterOrdersBySource, externalCabinetUrl,
   type OrderSource,
 } from '@/server/dto/orders.dto';
+import { orderRecipients } from '@/server/dto/notifications.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
 // Base cabinet URL: an explicit env override, else the serving origin (which is
@@ -30,7 +33,18 @@ export const ordersService = {
       const nos = (await ordersRepo.listNos()).map(r => r.no);
       data.orderNo = nextOrderNoFor(data.source, nos);
     }
-    return ordersRepo.create(data);
+    const order = await ordersRepo.create(data);
+    // notify managers + admins about the new cabinet order (best-effort)
+    try {
+      const users = await usersRepo.listActiveLite();
+      const isTec = order.source === 'tec';
+      await notificationsService.create(orderRecipients(users), {
+        type: 'order',
+        title: `Новая заявка ${order.orderNo ?? ''} (${isTec ? 'ТЭЦ' : 'Выездная'})`,
+        link: isTec ? 'tec-orders' : 'field-orders',
+      });
+    } catch { /* notifications are best-effort */ }
+    return order;
   },
 
   async update(id: string, input: unknown) {
