@@ -26,7 +26,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
       async authorize(credentials) {
         const login = String(credentials?.login ?? '').trim();
-        const password = String(credentials?.password ?? '');
+        const password = String(credentials?.password ?? '').trim();   // tolerate copy-paste whitespace
         if (!login || !password) return null;
 
         // Try phone first (if it looks like one), then email.

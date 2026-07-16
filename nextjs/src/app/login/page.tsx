@@ -20,7 +20,7 @@ function LoginForm() {
     setError(''); setBusy(true);
     try {
       const res = await signIn('credentials', {
-        login: login.trim(), password, remember: remember ? 'true' : 'false', redirect: false,
+        login: login.trim(), password: password.trim(), remember: remember ? 'true' : 'false', redirect: false,
       });
       if (res?.error) { setError('Неверный телефон/email или пароль, либо пользователь деактивирован'); setBusy(false); return; }
       window.location.href = from.startsWith('/') ? from : '/';
