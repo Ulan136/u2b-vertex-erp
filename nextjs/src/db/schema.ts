@@ -35,6 +35,7 @@ export const users = pgTable('users', {
   id           : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
   email        : varchar('email', { length: 150 }).notNull().unique(),
   name         : varchar('name', { length: 150 }).notNull(),
+  phone        : varchar('phone', { length: 20 }),            // normalized to +7XXXXXXXXXX
   position     : varchar('position', { length: 100 }),
   role         : userRoleEnum('role').notNull().default('manager'),
   branchId     : uuid('branch_id').references(() => branches.id),

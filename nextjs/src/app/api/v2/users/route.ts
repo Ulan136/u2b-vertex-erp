@@ -1,1 +1,1 @@
-export { GET, OPTIONS } from '@/server/controllers/users.controller';
+export { GET, POST, OPTIONS } from '@/server/controllers/users.controller';

@@ -2432,6 +2432,7 @@
         <div class="stab active" onclick="openSettingsTab('accounts')" style="padding:9px 16px;font-size:12px;font-weight:600;cursor:pointer;border-bottom:2px solid #1a56db;color:#1d4ed8;white-space:nowrap;">💳 Привязка счетов</div>
         <div class="stab" onclick="openSettingsTab('branches')" style="padding:9px 16px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:#6b7280;white-space:nowrap;">🏢 Филиалы</div>
         <div class="stab" onclick="openSettingsTab('users')" style="padding:9px 16px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:#6b7280;white-space:nowrap;">👥 Пользователи</div>
+        <div class="stab" onclick="openSettingsTab('access')" style="padding:9px 16px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:#6b7280;white-space:nowrap;">🔐 Доступы</div>
         <div class="stab" onclick="openSettingsTab('clients')" style="padding:9px 16px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:#6b7280;white-space:nowrap;">👤 Клиенты</div>
         <div class="stab" onclick="openSettingsTab('org')" style="padding:9px 16px;font-size:12px;cursor:pointer;border-bottom:2px solid transparent;color:#6b7280;white-space:nowrap;">⚙️ Организация</div>
       </div>
@@ -2548,21 +2549,27 @@
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;" id="settingsBranchGrid"></div>
       </div>
 
-      <!-- TAB: ПОЛЬЗОВАТЕЛИ -->
+      <!-- TAB: ПОЛЬЗОВАТЕЛИ (управление) -->
       <div id="stab-users" style="display:none;">
-        <div class="card">
-          <div class="card-title">👥 Пользователи и роли</div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-            <label style="font-size:12px;color:#374151;">Фильтр по роли:
-              <select id="usr-f-role" onchange="usrRenderUsers()" style="padding:6px 10px;font-size:12px;border:1px solid #d1d5db;border-radius:8px;margin-left:4px;"><option value="">Все роли</option></select>
-            </label>
-          </div>
-          <table style="margin-top:4px;"><thead><tr><th>ФИО</th><th>Должность</th><th>Роль</th></tr></thead>
-          <tbody id="usr-tbody"></tbody></table>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <button class="btn btn-primary btn-sm" onclick="usrOpenModal()">+ Добавить пользователя</button>
+          <label style="font-size:12px;color:#374151;margin-left:auto;">Роль:
+            <select id="usr-f-role" onchange="usrRenderUsers()" style="padding:6px 10px;font-size:12px;border:1px solid #d1d5db;border-radius:8px;margin-left:4px;"><option value="">Все роли</option></select>
+          </label>
         </div>
+        <div class="tbl-wrap">
+          <div style="overflow-x:auto;">
+            <table><thead><tr>
+              <th>ФИО</th><th>Телефон</th><th>Должность</th><th>Роль</th><th>Статус</th><th style="text-align:center;">Действия</th>
+            </tr></thead><tbody id="usr-tbody"></tbody></table>
+          </div>
+          <div id="usr-empty" style="display:none;padding:34px 20px;text-align:center;color:#9ca3af;font-size:13px;">Пока нет пользователей. Нажмите «+ Добавить пользователя».</div>
+        </div>
+      </div>
 
-        <!-- ДОСТУП РОЛЕЙ К ЭКРАНАМ -->
-        <div class="card" style="margin-top:14px;">
+      <!-- TAB: ДОСТУПЫ (матрица ролей к экранам) -->
+      <div id="stab-access" style="display:none;">
+        <div class="card">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
             <div class="card-title" style="margin:0;">🔐 Доступ ролей к экранам</div>
             <div style="font-size:11px;color:#6b7280;">Снимите галочку — экран скрыт для роли (сохраняется сразу). Админ — всегда полный доступ.</div>
@@ -2760,6 +2767,30 @@
         <div class="modal-foot">
           <button class="btn btn-primary" onclick="taskSave()">✅ Сохранить</button>
           <button class="btn btn-outline" onclick="taskCloseModal()">Отмена</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: ДОБАВИТЬ / РЕДАКТИРОВАТЬ ПОЛЬЗОВАТЕЛЯ -->
+    <div class="modal-overlay" id="usrModalOverlay" onclick="if(event.target===this)usrCloseModal()">
+      <div class="modal" style="width:480px;">
+        <div class="modal-head"><h3 id="usrModalTitle">👤 Новый пользователь</h3><button class="modal-close" onclick="usrCloseModal()">✕</button></div>
+        <div class="modal-body" style="padding:18px;">
+          <div class="fg">
+            <div class="field" style="grid-column:1/-1;"><label>ФИО *</label><input id="usr-name" placeholder="Фамилия Имя Отчество"></div>
+            <div class="field"><label>Телефон</label><input id="usr-phone" placeholder="+7 700 000 00 00"></div>
+            <div class="field"><label>Должность</label><input id="usr-position" placeholder="Напр.: Менеджер"></div>
+            <div class="field" style="grid-column:1/-1;"><label>Роль *</label>
+              <select id="usr-role"></select>
+            </div>
+            <div style="grid-column:1/-1;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:6px 0 2px;padding-top:8px;border-top:1px solid #f3f4f6;">🔑 Данные для входа</div>
+            <div class="field" style="grid-column:1/-1;"><label>Email (логин) *</label><input id="usr-email" type="email" placeholder="user@vertex.kz"></div>
+            <div class="field" style="grid-column:1/-1;"><label id="usr-pass-label">Пароль *</label><input id="usr-password" type="password" placeholder="минимум 4 символа"></div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-primary" onclick="usrSave()">✅ Сохранить</button>
+          <button class="btn btn-outline" onclick="usrCloseModal()">Отмена</button>
         </div>
       </div>
     </div>
@@ -4767,11 +4798,12 @@ function openSettingsTab(tab){
   document.querySelectorAll('.stab').forEach(t=>{t.style.borderBottomColor='transparent';t.style.color='#6b7280';t.style.fontWeight='400';});
   const at=[...document.querySelectorAll('.stab')].find(t=>t.getAttribute('onclick')?.includes(`'${tab}'`));
   if(at){at.style.borderBottomColor='#1a56db';at.style.color='#1d4ed8';at.style.fontWeight='600';}
-  ['accounts','branches','users','clients','org'].forEach(id=>{const el=document.getElementById('stab-'+id);if(el)el.style.display=id===tab?'block':'none';});
+  ['accounts','branches','users','access','clients','org'].forEach(id=>{const el=document.getElementById('stab-'+id);if(el)el.style.display=id===tab?'block':'none';});
   if(tab==='accounts') { renderAccountSources(); renderTmplGrid(); }
   if(tab==='branches') renderSettingsBranches();
   if(tab==='clients') initClientsTab();
   if(tab==='users') usrRenderTab();
+  if(tab==='access') accessRenderTab();
 }
 function renderAccountSources(){
   ['poverka','sales','other'].forEach(type=>{
@@ -5445,14 +5477,20 @@ function showDenied(section, page){
   showToast('🚫 Нет доступа к разделу');
 }
 
-// ── Вкладка «Пользователи»: список + матрица прав ──
+// ── Вкладка «Пользователи» (управление) ──
+let usrEditId = null;
+let usrSelfId = null;   // текущий аккаунт (в прототипе нет авторизации): первый активный админ
+const USERS_ALL_API = USERS_API + '?all=1';
+
+async function usrLoadUsers(){
+  try{ const r=await fetch(USERS_ALL_API); usrUsers=r.ok?await r.json():[]; }catch(e){ usrUsers=[]; }
+  if(!usrSelfId){ const adm=usrUsers.find(u=>u.role==='admin'&&u.isActive); usrSelfId=adm?adm.id:null; }
+}
 async function usrRenderTab(){
   const f=document.getElementById('usr-f-role');
   if(f && f.options.length<=1) f.innerHTML=`<option value="">Все роли</option>`+ROLES_RU.map(r=>`<option value="${r.key}">${r.label}</option>`).join('');
-  if(!usrUsers.length){ try{ const r=await fetch(USERS_API); usrUsers=r.ok?await r.json():[]; }catch(e){ usrUsers=[]; } }
+  await usrLoadUsers();
   usrRenderUsers();
-  await loadRolePerms();
-  renderPermMatrix();
 }
 function usrRoleBadge(role){
   const cls={admin:'b-purple',director:'b-active',accountant:'b-warn',manager:'b-ok',master:'b-new'}[role]||'b-new';
@@ -5460,10 +5498,96 @@ function usrRoleBadge(role){
 }
 function usrRenderUsers(){
   const tb=document.getElementById('usr-tbody'); if(!tb) return;
+  const empty=document.getElementById('usr-empty');
   const f=(document.getElementById('usr-f-role')||{}).value||'';
   const rows=usrUsers.filter(u=>!f || u.role===f);
-  tb.innerHTML = rows.length ? rows.map(u=>`<tr><td>${taskEsc(u.name)}</td><td style="color:#6b7280;">${taskEsc(u.position||'—')}</td><td>${usrRoleBadge(u.role)}</td></tr>`).join('')
-    : '<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:16px;">Нет пользователей</td></tr>';
+  if(!rows.length){ tb.innerHTML=''; if(empty) empty.style.display='block'; return; }
+  if(empty) empty.style.display='none';
+  tb.innerHTML = rows.map(u=>{
+    const self = u.id===usrSelfId;
+    const statusBadge = u.isActive
+      ? '<span class="badge b-ok" style="font-size:10px;">✅ Активен</span>'
+      : '<span class="badge b-err" style="font-size:10px;">⛔ Неактивен</span>';
+    let act;
+    if(!u.isActive){
+      act = `<button class="act-btn" title="Активировать" style="color:#059669;" onclick="usrSetActive('${u.id}',true)">↩</button>`;
+    } else if(self){
+      act = `<button class="act-btn" title="Это вы — нельзя деактивировать себя" disabled style="opacity:.35;cursor:not-allowed;">⛔</button>`;
+    } else {
+      act = `<button class="act-btn" title="Деактивировать" style="color:#c2410c;" onclick="usrSetActive('${u.id}',false)">⛔</button>`;
+    }
+    return `<tr${u.isActive?'':' style="opacity:.6;"'}>
+      <td>${taskEsc(u.name)}${self?' <span style="font-size:10px;color:#9ca3af;">(вы)</span>':''}</td>
+      <td style="font-family:monospace;font-size:12px;">${taskEsc(u.phone||'—')}</td>
+      <td style="color:#6b7280;">${taskEsc(u.position||'—')}</td>
+      <td>${usrRoleBadge(u.role)}</td>
+      <td>${statusBadge}</td>
+      <td style="text-align:center;white-space:nowrap;">
+        <button class="act-btn" title="Изменить" onclick="usrEdit('${u.id}')">✏️</button>
+        ${act}
+      </td></tr>`;
+  }).join('');
+}
+
+function usrFillRoleSelect(){
+  const s=document.getElementById('usr-role');
+  if(s) s.innerHTML=ROLES_RU.map(r=>`<option value="${r.key}">${r.label}</option>`).join('');
+}
+function usrOpenModal(u){
+  usrEditId = u && u.id ? u.id : null;
+  usrFillRoleSelect();
+  document.getElementById('usrModalTitle').textContent = usrEditId ? '✏️ Редактировать пользователя' : '👤 Новый пользователь';
+  document.getElementById('usr-name').value = u?(u.name||''):'';
+  document.getElementById('usr-phone').value = u?(u.phone||''):'';
+  document.getElementById('usr-position').value = u?(u.position||''):'';
+  document.getElementById('usr-role').value = u?(u.role||'manager'):'manager';
+  document.getElementById('usr-email').value = u?(u.email||''):'';
+  document.getElementById('usr-password').value = '';
+  document.getElementById('usr-pass-label').textContent = usrEditId ? 'Новый пароль (пусто — без изменений)' : 'Пароль *';
+  document.getElementById('usr-password').placeholder = usrEditId ? 'не менять' : 'минимум 4 символа';
+  document.getElementById('usrModalOverlay').classList.add('open');
+}
+function usrCloseModal(){ document.getElementById('usrModalOverlay').classList.remove('open'); usrEditId=null; }
+function usrEdit(id){ const u=usrUsers.find(x=>x.id===id); if(u) usrOpenModal(u); }
+
+async function usrSave(){
+  const name=document.getElementById('usr-name').value.trim();
+  const email=document.getElementById('usr-email').value.trim();
+  const password=document.getElementById('usr-password').value;
+  const editing=!!usrEditId;
+  if(!name){ showToast('⚠️ Введите ФИО'); return; }
+  if(!email){ showToast('⚠️ Введите email'); return; }
+  if(!editing && (!password || password.length<4)){ showToast('⚠️ Пароль минимум 4 символа'); return; }
+  const payload={
+    name,
+    phone: document.getElementById('usr-phone').value.trim()||null,
+    position: document.getElementById('usr-position').value.trim()||null,
+    role: document.getElementById('usr-role').value,
+    email,
+  };
+  if(password) payload.password=password;
+  try{
+    const r = editing
+      ? await fetch(`${USERS_API}/${usrEditId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      : await fetch(USERS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||('HTTP '+r.status)); }
+    usrCloseModal(); await usrRenderTab(); showToast(editing?'✅ Пользователь обновлён':'✅ Пользователь добавлен');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+async function usrSetActive(id, active){
+  if(!active && !confirm('Деактивировать пользователя? Он не сможет войти в систему.')) return;
+  try{
+    const r=await fetch(`${USERS_API}/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({isActive:active, actingUserId:usrSelfId})});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||('HTTP '+r.status)); }
+    await usrRenderTab(); showToast(active?'✅ Пользователь активирован':'⛔ Пользователь деактивирован');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// ── Вкладка «Доступы» (матрица ролей к экранам) ──
+async function accessRenderTab(){
+  await loadRolePerms();
+  renderPermMatrix();
 }
 function renderPermMatrix(){
   const t=document.getElementById('perm-matrix'); if(!t) return;
