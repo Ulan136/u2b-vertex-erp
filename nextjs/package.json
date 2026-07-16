@@ -7,11 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --import tsx --test \"src/**/*.test.ts\"",
-    "db:seed": "tsx --env-file=.env.local src/db/seed.ts",
-    "db:seed:products": "tsx --env-file=.env.local src/db/seed-products.ts",
-    "db:seed:stock": "tsx --env-file=.env.local src/db/seed-stock.ts",
-    "db:seed:prices": "tsx --env-file=.env.local src/db/seed-prices.ts"
+    "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
