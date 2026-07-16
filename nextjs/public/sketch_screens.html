@@ -5750,7 +5750,7 @@ async function refreshCommentCount(entityType){
 
 // ── УВЕДОМЛЕНИЯ + КТО ОНЛАЙН ───────────────────────────────────
 const NOTIF_API='/api/v2/notifications'; const PRESENCE_API='/api/v2/presence';
-let notifData={unread:0,items:[]}; let presenceData={onlineCount:0,users:[]};
+let notifState={unread:0,items:[]}; let presenceData={onlineCount:0,users:[]};
 let realtimeStarted=false;
 
 function startRealtimePolling(){
@@ -5760,18 +5760,18 @@ function startRealtimePolling(){
   document.addEventListener('click',()=>{ const n=document.getElementById('notif-panel'),o=document.getElementById('online-panel'); if(n)n.style.display='none'; if(o)o.style.display='none'; });
 }
 async function pollNotifications(){
-  try{ const r=await fetch(NOTIF_API); if(r.ok){ notifData=await r.json(); renderNotifBadge(); if(document.getElementById('notif-panel').style.display!=='none') renderNotifPanel(); } }catch(e){}
+  try{ const r=await fetch(NOTIF_API); if(r.ok){ notifState=await r.json(); renderNotifBadge(); if(document.getElementById('notif-panel').style.display!=='none') renderNotifPanel(); } }catch(e){}
 }
 async function pollPresence(){
   try{ const r=await fetch(PRESENCE_API); if(r.ok){ presenceData=await r.json(); const c=document.getElementById('online-count'); if(c)c.textContent=presenceData.onlineCount; if(document.getElementById('online-panel').style.display!=='none') renderOnlinePanel(); } }catch(e){}
 }
-function renderNotifBadge(){ const b=document.getElementById('notif-badge'); if(!b)return; if(notifData.unread>0){ b.style.display='block'; b.textContent=notifData.unread>99?'99+':notifData.unread; } else b.style.display='none'; }
+function renderNotifBadge(){ const b=document.getElementById('notif-badge'); if(!b)return; if(notifState.unread>0){ b.style.display='block'; b.textContent=notifState.unread>99?'99+':notifState.unread; } else b.style.display='none'; }
 function toggleNotif(ev){ ev.stopPropagation(); const p=document.getElementById('notif-panel'); const show=p.style.display==='none'; document.getElementById('online-panel').style.display='none'; p.style.display=show?'block':'none'; if(show) renderNotifPanel(); }
 function toggleOnline(ev){ ev.stopPropagation(); const p=document.getElementById('online-panel'); const show=p.style.display==='none'; document.getElementById('notif-panel').style.display='none'; p.style.display=show?'block':'none'; if(show) renderOnlinePanel(); }
 function renderNotifPanel(){
   const p=document.getElementById('notif-panel'); if(!p)return;
-  const head=`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid #f0f0f0;"><strong style="font-size:12px;">Уведомления</strong>${notifData.unread?`<span onclick="notifReadAll(event)" style="cursor:pointer;font-size:11px;color:#1d4ed8;">Прочитать все</span>`:''}</div>`;
-  const body = (notifData.items&&notifData.items.length) ? notifData.items.map(n=>`
+  const head=`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid #f0f0f0;"><strong style="font-size:12px;">Уведомления</strong>${notifState.unread?`<span onclick="notifReadAll(event)" style="cursor:pointer;font-size:11px;color:#1d4ed8;">Прочитать все</span>`:''}</div>`;
+  const body = (notifState.items&&notifState.items.length) ? notifState.items.map(n=>`
     <div onclick="notifClick(event,'${n.id}','${n.link||''}')" style="padding:9px 12px;border-bottom:1px solid #f5f5f5;cursor:pointer;background:${n.isRead?'#fff':'#eff6ff'};">
       <div style="font-size:12px;color:#111;line-height:1.3;">${cEsc(n.title)}</div>
       <div style="font-size:10px;color:#9ca3af;margin-top:3px;">${cWhen(n.createdAt)}</div>
@@ -6431,7 +6431,7 @@ function renderDash() {
   // ── Алерты ────────────────────────────────────────────────
   const alerts = [];
   // Сроки счётчиков (из archive data)
-  const overdueCount = deadlineData ? deadlineData.filter(d=>d.status==='overdue').length : 0;
+  const overdueCount = (typeof deadlineData!=='undefined' && deadlineData) ? deadlineData.filter(d=>d.status==='overdue').length : 0;
   if (overdueCount > 0)
     alerts.push({cls:'da-red',  ico:'⏰', title:`${overdueCount} счётчиков просрочено`, sub:'Требуется срочная поверка', link:'db-deadlines'});
   if (inQueue > 0)
