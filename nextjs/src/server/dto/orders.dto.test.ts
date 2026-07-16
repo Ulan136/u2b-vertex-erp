@@ -67,7 +67,7 @@ test('nextOrderNoFor: streams stay independent given a mixed history', () => {
 
 // ── external cabinet URL per source ──────────────────────────
 test('externalCabinetUrl: tec lives under /tec, field_check stays at base', () => {
-  assert.equal(externalCabinetUrl('https://u2b-api.vercel.app/cabinet', 'field_check'), 'https://u2b-api.vercel.app/cabinet');
-  assert.equal(externalCabinetUrl('https://u2b-api.vercel.app/cabinet', 'tec'), 'https://u2b-api.vercel.app/cabinet/tec');
-  assert.equal(externalCabinetUrl('https://u2b-api.vercel.app/cabinet/', 'tec'), 'https://u2b-api.vercel.app/cabinet/tec');
+  assert.equal(externalCabinetUrl('https://u2b-vertex-erp.vercel.app/cabinet', 'field_check'), 'https://u2b-vertex-erp.vercel.app/cabinet');
+  assert.equal(externalCabinetUrl('https://u2b-vertex-erp.vercel.app/cabinet', 'tec'), 'https://u2b-vertex-erp.vercel.app/cabinet/tec');
+  assert.equal(externalCabinetUrl('https://u2b-vertex-erp.vercel.app/cabinet/', 'tec'), 'https://u2b-vertex-erp.vercel.app/cabinet/tec');
 });

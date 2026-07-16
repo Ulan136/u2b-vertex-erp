@@ -6,7 +6,11 @@ import {
 } from '@/server/dto/orders.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
-const FIELD_CABINET_URL = () => process.env.EXTERNAL_CABINET_URL || 'https://u2b-api.vercel.app/cabinet';
+// Base cabinet URL: an explicit env override, else the serving origin (which is
+// the canonical host — the legacy domain 308-redirects to it), else a safe default.
+const fieldCabinetUrl = (origin?: string | null) =>
+  process.env.EXTERNAL_CABINET_URL ||
+  `${(origin || 'https://u2b-vertex-erp.vercel.app').replace(/\/+$/, '')}/cabinet`;
 
 function asSource(v: string | null | undefined): OrderSource | null {
   return v === 'field_check' || v === 'tec' ? v : null;
@@ -43,7 +47,7 @@ export const ordersService = {
     return { ok: true };
   },
 
-  externalUrl: (source?: string | null) => ({
-    url: externalCabinetUrl(FIELD_CABINET_URL(), asSource(source) ?? 'field_check'),
+  externalUrl: (source?: string | null, origin?: string | null) => ({
+    url: externalCabinetUrl(fieldCabinetUrl(origin), asSource(source) ?? 'field_check'),
   }),
 };

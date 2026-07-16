@@ -14,5 +14,7 @@ export const PATCH = withApi(async (req: NextRequest, ctx) => ordersService.upda
 export const DELETE = withApi(async (req: NextRequest, ctx) => ordersService.remove(ctx.params!.id));
 
 // static: /api/v2/orders/external-url?source=field_check|tec
-export const EXTERNAL_URL = withApi(async (req: NextRequest) =>
-  ordersService.externalUrl(new URL(req.url).searchParams.get('source')));
+export const EXTERNAL_URL = withApi(async (req: NextRequest) => {
+  const url = new URL(req.url);
+  return ordersService.externalUrl(url.searchParams.get('source'), url.origin);
+});
