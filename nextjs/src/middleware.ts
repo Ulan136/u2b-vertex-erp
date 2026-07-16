@@ -12,6 +12,7 @@ const { auth } = NextAuth(authConfig);
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const loggedIn = !!req.auth?.user;
+  const role = (req.auth?.user as { role?: string } | undefined)?.role;
 
   const publicPage =
     pathname === '/login' ||
@@ -20,6 +21,18 @@ export default auth((req) => {
 
   if (publicPage) return NextResponse.next();
   if (isCabinetPublicApi(req.method, pathname)) return NextResponse.next();
+
+  // /sketch/* — архив старых макетов, доступ только Админу
+  if (pathname.startsWith('/sketch/')) {
+    if (!loggedIn) {
+      const url = new URL('/login', req.nextUrl);
+      url.searchParams.set('from', pathname);
+      return NextResponse.redirect(url);
+    }
+    if (role !== 'admin') return NextResponse.redirect(new URL('/', req.nextUrl));
+    return NextResponse.next();
+  }
+
   if (loggedIn) return NextResponse.next();
 
   // not logged in → 401 for API, redirect to /login for pages

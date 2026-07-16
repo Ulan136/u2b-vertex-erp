@@ -9,8 +9,9 @@ const BRAND = '#1d4ed8';
 function LoginForm() {
   const params = useSearchParams();
   const from = params.get('from') || '/';
-  const [email, setEmail] = useState('');
+  const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
+  const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -18,8 +19,10 @@ function LoginForm() {
     e.preventDefault();
     setError(''); setBusy(true);
     try {
-      const res = await signIn('credentials', { email: email.trim(), password, redirect: false });
-      if (res?.error) { setError('Неверный email или пароль, либо пользователь деактивирован'); setBusy(false); return; }
+      const res = await signIn('credentials', {
+        login: login.trim(), password, remember: remember ? 'true' : 'false', redirect: false,
+      });
+      if (res?.error) { setError('Неверный телефон/email или пароль, либо пользователь деактивирован'); setBusy(false); return; }
       window.location.href = from.startsWith('/') ? from : '/';
     } catch {
       setError('Ошибка входа'); setBusy(false);
@@ -39,13 +42,17 @@ function LoginForm() {
         </div>
         <div style={{ background: '#fff', borderRadius: 16, padding: 22, boxShadow: '0 4px 24px rgba(0,0,0,.06)' }}>
           <div style={{ marginBottom: 14 }}>
-            <label style={label}>Email</label>
-            <input style={input} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="user@vertex.kz" autoFocus required />
+            <label style={label}>Телефон или email</label>
+            <input style={input} type="text" value={login} onChange={e => setLogin(e.target.value)} placeholder="+7 700 000 00 00" autoFocus required />
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={label}>Пароль</label>
             <input style={input} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••" required />
           </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', marginBottom: 14, cursor: 'pointer' }}>
+            <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} style={{ width: 15, height: 15 }} />
+            Запомнить меня
+          </label>
           {error && <div style={{ color: '#dc2626', fontSize: 13, marginBottom: 12, textAlign: 'center' }}>⚠️ {error}</div>}
           <button type="submit" disabled={busy} style={{ width: '100%', background: busy ? '#93a4d6' : BRAND, color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 16, fontWeight: 700, cursor: busy ? 'default' : 'pointer' }}>
             {busy ? 'Вход…' : 'Войти'}

@@ -1,7 +1,11 @@
 import { redirect } from 'next/navigation';
+import { currentUser } from '@/server/lib/session';
 
-// The ERP UI is the static app shell served same-origin (behind auth via
-// middleware). Root just forwards to it.
-export default function Home() {
+// Root: no session → real /login; with session → the ERP shell, which lands on
+// the role's start screen (via /api/v2/me). Middleware also guards this, this is
+// the explicit in-page routing.
+export default async function Home() {
+  const user = await currentUser();
+  if (!user) redirect('/login');
   redirect('/sketch_screens.html');
 }
