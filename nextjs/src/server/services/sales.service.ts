@@ -18,7 +18,7 @@ export const salesService = {
         price: data.price,
         totalSum: data.totalSum,
         comment: 'Sale: ' + (data.clientName ?? ''),
-        author: 'Manager',
+        author: 'Система',
       });
     }
     return sale;

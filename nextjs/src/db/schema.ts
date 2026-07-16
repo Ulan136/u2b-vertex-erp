@@ -5,7 +5,7 @@ import {
 import { sql } from 'drizzle-orm';
 
 // ── ENUMS ─────────────────────────────────────────────────────
-export const userRoleEnum    = pgEnum('user_role',        ['admin','manager','director','field','warehouse','buyer','accountant']);
+export const userRoleEnum    = pgEnum('user_role',        ['admin','director','accountant','manager','master']);
 export const operStatusEnum  = pgEnum('oper_status',      ['В работе','Готова к КТРМ','Внести в КТРМ','КТРМ 70%','Внесён в КТРМ']);
 export const payStatusEnum   = pgEnum('pay_status',       ['В ожидании','Оплачено']);
 export const invoiceTypeEnum = pgEnum('invoice_type',     ['Каспи','БЦК','Наличка','Каспи Голд']);
@@ -268,6 +268,18 @@ export const debtPayments = pgTable('debt_payments', {
   createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── ROLE PERMISSIONS (доступ ролей к экранам) ─────────────────
+// One row per (role, screen). No row = access allowed (default). The Админ
+// role always has full access and is never restricted here.
+export const rolePermissions = pgTable('role_permissions', {
+  id        : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  role      : varchar('role', { length: 40 }).notNull(),        // latin role key
+  screenKey : varchar('screen_key', { length: 60 }).notNull(),
+  allowed   : boolean('allowed').notNull().default(true),
+  createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt : timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
 // ── TASKS (задачи сотрудникам) ────────────────────────────────
 // status flow: new → accepted → in_progress → done.
 // completed_at is stamped when a task moves to 'done'.
@@ -299,6 +311,7 @@ export type Client           = typeof clients.$inferSelect;
 export type Debt             = typeof debts.$inferSelect;
 export type DebtPayment      = typeof debtPayments.$inferSelect;
 export type Task             = typeof tasks.$inferSelect;
+export type RolePermission   = typeof rolePermissions.$inferSelect;
 
 export type NewCertificate = typeof certificates.$inferInsert;
 export type NewClient         = typeof clients.$inferInsert;

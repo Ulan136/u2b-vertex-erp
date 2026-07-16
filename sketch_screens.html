@@ -1026,6 +1026,10 @@
       </div>
     </div>
     <div class="topbar-right-group">
+      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#6b7280;">
+        Роль (просмотр):
+        <select id="viewRole" onchange="setViewRole(this.value)" style="padding:5px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:7px;background:#fff;color:#111;"></select>
+      </label>
       <div style="font-size:11px;color:#6b7280;">ТОО «Vertex Metrology»</div>
       <div class="topbar-user">
         <div class="topbar-avatar">М</div>
@@ -1130,6 +1134,16 @@
           <span class="tbl-title"><span id="task-done-caret">▸</span> ✅ Готовые <span id="task-done-count" style="color:#9ca3af;font-weight:400;"></span></span>
         </div>
         <div id="task-done-body" style="display:none;"></div>
+      </div>
+    </div>
+
+    <!-- ══ НЕТ ДОСТУПА ══ -->
+    <div class="screen" id="s-denied">
+      <div class="tbl-wrap" style="text-align:center;padding:60px 20px;">
+        <div style="font-size:44px;">🚫</div>
+        <div style="font-size:18px;font-weight:700;color:#111;margin-top:8px;">Нет доступа</div>
+        <div style="font-size:13px;color:#6b7280;margin-top:6px;">У роли <strong id="denied-role">—</strong> нет доступа к этому разделу.<br>Обратитесь к администратору или измените права в «Настройки → Пользователи → Доступ ролей к экранам».</div>
+        <button class="btn btn-primary" style="margin-top:16px;" onclick="go('dashboard','Главная','Рабочий стол',document.querySelector('.sb-direct'))">← На рабочий стол</button>
       </div>
     </div>
 
@@ -1648,8 +1662,8 @@
         <div class="tbl-header"><span class="tbl-title">Руководители</span><button class="btn btn-primary btn-sm">+ Добавить</button></div>
         <table><thead><tr><th>ФИО</th><th>Должность</th><th>Отдел</th><th>Телефон</th><th>Email</th><th>Роль</th></tr></thead>
         <tbody>
-          <tr><td>Сидоров В.П.</td><td>Директор</td><td>Администрация</td><td>+7 701 000 0001</td><td>director@vdk.kz</td><td><span class="badge b-purple">Admin</span></td></tr>
-          <tr><td>Кузьмина А.Н.</td><td>Нач. склада</td><td>Склад</td><td>+7 701 000 0002</td><td>warehouse@vdk.kz</td><td><span class="badge b-active">Manager</span></td></tr>
+          <tr><td>Сидоров В.П.</td><td>Директор</td><td>Администрация</td><td>+7 701 000 0001</td><td>director@vdk.kz</td><td><span class="badge b-purple">Директор</span></td></tr>
+          <tr><td>Кузьмина А.Н.</td><td>Нач. склада</td><td>Склад</td><td>+7 701 000 0002</td><td>warehouse@vdk.kz</td><td><span class="badge b-active">Мастер</span></td></tr>
         </tbody></table>
       </div>
     </div>
@@ -2538,16 +2552,24 @@
       <div id="stab-users" style="display:none;">
         <div class="card">
           <div class="card-title">👥 Пользователи и роли</div>
-          <div class="form-grid">
-            <div class="form-group"><label>Роль</label><select><option>Admin</option><option>Manager</option><option>Warehouse</option><option>Buyer</option><option>Accountant</option></select></div>
-            <div class="form-group"><label>Доступ к модулям</label><select><option>Все модули</option><option>Только поверка</option><option>Только склад</option></select></div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+            <label style="font-size:12px;color:#374151;">Фильтр по роли:
+              <select id="usr-f-role" onchange="usrRenderUsers()" style="padding:6px 10px;font-size:12px;border:1px solid #d1d5db;border-radius:8px;margin-left:4px;"><option value="">Все роли</option></select>
+            </label>
           </div>
-          <table style="margin-top:8px;"><thead><tr><th>ФИО</th><th>Email</th><th>Роль</th><th>Статус</th><th></th></tr></thead>
-          <tbody>
-            <tr><td>Молдабаев М.</td><td>m@vertex.kz</td><td><span class="badge b-purple">Admin</span></td><td><span class="badge b-ok">Активен</span></td><td><button class="act-btn">✏️</button></td></tr>
-            <tr><td>Кузьмина А.Н.</td><td>k@vertex.kz</td><td><span class="badge b-active">Manager</span></td><td><span class="badge b-ok">Активен</span></td><td><button class="act-btn">✏️</button></td></tr>
-            <tr><td>Ахметов Д.С.</td><td>a@vertex.kz</td><td><span class="badge b-new">Warehouse</span></td><td><span class="badge b-ok">Активен</span></td><td><button class="act-btn">✏️</button></td></tr>
-          </tbody></table>
+          <table style="margin-top:4px;"><thead><tr><th>ФИО</th><th>Должность</th><th>Роль</th></tr></thead>
+          <tbody id="usr-tbody"></tbody></table>
+        </div>
+
+        <!-- ДОСТУП РОЛЕЙ К ЭКРАНАМ -->
+        <div class="card" style="margin-top:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <div class="card-title" style="margin:0;">🔐 Доступ ролей к экранам</div>
+            <div style="font-size:11px;color:#6b7280;">Снимите галочку — экран скрыт для роли (сохраняется сразу). Админ — всегда полный доступ.</div>
+          </div>
+          <div style="overflow-x:auto;margin-top:10px;">
+            <table id="perm-matrix" style="width:100%;font-size:12px;"></table>
+          </div>
         </div>
       </div>
 
@@ -4176,6 +4198,9 @@ function showToast(msg) {
 
 // ── NAV ──────────────────────────────────────────────────────────
 function go(screenId, section, page, el) {
+  // route guard: no access for the current role → «Нет доступа»
+  const _permKey = SCREEN_KEY_OF[screenId];
+  if (_permKey && !permAllowed(viewRole, _permKey)) { showDenied(section, page); return; }
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   const target = document.getElementById('s-'+screenId);
   if (target) target.classList.add('active');
@@ -4746,6 +4771,7 @@ function openSettingsTab(tab){
   if(tab==='accounts') { renderAccountSources(); renderTmplGrid(); }
   if(tab==='branches') renderSettingsBranches();
   if(tab==='clients') initClientsTab();
+  if(tab==='users') usrRenderTab();
 }
 function renderAccountSources(){
   ['poverka','sales','other'].forEach(type=>{
@@ -5292,6 +5318,179 @@ async function taskDelete(id){
     await taskLoad(); showToast('🗑️ Задача удалена');
   }catch(e){ showToast('⚠️ '+e.message); }
 }
+
+// ── РОЛИ И ДОСТУП К ЭКРАНАМ ─────────────────────────────────────
+// Роли — латинские ключи в БД, в интерфейсе только русские названия.
+// Права: нет записи = доступ разрешён; Админ — всегда полный доступ.
+const ROLE_PERMS_API = 'https://u2b-api.vercel.app/api/v2/role-permissions';
+const ROLES_RU = [
+  {key:'admin',      label:'Админ'},
+  {key:'director',   label:'Директор'},
+  {key:'accountant', label:'Бухгалтер'},
+  {key:'manager',    label:'Менеджер'},
+  {key:'master',     label:'Мастер'},
+];
+const ROLE_LABEL = k => (ROLES_RU.find(r=>r.key===k)||{}).label || k;
+
+// Каталог экранов (по одному ключу на экран/раздел).
+const SCREEN_CATALOG = [
+  {key:'dashboard',       label:'Рабочий стол'},
+  {key:'poverka_sami',    label:'Поверка · САМИ'},
+  {key:'poverka_vdk',     label:'Поверка · ВДК'},
+  {key:'poverka_tec',     label:'Поверка · ТЭЦ'},
+  {key:'poverka_field',   label:'Поверка · Выездная'},
+  {key:'poverka_primary', label:'Поверка · Первичная'},
+  {key:'poverka_astana',  label:'Поверка · Астана (филиал)'},
+  {key:'orders_field',    label:'Заявки · Выездная'},
+  {key:'orders_tec',      label:'Заявки · ТЭЦ'},
+  {key:'sales',           label:'Продажа'},
+  {key:'other_ops',       label:'Прочие операции'},
+  {key:'expenses',        label:'Расходы'},
+  {key:'accounting',      label:'Бухгалтерия'},
+  {key:'debts',           label:'Долги'},
+  {key:'tasks',           label:'Задачи'},
+  {key:'warehouse',       label:'Склад'},
+  {key:'purchases',       label:'Закупки'},
+  {key:'staff',           label:'Сотрудники'},
+  {key:'clients',         label:'Клиенты'},
+  {key:'invoices',        label:'Счета'},
+  {key:'database',        label:'База данных'},
+  {key:'reports',         label:'Отчёт'},
+  {key:'handbook',        label:'Справочник'},
+  {key:'settings',        label:'Настройки'},
+];
+// screenId (аргумент go) → screen_key
+const SCREEN_KEY_OF = {
+  dashboard:'dashboard',
+  cert:'poverka_sami','izv-sami':'poverka_sami',notif:'poverka_sami',
+  'cert-vdk':'poverka_vdk','izv-vdk':'poverka_vdk','notif-vdk':'poverka_vdk',
+  'cert-tec':'poverka_tec','izv-tec':'poverka_tec','notif-tec':'poverka_tec',
+  'cert-field':'poverka_field','izv-field':'poverka_field',
+  'cert-primary-km':'poverka_primary','izv-primary-km':'poverka_primary','cert-primary-ak':'poverka_primary','izv-primary-ak':'poverka_primary',
+  'cert-astana':'poverka_astana','izv-astana':'poverka_astana',
+  'field-orders':'orders_field','tec-orders':'orders_tec',
+  sales:'sales',
+  'other-ops-proj':'other_ops','other-ops-tender':'other_ops','other-ops-service':'other_ops',
+  rashody:'expenses','rashody-cats':'expenses','rashody-stats':'expenses',
+  accounting:'accounting', debts:'debts', tasks:'tasks',
+  warehouse:'warehouse', purchases:'purchases',
+  'staff-mgr':'staff','staff-hr':'staff',
+  'inv-poverka':'invoices','inv-sales':'invoices','inv-other':'invoices','inv-branches':'invoices',
+  'db-deadlines':'database','db-archive':'database','db-notif':'database','db-orders':'database',
+  reports:'reports', handbook:'handbook', settings:'settings',
+};
+
+let rolePermRows = [];    // [{role, screenKey, allowed}]
+let viewRole = 'admin';   // «просмотр от роли» (нет авторизации в прототипе)
+let usrUsers = [];
+
+// Правило доступа (то же для меню и для прямого перехода по URL):
+function permAllowed(role, key){
+  if(role==='admin') return true;
+  if(!key) return true;
+  const rec = rolePermRows.find(p=>p.role===role && p.screenKey===key);
+  return rec ? rec.allowed : true;   // нет записи → разрешено
+}
+
+async function loadRolePerms(){
+  try{ const r=await fetch(ROLE_PERMS_API); rolePermRows = r.ok ? await r.json() : []; }catch(e){ rolePermRows=[]; }
+}
+async function initPermissions(){
+  try{ viewRole = localStorage.getItem('u2b_view_role') || 'admin'; }catch(e){ viewRole='admin'; }
+  const sel=document.getElementById('viewRole');
+  if(sel){ sel.innerHTML=ROLES_RU.map(r=>`<option value="${r.key}">${r.label}</option>`).join(''); sel.value=viewRole; }
+  await loadRolePerms();
+  applyMenuPermissions();
+}
+function setViewRole(role){
+  viewRole=role;
+  try{ localStorage.setItem('u2b_view_role', role); }catch(e){}
+  applyMenuPermissions();
+  const active=document.querySelector('.screen.active');
+  if(active){
+    const key=SCREEN_KEY_OF[active.id.replace(/^s-/,'')];
+    if(key && !permAllowed(viewRole,key)) go('dashboard','Главная','Рабочий стол',document.querySelector('.sb-direct'));
+  }
+}
+
+function applyMenuPermissions(){
+  document.querySelectorAll('#sidebar .sb-item, #sidebar .sb-direct').forEach(btn=>{
+    const m=(btn.getAttribute('onclick')||'').match(/go\('([^']+)'/);
+    if(!m) return;
+    const key=SCREEN_KEY_OF[m[1]];
+    btn.style.display = (!key || permAllowed(viewRole,key)) ? '' : 'none';
+  });
+  document.querySelectorAll('#sidebar .sb-sub').forEach(sub=>{
+    const meaningful=[...sub.querySelectorAll('.sb-item')].some(i=>i.style.display!=='none');
+    sub.style.display = meaningful ? '' : 'none';
+    const prev=sub.previousElementSibling;
+    if(prev && prev.classList.contains('sb-group')) prev.style.display = meaningful ? '' : 'none';
+  });
+  document.querySelectorAll('#sidebar .sb-section').forEach(sec=>{
+    const meaningful=[...sec.querySelectorAll('.sb-item, .sb-direct')].some(i=>i.style.display!=='none');
+    sec.style.display = meaningful ? '' : 'none';
+  });
+  // вкладка «Клиенты» в настройках
+  const clTab=[...document.querySelectorAll('#settingsTabs .stab')].find(t=>(t.getAttribute('onclick')||'').includes("'clients'"));
+  if(clTab) clTab.style.display = permAllowed(viewRole,'clients') ? '' : 'none';
+}
+
+function showDenied(section, page){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const d=document.getElementById('s-denied'); if(d) d.classList.add('active');
+  const rl=document.getElementById('denied-role'); if(rl) rl.textContent=ROLE_LABEL(viewRole);
+  const bs=document.getElementById('bc-section'); if(bs) bs.textContent=section||'Нет доступа';
+  const sep=document.getElementById('bc-sep'), pg=document.getElementById('bc-page');
+  if(page && page!==section){ sep.style.display='inline'; pg.style.display='inline'; pg.textContent=page; } else { sep.style.display='none'; pg.style.display='none'; }
+  showToast('🚫 Нет доступа к разделу');
+}
+
+// ── Вкладка «Пользователи»: список + матрица прав ──
+async function usrRenderTab(){
+  const f=document.getElementById('usr-f-role');
+  if(f && f.options.length<=1) f.innerHTML=`<option value="">Все роли</option>`+ROLES_RU.map(r=>`<option value="${r.key}">${r.label}</option>`).join('');
+  if(!usrUsers.length){ try{ const r=await fetch(USERS_API); usrUsers=r.ok?await r.json():[]; }catch(e){ usrUsers=[]; } }
+  usrRenderUsers();
+  await loadRolePerms();
+  renderPermMatrix();
+}
+function usrRoleBadge(role){
+  const cls={admin:'b-purple',director:'b-active',accountant:'b-warn',manager:'b-ok',master:'b-new'}[role]||'b-new';
+  return `<span class="badge ${cls}">${ROLE_LABEL(role)}</span>`;
+}
+function usrRenderUsers(){
+  const tb=document.getElementById('usr-tbody'); if(!tb) return;
+  const f=(document.getElementById('usr-f-role')||{}).value||'';
+  const rows=usrUsers.filter(u=>!f || u.role===f);
+  tb.innerHTML = rows.length ? rows.map(u=>`<tr><td>${taskEsc(u.name)}</td><td style="color:#6b7280;">${taskEsc(u.position||'—')}</td><td>${usrRoleBadge(u.role)}</td></tr>`).join('')
+    : '<tr><td colspan="3" style="text-align:center;color:#9ca3af;padding:16px;">Нет пользователей</td></tr>';
+}
+function renderPermMatrix(){
+  const t=document.getElementById('perm-matrix'); if(!t) return;
+  const head=`<thead><tr><th style="text-align:left;min-width:180px;">Экран</th>${ROLES_RU.map(r=>`<th style="text-align:center;">${r.label}</th>`).join('')}</tr></thead>`;
+  const body=`<tbody>${SCREEN_CATALOG.map(sc=>`<tr>
+    <td style="text-align:left;">${sc.label}</td>
+    ${ROLES_RU.map(r=>{
+      const isAdmin=r.key==='admin';
+      const allowed = isAdmin ? true : permAllowed(r.key, sc.key);
+      return `<td style="text-align:center;"><input type="checkbox" ${allowed?'checked':''} ${isAdmin?'disabled title="Админ — всегда полный доступ"':''} onchange="permToggle('${r.key}','${sc.key}',this.checked)" style="width:15px;height:15px;cursor:${isAdmin?'not-allowed':'pointer'};"></td>`;
+    }).join('')}
+  </tr>`).join('')}</tbody>`;
+  t.innerHTML=head+body;
+}
+async function permToggle(role, screenKey, allowed){
+  try{
+    const r=await fetch(ROLE_PERMS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({role,screenKey,allowed})});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||('HTTP '+r.status)); }
+    const rec=rolePermRows.find(p=>p.role===role&&p.screenKey===screenKey);
+    if(rec) rec.allowed=allowed; else rolePermRows.push({role,screenKey,allowed});
+    applyMenuPermissions();
+    showToast(allowed?'✅ Доступ открыт':'🚫 Доступ закрыт');
+  }catch(e){ showToast('⚠️ '+e.message); renderPermMatrix(); }
+}
+
+// загрузка прав ролей + фильтрация меню под текущую «роль просмотра»
+initPermissions();
 
 // hook go() for invoice + settings screens
 
