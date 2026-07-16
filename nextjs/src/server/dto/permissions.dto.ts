@@ -58,6 +58,23 @@ export function visibleScreenKeys(role: string, perms: PermRow[], keys: readonly
   return keys.filter(k => isScreenAllowed(role, k, perms));
 }
 
+// Landing screen per role after login. If it is denied by the matrix, fall back
+// to the first screen the role is allowed to see.
+export const START_SCREEN_BY_ROLE: Record<string, string> = {
+  admin: 'dashboard',
+  director: 'dashboard',
+  manager: 'orders_field',
+  master: 'orders_field',
+  accountant: 'sales',
+};
+
+export function startScreenKey(role: string, perms: PermRow[], keys: readonly string[] = SCREEN_KEYS): string {
+  const preferred = START_SCREEN_BY_ROLE[role] ?? 'dashboard';
+  if (isScreenAllowed(role, preferred, perms)) return preferred;
+  const visible = visibleScreenKeys(role, perms, keys);
+  return visible[0] ?? 'dashboard';
+}
+
 // ── Zod schema ────────────────────────────────────────────────
 export const permissionUpsertSchema = z.object({
   role: z.enum(ROLES),

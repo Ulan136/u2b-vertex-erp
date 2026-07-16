@@ -1,0 +1,48 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { isCabinetPublicApi, apiScreenFor } from './apiAccess';
+
+const sp = (q = '') => new URLSearchParams(q);
+
+// ── cabinet allowlist (only what the public cabinets need) ───
+test('isCabinetPublicApi: order submit + cabinet url are public', () => {
+  assert.equal(isCabinetPublicApi('POST', '/api/v2/orders'), true);
+  assert.equal(isCabinetPublicApi('GET', '/api/v2/orders/external-url'), true);
+  assert.equal(isCabinetPublicApi('OPTIONS', '/api/v2/anything'), true);
+});
+test('isCabinetPublicApi: everything else requires a session', () => {
+  assert.equal(isCabinetPublicApi('GET', '/api/v2/orders'), false);      // list is NOT public
+  assert.equal(isCabinetPublicApi('DELETE', '/api/v2/orders'), false);
+  assert.equal(isCabinetPublicApi('GET', '/api/v2/debts'), false);
+  assert.equal(isCabinetPublicApi('POST', '/api/v2/users'), false);
+});
+
+// ── matrix enforced at the API ───────────────────────────────
+test('apiScreenFor: resource endpoints map to their screen', () => {
+  assert.equal(apiScreenFor('GET', '/api/v2/debts', sp()), 'debts');
+  assert.equal(apiScreenFor('POST', '/api/v2/debt-payments', sp()), 'debts');
+  assert.equal(apiScreenFor('PATCH', '/api/v2/tasks/abc', sp()), 'tasks');
+  assert.equal(apiScreenFor('GET', '/api/v2/clients', sp()), 'clients');
+  assert.equal(apiScreenFor('GET', '/api/v2/client-categories', sp()), 'clients');
+  assert.equal(apiScreenFor('GET', '/api/v2/sales', sp()), 'sales');
+  assert.equal(apiScreenFor('POST', '/api/v2/products', sp()), 'warehouse');
+  assert.equal(apiScreenFor('GET', '/api/v2/users', sp()), 'settings');
+  assert.equal(apiScreenFor('POST', '/api/v2/role-permissions', sp()), 'settings');
+});
+test('apiScreenFor: orders list maps by source', () => {
+  assert.equal(apiScreenFor('GET', '/api/v2/orders', sp('source=field_check')), 'orders_field');
+  assert.equal(apiScreenFor('GET', '/api/v2/orders', sp('source=tec')), 'orders_tec');
+  assert.equal(apiScreenFor('GET', '/api/v2/orders', sp()), 'orders_field');
+});
+test('apiScreenFor: certs list maps by direction (source)', () => {
+  assert.equal(apiScreenFor('GET', '/api/v2/certs', sp('source=ВДК')), 'poverka_vdk');
+  assert.equal(apiScreenFor('GET', '/api/v2/certs', sp('source=ТЭЦ')), 'poverka_tec');
+  assert.equal(apiScreenFor('GET', '/api/v2/certs', sp('source=Астана')), 'poverka_astana');
+  assert.equal(apiScreenFor('GET', '/api/v2/certs', sp()), null); // no source → session-only
+});
+test('apiScreenFor: multi-purpose endpoints are session-only (no screen)', () => {
+  assert.equal(apiScreenFor('GET', '/api/v2/finance', sp()), null);
+  assert.equal(apiScreenFor('GET', '/api/v2/me', sp()), null);
+  assert.equal(apiScreenFor('PATCH', '/api/v2/orders/abc', sp()), null);
+  assert.equal(apiScreenFor('PATCH', '/api/v2/certs/abc', sp()), null); // cert edit → session-only
+});

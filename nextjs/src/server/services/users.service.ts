@@ -23,20 +23,21 @@ export const usersService = {
     });
   },
 
-  async update(id: string, input: unknown) {
+  async update(id: string, input: unknown, actingUserId?: string | null) {
     if (!id) throw badRequest('id обязателен');
     const data = userUpdateSchema.parse(input);
     const existing = await usersRepo.findById(id);
     if (!existing) throw notFound('Пользователь не найден');
 
-    // Guard deactivation (self + last active admin).
+    // Guard deactivation (self + last active admin). actingUserId is the
+    // session user (trusted), falling back to the payload if provided.
     if (data.isActive === false) {
       assertCanDeactivate({
         targetId: id,
         targetRole: existing.role,
         targetActive: existing.isActive ?? false,
         activeAdminCount: await usersRepo.countActiveAdmins(),
-        actingUserId: data.actingUserId ?? null,
+        actingUserId: actingUserId ?? data.actingUserId ?? null,
       });
     }
 

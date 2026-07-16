@@ -1026,16 +1026,15 @@
       </div>
     </div>
     <div class="topbar-right-group">
-      <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#6b7280;">
-        Роль (просмотр):
-        <select id="viewRole" onchange="setViewRole(this.value)" style="padding:5px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:7px;background:#fff;color:#111;"></select>
-      </label>
       <div style="font-size:11px;color:#6b7280;">ТОО «Vertex Metrology»</div>
-      <div class="topbar-user">
-        <div class="topbar-avatar">М</div>
-        <span>Молдабаев М.</span>
-        <span style="color:#9ca3af;font-size:10px;">▾</span>
+      <div class="topbar-user" title="Текущий пользователь">
+        <div class="topbar-avatar" id="me-avatar">—</div>
+        <div style="display:flex;flex-direction:column;line-height:1.15;">
+          <span id="me-name" style="font-weight:600;">—</span>
+          <span id="me-role" style="font-size:10px;color:#9ca3af;">—</span>
+        </div>
       </div>
+      <a href="/logout" class="btn btn-outline btn-sm" style="text-decoration:none;font-size:11px;" title="Выйти из системы">🚪 Выход</a>
     </div>
   </div>
   <!-- ROBOT STATUS BAR -->
@@ -3318,7 +3317,7 @@ function buildIzvScreens() {
 //    tec         → ТЭЦ            (кабинет /cabinet/tec, номера ТЭЦ-***)
 //  Заказы каждого источника видны только на своём экране.
 // ══════════════════════════════════════════════════════════════
-const ORDERS_API = 'https://u2b-api.vercel.app/api/v2/orders';
+const ORDERS_API = '/api/v2/orders';
 const ORDER_SOURCES = {
   field_check: {
     key:'field_check', screen:'field-orders',
@@ -4013,7 +4012,7 @@ function certNextNo(arr) { return arr.length ? Math.max(...arr.map(x=>x.n||0)) +
 // ══════════════════════════════════════════════════════════════
 //  CERTIFICATES ↔ NEON API  (fetch / POST / PATCH · graceful)
 // ══════════════════════════════════════════════════════════════
-const CERTS_API = 'https://u2b-api.vercel.app/api/v2/certs';
+const CERTS_API = '/api/v2/certs';
 const certLoaded = {}; // org → true once loaded from API
 
 // dd.mm.yyyy → yyyy-mm-dd (or null)
@@ -4839,8 +4838,8 @@ function deleteBranch(id){branches=branches.filter(b=>b.id!==id);renderSettingsB
 // ── КЛИЕНТЫ (вкладка настроек) ─────────────────────────────────
 // Клиенты общие для организации. Единственная группировка — категория.
 // Данные живут в реальной БД через /api/v2 (client-categories / clients).
-const CLIENTS_API     = 'https://u2b-api.vercel.app/api/v2/clients';
-const CLIENT_CATS_API = 'https://u2b-api.vercel.app/api/v2/client-categories';
+const CLIENTS_API     = '/api/v2/clients';
+const CLIENT_CATS_API = '/api/v2/client-categories';
 
 let clCats     = [];        // категории организации
 let clClients  = [];        // клиенты (уже отфильтрованные сервером)
@@ -4985,8 +4984,8 @@ async function clDeleteCat(id){
 // ── ДОЛГИ (дебиторка / кредиторка) ─────────────────────────────
 // Данные в реальной БД через /api/v2/debts. Погашение создаёт операцию по
 // счёту (Приход для дебита, Расход для кредита) и связывается с ней.
-const DEBTS_API         = 'https://u2b-api.vercel.app/api/v2/debts';
-const FINANCE_API       = 'https://u2b-api.vercel.app/api/v2/finance';
+const DEBTS_API         = '/api/v2/debts';
+const FINANCE_API       = '/api/v2/finance';
 
 let debtAccounts = [];   // счета из финансового модуля [{id,name}]
 let debtClients  = [];   // клиенты из справочника [{id,name}]
@@ -5184,8 +5183,8 @@ async function debtDelete(id){
 
 // ── ЗАДАЧИ ─────────────────────────────────────────────────────
 // Данные в реальной БД через /api/v2/tasks. Исполнители — из /api/v2/users.
-const TASKS_API = 'https://u2b-api.vercel.app/api/v2/tasks';
-const USERS_API = 'https://u2b-api.vercel.app/api/v2/users';
+const TASKS_API = '/api/v2/tasks';
+const USERS_API = '/api/v2/users';
 
 let taskUsers  = [];    // [{id,name,position}]
 let taskList   = [];    // текущий список (фильтрация на сервере)
@@ -5354,7 +5353,7 @@ async function taskDelete(id){
 // ── РОЛИ И ДОСТУП К ЭКРАНАМ ─────────────────────────────────────
 // Роли — латинские ключи в БД, в интерфейсе только русские названия.
 // Права: нет записи = доступ разрешён; Админ — всегда полный доступ.
-const ROLE_PERMS_API = 'https://u2b-api.vercel.app/api/v2/role-permissions';
+const ROLE_PERMS_API = '/api/v2/role-permissions';
 const ROLES_RU = [
   {key:'admin',      label:'Админ'},
   {key:'director',   label:'Директор'},
@@ -5427,22 +5426,66 @@ function permAllowed(role, key){
 async function loadRolePerms(){
   try{ const r=await fetch(ROLE_PERMS_API); rolePermRows = r.ok ? await r.json() : []; }catch(e){ rolePermRows=[]; }
 }
-async function initPermissions(){
-  try{ viewRole = localStorage.getItem('u2b_view_role') || 'admin'; }catch(e){ viewRole='admin'; }
-  const sel=document.getElementById('viewRole');
-  if(sel){ sel.innerHTML=ROLES_RU.map(r=>`<option value="${r.key}">${r.label}</option>`).join(''); sel.value=viewRole; }
-  await loadRolePerms();
-  applyMenuPermissions();
+const ME_API = '/api/v2/me';
+let meUser = null;
+
+// Стартовый экран после входа — по роли.
+const START_SCREEN_BY_ROLE = { admin:'dashboard', director:'dashboard', manager:'orders_field', master:'orders_field', accountant:'sales' };
+// screen_key → [screenId, section, page] для перехода go()
+const SCREEN_ENTRY = {
+  dashboard:['dashboard','Главная','Рабочий стол'],
+  poverka_sami:['cert','Поверка › САМИ','Сертификат'],
+  poverka_vdk:['cert-vdk','Поверка › ВДК','Сертификат'],
+  poverka_tec:['cert-tec','Поверка › ТЭЦ','Сертификат'],
+  poverka_field:['cert-field','Поверка › Выездная','Сертификат'],
+  poverka_primary:['cert-primary-km','Первичная › KAZMETER','Сертификат'],
+  poverka_astana:['cert-astana','Филиалы › Астана','Сертификат'],
+  orders_field:['field-orders','Поверка › Выездная','Заявки'],
+  orders_tec:['tec-orders','Поверка › ТЭЦ','Заявки'],
+  sales:['sales','Продажа','Журнал продаж'],
+  other_ops:['other-ops-proj','Прочие операции','Проект'],
+  expenses:['rashody','Расходы','Журнал расходов'],
+  accounting:['accounting','Бухгалтерия','Счёт на оплату'],
+  debts:['debts','Долги','Дебиторка / Кредиторка'],
+  tasks:['tasks','Задачи','Задачи сотрудникам'],
+  warehouse:['warehouse','Склад','Журнал склада'],
+  purchases:['purchases','Покупка','Журнал покупок'],
+  staff:['staff-mgr','Сотрудники','Руководитель'],
+  clients:['settings','Настройка','Настройки'],
+  invoices:['inv-poverka','Счета','Поверка'],
+  database:['db-deadlines','База данных','Сроки счётчиков'],
+  reports:['reports','Отчёт','Отчёты'],
+  handbook:['handbook','Справочник','Справочники'],
+  settings:['settings','Настройка','Настройки'],
+};
+function startScreenKeyFor(role){
+  const preferred = START_SCREEN_BY_ROLE[role] || 'dashboard';
+  if(permAllowed(role, preferred) && SCREEN_ENTRY[preferred]) return preferred;
+  for(const sc of SCREEN_CATALOG){ if(permAllowed(role, sc.key) && SCREEN_ENTRY[sc.key]) return sc.key; }
+  return 'dashboard';
 }
-function setViewRole(role){
-  viewRole=role;
-  try{ localStorage.setItem('u2b_view_role', role); }catch(e){}
+function goToStartScreen(){
+  const e = SCREEN_ENTRY[startScreenKeyFor(viewRole)] || SCREEN_ENTRY.dashboard;
+  const btn = [...document.querySelectorAll('#sidebar .sb-item, #sidebar .sb-direct')].find(b=>(b.getAttribute('onclick')||'').includes(`go('${e[0]}'`));
+  go(e[0], e[1], e[2], btn||null);
+}
+
+async function initPermissions(){
+  await loadRolePerms();
+  // текущий пользователь из сессии
+  try{
+    const r = await fetch(ME_API);
+    if(r.status===401){ window.location.href='/login'; return; }
+    meUser = r.ok ? await r.json() : null;
+  }catch(e){ meUser=null; }
+  viewRole = (meUser && meUser.role) ? meUser.role : 'manager';
+  const nm = meUser && meUser.name ? meUser.name : '—';
+  const setTxt=(id,v)=>{const el=document.getElementById(id); if(el) el.textContent=v;};
+  setTxt('me-name', nm);
+  setTxt('me-role', ROLE_LABEL(viewRole));
+  setTxt('me-avatar', (nm[0]||'—').toUpperCase());
   applyMenuPermissions();
-  const active=document.querySelector('.screen.active');
-  if(active){
-    const key=SCREEN_KEY_OF[active.id.replace(/^s-/,'')];
-    if(key && !permAllowed(viewRole,key)) go('dashboard','Главная','Рабочий стол',document.querySelector('.sb-direct'));
-  }
+  goToStartScreen();
 }
 
 function applyMenuPermissions(){
@@ -7789,7 +7832,7 @@ function whSaveToStorage() {
 // warehouseData. Stock/reserved are simulated locally in this prototype,
 // so they are preserved from localStorage; catalog fields (name, group,
 // price, min) come from the API. Falls back to the local catalog offline.
-const PRODUCTS_API = 'https://u2b-api.vercel.app/api/v2/products';
+const PRODUCTS_API = '/api/v2/products';
 let whProductsFetched = false;
 
 async function whFetchFromApi() {

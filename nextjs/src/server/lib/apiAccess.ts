@@ -1,0 +1,36 @@
+// API-level access mapping — pure, no DB, edge-safe (used by middleware + withApi).
+
+// The ONLY API operations available without a session — everything the public
+// client cabinets (Выездная + ТЭЦ) need: create an order and read the cabinet URL.
+export function isCabinetPublicApi(method: string, pathname: string): boolean {
+  if (method === 'POST' && pathname === '/api/v2/orders') return true;                 // cabinet submits an order
+  if (method === 'GET' && pathname === '/api/v2/orders/external-url') return true;      // cabinet URL lookup
+  if (method === 'OPTIONS') return true;                                                // preflight (same-origin has none)
+  return false;
+}
+
+// Map an API request to a screen_key so the «Доступы» matrix is enforced at the
+// API too. null → no specific screen (session-only). Endpoints that serve many
+// screens (certs by direction, finance) stay session-only.
+export function apiScreenFor(method: string, pathname: string, searchParams: URLSearchParams): string | null {
+  if (pathname.startsWith('/api/v2/debts') || pathname.startsWith('/api/v2/debt-payments')) return 'debts';
+  if (pathname.startsWith('/api/v2/tasks')) return 'tasks';
+  if (pathname.startsWith('/api/v2/clients') || pathname.startsWith('/api/v2/client-categories')) return 'clients';
+  if (pathname.startsWith('/api/v2/sales')) return 'sales';
+  if (pathname.startsWith('/api/v2/products')) return 'warehouse';
+  if (pathname.startsWith('/api/v2/users') || pathname.startsWith('/api/v2/role-permissions')) return 'settings';
+  if (pathname === '/api/v2/orders' && method === 'GET') {
+    return searchParams.get('source') === 'tec' ? 'orders_tec' : 'orders_field';
+  }
+  // certificates list is per direction → gate by the matching poverka screen
+  if (pathname === '/api/v2/certs' && method === 'GET') {
+    const s = searchParams.get('source');
+    const map: Record<string, string> = {
+      'САМИ': 'poverka_sami', 'ВДК': 'poverka_vdk', 'ТЭЦ': 'poverka_tec',
+      'Выездная': 'poverka_field', 'Первичная-КМ': 'poverka_primary',
+      'Первичная-АК': 'poverka_primary', 'Астана': 'poverka_astana',
+    };
+    return (s && map[s]) || null;
+  }
+  return null;
+}

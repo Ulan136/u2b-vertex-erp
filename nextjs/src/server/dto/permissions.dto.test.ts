@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   migrateRole, isScreenAllowed, visibleScreenKeys, permissionUpsertSchema,
-  SCREEN_KEYS, type PermRow,
+  startScreenKey, SCREEN_KEYS, type PermRow,
 } from './permissions.dto';
 
 // ── role migration (nobody is lost) ──────────────────────────
@@ -70,4 +70,25 @@ test('permissionUpsertSchema: valid cell parses', () => {
 test('permissionUpsertSchema: rejects unknown role or screen', () => {
   assert.throws(() => permissionUpsertSchema.parse({ role: 'buyer', screenKey: 'debts', allowed: true }));
   assert.throws(() => permissionUpsertSchema.parse({ role: 'manager', screenKey: 'nope', allowed: true }));
+});
+
+// ── start screen per role (with matrix fallback) ─────────────
+test('startScreenKey: default landing per role', () => {
+  assert.equal(startScreenKey('admin', []), 'dashboard');
+  assert.equal(startScreenKey('director', []), 'dashboard');
+  assert.equal(startScreenKey('manager', []), 'orders_field');
+  assert.equal(startScreenKey('master', []), 'orders_field');
+  assert.equal(startScreenKey('accountant', []), 'sales');
+});
+test('startScreenKey: falls back to first allowed when the preferred is denied', () => {
+  // manager denied its landing (orders_field) and everything up to warehouse
+  const denied = ['dashboard', 'poverka_sami', 'poverka_vdk', 'poverka_tec', 'poverka_field',
+    'poverka_primary', 'poverka_astana', 'orders_field', 'orders_tec', 'sales', 'other_ops',
+    'expenses', 'accounting', 'debts', 'tasks'];
+  const perms: PermRow[] = denied.map(k => ({ role: 'manager', screenKey: k, allowed: false }));
+  assert.equal(startScreenKey('manager', perms), 'warehouse');   // first still-allowed screen
+});
+test('startScreenKey: admin ignores denials (always full access)', () => {
+  const perms: PermRow[] = [{ role: 'admin', screenKey: 'dashboard', allowed: false }];
+  assert.equal(startScreenKey('admin', perms), 'dashboard');
 });

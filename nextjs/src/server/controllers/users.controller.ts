@@ -12,5 +12,7 @@ export const GET = withApi(async (req: NextRequest) => {
 });
 export const POST = withApi(async (req: NextRequest) => created(await usersService.create(await req.json())));
 
-// item: /api/v2/users/[id] — edit / role change / (de)activate
-export const PATCH = withApi(async (req: NextRequest, ctx) => usersService.update(ctx.params!.id, await req.json()));
+// item: /api/v2/users/[id] — edit / role change / (de)activate.
+// actingUserId comes from the SESSION (not the client) for the self-guard.
+export const PATCH = withApi(async (req: NextRequest, ctx) =>
+  usersService.update(ctx.params!.id, await req.json(), ctx.user?.id ?? null));

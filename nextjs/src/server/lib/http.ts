@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { ApiError } from './errors';
 import { CORS_HEADERS } from './cors';
+import { currentUser, type SessionUser } from './session';
+import { isCabinetPublicApi, apiScreenFor } from './apiAccess';
+import { permissionsRepo } from '@/server/repositories/permissions.repo';
+import { isScreenAllowed } from '@/server/dto/permissions.dto';
 
-// ── Response helpers (always carry CORS) ──────────────────────────
+// ── Response helpers ──────────────────────────────────────────────
 export function json(data: unknown, status = 200) {
   return NextResponse.json(data, { status, headers: CORS_HEADERS });
 }
@@ -12,18 +16,34 @@ export const created = (data: unknown) => json(data, 201);
 export const noContent = () => new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 export const optionsHandler = () => noContent();
 
-// ── withApi: wraps a route handler with CORS + uniform error handling ──
-// A handler returns plain data (→ 200 JSON) or a NextResponse (passed through,
-// e.g. created()/noContent()). Thrown ApiError → its status; ZodError → 400.
-export type RouteCtx = { params?: Record<string, string> };
+// ── withApi: auth + access guard + uniform error handling ─────────
+// Every wrapped route (except the cabinet allowlist) requires a session, and
+// when the path maps to a screen the «Доступы» matrix is enforced for the
+// session's role. The resolved user is passed to the handler via ctx.user.
+export type RouteCtx = { params?: Record<string, string>; user?: SessionUser | null };
 type Handler = (req: NextRequest, ctx: RouteCtx) => Promise<unknown> | unknown;
 
 export function withApi(handler: Handler) {
   return async (req: NextRequest, ctx: RouteCtx): Promise<NextResponse> => {
     let path = req.url;
-    try { path = new URL(req.url).pathname; } catch { /* keep raw url */ }
+    let url: URL | null = null;
+    try { url = new URL(req.url); path = url.pathname; } catch { /* keep raw url */ }
+
     try {
-      const result = await handler(req, ctx ?? {});
+      let user: SessionUser | null = null;
+      if (!isCabinetPublicApi(req.method, path)) {
+        user = await currentUser();
+        if (!user) return json({ error: 'Требуется вход' }, 401);
+        const screen = url ? apiScreenFor(req.method, path, url.searchParams) : null;
+        if (screen) {
+          const perms = await permissionsRepo.list();
+          if (!isScreenAllowed(user.role, screen, perms)) {
+            return json({ error: 'Нет доступа к разделу' }, 403);
+          }
+        }
+      }
+
+      const result = await handler(req, { ...(ctx ?? {}), user });
       return result instanceof NextResponse ? result : json(result);
     } catch (err) {
       if (err instanceof ZodError) {
