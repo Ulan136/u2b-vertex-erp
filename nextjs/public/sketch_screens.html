@@ -729,6 +729,71 @@
   #sidebar.collapsed:not(:hover) .sb-group,
   #sidebar.collapsed:not(:hover) .sb-direct { overflow: hidden; white-space: nowrap; padding-left: 18px; }
 
+  /* ════════════════════════════════════════════════════════════
+     SIDEBAR v3 — читаемые заголовки + 2 цветовые зоны
+     Зона 1 «Доходы» (emerald) · Зона 2 «Операции и учёт» (sky)
+     ════════════════════════════════════════════════════════════ */
+  .sb-zone { position: relative; padding: 2px 0 8px; }
+  .sb-zone-income { border-left: 2px solid rgba(52,211,153,.32); }
+  .sb-zone-ops    { border-left: 2px solid rgba(56,189,248,.28); }
+
+  /* заголовок зоны — надстрочная метка с цветной чертой */
+  .sb-zone-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 14px 8px;
+    font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase;
+  }
+  .sb-zone-head .zh-line { flex: 1; height: 1px; }
+  .sb-zone-income .sb-zone-head { color: #34d399; }
+  .sb-zone-income .sb-zone-head .zh-line { background: linear-gradient(90deg,rgba(52,211,153,.6),transparent); }
+  .sb-zone-ops .sb-zone-head { color: #38bdf8; }
+  .sb-zone-ops .sb-zone-head .zh-line { background: linear-gradient(90deg,rgba(56,189,248,.55),transparent); }
+
+  /* мелкие под-подписи внутри зоны операций (Операционные / Финансы / Аналитика) */
+  .sb-zone-ops .sb-divider { display: none; }              /* зона уже разделяет — толстые линии не нужны */
+  .sb-zone-ops .sb-divider-label,
+  .sb-zone-sublabel {
+    font-size: 9.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase;
+    color: #5b7089; padding: 11px 14px 3px;
+  }
+  .sb-zone-ops .sb-divider-label { border-top: 1px solid rgba(255,255,255,.05); margin-top: 4px; }
+
+  /* ГЛАВНЫЕ категории — крупнее и контрастнее (было 11px, тускло-серые) */
+  .sb-section > .sb-group {
+    font-size: 12.5px !important; font-weight: 700 !important;
+    letter-spacing: .01em !important; padding: 10px 14px !important;
+    color: #e5edf7 !important;
+  }
+  .sb-section > .sb-group .arrow { color: #64748b !important; font-size: 11px !important; }
+  .sb-section > .sb-group:hover { background: rgba(255,255,255,.05) !important; }
+
+  /* зонная окраска заголовков + гасим прежние разноцветные акцент-бары */
+  .sb-zone-income .sb-section > .sb-group { color: #6ee7b7 !important; }
+  .sb-zone-ops    .sb-section > .sb-group { color: #93c5fd !important; }
+  .sb-section.income-blue   > .sb-group::before,
+  .sb-section.income-green  > .sb-group::before,
+  .sb-section.income-purple > .sb-group::before { display: none !important; }
+  .sb-section.income-blue   > .sb-group,
+  .sb-section.income-green  > .sb-group,
+  .sb-section.income-purple > .sb-group { background: transparent !important; }
+
+  /* второй уровень (САМИ / ВДК / ТЭЦ / Выездная / Астана) — нейтральный slate,
+     чтобы зона читалась одним цветом (перебивает старое income-blue правило) */
+  .sb-zone .sb-sub .sb-group { color: #a8b6c8 !important; font-weight: 600 !important; }
+  .sb-zone .sb-sub .sb-group:hover { color: #e5edf7 !important; }
+
+  /* листья — ховер/актив в цвете своей зоны */
+  .sb-zone-income .sb-item:hover  { background: rgba(52,211,153,.12) !important; color: #6ee7b7 !important; }
+  .sb-zone-income .sb-item.active { background: rgba(52,211,153,.16) !important; color: #a7f3d0 !important; border-left: 3px solid #10b981 !important; }
+  .sb-zone-ops .sb-item:hover     { background: rgba(56,189,248,.12) !important; color: #7dd3fc !important; }
+  .sb-zone-ops .sb-item.active    { background: rgba(56,189,248,.16) !important; color: #bae6fd !important; border-left: 3px solid #0ea5e9 !important; }
+
+  /* свёрнутая рейка: прячем зонные подписи, убираем боковую полосу */
+  #sidebar.collapsed:not(:hover) .sb-zone-head,
+  #sidebar.collapsed:not(:hover) .sb-zone-sublabel,
+  #sidebar.collapsed:not(:hover) .sb-divider-label { display: none !important; }
+  #sidebar.collapsed:not(:hover) .sb-zone { border-left: none; }
+
   /* ── TOPBAR — clean white + breadcrumb ── */
   #topbar { background: var(--surface); border-bottom: 1px solid var(--line); color: var(--muted); }
   #topbar strong { color: var(--ink); }
@@ -824,8 +889,11 @@
     <button class="sb-direct active" onclick="go('dashboard','Главная','Рабочий стол',this)">🏠 &nbsp;Рабочий стол</button>
   </div>
 
-  <!-- ══ ИСТОЧНИКИ ДОХОДА ════════════════════════════════════ -->
-  <!-- 1. ПОВЕРКА — синий -->
+  <!-- ══════════ ЗОНА 1 · ДОХОДЫ (money in) — emerald ══════════ -->
+  <div class="sb-zone sb-zone-income">
+  <div class="sb-zone-head"><span>Доходы</span><span class="zh-line"></span></div>
+
+  <!-- ПОВЕРКА -->
   <div class="sb-section income income-blue">
     <button class="sb-group open" onclick="toggleGroup(this)">
       <span>📋 ПОВЕРКА</span>
@@ -912,9 +980,12 @@
     </div>
   </div>
 
-  <!-- ══ ОПЕРАЦИОННЫЕ ════════════════════════════════════════ -->
-  <div class="sb-divider"></div>
-  <div class="sb-divider-label">ОПЕРАЦИОННЫЕ</div>
+  </div><!-- /sb-zone-income -->
+
+  <!-- ══════════ ЗОНА 2 · ОПЕРАЦИИ И УЧЁТ — sky ══════════ -->
+  <div class="sb-zone sb-zone-ops">
+  <div class="sb-zone-head"><span>Операции и учёт</span><span class="zh-line"></span></div>
+  <div class="sb-zone-sublabel">Операционные</div>
 
   <!-- РАСХОДЫ -->
   <div class="sb-section">
@@ -1024,6 +1095,8 @@
       <button class="sb-item" onclick="go('settings','Настройка','Настройки',this)">Настройки</button>
     </div>
   </div>
+
+  </div><!-- /sb-zone-ops -->
 
 </div>
 
