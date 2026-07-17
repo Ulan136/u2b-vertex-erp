@@ -29,12 +29,20 @@ export default auth((req) => {
   const loggedIn = !!req.auth?.user;
   const role = (req.auth?.user as { role?: string } | undefined)?.role;
 
+  // PWA assets must be fetchable without a session — a manifest/SW that 307s to
+  // /login is treated as invalid by the browser and kills the install prompt.
+  const publicAsset =
+    pathname === '/manifest.json' ||
+    pathname === '/sw.js' ||
+    pathname.endsWith('.webmanifest') ||
+    pathname.startsWith('/icons/');
+
   const publicPage =
     pathname === '/login' ||
     pathname === '/cabinet' || pathname.startsWith('/cabinet/') ||
     pathname.startsWith('/api/auth');
 
-  if (publicPage) return NextResponse.next();
+  if (publicAsset || publicPage) return NextResponse.next();
   if (isCabinetPublicApi(req.method, pathname)) return NextResponse.next();
 
   // /sketch/* — архив старых макетов, доступ только Админу
