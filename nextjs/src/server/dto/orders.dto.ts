@@ -26,6 +26,9 @@ export const orderCreateSchema = z.object({
   qty: z.coerce.number().int().nullish(),
   waterType: z.string().nullish(),
   positions: z.array(positionSchema).optional().default([]),
+  // фотоотчёт мастера — массив data-URL строк (сжатые изображения). Необязательно
+  // и без .default([]), чтобы PATCH без photos не затирал уже загруженные фото.
+  photos: z.array(z.string()).optional(),
   comment: z.string().nullish(),
   status: z.string().optional().default('В работе'),
   // determined by which external cabinet the order came from; defaults keep the

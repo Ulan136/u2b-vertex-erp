@@ -45,6 +45,23 @@ export default auth((req) => {
   if (publicAsset || publicPage) return NextResponse.next();
   if (isCabinetPublicApi(req.method, pathname)) return NextResponse.next();
 
+  // Мобильные кабинеты — доступ по роли (+ Админ). Пути и их rewrite-цели
+  // (/mobile_*.html) защищаем одинаково. Не тот, кто вошёл → «Нет доступа».
+  const isMasterCab = pathname === '/master' || pathname === '/mobile_master.html';
+  const isDirectorCab = pathname === '/director' || pathname === '/mobile_director.html';
+  if (isMasterCab || isDirectorCab) {
+    if (!loggedIn) {
+      const url = new URL('/login', req.nextUrl);
+      url.searchParams.set('from', isMasterCab ? '/master' : '/director');
+      return NextResponse.redirect(url);
+    }
+    const allowed = isMasterCab
+      ? (role === 'master' || role === 'admin')
+      : (role === 'director' || role === 'admin');
+    if (!allowed) return NextResponse.rewrite(new URL('/no_access.html', req.nextUrl));
+    return NextResponse.next();
+  }
+
   // /sketch/* — архив старых макетов, доступ только Админу
   if (pathname.startsWith('/sketch/')) {
     if (!loggedIn) {

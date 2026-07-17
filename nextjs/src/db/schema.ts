@@ -209,6 +209,8 @@ export const orders = pgTable('orders', {
   waterType : varchar('water_type', { length: 20 }),
   // positions: [{ address, qty, water }] — multiple meter locations per order
   positions : jsonb('positions').$type<Array<{ address: string; qty: number; water: string }>>().default([]),
+  // фотоотчёт мастера по заявке — массив data-URL строк (сжатые на клиенте)
+  photos    : jsonb('photos').$type<string[]>().default([]),
   comment   : text('comment'),
   status    : varchar('status', { length: 20 }).default('В работе'),   // 'В работе' | 'Готова' | 'Отменён'
   // origin channel: 'field_check' (Выездная поверка) | 'tec' (ТЭЦ). Separate order streams + numbering.

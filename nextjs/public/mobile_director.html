@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Кабинет директора — U2B-Vertex</title>
+<!-- PWA: устанавливается как отдельное приложение со start_url /director -->
+<link rel="manifest" href="/director.webmanifest">
+<meta name="theme-color" content="#1a56db">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Директор">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function(){}); });
+  }
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+:root{--bg:#f5f6fa;--card:#fff;--border:#e5e7eb;--blue:#1a56db;--blue2:#0ea5e9;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--purple:#8b5cf6;--text:#111827;--muted:#6b7280;--muted2:#9ca3af;}
+html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;}
+.frame{width:390px;height:844px;margin:16px auto;background:var(--bg);border-radius:44px;box-shadow:0 0 0 8px #1a1a2e,0 0 0 10px #2a2a3e,0 30px 80px rgba(0,0,0,.4);overflow:hidden;display:flex;flex-direction:column;}
+@media(max-width:430px){.frame{width:100%;height:100vh;border-radius:0;box-shadow:none;margin:0;}body{background:#fff;}}
+.sb{height:44px;background:#1a56db;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
+.sb-time{font-size:15px;font-weight:700;color:#fff;}.sb-right{display:flex;gap:6px;color:#fff;font-size:13px;}
+.nav{background:#fff;border-top:1px solid var(--border);display:flex;padding:6px 0;flex-shrink:0;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0;}
+.ni-ico{font-size:22px;transition:transform .15s;}
+.ni-lbl{font-size:9px;color:var(--muted2);font-weight:600;text-transform:uppercase;letter-spacing:.3px;}
+.ni.on .ni-lbl{color:var(--blue);font-weight:700;}.ni.on .ni-ico{transform:scale(1.1);}
+.scr{display:none;flex:1;overflow-y:auto;flex-direction:column;}.scr.on{display:flex;}
+.hdr-strip{background:linear-gradient(135deg,#1a56db,#0ea5e9);padding:16px;flex-shrink:0;}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.hdr-user{display:flex;align-items:center;gap:10px;}
+.hdr-avatar{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;border:2px solid rgba(255,255,255,.4);}
+.hdr-name{font-size:14px;font-weight:700;color:#fff;}.hdr-role{font-size:11px;color:rgba(255,255,255,.75);margin-top:1px;}
+.hdr-date{font-size:11px;color:rgba(255,255,255,.7);text-align:right;}
+.total-card{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:14px 16px;}
+.total-card .lbl{font-size:10px;font-weight:700;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.06em;}
+.total-card .val{font-size:26px;font-weight:800;color:#fff;margin-top:3px;letter-spacing:-.02em;}
+.total-card .sub{font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;}
+.content{padding:12px;overflow-y:auto;flex:1;}
+.sec{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 8px;display:flex;align-items:center;gap:6px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--border);}
+.kpi-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin-bottom:4px;}
+.kpi-row::-webkit-scrollbar{display:none;}
+.kpi-chip{background:#fff;border:1px solid var(--border);border-radius:10px;padding:9px 14px;flex-shrink:0;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06);min-width:78px;}
+.kpi-val{font-size:19px;font-weight:800;color:var(--text);}
+.kpi-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.stat-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.sc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.sc-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.sc-val{font-size:19px;font-weight:800;color:var(--text);line-height:1;}
+.sc-lbl{font-size:10px;color:var(--muted);margin-top:3px;font-weight:500;}
+.op-item{background:#fff;border:1px solid var(--border);border-radius:10px;padding:11px 12px;margin-bottom:7px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.op-ico{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.op-inc{background:#f0fdf4;}.op-exp{background:#fef2f2;}.op-trf{background:#eff6ff;}
+.op-info{flex:1;min-width:0;}
+.op-name{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.op-meta{font-size:10px;color:var(--muted);margin-top:2px;}
+.op-amt{font-size:13px;font-weight:700;flex-shrink:0;}
+.amt-inc{color:var(--green);}.amt-exp{color:var(--red);}.amt-trf{color:var(--muted);}
+.usr{background:#fff;border:1px solid var(--border);border-radius:10px;padding:11px 12px;margin-bottom:7px;display:flex;align-items:center;gap:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+.usr-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.usr-info{flex:1;min-width:0;}.usr-name{font-size:13px;font-weight:700;}
+.usr-meta{font-size:10px;color:var(--muted);margin-top:1px;}
+.prof-header{background:linear-gradient(135deg,#1a56db,#0ea5e9);padding:24px 16px 20px;text-align:center;flex-shrink:0;}
+.prof-avatar{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;border:3px solid rgba(255,255,255,.4);margin:0 auto 12px;}
+.prof-name{font-size:18px;font-weight:800;color:#fff;}.prof-role{font-size:12px;color:rgba(255,255,255,.75);margin-top:3px;}
+.act{display:block;padding:14px;border-radius:12px;font-size:14px;font-weight:800;text-align:center;text-decoration:none;color:#fff;margin-top:10px;}
+.empty{text-align:center;padding:20px;color:var(--muted2);font-size:13px;}
+.loading{text-align:center;padding:22px;color:var(--muted2);font-size:13px;}
+::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="sb"><div class="sb-time" id="clock">9:41</div><div class="sb-right"><span>📶</span><span>🔋</span></div></div>
+
+  <!-- ГЛАВНАЯ -->
+  <div class="scr on" id="scr-dash">
+    <div class="hdr-strip">
+      <div class="hdr-top">
+        <div class="hdr-user">
+          <div class="hdr-avatar" id="d-avatar">—</div>
+          <div><div class="hdr-name" id="d-name">—</div><div class="hdr-role">👑 Директор · Vertex Metrology</div></div>
+        </div>
+        <div class="hdr-date" id="d-date">—</div>
+      </div>
+      <div class="total-card">
+        <div class="lbl">Касса — все счета</div>
+        <div class="val" id="d-cash">— ₸</div>
+        <div class="sub" id="d-cash-sub">Загрузка…</div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="sec">📊 Ключевые цифры</div>
+      <div class="kpi-row">
+        <div class="kpi-chip"><div class="kpi-val" id="k-ord-today">—</div><div class="kpi-lbl">Заказы сегодня</div></div>
+        <div class="kpi-chip"><div class="kpi-val" style="color:var(--blue);" id="k-ord-week">—</div><div class="kpi-lbl">За неделю</div></div>
+        <div class="kpi-chip"><div class="kpi-val" style="color:var(--green);" id="k-sales-today">—</div><div class="kpi-lbl">Продаж сегодня</div></div>
+        <div class="kpi-chip"><div class="kpi-val" style="color:var(--green);" id="k-online">—</div><div class="kpi-lbl">Онлайн</div></div>
+      </div>
+
+      <div class="sec">💰 Продажи и долги</div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="sc-top"><div class="sc-icon" style="background:#f0fdf4;">💵</div></div><div class="sc-val" style="color:var(--green);" id="s-sales-today">0 ₸</div><div class="sc-lbl">Продажи сегодня</div></div>
+        <div class="stat-card"><div class="sc-top"><div class="sc-icon" style="background:#eff6ff;">📈</div></div><div class="sc-val" style="color:var(--blue);" id="s-sales-week">0 ₸</div><div class="sc-lbl">Продажи за неделю</div></div>
+        <div class="stat-card"><div class="sc-top"><div class="sc-icon" style="background:#f0fdf4;">📥</div></div><div class="sc-val" style="color:var(--green);" id="s-debit">0 ₸</div><div class="sc-lbl">Нам должны</div></div>
+        <div class="stat-card"><div class="sc-top"><div class="sc-icon" style="background:#fef2f2;">📤</div></div><div class="sc-val" style="color:var(--red);" id="s-credit">0 ₸</div><div class="sc-lbl">Мы должны</div></div>
+      </div>
+
+      <div class="sec">🟢 Кто онлайн (<span id="online-inline">0</span>)</div>
+      <div id="d-online-list"></div>
+
+      <div class="sec">💳 Последние операции</div>
+      <div id="d-ops"><div class="empty">Нет операций</div></div>
+      <div style="height:16px;"></div>
+    </div>
+  </div>
+
+  <!-- ОНЛАЙН -->
+  <div class="scr" id="scr-online">
+    <div style="background:linear-gradient(135deg,#1a56db,#0ea5e9);padding:16px;flex-shrink:0;">
+      <div style="font-size:16px;font-weight:800;color:#fff;">Сотрудники</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:2px;"><span id="online-count-2">0</span> онлайн</div>
+    </div>
+    <div class="content"><div id="online-full"></div><div style="height:16px;"></div></div>
+  </div>
+
+  <!-- ПРОФИЛЬ -->
+  <div class="scr" id="scr-prof">
+    <div class="prof-header">
+      <div class="prof-avatar" id="p-avatar">—</div>
+      <div class="prof-name" id="p-name">—</div>
+      <div class="prof-role">👑 Директор · ТОО «Vertex Metrology»</div>
+    </div>
+    <div class="content">
+      <div class="sec">Переход</div>
+      <a href="/sketch_screens.html" class="act" style="background:linear-gradient(135deg,#1a56db,#0ea5e9);">🖥 Полная версия ERP</a>
+      <a href="/logout" class="act" style="background:linear-gradient(135deg,#ef4444,#dc2626);">🚪 Выйти</a>
+      <div style="height:16px;"></div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <div class="ni on" id="nav-dash" onclick="goScr('dash',this)"><div class="ni-ico">🏠</div><div class="ni-lbl">Главная</div></div>
+    <div class="ni" id="nav-online" onclick="goScr('online',this)"><div class="ni-ico">🟢</div><div class="ni-lbl">Онлайн</div></div>
+    <div class="ni" id="nav-prof" onclick="goScr('prof',this)"><div class="ni-ico">👤</div><div class="ni-lbl">Профиль</div></div>
+  </div>
+</div>
+
+<script>
+const ME_API='/api/v2/me',ORDERS_API='/api/v2/orders',SALES_API='/api/v2/sales',DEBTS_API='/api/v2/debts',FIN_API='/api/v2/finance',PRESENCE_API='/api/v2/presence';
+const ROLE_LABEL={admin:'Администратор',director:'Директор',accountant:'Бухгалтер',manager:'Менеджер',master:'Мастер'};
+let me=null;
+
+function clock(){const n=new Date();document.getElementById('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
+clock();setInterval(clock,30000);
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function num(v){const n=Number(v);return isNaN(n)?0:n;}
+function fmt(n){return Math.round(Math.abs(n||0)).toLocaleString('ru-KZ');}
+function fmtK(n){const v=Math.abs(n||0);return v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'K':String(Math.round(v));}
+function dayStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function todayStr(){return dayStr(new Date());}
+function weekAgoStr(){const d=new Date();d.setDate(d.getDate()-6);return dayStr(d);}
+function rowDay(r,fields){for(const f of fields){if(r[f])return String(r[f]).slice(0,10);}return '';}
+function ago(iso){if(!iso)return 'давно';const s=Math.floor((Date.now()-new Date(iso).getTime())/1000);
+  if(s<60)return 'только что';if(s<3600)return Math.floor(s/60)+' мин назад';if(s<86400)return Math.floor(s/3600)+' ч назад';return Math.floor(s/86400)+' дн назад';}
+
+async function getJSON(url){const r=await fetch(url,{cache:'no-store'});if(r.status===401){location.href='/login?from=/director';throw new Error('auth');}if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+
+async function loadMe(){
+  try{me=await getJSON(ME_API);}catch(e){if(e.message==='auth')return;me=null;}
+  const nm=(me&&me.name)||'Директор';const ini=(nm.trim()[0]||'Д').toUpperCase();
+  ['d-avatar','p-avatar'].forEach(id=>document.getElementById(id).textContent=ini);
+  ['d-name','p-name'].forEach(id=>document.getElementById(id).textContent=nm);
+  const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const n=new Date();document.getElementById('d-date').textContent=months[n.getMonth()]+' '+n.getFullYear();
+}
+
+async function loadDash(){
+  const today=todayStr(),weekAgo=weekAgoStr();
+  const [orders,sales,debts,fin,presence]=await Promise.all([
+    getJSON(ORDERS_API).catch(()=>[]),
+    getJSON(SALES_API).catch(()=>[]),
+    getJSON(DEBTS_API).catch(()=>[]),
+    getJSON(FIN_API).catch(()=>({accounts:[],operations:[]})),
+    getJSON(PRESENCE_API).catch(()=>({onlineCount:0,users:[]})),
+  ]);
+
+  // Заказы
+  const ordToday=orders.filter(o=>rowDay(o,['orderDate','createdAt'])===today).length;
+  const ordWeek=orders.filter(o=>{const d=rowDay(o,['orderDate','createdAt']);return d>=weekAgo&&d<=today;}).length;
+  document.getElementById('k-ord-today').textContent=ordToday;
+  document.getElementById('k-ord-week').textContent=ordWeek;
+
+  // Продажи
+  const salesToday=sales.filter(s=>rowDay(s,['saleDate','createdAt'])===today);
+  const salesWeek=sales.filter(s=>{const d=rowDay(s,['saleDate','createdAt']);return d>=weekAgo&&d<=today;});
+  const sumToday=salesToday.reduce((a,s)=>a+num(s.totalSum),0);
+  const sumWeek=salesWeek.reduce((a,s)=>a+num(s.totalSum),0);
+  document.getElementById('k-sales-today').textContent=fmtK(sumToday);
+  document.getElementById('s-sales-today').textContent=fmt(sumToday)+' ₸';
+  document.getElementById('s-sales-week').textContent=fmt(sumWeek)+' ₸';
+
+  // Долги (остаток = amount - paidAmount, не закрытые)
+  const open=debts.filter(d=>d.status!=='closed');
+  const debit=open.filter(d=>d.type==='debit').reduce((a,d)=>a+Math.max(0,num(d.amount)-num(d.paidAmount)),0);
+  const credit=open.filter(d=>d.type==='credit').reduce((a,d)=>a+Math.max(0,num(d.amount)-num(d.paidAmount)),0);
+  document.getElementById('s-debit').textContent=fmt(debit)+' ₸';
+  document.getElementById('s-credit').textContent=fmt(credit)+' ₸';
+
+  // Касса
+  const cash=(fin.accounts||[]).reduce((a,ac)=>a+num(ac.balance),0);
+  document.getElementById('d-cash').textContent=fmt(cash)+' ₸';
+  document.getElementById('d-cash-sub').textContent=(fin.accounts||[]).length+' счетов';
+
+  // Онлайн
+  const online=presence.onlineCount||0;
+  document.getElementById('k-online').textContent=online;
+  document.getElementById('online-inline').textContent=online;
+  document.getElementById('online-count-2').textContent=online;
+  renderUsers(presence.users||[]);
+
+  // Последние операции
+  const ops=(fin.operations||[]).slice(0,6);
+  document.getElementById('d-ops').innerHTML=ops.length?ops.map(o=>{
+    const inc=o.opType==='Приход',trf=o.opType==='Перевод';
+    const cls=trf?'op-trf':inc?'op-inc':'op-exp',ico=trf?'🔄':inc?'💚':'🔴',ac=trf?'amt-trf':inc?'amt-inc':'amt-exp',sign=inc?'+':trf?'⇄':'−';
+    return `<div class="op-item"><div class="op-ico ${cls}">${ico}</div><div class="op-info"><div class="op-name">${esc(o.name)}</div><div class="op-meta">${esc(o.accountName||'')} · ${esc((o.opDate||'').slice(0,10))}</div></div><div class="op-amt ${ac}">${sign}${fmt(num(o.amount))}</div></div>`;
+  }).join(''):'<div class="empty">Нет операций</div>';
+}
+
+function renderUsers(users){
+  const sorted=[...users].sort((a,b)=>(b.online?1:0)-(a.online?1:0));
+  const html=sorted.length?sorted.map(u=>`<div class="usr">
+    <div class="usr-dot" style="background:${u.online?'#22c55e':'#d1d5db'};"></div>
+    <div class="usr-info"><div class="usr-name">${esc(u.name||'—')}</div>
+      <div class="usr-meta">${esc(ROLE_LABEL[u.role]||u.role||'')}${u.online?' · онлайн':' · был(а) '+ago(u.lastSeenAt)}</div></div>
+  </div>`).join(''):'<div class="empty">Нет данных</div>';
+  document.getElementById('d-online-list').innerHTML=sorted.slice(0,5).map(u=>`<div class="usr">
+    <div class="usr-dot" style="background:${u.online?'#22c55e':'#d1d5db'};"></div>
+    <div class="usr-info"><div class="usr-name">${esc(u.name||'—')}</div>
+      <div class="usr-meta">${esc(ROLE_LABEL[u.role]||u.role||'')}${u.online?' · онлайн':' · был(а) '+ago(u.lastSeenAt)}</div></div></div>`).join('')||'<div class="empty">Нет данных</div>';
+  document.getElementById('online-full').innerHTML=html;
+}
+
+function goScr(id,el){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
+  document.getElementById('scr-'+id).classList.add('on');el.classList.add('on');
+}
+
+(async function(){
+  await loadMe();
+  try{await loadDash();}catch(e){}
+  setInterval(()=>{loadDash().catch(()=>{});},60000);
+})();
+</script>
+</body>
+</html>
