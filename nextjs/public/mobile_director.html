@@ -272,8 +272,8 @@ document.cookie='erp_full=;path=/;max-age=0';
   await loadMe();
   try{await loadDash();}catch(e){}
   setInterval(()=>{loadDash().catch(()=>{});},60000);
-  // Общий модуль: колокольчик + экран «Задачи» + комментарии
-  if(window.CabinetCommon) CabinetCommon.init({ me, onOpenTasks:()=>goScr('tasks', document.getElementById('nav-tasks')) });
+  // Общий модуль: колокольчик + экран «Задачи» + комментарии + обновление
+  if(window.CabinetCommon) CabinetCommon.init({ me, onOpenTasks:()=>goScr('tasks', document.getElementById('nav-tasks')), onRefresh:()=>loadDash() });
 })();
 </script>
 </body>

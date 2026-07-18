@@ -378,8 +378,8 @@ function goScreen(id){
   document.getElementById('hdr-sub').textContent=(me&&me.name?me.name:'Мастер')+' · '+new Date().toLocaleDateString('ru-KZ');
   await loadOrders();
   setInterval(loadOrders,60000);
-  // Общий модуль: колокольчик + экран «Задачи» + комментарии
-  if(window.CabinetCommon) CabinetCommon.init({ me, onOpenTasks:()=>goScreen('tasks') });
+  // Общий модуль: колокольчик + экран «Задачи» + комментарии + обновление
+  if(window.CabinetCommon) CabinetCommon.init({ me, onOpenTasks:()=>goScreen('tasks'), onRefresh:()=>loadOrders() });
 })();
 </script>
 </body>

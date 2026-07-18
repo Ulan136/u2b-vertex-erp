@@ -87,6 +87,15 @@
   .cc-nhead{display:flex;justify-content:space-between;align-items:center;padding:10px 13px;border-bottom:1px solid #e5e7eb;font-size:12px;font-weight:800;}
   .cc-nhead button{background:none;border:none;color:#1a56db;font-size:12px;font-weight:700;cursor:pointer;}
   .cc-nav-badge{position:absolute;top:-6px;right:-10px;background:#dc2626;color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;line-height:16px;border-radius:8px;text-align:center;padding:0 3px;}
+  .cc-bell-mount{display:inline-flex;align-items:center;gap:2px;}
+  .cc-ref{background:none;border:none;font-size:17px;cursor:pointer;padding:4px;line-height:1;}
+  .cc-ref.spin{animation:cc-spin .8s linear infinite;}
+  @keyframes cc-spin{to{transform:rotate(360deg);}}
+  /* pull-to-refresh */
+  .cc-pull{position:fixed;top:0;left:0;right:0;height:0;overflow:hidden;display:flex;align-items:flex-end;justify-content:center;z-index:1250;pointer-events:none;transition:height .12s ease;}
+  .cc-pull-inner{width:34px;height:34px;margin-bottom:8px;border-radius:50%;background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;font-size:17px;transition:background .15s;}
+  .cc-pull.ready .cc-pull-inner{background:#1a56db;color:#fff;}
+  .cc-pull.busy .cc-pull-inner{animation:cc-spin .8s linear infinite;}
   `;
   function injectStyles(){ if(document.getElementById('cc-styles'))return; const s=document.createElement('style'); s.id='cc-styles'; s.textContent=CSS; document.head.appendChild(s); }
 
@@ -247,7 +256,7 @@
   // ── bell / notifications ────────────────────────────────────
   function renderBell(){
     const hosts=document.querySelectorAll('.cc-bell-mount'); if(!hosts.length)return;
-    hosts.forEach(h=>{ h.innerHTML = `<button class="cc-bell" onclick="CabinetCommon._toggleBell(event)">🔔<span class="dot cc-bell-dot" style="display:none;">0</span></button>`; });
+    hosts.forEach(h=>{ h.innerHTML = `<button class="cc-ref" onclick="CabinetCommon.refresh()" title="Обновить">🔄</button><button class="cc-bell" onclick="CabinetCommon._toggleBell(event)">🔔<span class="dot cc-bell-dot" style="display:none;">0</span></button>`; });
     if(!document.getElementById('cc-npanel')){
       const p=document.createElement('div'); p.className='cc-npanel'; p.id='cc-npanel'; document.body.appendChild(p);
       document.addEventListener('click',(e)=>{ const pn=document.getElementById('cc-npanel'); if(pn && pn.classList.contains('open') && !pn.contains(e.target) && !e.target.closest('.cc-bell-mount')) pn.classList.remove('open'); });
@@ -274,14 +283,70 @@
   }
   async function readAll(){ try{ await fetch(API.notif+'/read-all',{method:'POST'}); }catch(e){} await pollNotif(); }
 
-  // ── badges + init ───────────────────────────────────────────
+  // ── badges ──────────────────────────────────────────────────
   function updateBadges(){
     const b=document.getElementById('cc-tasks-badge'); if(b){ const n=myActiveCount(); b.style.display=n?'':'none'; b.textContent=n; }
   }
+
+  // ── refresh (кнопка 🔄 + pull-to-refresh) ────────────────────
+  let refreshing=false;
+  function setRefreshing(on){
+    refreshing=on;
+    document.querySelectorAll('.cc-ref').forEach(b=>b.classList.toggle('spin',on));
+    const p=document.getElementById('cc-pull'); if(p) p.classList.toggle('busy',on);
+  }
+  async function refresh(){
+    if(refreshing) return; setRefreshing(true);
+    try{
+      const own = S.onRefresh ? Promise.resolve().then(S.onRefresh) : Promise.resolve();
+      await Promise.all([
+        loadTasks().then(()=>{ updateBadges(); if(isTasksVisible()) renderTasks(); }),
+        own, pollNotif(),
+      ]);
+      ccToast('🔄 Обновлено');
+    }catch(e){}
+    setRefreshing(false);
+  }
+  function scrollableAncestor(el){
+    for(let n=el; n && n!==document.body; n=n.parentElement){
+      const st=getComputedStyle(n);
+      if(/(auto|scroll)/.test(st.overflowY) && n.scrollHeight>n.clientHeight+2) return n;
+    }
+    return null;
+  }
+  function setupPull(){
+    if(document.getElementById('cc-pull')) return;
+    const p=document.createElement('div'); p.id='cc-pull'; p.className='cc-pull';
+    p.innerHTML=`<div class="cc-pull-inner">↓</div>`; document.body.appendChild(p);
+    let startY=0, pulling=false, ready=false, sc=null;
+    const TH=100;
+    document.addEventListener('touchstart', e=>{
+      if(refreshing || e.touches.length!==1){ pulling=false; return; }
+      sc = scrollableAncestor(e.target);
+      startY = e.touches[0].clientY;
+      pulling = !sc || sc.scrollTop<=0;   // тянем только когда список уже сверху
+    }, {passive:true});
+    document.addEventListener('touchmove', e=>{
+      if(!pulling) return;
+      const dy = e.touches[0].clientY - startY;
+      if(dy<=0){ p.style.height='0'; return; }
+      if(sc && sc.scrollTop>0){ pulling=false; p.style.height='0'; return; }
+      e.preventDefault();
+      const h=Math.min(dy*0.5, 80); p.style.height=h+'px';
+      ready = dy>TH; p.classList.toggle('ready', ready);
+      p.querySelector('.cc-pull-inner').textContent = ready ? '↑' : '↓';
+    }, {passive:false});
+    const end=()=>{ if(!pulling)return; pulling=false; p.style.height='0'; p.classList.remove('ready'); if(ready){ ready=false; refresh(); } };
+    document.addEventListener('touchend', end);
+    document.addEventListener('touchcancel', end);
+  }
+
+  // ── init ────────────────────────────────────────────────────
   async function init(opts){
     opts=opts||{};
-    injectStyles(); injectModals();
+    injectStyles(); injectModals(); setupPull();
     S.onOpenTasks = opts.onOpenTasks || null;
+    S.onRefresh = opts.onRefresh || null;
     S.me = opts.me || null;
     if(!S.me){ try{ const r=await jfetch(API.me); S.me=await r.json(); }catch(e){} }
     if(!S.me) return;
@@ -293,7 +358,7 @@
   function isTasksVisible(){ const el=document.getElementById('cc-tasks'); if(!el)return false; const scr=el.closest('.screen,.scr'); return scr ? (scr.classList.contains('active')||scr.classList.contains('on')) : true; }
 
   window.CabinetCommon = {
-    init, renderTasks, openComments,
+    init, renderTasks, openComments, refresh,
     _tab:(t)=>{ S.tab=t; renderTasks(); },
     _openTask:openTask, _closeTask:closeTask, _saveTask:saveTask,
     _setStatus:setStatus, _delTask:delTask,
