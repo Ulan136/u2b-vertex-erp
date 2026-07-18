@@ -1070,6 +1070,14 @@
     </div>
   </div>
 
+  <!-- ФИНАНСЫ -->
+  <div class="sb-section">
+    <button class="sb-group open" onclick="toggleGroup(this)"><span>💳 ФИНАНСЫ</span><span class="arrow">▾</span></button>
+    <div class="sb-sub open">
+      <button class="sb-item" onclick="go('finance','Финансы','Счета и операции',this)">Счета и операции</button>
+    </div>
+  </div>
+
   <!-- ДОЛГИ -->
   <div class="sb-section">
     <button class="sb-group open" onclick="toggleGroup(this)"><span>💳 ДОЛГИ</span><span class="arrow">▾</span></button>
@@ -1224,6 +1232,42 @@
     <!-- Выездная поверка (source=field_check) и ТЭЦ (source=tec): один компонент, разный источник -->
     <div class="screen" id="s-field-orders"></div>
     <div class="screen" id="s-tec-orders"></div>
+
+    <!-- ══ ФИНАНСЫ (счета + операции, реальные данные /api/v2/finance) ══ -->
+    <div class="screen" id="s-finance">
+      <div class="page-title">💳 Финансы</div>
+      <div class="page-sub">Счета и операции · приход / расход / перевод · сохраняется в общую базу</div>
+
+      <!-- SUMMARY -->
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-label">💰 Касса — все счета</div><div class="stat-val" id="fin-total">0 ₸</div></div>
+        <div class="stat-card ok"><div class="stat-label">📥 Приходы (последние 50)</div><div class="stat-val" id="fin-sum-inc">0 ₸</div></div>
+        <div class="stat-card blue"><div class="stat-label">📤 Расходы (последние 50)</div><div class="stat-val" id="fin-sum-exp">0 ₸</div></div>
+      </div>
+
+      <!-- СЧЕТА -->
+      <div class="tbl-wrap" style="margin-bottom:16px;">
+        <div class="tbl-header">
+          <span class="tbl-title">🏦 Счета</span>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm" onclick="finOpenOp()">＋ Операция</button>
+            <button class="btn btn-outline btn-sm" onclick="finOpenAcct()">+ Счёт</button>
+            <button class="btn btn-outline btn-sm" onclick="financeLoad()">🔄 Обновить</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:14px;" id="fin-accts"></div>
+      </div>
+
+      <!-- ОПЕРАЦИИ -->
+      <div class="tbl-wrap">
+        <div class="tbl-header"><span class="tbl-title" id="fin-ops-count">История операций</span></div>
+        <div style="overflow-x:auto;">
+        <table><thead><tr>
+          <th>Дата</th><th>Операция</th><th>Счёт</th><th>Тип</th><th style="text-align:right;">Сумма</th>
+        </tr></thead><tbody id="fin-ops-body"></tbody></table>
+        </div>
+      </div>
+    </div>
 
     <!-- ══ ДОЛГИ (дебиторка / кредиторка) ══ -->
     <div class="screen" id="s-debts">
@@ -2937,6 +2981,46 @@
       </div>
     </div>
 
+    <style>
+      .fin-tt{flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid var(--line);background:#fff;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit;}
+      .fin-tt.on{background:#eff6ff;border-color:#1a56db;color:#1d4ed8;}
+      .fin-acct-card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface);cursor:pointer;transition:border-color .15s;}
+      .fin-acct-card:hover{border-color:#1a56db;}
+    </style>
+    <!-- MODAL: ФИНАНСЫ — новая операция -->
+    <div class="modal-overlay" id="finOpModal" onclick="if(event.target===this)finCloseOp()">
+      <div class="modal" style="width:440px;">
+        <div class="modal-head"><h3>💳 Новая операция</h3><button class="modal-close" onclick="finCloseOp()">✕</button></div>
+        <div class="modal-body" style="padding:18px;">
+          <div class="field" style="margin-bottom:12px;"><label>Тип операции</label>
+            <div style="display:flex;gap:6px;">
+              <button type="button" class="fin-tt on" data-t="Приход" onclick="finSetType(this,'Приход')">＋ Приход</button>
+              <button type="button" class="fin-tt" data-t="Расход" onclick="finSetType(this,'Расход')">－ Расход</button>
+              <button type="button" class="fin-tt" data-t="Перевод" onclick="finSetType(this,'Перевод')">⇄ Перевод</button>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:12px;"><label id="finOpAccLbl">Счёт</label><select id="finOpAcc"></select></div>
+          <div class="field" id="finOpToWrap" style="margin-bottom:12px;display:none;"><label>Счёт-получатель</label><select id="finOpTo"></select></div>
+          <div class="field" style="margin-bottom:12px;"><label>Сумма, ₸</label><input id="finOpAmt" type="number" min="0" placeholder="0"></div>
+          <div class="field"><label>Описание</label><input id="finOpName" placeholder="Напр.: оплата поверки, зарплата…"></div>
+        </div>
+        <div class="modal-foot"><button class="btn btn-primary" onclick="finSaveOp()">💾 Сохранить операцию</button><button class="btn btn-outline" onclick="finCloseOp()">Отмена</button></div>
+      </div>
+    </div>
+    <!-- MODAL: ФИНАНСЫ — новый счёт -->
+    <div class="modal-overlay" id="finAcctModal" onclick="if(event.target===this)finCloseAcct()">
+      <div class="modal" style="width:420px;">
+        <div class="modal-head"><h3>🏦 Новый счёт</h3><button class="modal-close" onclick="finCloseAcct()">✕</button></div>
+        <div class="modal-body" style="padding:18px;">
+          <div class="field" style="margin-bottom:12px;"><label>Название *</label><input id="finAccName" placeholder="Напр.: Каспи Основной"></div>
+          <div class="field" style="margin-bottom:12px;"><label>Категория</label><select id="finAccCat"><option value="kaspi">🍊 Kaspi</option><option value="bck">🏦 Банк</option><option value="nalichka">💵 Наличные</option><option value="other" selected>💳 Другое</option></select></div>
+          <div class="field" style="margin-bottom:12px;"><label>Иконка (эмодзи)</label><input id="finAccIcon" placeholder="🏦" maxlength="4"></div>
+          <div class="field"><label>Текущий баланс, ₸</label><input id="finAccBal" type="number" placeholder="0"></div>
+        </div>
+        <div class="modal-foot"><button class="btn btn-primary" onclick="finSaveAcct()">💾 Создать счёт</button><button class="btn btn-outline" onclick="finCloseAcct()">Отмена</button></div>
+      </div>
+    </div>
+
     <!-- MODAL: ДОБАВИТЬ / РЕДАКТИРОВАТЬ ПОЛЬЗОВАТЕЛЯ -->
     <div class="modal-overlay" id="usrModalOverlay" onclick="if(event.target===this)usrCloseModal()">
       <div class="modal" style="width:480px;">
@@ -4449,6 +4533,7 @@ function go(screenId, section, page, el) {
   if (screenId==='warehouse')       { renderWarehouse(); whFetchFromApi().then(renderWarehouse); }
   if (screenId==='sales')            { salesLoadFromStorage(); renderSales(); }
   if (screenId==='debts')            { initDebtsScreen(); }
+  if (screenId==='finance')          { financeInit(); }
   if (screenId==='tasks')            { initTasksScreen(); }
   if (screenId==='primary')          { renderPrimary(); }
   if (screenId==='other-ops-proj')    { oopRenderTable('proj');    oopRenderStats('proj'); }
@@ -5183,6 +5268,121 @@ async function clDeleteCat(id){
   }catch(e){ showToast('⚠️ '+e.message); }
 }
 
+// ── ФИНАНСЫ (реальные счета/операции через /api/v2/finance) ─────
+let finAccts = [], finOps = [], finOpType = 'Приход';
+const finFmt = n => Math.round(Number(n)||0).toLocaleString('ru-KZ');
+const finDateStr = () => new Date().toISOString().slice(0,10);
+const finAcctName = id => { const a=finAccts.find(x=>x.id===id); return a?a.name:''; };
+
+function financeInit(){ financeLoad(); }
+async function financeLoad(){
+  try{
+    const r = await fetch(FINANCE_API, {cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j = await r.json();
+    finAccts = Array.isArray(j.accounts)?j.accounts:[];
+    finOps   = Array.isArray(j.operations)?j.operations:[];
+  }catch(e){ showToast('⚠️ Финансы: '+e.message); }
+  financeRender();
+}
+function financeRender(){
+  const total = finAccts.reduce((s,a)=>s+(Number(a.balance)||0),0);
+  const inc = finOps.filter(o=>o.opType==='Приход').reduce((s,o)=>s+(Number(o.amount)||0),0);
+  const exp = finOps.filter(o=>o.opType==='Расход').reduce((s,o)=>s+(Number(o.amount)||0),0);
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('fin-total', finFmt(total)+' ₸'); set('fin-sum-inc', finFmt(inc)+' ₸'); set('fin-sum-exp', finFmt(exp)+' ₸');
+  const ag = document.getElementById('fin-accts');
+  if(ag) ag.innerHTML = finAccts.length ? finAccts.map(a=>`
+    <div class="fin-acct-card" onclick="finEditBalance('${a.id}')" title="Изменить баланс">
+      <div style="font-size:22px;">${debtEsc(a.icon||'🏦')}</div>
+      <div style="font-weight:700;margin-top:4px;">${debtEsc(a.name)}</div>
+      <div style="font-size:18px;font-weight:800;margin-top:2px;">${finFmt(a.balance)} ₸</div>
+      <div style="font-size:10px;color:var(--muted);margin-top:2px;">нажмите, чтобы изменить баланс</div>
+    </div>`).join('') : '<div style="color:#9ca3af;padding:8px;">Нет счетов — создайте первый кнопкой «+ Счёт»</div>';
+  const tb = document.getElementById('fin-ops-body');
+  set('fin-ops-count', 'История операций · '+finOps.length);
+  if(tb) tb.innerHTML = finOps.length ? finOps.map(o=>{
+    const isInc=o.opType==='Приход', trf=o.opType==='Перевод';
+    const color = trf?'#6b7280':isInc?'#059669':'#dc2626', sign=isInc?'+':trf?'⇄':'−';
+    const badge = trf?'<span class="badge b-active">⇄ Перевод</span>':isInc?'<span class="badge b-ok">Приход</span>':'<span class="badge b-err">Расход</span>';
+    return `<tr>
+      <td style="font-size:11px;color:#6b7280;">${debtEsc((o.opDate||'').slice(0,10))}</td>
+      <td>${debtEsc(o.name)}</td>
+      <td style="font-size:11px;color:#6b7280;">${debtEsc(o.accountName||finAcctName(o.accountId))}</td>
+      <td>${badge}</td>
+      <td style="text-align:right;font-weight:700;color:${color};">${sign}${finFmt(o.amount)} ₸</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af;">Нет операций</td></tr>';
+}
+// операция
+function finFillAccSelects(){
+  const opts = finAccts.map(a=>`<option value="${a.id}">${debtEsc(a.icon||'🏦')} ${debtEsc(a.name)}</option>`).join('');
+  document.getElementById('finOpAcc').innerHTML = opts;
+  document.getElementById('finOpTo').innerHTML = opts;
+}
+function finOpenOp(){
+  if(!finAccts.length){ if(confirm('Сначала создайте счёт. Создать сейчас?')) finOpenAcct(); return; }
+  finOpType='Приход';
+  document.querySelectorAll('.fin-tt').forEach(b=>b.classList.toggle('on', b.dataset.t==='Приход'));
+  document.getElementById('finOpToWrap').style.display='none';
+  document.getElementById('finOpAccLbl').textContent='Счёт';
+  finFillAccSelects();
+  document.getElementById('finOpAmt').value=''; document.getElementById('finOpName').value='';
+  document.getElementById('finOpModal').classList.add('open');
+}
+function finCloseOp(){ document.getElementById('finOpModal').classList.remove('open'); }
+function finSetType(btn,t){
+  finOpType=t;
+  document.querySelectorAll('.fin-tt').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+  document.getElementById('finOpToWrap').style.display = t==='Перевод'?'':'none';
+  document.getElementById('finOpAccLbl').textContent = t==='Перевод'?'Счёт-источник':'Счёт';
+}
+async function finSaveOp(){
+  const amt=Number(document.getElementById('finOpAmt').value)||0;
+  const acc=document.getElementById('finOpAcc').value;
+  let name=document.getElementById('finOpName').value.trim()||finOpType;
+  if(amt<=0){ showToast('⚠️ Введите сумму'); return; }
+  if(!acc){ showToast('⚠️ Выберите счёт'); return; }
+  const body={ opType:finOpType, accountId:acc, amount:amt, name, opDate:finDateStr() };
+  if(finOpType==='Перевод'){
+    const to=document.getElementById('finOpTo').value;
+    if(to===acc){ showToast('⚠️ Выберите разные счета'); return; }
+    body.toAccountId=to; body.name='Перевод: '+name;
+  }
+  try{
+    const r=await fetch(FINANCE_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    finCloseOp(); await financeLoad(); showToast('✅ Операция сохранена');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+// счёт
+function finOpenAcct(){
+  ['finAccName','finAccIcon','finAccBal'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('finAccCat').value='other';
+  document.getElementById('finAcctModal').classList.add('open');
+}
+function finCloseAcct(){ document.getElementById('finAcctModal').classList.remove('open'); }
+async function finSaveAcct(){
+  const name=document.getElementById('finAccName').value.trim();
+  if(!name){ showToast('⚠️ Введите название'); return; }
+  const body={ name, category:document.getElementById('finAccCat').value, icon:document.getElementById('finAccIcon').value.trim()||null, balance:Number(document.getElementById('finAccBal').value)||0 };
+  try{
+    const r=await fetch(FINANCE_API+'/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    finCloseAcct(); await financeLoad(); showToast('✅ Счёт создан');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+async function finEditBalance(id){
+  const a=finAccts.find(x=>x.id===id); if(!a) return;
+  const v=prompt('Баланс счёта «'+a.name+'», ₸:', Number(a.balance)||0); if(v===null) return;
+  const n=Number(v); if(isNaN(n)){ showToast('⚠️ Некорректное значение'); return; }
+  try{
+    const r=await fetch(FINANCE_API+'/accounts/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({balance:n})});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    await financeLoad(); showToast('✅ Баланс обновлён');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+
 // ── ДОЛГИ (дебиторка / кредиторка) ─────────────────────────────
 // Данные в реальной БД через /api/v2/debts. Погашение создаёт операцию по
 // счёту (Приход для дебита, Расход для кредита) и связывается с ней.
@@ -5582,6 +5782,7 @@ const SCREEN_CATALOG = [
   {key:'other_ops',       label:'Прочие операции'},
   {key:'expenses',        label:'Расходы'},
   {key:'accounting',      label:'Бухгалтерия'},
+  {key:'finance',         label:'Финансы'},
   {key:'debts',           label:'Долги'},
   {key:'tasks',           label:'Задачи'},
   {key:'warehouse',       label:'Склад'},
@@ -5607,7 +5808,7 @@ const SCREEN_KEY_OF = {
   sales:'sales',
   'other-ops-proj':'other_ops','other-ops-tender':'other_ops','other-ops-service':'other_ops',
   rashody:'expenses','rashody-cats':'expenses','rashody-stats':'expenses',
-  accounting:'accounting', debts:'debts', tasks:'tasks',
+  accounting:'accounting', finance:'finance', debts:'debts', tasks:'tasks',
   warehouse:'warehouse', purchases:'purchases',
   'staff-mgr':'staff','staff-hr':'staff',
   'inv-poverka':'invoices','inv-sales':'invoices','inv-other':'invoices','inv-branches':'invoices',
@@ -5650,6 +5851,7 @@ const SCREEN_ENTRY = {
   other_ops:['other-ops-proj','Прочие операции','Проект'],
   expenses:['rashody','Расходы','Журнал расходов'],
   accounting:['accounting','Бухгалтерия','Счёт на оплату'],
+  finance:['finance','Финансы','Счета и операции'],
   debts:['debts','Долги','Дебиторка / Кредиторка'],
   tasks:['tasks','Задачи','Задачи сотрудникам'],
   warehouse:['warehouse','Склад','Журнал склада'],
