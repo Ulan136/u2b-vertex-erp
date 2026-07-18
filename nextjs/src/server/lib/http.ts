@@ -61,7 +61,7 @@ export function withApi(handler: Handler) {
         return json({ error: err.message }, err.status);
       }
       console.error(`[${req.method} ${path}]`, err);
-      return json({ error: 'Internal error' }, 500);
+      return json({ error: 'Internal error', detail: (err as Error)?.message ?? String(err) }, 500);
     }
   };
 }
