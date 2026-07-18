@@ -139,6 +139,22 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
     <div id="cc-tasks" style="flex:1;overflow-y:auto;"></div>
   </div>
 
+  <!-- ИСТОРИЯ (счета + все платежи) -->
+  <div class="scr" id="scr-hist">
+    <div style="background:linear-gradient(135deg,#1a56db,#0ea5e9);padding:calc(16px + env(safe-area-inset-top,0px)) 16px 16px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+      <div><div style="font-size:16px;font-weight:800;color:#fff;">История</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:2px;">Счета и все операции</div></div>
+      <span class="cc-bell-mount"></span>
+    </div>
+    <div class="content">
+      <div class="sec">🏦 Счета</div>
+      <div id="hist-accts"><div class="empty">Загрузка…</div></div>
+      <div class="sec">💳 Все операции</div>
+      <div id="hist-ops"><div class="empty">Загрузка…</div></div>
+      <div style="height:16px;"></div>
+    </div>
+  </div>
+
   <!-- ПРОФИЛЬ -->
   <div class="scr" id="scr-prof">
     <div class="prof-header">
@@ -157,6 +173,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
   <div class="nav">
     <div class="ni on" id="nav-dash" onclick="goScr('dash',this)"><div class="ni-ico">🏠</div><div class="ni-lbl">Главная</div></div>
     <div class="ni" id="nav-tasks" onclick="goScr('tasks',this)"><div class="ni-ico" style="position:relative;">✅<span class="cc-nav-badge" id="cc-tasks-badge" style="display:none;">0</span></div><div class="ni-lbl">Задачи</div></div>
+    <div class="ni" id="nav-hist" onclick="goScr('hist',this)"><div class="ni-ico">🧾</div><div class="ni-lbl">История</div></div>
     <div class="ni" id="nav-online" onclick="goScr('online',this)"><div class="ni-ico">🟢</div><div class="ni-lbl">Онлайн</div></div>
     <div class="ni" id="nav-prof" onclick="goScr('prof',this)"><div class="ni-ico">👤</div><div class="ni-lbl">Профиль</div></div>
   </div>
@@ -166,7 +183,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
 <script>
 const ME_API='/api/v2/me',ORDERS_API='/api/v2/orders',SALES_API='/api/v2/sales',DEBTS_API='/api/v2/debts',FIN_API='/api/v2/finance',PRESENCE_API='/api/v2/presence';
 const ROLE_LABEL={admin:'Администратор',director:'Директор',accountant:'Бухгалтер',manager:'Менеджер',master:'Мастер'};
-let me=null;
+let me=null, finAccts=[], finOps=[];
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function num(v){const n=Number(v);return isNaN(n)?0:n;}
@@ -222,10 +239,11 @@ async function loadDash(){
   document.getElementById('s-debit').textContent=fmt(debit)+' ₸';
   document.getElementById('s-credit').textContent=fmt(credit)+' ₸';
 
-  // Касса
-  const cash=(fin.accounts||[]).reduce((a,ac)=>a+num(ac.balance),0);
+  // Касса + сохраняем данные для экрана «История»
+  finAccts=fin.accounts||[]; finOps=fin.operations||[];
+  const cash=finAccts.reduce((a,ac)=>a+num(ac.balance),0);
   document.getElementById('d-cash').textContent=fmt(cash)+' ₸';
-  document.getElementById('d-cash-sub').textContent=(fin.accounts||[]).length+' счетов';
+  document.getElementById('d-cash-sub').textContent=finAccts.length+' счетов';
 
   // Онлайн
   const online=presence.onlineCount||0;
@@ -234,13 +252,24 @@ async function loadDash(){
   document.getElementById('online-count-2').textContent=online;
   renderUsers(presence.users||[]);
 
-  // Последние операции
-  const ops=(fin.operations||[]).slice(0,6);
-  document.getElementById('d-ops').innerHTML=ops.length?ops.map(o=>{
-    const inc=o.opType==='Приход',trf=o.opType==='Перевод';
-    const cls=trf?'op-trf':inc?'op-inc':'op-exp',ico=trf?'🔄':inc?'💚':'🔴',ac=trf?'amt-trf':inc?'amt-inc':'amt-exp',sign=inc?'+':trf?'⇄':'−';
-    return `<div class="op-item"><div class="op-ico ${cls}">${ico}</div><div class="op-info"><div class="op-name">${esc(o.name)}</div><div class="op-meta">${esc(o.accountName||'')} · ${esc((o.opDate||'').slice(0,10))}</div></div><div class="op-amt ${ac}">${sign}${fmt(num(o.amount))}</div></div>`;
-  }).join(''):'<div class="empty">Нет операций</div>';
+  // Последние операции (на дашборде — 6)
+  document.getElementById('d-ops').innerHTML = finOps.length ? finOps.slice(0,6).map(opRow).join('') : '<div class="empty">Нет операций</div>';
+  if(document.getElementById('scr-hist').classList.contains('on')) renderHist();
+}
+
+// строка операции (приход/расход/перевод)
+function opRow(o){
+  const inc=o.opType==='Приход',trf=o.opType==='Перевод';
+  const cls=trf?'op-trf':inc?'op-inc':'op-exp',ico=trf?'🔄':inc?'💚':'🔴',ac=trf?'amt-trf':inc?'amt-inc':'amt-exp',sign=inc?'+':trf?'⇄':'−';
+  return `<div class="op-item"><div class="op-ico ${cls}">${ico}</div><div class="op-info"><div class="op-name">${esc(o.name)}</div><div class="op-meta">${esc(o.accountName||'')} · ${esc((o.opDate||'').slice(0,10))}</div></div><div class="op-amt ${ac}">${sign}${fmt(num(o.amount))}</div></div>`;
+}
+
+// экран «История»: счета с балансами + все операции
+function renderHist(){
+  const acEl=document.getElementById('hist-accts');
+  if(acEl) acEl.innerHTML = finAccts.length ? finAccts.map(a=>`<div class="op-item"><div class="op-ico op-trf" style="font-size:18px;">${esc(a.icon||'🏦')}</div><div class="op-info"><div class="op-name">${esc(a.name)}</div><div class="op-meta">${esc(a.category||'')}</div></div><div class="op-amt" style="color:#111827;">${fmt(num(a.balance))} ₸</div></div>`).join('') : '<div class="empty">Нет счетов</div>';
+  const opEl=document.getElementById('hist-ops');
+  if(opEl) opEl.innerHTML = finOps.length ? finOps.map(opRow).join('') : '<div class="empty">Нет операций</div>';
 }
 
 function renderUsers(users){
@@ -262,6 +291,7 @@ function goScr(id,el){
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
   document.getElementById('scr-'+id).classList.add('on');el.classList.add('on');
   if(id==='tasks' && window.CabinetCommon) CabinetCommon.renderTasks();
+  if(id==='hist') renderHist();
 }
 
 // Вернулся в кабинет — сбрасываем выбор «Полная версия ERP», чтобы при
