@@ -7,15 +7,25 @@ export const financeService = {
   overview: () => financeRepo.overview(),
 
   // Создать операцию и сдвинуть балансы задействованных счетов.
+  // Собираем только заданные поля — undefined для uuid/date колонок ломает вставку.
   async createOperation(input: unknown, actorId?: string | null) {
     const data = financeOperationSchema.parse(input);
-    const { toAccountId, ...op } = data;
-    const row = await financeRepo.createOperation({
-      ...op,
+    const insert: Record<string, unknown> = {
+      name: data.name,
+      accountId: data.accountId,
+      opType: data.opType,
       amount: String(Number(data.amount) || 0),
       createdBy: actorId ?? null,
-    });
-    for (const { id, delta } of balanceDeltas(data.opType, data.amount, data.accountId, toAccountId)) {
+    };
+    if (data.opDate) insert.opDate = data.opDate;
+    if (data.accountName) insert.accountName = data.accountName;
+    if (data.source) insert.source = data.source;
+    if (data.certId) insert.certId = data.certId;
+    if (data.saleId) insert.saleId = data.saleId;
+    if (data.comment) insert.comment = data.comment;
+
+    const row = await financeRepo.createOperation(insert);
+    for (const { id, delta } of balanceDeltas(data.opType, data.amount, data.accountId, data.toAccountId)) {
       await financeRepo.adjustBalance(id, delta);
     }
     return row;
