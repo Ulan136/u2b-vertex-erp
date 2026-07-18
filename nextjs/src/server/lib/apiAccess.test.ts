@@ -27,6 +27,10 @@ test('apiScreenFor: resource endpoints map to their screen', () => {
   assert.equal(apiScreenFor('GET', '/api/v2/sales', sp()), 'sales');
   assert.equal(apiScreenFor('POST', '/api/v2/products', sp()), 'warehouse');
   assert.equal(apiScreenFor('POST', '/api/v2/role-permissions', sp()), 'settings');
+  assert.equal(apiScreenFor('GET', '/api/v2/employees', sp()), 'staff');
+  assert.equal(apiScreenFor('POST', '/api/v2/employees', sp()), 'staff');
+  assert.equal(apiScreenFor('GET', '/api/v2/employees/candidates', sp()), 'staff');
+  assert.equal(apiScreenFor('POST', '/api/v2/employees/abc/payments', sp()), 'staff');
 });
 test('apiScreenFor: users picker vs management', () => {
   assert.equal(apiScreenFor('GET', '/api/v2/users', sp()), null);              // пикер исполнителей — любой вошедший

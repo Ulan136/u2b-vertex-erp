@@ -1838,27 +1838,97 @@
     </div>
 
     <!-- СОТРУДНИКИ -->
+    <!-- «Руководитель» → директория команды: реальные пользователи (Настройки → Пользователи). -->
     <div class="screen" id="s-staff-mgr">
-      <div class="page-title">Руководитель</div><div class="page-sub">Список руководителей</div>
+      <div class="page-title">Руководитель</div>
+      <div class="page-sub">Команда компании — реальные пользователи системы. Зарплата и выплаты — во вкладке «Зарплата и кадры».</div>
       <div class="tbl-wrap">
-        <div class="tbl-header"><span class="tbl-title">Руководители</span><button class="btn btn-primary btn-sm">+ Добавить</button></div>
-        <table><thead><tr><th>ФИО</th><th>Должность</th><th>Отдел</th><th>Телефон</th><th>Email</th><th>Роль</th></tr></thead>
-        <tbody>
-          <tr><td>Сидоров В.П.</td><td>Директор</td><td>Администрация</td><td>+7 701 000 0001</td><td>director@vdk.kz</td><td><span class="badge b-purple">Директор</span></td></tr>
-          <tr><td>Кузьмина А.Н.</td><td>Нач. склада</td><td>Склад</td><td>+7 701 000 0002</td><td>warehouse@vdk.kz</td><td><span class="badge b-active">Мастер</span></td></tr>
-        </tbody></table>
+        <div class="tbl-header"><span class="tbl-title" id="staff-mgr-count">Сотрудники</span></div>
+        <table><thead><tr><th>ФИО</th><th>Должность</th><th>Роль</th><th>Филиал</th><th>Телефон</th><th>Email</th><th>Статус</th></tr></thead>
+        <tbody id="staff-mgr-tbody"></tbody></table>
+        <div id="staff-mgr-empty" style="display:none;padding:24px;text-align:center;color:#6b7280;"></div>
       </div>
     </div>
 
+    <!-- «Зарплата и кадры» → оклад + выплаты. Сотрудник = пользователь системы. -->
     <div class="screen" id="s-staff-hr">
-      <div class="page-title">Зарплата и кадры</div><div class="page-sub">Кадровый учёт</div>
+      <div class="page-title">Зарплата и кадры</div>
+      <div class="page-sub">Сотрудники = пользователи системы · оклад, выплаты и остаток за <span id="staff-month-label">текущий месяц</span></div>
       <div class="tbl-wrap">
-        <div class="tbl-header"><span class="tbl-title">Сотрудники</span><button class="btn btn-primary btn-sm">+ Сотрудник</button></div>
-        <table><thead><tr><th>ФИО</th><th>Должность</th><th>Дата приёма</th><th>Оклад</th><th>Начислено</th><th>Статус</th></tr></thead>
-        <tbody>
-          <tr><td>Ахметов Д.С.</td><td>Поверитель</td><td>01.03.2023</td><td>180 000 ₸</td><td>180 000 ₸</td><td><span class="badge b-ok">Активен</span></td></tr>
-          <tr><td>Смирнов Д.В.</td><td>Мастер выезда</td><td>15.06.2024</td><td>160 000 ₸</td><td>160 000 ₸</td><td><span class="badge b-ok">Активен</span></td></tr>
-        </tbody></table>
+        <div class="tbl-header">
+          <span class="tbl-title" id="staff-hr-count">Сотрудники</span>
+          <button class="btn btn-primary btn-sm" id="staff-add-btn" onclick="staffOpenAdd()">+ Добавить сотрудника</button>
+        </div>
+        <table><thead><tr>
+          <th>ФИО</th><th>Должность</th><th>Роль</th><th>Филиал</th>
+          <th style="text-align:right;">Оклад (фикс.)</th>
+          <th style="text-align:right;">Выплачено в этом месяце</th>
+          <th style="text-align:right;">Остаток</th>
+          <th style="text-align:center;">Действия</th>
+        </tr></thead>
+        <tbody id="staff-hr-tbody"></tbody></table>
+        <div id="staff-hr-empty" style="display:none;padding:24px;text-align:center;color:#6b7280;"></div>
+      </div>
+    </div>
+
+    <!-- ── Модалки кадров ── -->
+    <div class="modal-overlay" id="staffAddOverlay" onclick="if(event.target===this)staffCloseAdd()">
+      <div class="modal" style="width:420px;">
+        <div class="modal-head"><h3>➕ Добавить сотрудника</h3><button class="modal-close" onclick="staffCloseAdd()">✕</button></div>
+        <div class="modal-body" style="padding:18px;">
+          <div class="field"><label>Пользователь *</label>
+            <select id="staff-add-user"></select>
+            <div style="font-size:11px;color:#6b7280;margin-top:4px;">Список из Настройки → Пользователи (кто ещё не добавлен)</div>
+          </div>
+          <div class="field" style="margin-top:12px;"><label>Оклад (фикс., ₸/мес) *</label>
+            <input id="staff-add-salary" type="number" min="0" step="1000" placeholder="например 200000"></div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-primary" onclick="staffSaveAdd()">Добавить</button>
+          <button class="btn btn-outline" onclick="staffCloseAdd()">Отмена</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="staffEditOverlay" onclick="if(event.target===this)staffCloseEdit()">
+      <div class="modal" style="width:380px;">
+        <div class="modal-head"><h3>✏️ Оклад — <span id="staff-edit-name"></span></h3><button class="modal-close" onclick="staffCloseEdit()">✕</button></div>
+        <div class="modal-body" style="padding:18px;">
+          <input type="hidden" id="staff-edit-user">
+          <div class="field"><label>Оклад (фикс., ₸/мес)</label>
+            <input id="staff-edit-salary" type="number" min="0" step="1000"></div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-primary" onclick="staffSaveEdit()">Сохранить</button>
+          <button class="btn btn-outline" onclick="staffCloseEdit()">Отмена</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="staffPayOverlay" onclick="if(event.target===this)staffClosePay()">
+      <div class="modal" style="width:440px;">
+        <div class="modal-head"><h3>💵 Выплата — <span id="staffPayName"></span></h3><button class="modal-close" onclick="staffClosePay()">✕</button></div>
+        <div class="modal-body" style="padding:18px;">
+          <div id="staffPayInfo" style="font-size:12px;color:#6b7280;margin-bottom:12px;"></div>
+          <div class="fg">
+            <div class="field"><label>Сумма (₸) *</label><input id="staff-pay-amount" type="number" min="0" step="0.01" placeholder="0" oninput="staffPayCheckOverpay()"></div>
+            <div class="field"><label>Дата</label><input id="staff-pay-date" type="date"></div>
+            <div class="field" style="grid-column:1/-1;"><label>Счёт списания *</label>
+              <select id="staff-pay-account"><option value="">— выберите счёт —</option></select></div>
+            <div class="field"><label>Тип</label>
+              <select id="staff-pay-kind"><option value="salary">Зарплата</option><option value="advance">Аванс</option></select></div>
+            <div class="field"><label>Комментарий</label><input id="staff-pay-comment" placeholder="необязательно"></div>
+          </div>
+          <div id="staff-pay-warn" style="display:none;margin-top:12px;padding:10px 12px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;"></div>
+          <label id="staff-pay-confirm-wrap" style="display:none;margin-top:10px;font-size:12px;color:#92400e;cursor:pointer;">
+            <input type="checkbox" id="staff-pay-confirm-overpay" style="vertical-align:middle;margin-right:6px;">
+            Подтверждаю переплату — это аванс следующего месяца
+          </label>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-primary" onclick="staffSavePay()">✅ Провести (Расход в финансах)</button>
+          <button class="btn btn-outline" onclick="staffClosePay()">Отмена</button>
+        </div>
       </div>
     </div>
 
@@ -4553,6 +4623,8 @@ function go(screenId, section, page, el) {
   if (screenId==='sales')            { salesLoadFromStorage(); renderSales(); }
   if (screenId==='debts')            { initDebtsScreen(); }
   if (screenId==='finance')          { financeInit(); }
+  if (screenId==='staff-hr')         { staffHrInit(); }
+  if (screenId==='staff-mgr')        { staffMgrInit(); }
   if (screenId==='tasks')            { initTasksScreen(); }
   if (screenId==='primary')          { renderPrimary(); }
   if (screenId==='other-ops-proj')    { oopRenderTable('proj');    oopRenderStats('proj'); }
@@ -5541,6 +5613,206 @@ async function debtDelete(id){
     if(!r.ok) throw new Error('HTTP '+r.status);
     await debtLoad(); showToast('🗑️ Долг удалён');
   }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// ── СОТРУДНИКИ (кадры / зарплата) ──────────────────────────────
+// Сотрудник = пользователь системы. Оклад и выплаты — /api/v2/employees.
+// Каждая выплата создаёт реальный Расход в финансах (источник «Зарплата»).
+// Зарплаты Директора/Админа сервер скрывает от остальных (salaryHidden:true).
+const EMP_API = '/api/v2/employees';
+const STAFF_HR_ROLES = ['admin','accountant'];
+const STAFF_ROLE_LABEL = { admin:'Админ', director:'Директор', accountant:'Бухгалтер', manager:'Менеджер', master:'Мастер' };
+const STAFF_ROLE_BADGE = { admin:'b-purple', director:'b-purple', accountant:'b-active', manager:'b-active', master:'b-ok' };
+
+let staffList = [];          // сотрудники с окладами за текущий месяц
+let staffAccounts = [];      // счета для списания
+let staffPayUserId = null;   // кого выплачиваем
+let staffHrInited = false;
+
+const staffEsc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const staffFmt = n => (Number(n)||0).toLocaleString('ru-KZ');
+const staffToday = () => new Date().toISOString().slice(0,10);
+function staffCanEdit(){ return STAFF_HR_ROLES.includes(viewRole); }
+function staffRoleBadge(role){ const l=STAFF_ROLE_LABEL[role]||role||'—'; const c=STAFF_ROLE_BADGE[role]||'b-active'; return `<span class="badge ${c}">${staffEsc(l)}</span>`; }
+function staffMonthLabel(m){ const MN=['','январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь']; const [y,mo]=String(m).split('-').map(Number); return `${MN[mo]||''} ${y}`; }
+
+// ── Экран «Зарплата и кадры» ──
+async function staffHrInit(){
+  if(!staffHrInited){
+    try{ const r=await fetch(FINANCE_API); const j=r.ok?await r.json():{}; staffAccounts=Array.isArray(j.accounts)?j.accounts:[]; }catch(e){ staffAccounts=[]; }
+    staffHrInited=true;
+  }
+  const addBtn=document.getElementById('staff-add-btn'); if(addBtn) addBtn.style.display=staffCanEdit()?'':'none';
+  await staffLoad();
+}
+async function staffLoad(){
+  try{
+    const r=await fetch(EMP_API); const j=r.ok?await r.json():{employees:[]};
+    staffList=Array.isArray(j.employees)?j.employees:[];
+    const lbl=document.getElementById('staff-month-label'); if(lbl&&j.month) lbl.textContent=staffMonthLabel(j.month);
+  }catch(e){ staffList=[]; }
+  staffRenderTable();
+}
+function staffRenderTable(){
+  const tb=document.getElementById('staff-hr-tbody'), empty=document.getElementById('staff-hr-empty');
+  const cnt=document.getElementById('staff-hr-count'); if(cnt) cnt.textContent=`Сотрудники (${staffList.length})`;
+  if(!tb) return;
+  if(!staffList.length){ tb.innerHTML=''; if(empty){ empty.style.display='block'; empty.innerHTML= staffCanEdit()? 'Пока нет сотрудников.<br>Нажмите «+ Добавить сотрудника».':'Пока нет сотрудников.'; } return; }
+  if(empty) empty.style.display='none';
+  const canEdit=staffCanEdit();
+  const dots='<span style="color:#9ca3af;letter-spacing:2px;" title="Скрыто">•••</span>';
+  tb.innerHTML=staffList.map(e=>{
+    const hidden=e.salaryHidden;
+    const salary= hidden? dots : staffFmt(e.fixedSalary)+' ₸';
+    const adv= (!hidden && Number(e.advanceIn)>0)? `<div style="font-size:10px;color:#2563eb;">вкл. аванс ${staffFmt(e.advanceIn)} ₸</div>`:'';
+    const paid= hidden? dots : staffFmt(e.paidThisMonth)+' ₸'+adv;
+    const rem= hidden? dots : (Number(e.remaining)>0? `<span style="color:#b45309;font-weight:700;">${staffFmt(e.remaining)} ₸</span>` : '<span style="color:#059669;">✓ выплачен</span>');
+    let actions='<span style="color:#9ca3af;font-size:11px;">—</span>';
+    if(hidden){ actions='<span style="color:#9ca3af;font-size:11px;">скрыто</span>'; }
+    else if(canEdit){
+      actions=`<button class="btn btn-primary btn-sm" style="font-size:11px;" onclick="staffOpenPay('${e.userId}')">Выплатить</button>
+        <button class="act-btn" title="Изменить оклад" onclick="staffOpenEdit('${e.userId}')">✏️</button>
+        <button class="act-btn" title="Убрать из кадров" style="color:#dc2626;" onclick="staffRemove('${e.userId}')">🗑️</button>`;
+    }
+    return `<tr>
+      <td>${staffEsc(e.name)}</td>
+      <td style="font-size:12px;color:#6b7280;">${staffEsc(e.position||'—')}</td>
+      <td>${staffRoleBadge(e.role)}</td>
+      <td style="font-size:12px;">${staffEsc(e.branchName||'—')}</td>
+      <td style="text-align:right;">${salary}</td>
+      <td style="text-align:right;">${paid}</td>
+      <td style="text-align:right;">${rem}</td>
+      <td style="text-align:center;white-space:nowrap;">${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Добавить сотрудника ──
+async function staffOpenAdd(){
+  let cand=[];
+  try{ const r=await fetch(EMP_API+'/candidates'); cand=r.ok?await r.json():[]; }catch(e){ cand=[]; }
+  const sel=document.getElementById('staff-add-user');
+  if(!cand.length){ sel.innerHTML='<option value="">— все пользователи уже добавлены —</option>'; }
+  else sel.innerHTML=cand.map(u=>`<option value="${u.id}">${staffEsc(u.name)}${u.position?' · '+staffEsc(u.position):''}</option>`).join('');
+  document.getElementById('staff-add-salary').value='';
+  document.getElementById('staffAddOverlay').classList.add('open');
+}
+function staffCloseAdd(){ document.getElementById('staffAddOverlay').classList.remove('open'); }
+async function staffSaveAdd(){
+  const userId=document.getElementById('staff-add-user').value;
+  const fixedSalary=Number(document.getElementById('staff-add-salary').value)||0;
+  if(!userId){ showToast('⚠️ Выберите пользователя'); return; }
+  if(!(fixedSalary>0)){ showToast('⚠️ Укажите оклад больше 0'); return; }
+  try{
+    const r=await fetch(EMP_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({userId,fixedSalary})});
+    if(!r.ok){ const er=await r.json().catch(()=>({})); throw new Error(er.error||('HTTP '+r.status)); }
+    staffCloseAdd(); await staffLoad(); showToast('✅ Сотрудник добавлен');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// ── Изменить оклад ──
+function staffOpenEdit(userId){
+  const e=staffList.find(x=>x.userId===userId); if(!e||e.salaryHidden) return;
+  document.getElementById('staff-edit-user').value=userId;
+  document.getElementById('staff-edit-name').textContent=e.name;
+  document.getElementById('staff-edit-salary').value=Number(e.fixedSalary)||0;
+  document.getElementById('staffEditOverlay').classList.add('open');
+}
+function staffCloseEdit(){ document.getElementById('staffEditOverlay').classList.remove('open'); }
+async function staffSaveEdit(){
+  const userId=document.getElementById('staff-edit-user').value;
+  const fixedSalary=Number(document.getElementById('staff-edit-salary').value)||0;
+  if(!(fixedSalary>=0)){ showToast('⚠️ Оклад не может быть отрицательным'); return; }
+  try{
+    const r=await fetch(`${EMP_API}/${userId}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({fixedSalary})});
+    if(!r.ok){ const er=await r.json().catch(()=>({})); throw new Error(er.error||('HTTP '+r.status)); }
+    staffCloseEdit(); await staffLoad(); showToast('✅ Оклад обновлён');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// ── Выплата (с контролем переплаты) ──
+function staffOpenPay(userId){
+  const e=staffList.find(x=>x.userId===userId); if(!e||e.salaryHidden) return;
+  staffPayUserId=userId;
+  const sel=document.getElementById('staff-pay-account');
+  sel.innerHTML='<option value="">— выберите счёт —</option>'+staffAccounts.map(a=>`<option value="${a.id}">${staffEsc(a.name)}</option>`).join('');
+  document.getElementById('staffPayName').textContent=e.name;
+  document.getElementById('staffPayInfo').innerHTML=`Оклад: <strong>${staffFmt(e.fixedSalary)} ₸</strong> · Выплачено: <strong>${staffFmt(e.paidThisMonth)} ₸</strong> · Остаток: <strong style="color:#b45309;">${staffFmt(e.remaining)} ₸</strong>`;
+  document.getElementById('staff-pay-amount').value=Number(e.remaining)>0?e.remaining:'';
+  document.getElementById('staff-pay-date').value=staffToday();
+  sel.value=''; document.getElementById('staff-pay-kind').value='salary';
+  document.getElementById('staff-pay-comment').value='';
+  document.getElementById('staff-pay-confirm-overpay').checked=false;
+  staffPayCheckOverpay();
+  document.getElementById('staffPayOverlay').classList.add('open');
+}
+function staffClosePay(){ document.getElementById('staffPayOverlay').classList.remove('open'); staffPayUserId=null; }
+function staffPayCheckOverpay(){
+  const e=staffList.find(x=>x.userId===staffPayUserId); if(!e) return;
+  const amount=Number(document.getElementById('staff-pay-amount').value)||0;
+  const salary=Number(e.fixedSalary)||0, paid=Number(e.paidThisMonth)||0;
+  const excess=salary>0?Math.max(0,paid+amount-salary):0;
+  const warn=document.getElementById('staff-pay-warn'), wrap=document.getElementById('staff-pay-confirm-wrap');
+  if(excess>0 && salary>0){
+    warn.style.display='block';
+    warn.innerHTML=`⚠️ Оклад за месяц уже выплачен. Превышение <strong>${staffFmt(excess)} ₸</strong> — это деньги следующего месяца (зачтётся авансом).`;
+    wrap.style.display='block';
+  } else {
+    warn.style.display='none'; wrap.style.display='none';
+    document.getElementById('staff-pay-confirm-overpay').checked=false;
+  }
+}
+async function staffSavePay(){
+  const e=staffList.find(x=>x.userId===staffPayUserId); if(!e){ staffClosePay(); return; }
+  const amount=Number(document.getElementById('staff-pay-amount').value)||0;
+  const accountId=document.getElementById('staff-pay-account').value;
+  if(!(amount>0)){ showToast('⚠️ Введите сумму больше 0'); return; }
+  if(!accountId){ showToast('⚠️ Выберите счёт списания'); return; }
+  const salary=Number(e.fixedSalary)||0, paid=Number(e.paidThisMonth)||0;
+  const excess=salary>0?Math.max(0,paid+amount-salary):0;
+  const confirmOverpay=document.getElementById('staff-pay-confirm-overpay').checked;
+  if(excess>0 && !confirmOverpay){ showToast('⚠️ Подтвердите переплату галочкой'); staffPayCheckOverpay(); return; }
+  const payload={
+    amount, accountId,
+    payDate: document.getElementById('staff-pay-date').value||null,
+    kind: document.getElementById('staff-pay-kind').value||'salary',
+    comment: document.getElementById('staff-pay-comment').value.trim()||null,
+    confirmOverpay,
+  };
+  try{
+    const r=await fetch(`${EMP_API}/${staffPayUserId}/payments`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok){ const er=await r.json().catch(()=>({})); throw new Error(er.error||('HTTP '+r.status)); }
+    staffClosePay(); await staffLoad(); showToast('✅ Выплата проведена (Расход в финансах)');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+async function staffRemove(userId){
+  const e=staffList.find(x=>x.userId===userId);
+  if(!confirm(`Убрать «${e?e.name:''}» из кадрового учёта?\nИстория выплат и операции в финансах сохранятся.`)) return;
+  try{
+    const r=await fetch(`${EMP_API}/${userId}`,{method:'DELETE'});
+    if(!r.ok){ const er=await r.json().catch(()=>({})); throw new Error(er.error||('HTTP '+r.status)); }
+    await staffLoad(); showToast('🗑️ Сотрудник убран из кадров');
+  }catch(e){ showToast('⚠️ '+e.message); }
+}
+
+// ── Экран «Руководитель» — директория команды (реальные пользователи) ──
+async function staffMgrInit(){
+  let dir=[];
+  try{ const r=await fetch(EMP_API+'/directory'); dir=r.ok?await r.json():[]; }catch(e){ dir=[]; }
+  const tb=document.getElementById('staff-mgr-tbody'), empty=document.getElementById('staff-mgr-empty');
+  const cnt=document.getElementById('staff-mgr-count'); if(cnt) cnt.textContent=`Сотрудники (${dir.length})`;
+  if(!tb) return;
+  if(!dir.length){ tb.innerHTML=''; if(empty){ empty.style.display='block'; empty.textContent='Нет пользователей.'; } return; }
+  if(empty) empty.style.display='none';
+  tb.innerHTML=dir.map(u=>`<tr>
+    <td>${staffEsc(u.name)}</td>
+    <td style="font-size:12px;color:#6b7280;">${staffEsc(u.position||'—')}</td>
+    <td>${staffRoleBadge(u.role)}</td>
+    <td style="font-size:12px;">${staffEsc(u.branchName||'—')}</td>
+    <td style="font-size:12px;">${staffEsc(u.phone||'—')}</td>
+    <td style="font-size:12px;color:#6b7280;">${staffEsc(u.email||'—')}</td>
+    <td>${u.isActive===false?'<span class="badge b-warn">Неактивен</span>':'<span class="badge b-ok">Активен</span>'}</td>
+  </tr>`).join('');
 }
 
 // ── ЗАДАЧИ ─────────────────────────────────────────────────────

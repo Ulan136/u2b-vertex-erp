@@ -204,6 +204,32 @@ export const expenses = pgTable('expenses', {
   createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── EMPLOYEE SALARY (кадры: оклад сотрудника) ─────────────────
+// Сотрудник = пользователь системы. Оклад держим ОТДЕЛЬНОЙ таблицей (не в users),
+// чтобы доступ к пользователям не раскрывал зарплаты.
+export const employeeSalary = pgTable('employee_salary', {
+  id          : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  userId      : uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
+  fixedSalary : numeric('fixed_salary', { precision: 14, scale: 2 }).default('0'),
+  createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt   : timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// ── SALARY PAYMENTS (выплаты зарплаты/авансов) ────────────────
+// Каждая выплата создаёт РЕАЛЬНУЮ операцию «Расход» в финансах (finance_op_id).
+export const salaryPayments = pgTable('salary_payments', {
+  id          : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  userId      : uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  amount      : numeric('amount', { precision: 14, scale: 2 }).notNull(),
+  accountId   : uuid('account_id').references(() => financeAccounts.id, { onDelete: 'set null' }),
+  financeOpId : uuid('finance_op_id').references(() => financeOperations.id, { onDelete: 'set null' }),
+  payDate     : date('pay_date').default(sql`CURRENT_DATE`),
+  kind        : varchar('kind', { length: 20 }).default('salary'),   // 'salary' | 'advance'
+  comment     : text('comment'),
+  createdBy   : uuid('created_by').references(() => users.id),
+  createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
 // ── FIELD-SERVICE ORDERS (Заявки на выездную поверку) ─────────
 export const orders = pgTable('orders', {
   id        : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),

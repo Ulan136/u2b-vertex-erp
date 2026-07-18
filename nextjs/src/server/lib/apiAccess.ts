@@ -25,6 +25,7 @@ export function financeWriteAllowed(method: string, pathname: string, role?: str
 // API too. null → no specific screen (session-only). Endpoints that serve many
 // screens (certs by direction, finance) stay session-only.
 export function apiScreenFor(method: string, pathname: string, searchParams: URLSearchParams): string | null {
+  if (pathname.startsWith('/api/v2/employees')) return 'staff';   // кадры/зарплата → раздел «Сотрудники»
   if (pathname.startsWith('/api/v2/debts') || pathname.startsWith('/api/v2/debt-payments')) return 'debts';
   if (pathname.startsWith('/api/v2/tasks')) return 'tasks';
   if (pathname.startsWith('/api/v2/clients') || pathname.startsWith('/api/v2/client-categories')) return 'clients';
