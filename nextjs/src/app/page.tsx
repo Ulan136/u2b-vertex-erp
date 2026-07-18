@@ -1,15 +1,12 @@
 import { redirect } from 'next/navigation';
-import { headers } from 'next/headers';
 import { currentUser } from '@/server/lib/session';
-import { landingPath } from '@/server/lib/landing';
-import { isMobileUA } from '@/server/lib/device';
+import { postLoginPath } from '@/server/lib/landing';
 
-// Root: no session → real /login; with session → the role's landing screen.
-//   master → /master, director → /director (телефон) либо ERP (десктоп),
-//   остальные → ERP-оболочка. Middleware также защищает эти маршруты.
+// Root: no session → /login. С сессией → master в свой кабинет, остальные в ERP.
+// Мобильный редирект директора/мастера в кабинет при ЛЮБОМ заходе делает
+// middleware (учитывает выбор «Полная версия ERP»).
 export default async function Home() {
   const user = await currentUser();
   if (!user) redirect('/login');
-  const mobile = isMobileUA(headers().get('user-agent'));
-  redirect(landingPath(user.role, mobile));
+  redirect(postLoginPath(user.role));
 }

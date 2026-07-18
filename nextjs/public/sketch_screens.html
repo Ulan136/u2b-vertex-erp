@@ -864,6 +864,53 @@
   .card, .welcome { border: 1px solid var(--line); border-radius: 12px; }
   .card-title { color: var(--ink); }
 
+  /* ════════════ SIDEBAR: пользователь + выход (всегда слева) ════════════ */
+  .sb-user { display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.06); }
+  .sb-user-main { display:flex; align-items:center; gap:8px; flex:1; min-width:0; }
+  .sb-user-avatar { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,#1a56db,#0ea5e9); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0; }
+  .sb-user-text { min-width:0; }
+  .sb-user-name { font-size:12.5px; font-weight:700; color:#e5edf7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sb-user-role { font-size:10px; color:#94a3b8; }
+  .sb-logout { flex-shrink:0; display:inline-flex; align-items:center; gap:4px; text-decoration:none; font-size:11px; font-weight:700; color:#fca5a5; background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.25); border-radius:8px; padding:7px 9px; white-space:nowrap; }
+  .sb-logout:hover { background:rgba(239,68,68,.2); color:#fff; }
+  .sb-cab { color:#7dd3fc !important; }
+
+  /* topbar helpers */
+  .tb-burger { display:none; background:none; border:none; font-size:22px; line-height:1; cursor:pointer; padding:4px 10px; color:var(--ink2); }
+  .tb-cabinet { display:none; align-items:center; gap:5px; background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; border-radius:8px; padding:6px 10px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+  /* кнопка «Кабинет» в шапке: только у мастера/директора (.role-cab) и только на телефоне */
+  #sb-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:1290; }
+
+  /* ════════════ МОБИЛЬНЫЙ РЕЖИМ (телефоны/планшеты) ════════════ */
+  @media (max-width: 820px) {
+    /* сайдбар — выезжающий слева ящик; открывается «гамбургером», выход всегда внутри */
+    #sidebar { position:fixed; top:0; left:0; height:100vh; width:260px !important; z-index:1300;
+      transform:translateX(-100%); transition:transform .22s ease; box-shadow:4px 0 30px rgba(0,0,0,.5); }
+    #sidebar.mobile-open { transform:translateX(0); }
+    .sb-collapse { display:none !important; }
+    #main { width:100%; }
+    #sb-backdrop.show { display:block; }
+    .tb-burger { display:inline-flex; }
+    .desktop-only { display:none !important; }
+    .mobile-only { display:inline-flex !important; }
+    .tb-cabinet.role-cab { display:inline-flex; }
+    #topbar { padding:0 8px; gap:6px; overflow:hidden; }
+    .tb-left { flex:1 1 auto; min-width:0; overflow:hidden; }
+    .topbar-right-group { gap:6px; flex-shrink:0; }
+    .hide-narrow { display:none; }
+    #breadcrumb { display:block; font-size:12.5px; min-width:0; flex:1 1 auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #breadcrumb strong, #breadcrumb span { display:inline; }
+    /* робот-бар: не растягиваем за край */
+    .robot-bar { flex-wrap:wrap; padding:6px 8px; }
+    .robot-bar .robot-text { font-size:11px; }
+    #robotCurrent { display:none; }
+  }
+  /* На узких телефонах хлебные крошки прячем — их дублирует заголовок экрана,
+     а место нужно шапке (гамбургер + онлайн + колокольчик + кабинет). */
+  @media (max-width: 560px) {
+    #breadcrumb { display:none !important; }
+  }
+
 </style>
 </head>
 <body>
@@ -884,9 +931,27 @@
     <div class="sb-logo-badge">Vertex Metrology · ERP v1.0</div>
   </div>
 
+  <!-- ПОЛЬЗОВАТЕЛЬ + ВЫХОД (всегда доступно слева, даже на телефоне) -->
+  <div class="sb-user">
+    <div class="sb-user-main">
+      <div class="sb-user-avatar" id="sb-me-avatar">—</div>
+      <div class="sb-user-text">
+        <div class="sb-user-name" id="sb-me-name">—</div>
+        <div class="sb-user-role" id="sb-me-role">—</div>
+      </div>
+    </div>
+    <a href="/logout" class="sb-logout" title="Выйти из системы">🚪 Выход</a>
+  </div>
+
   <!-- РАБОЧИЙ СТОЛ -->
   <div class="sb-section">
     <button class="sb-direct active" onclick="go('dashboard','Главная','Рабочий стол',this)">🏠 &nbsp;Рабочий стол</button>
+  </div>
+
+  <!-- Мобильные кабинеты (видимость по роли) -->
+  <div class="sb-section" id="sb-cabinets" style="display:none;">
+    <button class="sb-direct sb-cab" id="sb-cab-master" style="display:none;" onclick="location.href='/master'">📱 &nbsp;Кабинет мастера</button>
+    <button class="sb-direct sb-cab" id="sb-cab-director" style="display:none;" onclick="goMyCabinet('director')">📱 &nbsp;Кабинет директора</button>
   </div>
 
   <!-- ══════════ ЗОНА 1 · ДОХОДЫ (money in) — emerald ══════════ -->
@@ -1103,21 +1168,24 @@
 <!-- MAIN -->
 <div id="main">
   <div id="topbar">
-    <div style="display:flex;align-items:center;gap:0;">
+    <div class="tb-left" style="display:flex;align-items:center;gap:0;">
+      <button class="tb-burger" onclick="toggleMobileSidebar()" title="Меню" aria-label="Меню">☰</button>
       <div id="breadcrumb">
         <strong id="bc-section">Главная</strong>
         <span id="bc-sep" style="display:none"> › </span>
         <span id="bc-page" style="display:none"></span>
       </div>
-      <div class="topbar-brand">
+      <div class="topbar-brand desktop-only">
         <div class="tb-dot"></div>
         <div><strong>U2B-Vertex</strong> &nbsp;/&nbsp; Автоматизация бизнес-процессов</div>
       </div>
     </div>
     <div class="topbar-right-group">
+      <!-- Вернуться в свой кабинет (мастер/директор, на телефоне) -->
+      <button class="tb-cabinet" id="tb-cabinet-btn" onclick="goMyCabinet()">📱 Кабинет</button>
       <!-- Кто онлайн -->
       <div style="position:relative;">
-        <button onclick="toggleOnline(event)" class="btn btn-outline btn-sm" style="font-size:11px;" title="Кто онлайн">🟢 Онлайн: <span id="online-count">0</span></button>
+        <button onclick="toggleOnline(event)" class="btn btn-outline btn-sm" style="font-size:11px;" title="Кто онлайн">🟢 <span class="hide-narrow">Онлайн: </span><span id="online-count">0</span></button>
         <div id="online-panel" style="display:none;position:absolute;right:0;top:34px;width:250px;max-height:360px;overflow-y:auto;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.14);z-index:1200;"></div>
       </div>
       <!-- Уведомления -->
@@ -1125,17 +1193,17 @@
         <button onclick="toggleNotif(event)" class="btn btn-outline btn-sm" style="font-size:15px;position:relative;padding:5px 9px;" title="Уведомления">🔔<span id="notif-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;font-size:9px;font-weight:700;border-radius:9px;min-width:16px;height:16px;line-height:16px;text-align:center;padding:0 3px;">0</span></button>
         <div id="notif-panel" style="display:none;position:absolute;right:0;top:34px;width:330px;max-height:420px;overflow-y:auto;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.14);z-index:1200;"></div>
       </div>
-      <div style="font-size:11px;color:#6b7280;">ТОО «Vertex Metrology»</div>
-      <div class="topbar-user" title="Текущий пользователь">
+      <div class="desktop-only" style="font-size:11px;color:#6b7280;">ТОО «Vertex Metrology»</div>
+      <div class="topbar-user desktop-only" title="Текущий пользователь">
         <div class="topbar-avatar" id="me-avatar">—</div>
         <div style="display:flex;flex-direction:column;line-height:1.15;">
           <span id="me-name" style="font-weight:600;">—</span>
           <span id="me-role" style="font-size:10px;color:#9ca3af;">—</span>
         </div>
       </div>
-      <a href="/logout" class="btn btn-outline btn-sm" style="text-decoration:none;font-size:11px;" title="Выйти из системы">🚪 Выход</a>
     </div>
   </div>
+  <div id="sb-backdrop" onclick="closeMobileSidebar()"></div>
   <!-- ROBOT STATUS BAR -->
   <div class="robot-bar" id="robotBar">
     <div class="robot-dot"></div>
@@ -4365,6 +4433,7 @@ function go(screenId, section, page, el) {
   document.querySelectorAll('.sb-item,.sb-direct').forEach(e=>e.classList.remove('active'));
   if (el) el.classList.add('active');
   document.getElementById('content').scrollTop=0;
+  closeMobileSidebar();   // на телефоне — закрыть выехавшее меню после выбора
   // init renders on first visit
   if (screenId==='cert')      { if(certLoaded['САМИ']){ renderCertStats(certData,'cert-stats'); renderCert(certData,'certBody'); } else certFetch('САМИ'); }
   if (screenId==='notif')     { renderCert(certData,'notif-stats'); renderNotif(notifData,'notifBody'); }
@@ -4424,6 +4493,33 @@ try {
     document.addEventListener('DOMContentLoaded', () => document.getElementById('sidebar').classList.add('collapsed'));
   }
 } catch (e) {}
+
+// ── Мобильное меню (выезжающий слева ящик) ──────────────────────
+function toggleMobileSidebar(){
+  const sb=document.getElementById('sidebar'), bd=document.getElementById('sb-backdrop');
+  const open=!sb.classList.contains('mobile-open');
+  sb.classList.toggle('mobile-open', open);
+  if(bd) bd.classList.toggle('show', open);
+}
+function closeMobileSidebar(){
+  const sb=document.getElementById('sidebar'), bd=document.getElementById('sb-backdrop');
+  sb.classList.remove('mobile-open'); if(bd) bd.classList.remove('show');
+}
+// На узких экранах отключаем «свёрнутый» режим (там меню — ящик на всю ширину).
+function syncMobileSidebar(){
+  if(window.innerWidth<=820){ document.getElementById('sidebar').classList.remove('collapsed'); }
+  else { closeMobileSidebar(); }
+}
+window.addEventListener('resize', syncMobileSidebar);
+document.addEventListener('DOMContentLoaded', syncMobileSidebar);
+
+// Вернуться в свой кабинет (кнопка в шапке / пункт меню). Директор при возврате
+// сбрасывает флаг «Полная версия ERP», чтобы снова открывался /director.
+function goMyCabinet(force){
+  const r = force || viewRole;
+  if(r==='master'){ location.href='/master'; }
+  else if(r==='director'){ document.cookie='erp_full=;path=/;max-age=0'; location.href='/director'; }
+}
 
 // ══════════════════════════════════════════════════════════════
 // РАСХОДЫ — DATA & LOGIC
@@ -5618,10 +5714,28 @@ async function initPermissions(){
   setTxt('me-name', nm);
   setTxt('me-role', ROLE_LABEL(viewRole));
   setTxt('me-avatar', (nm[0]||'—').toUpperCase());
+  // тот же пользователь + выход в боковом меню (всегда доступно, в т.ч. на телефоне)
+  setTxt('sb-me-name', nm);
+  setTxt('sb-me-role', ROLE_LABEL(viewRole));
+  setTxt('sb-me-avatar', (nm[0]||'—').toUpperCase());
+  applyCabinetLinks();
   applyMenuPermissions();
   fillBranchFilters();
   goToStartScreen();
   startRealtimePolling();   // колокольчик + онлайн, поллинг раз в 30 сек
+}
+
+// Пункты «Кабинет мастера/директора» и кнопка в шапке — по роли.
+function applyCabinetLinks(){
+  const isMaster = viewRole==='master' || viewRole==='admin';
+  const isDirector = viewRole==='director' || viewRole==='admin';
+  const show=(id,on)=>{const el=document.getElementById(id); if(el) el.style.display = on ? '' : 'none';};
+  show('sb-cab-master', isMaster);
+  show('sb-cab-director', isDirector);
+  show('sb-cabinets', isMaster || isDirector);
+  // кнопка «Кабинет» в шапке — для мастера и директора (видна только на телефоне)
+  const btn=document.getElementById('tb-cabinet-btn');
+  if(btn){ btn.classList.toggle('role-cab', viewRole==='master'||viewRole==='director'); }
 }
 
 function applyMenuPermissions(){

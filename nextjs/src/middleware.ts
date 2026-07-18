@@ -2,6 +2,8 @@ import NextAuth from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authConfig } from '@/lib/auth.config';
 import { isCabinetPublicApi } from '@/server/lib/apiAccess';
+import { isMobileUA } from '@/server/lib/device';
+import { mobileCabinetRedirect } from '@/server/lib/landing';
 
 const { auth } = NextAuth(authConfig);
 
@@ -60,6 +62,18 @@ export default auth((req) => {
       : (role === 'director' || role === 'admin');
     if (!allowed) return NextResponse.rewrite(new URL('/no_access.html', req.nextUrl));
     return NextResponse.next();
+  }
+
+  // Мобильный редирект в свой кабинет при ЛЮБОМ заходе с телефона на ERP:
+  // мастер → /master; директор → /director, пока сам не выбрал «Полная версия ERP»
+  // (флаг в cookie erp_full, сбрасывается при возврате в кабинет).
+  if (loggedIn && (pathname === '/' || pathname === '/sketch_screens.html')) {
+    const dest = mobileCabinetRedirect({
+      role,
+      mobile: isMobileUA(req.headers.get('user-agent')),
+      fullErp: req.cookies.get('erp_full')?.value === '1',
+    });
+    if (dest) return NextResponse.redirect(new URL(dest, req.nextUrl));
   }
 
   // /sketch/* — архив старых макетов, доступ только Админу
