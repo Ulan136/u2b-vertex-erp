@@ -2878,8 +2878,11 @@
             <div class="field" style="grid-column:1/-1;"><label>ФИО *</label><input id="usr-name" placeholder="Фамилия Имя Отчество"></div>
             <div class="field"><label>Телефон</label><input id="usr-phone" placeholder="+7 700 000 00 00"></div>
             <div class="field"><label>Должность</label><input id="usr-position" placeholder="Напр.: Менеджер"></div>
-            <div class="field" style="grid-column:1/-1;"><label>Роль *</label>
+            <div class="field"><label>Роль *</label>
               <select id="usr-role"></select>
+            </div>
+            <div class="field"><label>🏢 Филиал</label>
+              <select id="usr-branch"></select>
             </div>
             <div style="grid-column:1/-1;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin:6px 0 2px;padding-top:8px;border-top:1px solid #f3f4f6;">🔑 Данные для входа</div>
             <div class="field" style="grid-column:1/-1;"><label>Email (логин) *</label><input id="usr-email" type="email" placeholder="user@vertex.kz"></div>
@@ -3463,11 +3466,14 @@ function ordersScreenHTML(cfg) {
     <div class="tbl-wrap">
       <div class="tbl-header">
         <span class="tbl-title" id="${cfg.countId}">Заказы</span>
-        <div class="btn-row"><button class="btn btn-outline btn-sm" onclick="ordersFetch('${cfg.key}')">🔄 Обновить</button></div>
+        <div class="btn-row">
+          <select id="${cfg.key}-bfilter" onchange="ordersFetch('${cfg.key}')" style="display:none;padding:6px 10px;font-size:12px;border:1px solid #d1d5db;border-radius:8px;background:#fff;color:#111;"><option value="all">🏢 Все филиалы</option></select>
+          <button class="btn btn-outline btn-sm" onclick="ordersFetch('${cfg.key}')">🔄 Обновить</button>
+        </div>
       </div>
       <div style="overflow-x:auto;">
       <table><thead><tr>
-        <th>№ заказа</th><th>Дата</th><th>Телефон / Клиент</th><th>Позиции</th><th>Комментарий</th><th>Статус</th><th style="text-align:center;">Действия</th>
+        <th>№ заказа</th><th>Дата</th><th>🏢 Филиал</th><th>Телефон / Клиент</th><th>Позиции</th><th>Комментарий</th><th>Статус</th><th style="text-align:center;">Действия</th>
       </tr></thead><tbody id="${cfg.bodyId}"></tbody></table>
       </div>
     </div>`;
@@ -3485,13 +3491,15 @@ function orderFromApi(r) {
     id: r.id, no: r.orderNo || '', date: r.orderDate ? String(r.orderDate).slice(0,10).split('-').reverse().join('.') : '',
     addr: r.address || '', phone: r.phone || '', qty: r.qty || 0, water: r.waterType || '',
     clientName: r.clientName || '', positions: Array.isArray(r.positions) ? r.positions : [],
-    comment: r.comment || '', status: r.status || 'В работе',
+    comment: r.comment || '', status: r.status || 'В работе', branchId: r.branchId || null,
   };
 }
 async function ordersFetch(srcKey) {
   const cfg = ORDER_SOURCES[srcKey], st = ordersState[srcKey];
   try {
-    const res = await fetch(`${ORDERS_API}?source=${cfg.key}`, { cache:'no-store' });
+    const bf = document.getElementById(cfg.key+'-bfilter');
+    const branchQ = (bf && bf.style.display!=='none' && bf.value && bf.value!=='all') ? `&branch=${bf.value}` : '';
+    const res = await fetch(`${ORDERS_API}?source=${cfg.key}${branchQ}`, { cache:'no-store' });
     if (!res.ok) throw new Error('HTTP '+res.status);
     const rows = await res.json();
     if (!Array.isArray(rows)) throw new Error('неверный ответ');
@@ -3526,13 +3534,14 @@ function renderOrders(srcKey) {
     return `<tr>
       <td style="font-family:monospace;font-size:11px;">${o.no}</td>
       <td>${o.date}</td>
+      <td style="font-size:11px;color:#6b7280;">${branchName(o.branchId)}</td>
       <td style="font-size:11px;">${o.phone||'—'}${o.clientName?'<br><span style="color:#6b7280;">'+o.clientName+'</span>':''}</td>
       <td style="font-size:11px;">${posHtml}</td>
       <td style="font-size:11px;color:#6b7280;">${o.comment||''}</td>
       <td>${fieldOrderBadge(o.status)}</td>
       <td style="text-align:center;">${action}</td>
     </tr>`;
-  }).join('') : '<tr><td colspan="7" style="text-align:center;padding:20px;color:#9ca3af;">Нет заявок</td></tr>';
+  }).join('') : '<tr><td colspan="8" style="text-align:center;padding:20px;color:#9ca3af;">Нет заявок</td></tr>';
 }
 // ── Модальная форма заявки (создание / редактирование, много позиций) ──
 let orderEditId = null;
@@ -5569,8 +5578,34 @@ function goToStartScreen(){
   go(e[0], e[1], e[2], btn||null);
 }
 
+// ── Филиалы (branches) — для селекта в пользователях и фильтра заявок ──
+const BRANCHES_API = '/api/v2/branches';
+let erpBranches = [];
+async function loadBranches(){
+  try{ const r = await fetch(BRANCHES_API, {cache:'no-store'}); erpBranches = r.ok ? await r.json() : []; }
+  catch(e){ erpBranches = []; }
+}
+function branchName(id){ if(!id) return '—'; const b = erpBranches.find(x=>x.id===id); return b ? b.name : '—'; }
+function branchOptionsHtml(selId, withEmpty){
+  const empty = withEmpty ? `<option value="">— не задан —</option>` : '';
+  return empty + erpBranches.map(b=>`<option value="${b.id}"${b.id===selId?' selected':''}>${taskEsc(b.name)}</option>`).join('');
+}
+// Фильтр «Филиал» на экранах заявок виден только Админу и Директору
+// (остальные видят только свой филиал — это делает сервер).
+function fillBranchFilters(){
+  const priv = viewRole==='admin' || viewRole==='director';
+  ['field_check','tec'].forEach(key=>{
+    const sel = document.getElementById(key+'-bfilter'); if(!sel) return;
+    sel.style.display = priv ? '' : 'none';
+    if(priv && sel.options.length<=1){
+      sel.innerHTML = `<option value="all">🏢 Все филиалы</option>` + erpBranches.map(b=>`<option value="${b.id}">${taskEsc(b.name)}</option>`).join('');
+    }
+  });
+}
+
 async function initPermissions(){
   await loadRolePerms();
+  await loadBranches();
   // текущий пользователь из сессии
   try{
     const r = await fetch(ME_API);
@@ -5584,6 +5619,7 @@ async function initPermissions(){
   setTxt('me-role', ROLE_LABEL(viewRole));
   setTxt('me-avatar', (nm[0]||'—').toUpperCase());
   applyMenuPermissions();
+  fillBranchFilters();
   goToStartScreen();
   startRealtimePolling();   // колокольчик + онлайн, поллинг раз в 30 сек
 }
@@ -5662,7 +5698,7 @@ function usrRenderUsers(){
     return `<tr${u.isActive?'':' style="opacity:.6;"'}>
       <td>${taskEsc(u.name)}${self?' <span style="font-size:10px;color:#9ca3af;">(вы)</span>':''}</td>
       <td style="font-family:monospace;font-size:12px;">${taskEsc(u.phone||'—')}</td>
-      <td style="color:#6b7280;">${taskEsc(u.position||'—')}</td>
+      <td style="color:#6b7280;">${taskEsc(u.position||'—')}${u.branchId?'<br><span style="font-size:10px;color:#9ca3af;">🏢 '+taskEsc(branchName(u.branchId))+'</span>':''}</td>
       <td>${usrRoleBadge(u.role)}</td>
       <td>${statusBadge}</td>
       <td style="text-align:center;white-space:nowrap;">
@@ -5684,6 +5720,8 @@ function usrOpenModal(u){
   document.getElementById('usr-phone').value = u?(u.phone||''):'';
   document.getElementById('usr-position').value = u?(u.position||''):'';
   document.getElementById('usr-role').value = u?(u.role||'manager'):'manager';
+  const bsel=document.getElementById('usr-branch');
+  if(bsel) bsel.innerHTML = branchOptionsHtml(u?(u.branchId||''):'', true);
   document.getElementById('usr-email').value = u?(u.email||''):'';
   document.getElementById('usr-password').value = '';
   document.getElementById('usr-pass-label').textContent = usrEditId ? 'Новый пароль (пусто — без изменений)' : 'Пароль *';
@@ -5706,6 +5744,7 @@ async function usrSave(){
     phone: document.getElementById('usr-phone').value.trim()||null,
     position: document.getElementById('usr-position').value.trim()||null,
     role: document.getElementById('usr-role').value,
+    branchId: document.getElementById('usr-branch').value || null,
     email,
   };
   if(password) payload.password=password;

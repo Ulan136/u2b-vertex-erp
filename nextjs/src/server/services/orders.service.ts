@@ -1,12 +1,14 @@
 import { ordersRepo } from '@/server/repositories/orders.repo';
 import { usersRepo } from '@/server/repositories/users.repo';
+import { branchesRepo } from '@/server/repositories/branches.repo';
 import { notificationsService } from '@/server/services/notifications.service';
 import {
   orderCreateSchema, orderUpdateSchema,
-  nextOrderNoFor, filterOrdersBySource, externalCabinetUrl,
+  nextOrderNoFor, filterOrdersBySource, externalCabinetUrl, scopeOrdersByBranch,
   type OrderSource,
 } from '@/server/dto/orders.dto';
 import { orderRecipients } from '@/server/dto/notifications.dto';
+import type { SessionUser } from '@/server/lib/session';
 import { badRequest, notFound } from '@/server/lib/errors';
 
 // Base cabinet URL: an explicit env override, else the serving origin (which is
@@ -21,17 +23,28 @@ function asSource(v: string | null | undefined): OrderSource | null {
 
 export const ordersService = {
   // No source → all orders (back-compat); source → only that stream.
-  async list(source?: string | null) {
+  // Заявки разделяются по филиалу: Админ/Директор видят все (или branchFilter),
+  // остальные — только свой филиал; заявки без филиала считаются головным.
+  async list(source?: string | null, actor?: SessionUser | null, branchFilter?: string | null) {
     const rows = await ordersRepo.list();
+    const headBranchId = await branchesRepo.headId();
+    const isPriv = actor?.role === 'admin' || actor?.role === 'director';
+    const userBranchId = actor && !isPriv ? await usersRepo.branchOf(actor.id) : null;
+    const scoped = scopeOrdersByBranch(rows, { role: actor?.role, userBranchId, headBranchId, branchFilter });
     const s = asSource(source);
-    return s ? filterOrdersBySource(rows, s) : rows;
+    return s ? filterOrdersBySource(scoped, s) : scoped;
   },
 
-  async create(input: unknown) {
+  async create(input: unknown, actor?: SessionUser | null) {
     const data = orderCreateSchema.parse(input);
     if (!data.orderNo) {
       const nos = (await ordersRepo.listNos()).map(r => r.no);
       data.orderNo = nextOrderNoFor(data.source, nos);
+    }
+    // филиал: из ERP — филиал создателя, из внешнего кабинета — головной (Алматы)
+    if (data.branchId == null) {
+      const fromUser = actor ? await usersRepo.branchOf(actor.id) : null;
+      data.branchId = fromUser ?? await branchesRepo.headId();
     }
     const order = await ordersRepo.create(data);
     // notify managers + admins about the new cabinet order (best-effort)

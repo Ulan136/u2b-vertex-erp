@@ -11,6 +11,7 @@ const mgmtSelection = {
   phone: users.phone,
   position: users.position,
   role: users.role,
+  branchId: users.branchId,
   email: users.email,
   isActive: users.isActive,
 };
@@ -32,6 +33,12 @@ export const usersRepo = {
   async findByEmail(email: string) {
     const [row] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
     return row ?? null;
+  },
+
+  // Филиал пользователя — для scope-фильтрации заявок по филиалу.
+  async branchOf(id: string): Promise<string | null> {
+    const [row] = await db.select({ branchId: users.branchId }).from(users).where(eq(users.id, id)).limit(1);
+    return row?.branchId ?? null;
   },
 
   async countActiveAdmins() {

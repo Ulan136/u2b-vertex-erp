@@ -31,6 +31,7 @@ export const userCreateSchema = z.object({
   phone: z.string().nullish(),
   position: z.string().nullish(),
   role: z.enum(ROLES),
+  branchId: z.string().uuid().nullish(),   // филиал сотрудника
   email: z.string().trim().email('Некорректный email'),   // login
   password: z.string().min(4, 'Пароль минимум 4 символа'), // login
 });
@@ -40,6 +41,7 @@ export const userUpdateSchema = z.object({
   phone: z.string().nullish(),
   position: z.string().nullish(),
   role: z.enum(ROLES).optional(),
+  branchId: z.string().uuid().nullish(),   // филиал сотрудника
   email: z.string().trim().email().optional(),
   password: z.string().min(4).optional(),   // only rehashed when provided
   isActive: z.boolean().optional(),

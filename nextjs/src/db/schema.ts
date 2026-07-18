@@ -28,6 +28,9 @@ export const branches = pgTable('branches', {
   address     : text('address'),
   invoiceType : invoiceTypeEnum('invoice_type').default('Каспи'),
   isActive    : boolean('is_active').default(true),
+  // головной филиал (Алматы): заявки без филиала считаются его; сюда же попадают
+  // заявки из общего внешнего кабинета.
+  isHead      : boolean('is_head').default(false),
   createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
@@ -211,6 +214,9 @@ export const orders = pgTable('orders', {
   positions : jsonb('positions').$type<Array<{ address: string; qty: number; water: string }>>().default([]),
   // фотоотчёт мастера по заявке — массив data-URL строк (сжатые на клиенте)
   photos    : jsonb('photos').$type<string[]>().default([]),
+  // филиал заявки (nullable). NULL = головной (Алматы). Заявки из ERP получают
+  // филиал создателя, из внешнего кабинета — головной.
+  branchId  : uuid('branch_id').references(() => branches.id),
   comment   : text('comment'),
   status    : varchar('status', { length: 20 }).default('В работе'),   // 'В работе' | 'Готова' | 'Отменён'
   // origin channel: 'field_check' (Выездная поверка) | 'tec' (ТЭЦ). Separate order streams + numbering.

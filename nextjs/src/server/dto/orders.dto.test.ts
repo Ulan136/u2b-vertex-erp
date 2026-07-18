@@ -2,7 +2,48 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   orderCreateSchema, nextOrderNoFor, filterOrdersBySource, externalCabinetUrl,
+  orderInBranch, scopeOrdersByBranch,
 } from './orders.dto';
+
+const HEAD = 'head-almaty', AST = 'astana';
+const O = (branchId: string | null) => ({ id: branchId || 'null', branchId });
+const rows = [O(HEAD), O(AST), O(null)];   // Алматы, Астана, без филиала (=Алматы)
+
+// ── заявка без филиала = головной (Алматы) ───────────────────
+test('orderInBranch: NULL филиал считается головным', () => {
+  assert.equal(orderInBranch({ branchId: null }, HEAD, HEAD), true);
+  assert.equal(orderInBranch({ branchId: null }, AST, HEAD), false);
+  assert.equal(orderInBranch({ branchId: AST }, AST, HEAD), true);
+});
+
+// ── админ/директор видят все филиалы ─────────────────────────
+test('scopeOrdersByBranch: admin и director видят всё', () => {
+  assert.equal(scopeOrdersByBranch(rows, { role: 'admin', headBranchId: HEAD }).length, 3);
+  assert.equal(scopeOrdersByBranch(rows, { role: 'director', headBranchId: HEAD }).length, 3);
+});
+
+test('scopeOrdersByBranch: админ может отфильтровать по филиалу', () => {
+  const ast = scopeOrdersByBranch(rows, { role: 'admin', headBranchId: HEAD, branchFilter: AST });
+  assert.deepEqual(ast.map(o => o.branchId), [AST]);
+  const alm = scopeOrdersByBranch(rows, { role: 'admin', headBranchId: HEAD, branchFilter: HEAD });
+  assert.deepEqual(alm.map(o => o.branchId).sort(), [HEAD, null].sort());  // включая заявки без филиала
+});
+
+// ── остальные — только свой филиал ───────────────────────────
+test('scopeOrdersByBranch: менеджер Астаны видит только Астану', () => {
+  const r = scopeOrdersByBranch(rows, { role: 'manager', userBranchId: AST, headBranchId: HEAD });
+  assert.deepEqual(r.map(o => o.branchId), [AST]);
+});
+
+test('scopeOrdersByBranch: сотрудник головного видит Алматы + заявки без филиала', () => {
+  const r = scopeOrdersByBranch(rows, { role: 'master', userBranchId: HEAD, headBranchId: HEAD });
+  assert.deepEqual(r.map(o => o.branchId).sort(), [HEAD, null].sort());
+});
+
+test('scopeOrdersByBranch: без филиала у пользователя → видит всё (правило мастера)', () => {
+  const r = scopeOrdersByBranch(rows, { role: 'master', userBranchId: null, headBranchId: HEAD });
+  assert.equal(r.length, 3);
+});
 
 // ── source assignment (cabinet тэц → source=tec) ─────────────
 test('orderCreateSchema: тэц cabinet payload keeps source=tec', () => {

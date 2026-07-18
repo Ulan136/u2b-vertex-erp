@@ -31,9 +31,11 @@ export function withApi(handler: Handler) {
     try { url = new URL(req.url); path = url.pathname; } catch { /* keep raw url */ }
 
     try {
-      let user: SessionUser | null = null;
+      // Resolve the session user always (even on public cabinet routes) so an
+      // authenticated ERP request that hits a public endpoint (e.g. creating an
+      // order) still carries ctx.user — the cabinet stays usable anonymously.
+      const user: SessionUser | null = await currentUser();
       if (!isCabinetPublicApi(req.method, path)) {
-        user = await currentUser();
         if (!user) return json({ error: 'Требуется вход' }, 401);
         await presenceService.touch(user.id);   // presence (throttled to ≤1 write/min)
         const screen = url ? apiScreenFor(req.method, path, url.searchParams) : null;
@@ -43,6 +45,8 @@ export function withApi(handler: Handler) {
             return json({ error: 'Нет доступа к разделу' }, 403);
           }
         }
+      } else if (user) {
+        await presenceService.touch(user.id);    // ERP user on a public route — keep presence fresh
       }
 
       const result = await handler(req, { ...(ctx ?? {}), user });

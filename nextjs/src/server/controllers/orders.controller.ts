@@ -4,10 +4,14 @@ import { ordersService } from '@/server/services/orders.service';
 
 export const OPTIONS = optionsHandler;
 
-// collection: /api/v2/orders?source=field_check|tec  (no source → all)
-export const GET = withApi(async (req: NextRequest) =>
-  ordersService.list(new URL(req.url).searchParams.get('source')));
-export const POST = withApi(async (req: NextRequest) => created(await ordersService.create(await req.json())));
+// collection: /api/v2/orders?source=field_check|tec&branch=<id|all>  (no source → all)
+// Заявки скоупятся по филиалу вызывающего (Админ/Директор — все или ?branch=…).
+export const GET = withApi(async (req: NextRequest, ctx) => {
+  const sp = new URL(req.url).searchParams;
+  return ordersService.list(sp.get('source'), ctx.user, sp.get('branch'));
+});
+export const POST = withApi(async (req: NextRequest, ctx) =>
+  created(await ordersService.create(await req.json(), ctx.user)));
 
 // item: /api/v2/orders/[id]
 export const PATCH = withApi(async (req: NextRequest, ctx) => ordersService.update(ctx.params!.id, await req.json()));

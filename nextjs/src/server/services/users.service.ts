@@ -17,6 +17,7 @@ export const usersService = {
       phone: normalizePhone(data.phone),
       position: data.position ?? null,
       role: data.role,
+      branchId: data.branchId ?? null,
       email: data.email,
       passwordHash: await bcrypt.hash(data.password, 10),
       isActive: true,
@@ -46,6 +47,7 @@ export const usersService = {
     if (data.phone !== undefined) patch.phone = normalizePhone(data.phone);
     if (data.position !== undefined) patch.position = data.position ?? null;
     if (data.role !== undefined) patch.role = data.role;              // role change applies immediately
+    if (data.branchId !== undefined) patch.branchId = data.branchId ?? null;
     if (data.isActive !== undefined) patch.isActive = data.isActive;
     if (data.email !== undefined && data.email !== existing.email) {
       const dup = await usersRepo.findByEmail(data.email);

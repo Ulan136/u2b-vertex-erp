@@ -29,6 +29,8 @@ export const orderCreateSchema = z.object({
   // фотоотчёт мастера — массив data-URL строк (сжатые изображения). Необязательно
   // и без .default([]), чтобы PATCH без photos не затирал уже загруженные фото.
   photos: z.array(z.string()).optional(),
+  // филиал заявки (nullable). Обычно проставляется сервером (создатель/кабинет).
+  branchId: z.string().uuid().nullish(),
   comment: z.string().nullish(),
   status: z.string().optional().default('В работе'),
   // determined by which external cabinet the order came from; defaults keep the
@@ -67,4 +69,34 @@ export function filterOrdersBySource<T extends { source?: string | null }>(rows:
 export function externalCabinetUrl(base: string, source: OrderSource): string {
   const b = base.replace(/\/+$/, '');
   return source === 'tec' ? `${b}/tec` : b;
+}
+
+// ── Разделение заявок по филиалу (pure, unit-testable) ────────────
+// Заявка без филиала (branchId === null) считается заявкой ГОЛОВНОГО филиала
+// (headBranchId) — так старые заявки остаются у Алматы.
+export function orderInBranch(
+  order: { branchId?: string | null },
+  branchId: string,
+  headBranchId: string | null,
+): boolean {
+  return (order.branchId ?? headBranchId) === branchId;
+}
+
+// Что видит пользователь на экране заявок / в кабинете мастера:
+//   - Админ и Директор — все филиалы (или выбранный branchFilter);
+//   - остальные — только свой филиал (userBranchId);
+//   - если филиал у пользователя не задан — видит всё (правило кабинета мастера).
+export function scopeOrdersByBranch<T extends { branchId?: string | null }>(
+  rows: T[],
+  opts: { role?: string | null; userBranchId?: string | null; headBranchId: string | null; branchFilter?: string | null },
+): T[] {
+  const seesAll = opts.role === 'admin' || opts.role === 'director';
+  if (seesAll) {
+    if (opts.branchFilter && opts.branchFilter !== 'all') {
+      return rows.filter(o => orderInBranch(o, opts.branchFilter as string, opts.headBranchId));
+    }
+    return rows;
+  }
+  if (!opts.userBranchId) return rows;                       // филиал не задан → всё
+  return rows.filter(o => orderInBranch(o, opts.userBranchId as string, opts.headBranchId));
 }
