@@ -90,8 +90,8 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
         </div>
         <div style="display:flex;align-items:center;gap:10px;"><span class="cc-bell-mount"></span><div class="hdr-date" id="d-date">—</div></div>
       </div>
-      <div class="total-card">
-        <div class="lbl">Касса — все счета</div>
+      <div class="total-card" style="cursor:pointer;" onclick="goScr('fin', document.getElementById('nav-fin'))" title="Открыть Финансы">
+        <div class="lbl">Касса — все счета <span style="opacity:.7;">→</span></div>
         <div class="val" id="d-cash">— ₸</div>
         <div class="sub" id="d-cash-sub">Загрузка…</div>
       </div>
@@ -141,24 +141,14 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
     <div id="cc-tasks" style="flex:1;overflow-y:auto;"></div>
   </div>
 
-  <!-- ФИНАНСЫ (счета + добавление операций + история) — реальные данные -->
+  <!-- ФИНАНСЫ — переиспользуемый компонент FinanceView, режим просмотра (read-only) -->
   <div class="scr" id="scr-fin">
     <div style="background:linear-gradient(135deg,#1a56db,#0ea5e9);padding:calc(16px + env(safe-area-inset-top,0px)) 16px 16px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
       <div><div style="font-size:16px;font-weight:800;color:#fff;">Финансы</div>
-      <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:2px;">Счета, операции, история</div></div>
+      <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:2px;">Только просмотр · счета и движения</div></div>
       <span class="cc-bell-mount"></span>
     </div>
-    <div class="content">
-      <button onclick="openFinOp()" style="width:100%;background:linear-gradient(135deg,#1a56db,#0ea5e9);color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(26,86,219,.3);">＋ Добавить операцию</button>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 8px;">
-        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;">🏦 Счета</div>
-        <button onclick="openFinAcct()" style="border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:8px;padding:5px 11px;font-size:12px;font-weight:700;cursor:pointer;">+ Счёт</button>
-      </div>
-      <div id="fin-accts"><div class="empty">Загрузка…</div></div>
-      <div class="sec">💳 История операций</div>
-      <div id="fin-ops"><div class="empty">Загрузка…</div></div>
-      <div style="height:16px;"></div>
-    </div>
+    <div class="content"><div id="fin-root"></div></div>
   </div>
 
   <!-- ПРОФИЛЬ -->
@@ -185,40 +175,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
   </div>
 </div>
 
-<!-- ФИНАНСЫ: лист «Новая операция» -->
-<div class="cc-ov" id="fin-op-sheet" onclick="if(event.target===this)closeFinOp()">
-  <div class="cc-sheet">
-    <div class="cc-sheet-h"><span class="t">💳 Новая операция</span><button class="cc-x" onclick="closeFinOp()">Отмена</button></div>
-    <div class="cc-sheet-b">
-      <div class="cc-fld"><label>Тип</label>
-        <div style="display:flex;gap:6px;">
-          <button type="button" class="op-type on" data-t="Приход" onclick="setOpType(this,'Приход')">＋ Приход</button>
-          <button type="button" class="op-type" data-t="Расход" onclick="setOpType(this,'Расход')">－ Расход</button>
-          <button type="button" class="op-type" data-t="Перевод" onclick="setOpType(this,'Перевод')">⇄ Перевод</button>
-        </div>
-      </div>
-      <div class="cc-fld"><label id="fin-op-acc-lbl">Счёт</label><select class="cc-inp" id="fin-op-acc"></select></div>
-      <div class="cc-fld" id="fin-op-to-wrap" style="display:none;"><label>Куда</label><select class="cc-inp" id="fin-op-to"></select></div>
-      <div class="cc-fld"><label>Сумма ₸</label><input class="cc-inp" id="fin-op-amt" type="number" inputmode="numeric" placeholder="0"></div>
-      <div class="cc-fld"><label>Описание</label><input class="cc-inp" id="fin-op-name" placeholder="Напр.: оплата поверки"></div>
-      <button class="cc-save" onclick="saveOp()">💾 Сохранить операцию</button>
-    </div>
-  </div>
-</div>
-<!-- ФИНАНСЫ: лист «Новый счёт» -->
-<div class="cc-ov" id="fin-acct-sheet" onclick="if(event.target===this)closeFinAcct()">
-  <div class="cc-sheet">
-    <div class="cc-sheet-h"><span class="t">🏦 Новый счёт</span><button class="cc-x" onclick="closeFinAcct()">Отмена</button></div>
-    <div class="cc-sheet-b">
-      <div class="cc-fld"><label>Название</label><input class="cc-inp" id="fin-acc-name" placeholder="Напр.: Каспи Основной"></div>
-      <div class="cc-fld"><label>Категория</label><select class="cc-inp" id="fin-acc-cat"><option value="kaspi">🍊 Kaspi</option><option value="bck">🏦 Банк</option><option value="nalichka">💵 Наличные</option><option value="other" selected>💳 Другое</option></select></div>
-      <div class="cc-fld"><label>Иконка (эмодзи)</label><input class="cc-inp" id="fin-acc-icon" placeholder="🏦" maxlength="4"></div>
-      <div class="cc-fld"><label>Текущий баланс ₸</label><input class="cc-inp" id="fin-acc-bal" type="number" inputmode="numeric" placeholder="0"></div>
-      <button class="cc-save" onclick="saveAcct()">💾 Создать счёт</button>
-    </div>
-  </div>
-</div>
-
+<script src="/finance-view.js"></script>
 <script src="/cabinet-common.js"></script>
 <script>
 const ME_API='/api/v2/me',ORDERS_API='/api/v2/orders',SALES_API='/api/v2/sales',DEBTS_API='/api/v2/debts',FIN_API='/api/v2/finance',PRESENCE_API='/api/v2/presence';
@@ -294,7 +251,7 @@ async function loadDash(){
 
   // Последние операции (на дашборде — 6)
   document.getElementById('d-ops').innerHTML = finOps.length ? finOps.slice(0,6).map(opRow).join('') : '<div class="empty">Нет операций</div>';
-  if(document.getElementById('scr-fin').classList.contains('on')) renderFin();
+  if(document.getElementById('scr-fin').classList.contains('on') && window.FinanceView) FinanceView.load();
 }
 
 // строка операции (приход/расход/перевод)
@@ -304,81 +261,16 @@ function opRow(o){
   return `<div class="op-item"><div class="op-ico ${cls}">${ico}</div><div class="op-info"><div class="op-name">${esc(o.name)}</div><div class="op-meta">${esc(o.accountName||'')} · ${esc((o.opDate||'').slice(0,10))}</div></div><div class="op-amt ${ac}">${sign}${fmt(num(o.amount))}</div></div>`;
 }
 
-// экран «Финансы»: счета (кликабельны — правка баланса) + история операций
-function renderFin(){
-  const acEl=document.getElementById('fin-accts');
-  if(acEl) acEl.innerHTML = finAccts.length ? finAccts.map(a=>`<div class="op-item" style="cursor:pointer;" onclick="editBalance('${a.id}')"><div class="op-ico op-trf" style="font-size:18px;">${esc(a.icon||'🏦')}</div><div class="op-info"><div class="op-name">${esc(a.name)}</div><div class="op-meta">нажмите, чтобы изменить баланс</div></div><div class="op-amt" style="color:#111827;">${fmt(num(a.balance))} ₸</div></div>`).join('') : '<div class="empty">Нет счетов — создайте первый кнопкой «+ Счёт»</div>';
-  const opEl=document.getElementById('fin-ops');
-  if(opEl) opEl.innerHTML = finOps.length ? finOps.map(opRow).join('') : '<div class="empty">Нет операций</div>';
-}
-
-// ── Управление финансами (реальный API, сохраняется в базу) ──
-let opType='Приход';
-function fillAccSelects(){
-  const opts=finAccts.map(a=>`<option value="${a.id}">${esc(a.icon||'🏦')} ${esc(a.name)}</option>`).join('');
-  document.getElementById('fin-op-acc').innerHTML=opts;
-  document.getElementById('fin-op-to').innerHTML=opts;
-}
-function openFinOp(){
-  if(!finAccts.length){ if(confirm('Сначала создайте счёт. Создать сейчас?')) openFinAcct(); return; }
-  opType='Приход';
-  document.querySelectorAll('.op-type').forEach(b=>b.classList.toggle('on',b.dataset.t==='Приход'));
-  document.getElementById('fin-op-to-wrap').style.display='none';
-  document.getElementById('fin-op-acc-lbl').textContent='Счёт';
-  fillAccSelects();
-  document.getElementById('fin-op-amt').value=''; document.getElementById('fin-op-name').value='';
-  document.getElementById('fin-op-sheet').classList.add('open');
-}
-function closeFinOp(){ document.getElementById('fin-op-sheet').classList.remove('open'); }
-function setOpType(btn,t){
-  opType=t;
-  document.querySelectorAll('.op-type').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
-  document.getElementById('fin-op-to-wrap').style.display = t==='Перевод'?'':'none';
-  document.getElementById('fin-op-acc-lbl').textContent = t==='Перевод'?'Откуда':'Счёт';
-}
-async function saveOp(){
-  const amt=Number(document.getElementById('fin-op-amt').value)||0;
-  const acc=document.getElementById('fin-op-acc').value;
-  let name=document.getElementById('fin-op-name').value.trim()||opType;
-  if(amt<=0){ alert('⚠️ Введите сумму'); return; }
-  if(!acc){ alert('⚠️ Выберите счёт'); return; }
-  const body={ opType, accountId:acc, amount:amt, name, opDate:todayStr() };
-  if(opType==='Перевод'){
-    const to=document.getElementById('fin-op-to').value;
-    if(to===acc){ alert('⚠️ Выберите разные счета'); return; }
-    body.toAccountId=to; body.name='Перевод: '+name;
-  }
-  try{
-    const r=await fetch(FIN_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    closeFinOp(); await loadDash(); renderFin();
-  }catch(e){ alert('⚠️ Ошибка: '+e.message); }
-}
-function openFinAcct(){
-  ['fin-acc-name','fin-acc-icon','fin-acc-bal'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('fin-acc-cat').value='other';
-  document.getElementById('fin-acct-sheet').classList.add('open');
-}
-function closeFinAcct(){ document.getElementById('fin-acct-sheet').classList.remove('open'); }
-async function saveAcct(){
-  const name=document.getElementById('fin-acc-name').value.trim();
-  if(!name){ alert('⚠️ Введите название'); return; }
-  const body={ name, category:document.getElementById('fin-acc-cat').value, icon:document.getElementById('fin-acc-icon').value.trim()||null, balance:Number(document.getElementById('fin-acc-bal').value)||0 };
-  try{
-    const r=await fetch(FIN_API+'/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    closeFinAcct(); await loadDash(); renderFin();
-  }catch(e){ alert('⚠️ Ошибка: '+e.message); }
-}
-async function editBalance(id){
-  const a=finAccts.find(x=>x.id===id); if(!a) return;
-  const v=prompt('Баланс счёта «'+a.name+'» ₸:', num(a.balance)); if(v===null) return;
-  const n=Number(v); if(isNaN(n)){ alert('⚠️ Некорректное значение'); return; }
-  try{
-    const r=await fetch(FIN_API+'/accounts/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({balance:n})});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    await loadDash(); renderFin();
-  }catch(e){ alert('⚠️ Ошибка: '+e.message); }
+// экран «Финансы» — только просмотр через переиспользуемый компонент FinanceView
+let finMounted=false;
+function finOpenView(){
+  if(!window.FinanceView) return;
+  if(!finMounted){
+    FinanceView.mount(document.getElementById('fin-root'), { readOnly:true, stack:true,
+      onLoaded:(cash)=>{ const e=document.getElementById('d-cash'); if(e) e.textContent=fmt(cash)+' ₸'; },
+      onError:(err)=>{ /* тихо */ } });
+    finMounted=true;
+  } else FinanceView.load();
 }
 
 function renderUsers(users){
@@ -400,7 +292,7 @@ function goScr(id,el){
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
   document.getElementById('scr-'+id).classList.add('on');el.classList.add('on');
   if(id==='tasks' && window.CabinetCommon) CabinetCommon.renderTasks();
-  if(id==='fin') renderFin();
+  if(id==='fin') finOpenView();
 }
 
 // Вернулся в кабинет — сбрасываем выбор «Полная версия ERP», чтобы при

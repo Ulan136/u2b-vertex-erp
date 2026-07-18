@@ -9,6 +9,18 @@ export function isCabinetPublicApi(method: string, pathname: string): boolean {
   return false;
 }
 
+// Финансы — только чтение для всех, кроме Админа и Бухгалтера. GET открыт всем
+// вошедшим (просмотр); создание/правка операций и счетов — admin/accountant.
+export const FINANCE_WRITE_ROLES = ['admin', 'accountant'];
+export function isFinanceWrite(method: string, pathname: string): boolean {
+  if (method === 'GET' || method === 'OPTIONS') return false;
+  return pathname === '/api/v2/finance' || pathname.startsWith('/api/v2/finance/accounts');
+}
+export function financeWriteAllowed(method: string, pathname: string, role?: string | null): boolean {
+  if (!isFinanceWrite(method, pathname)) return true;               // не запись финансов → не ограничиваем
+  return FINANCE_WRITE_ROLES.includes(role || '');
+}
+
 // Map an API request to a screen_key so the «Доступы» matrix is enforced at the
 // API too. null → no specific screen (session-only). Endpoints that serve many
 // screens (certs by direction, finance) stay session-only.

@@ -19,6 +19,7 @@
     });
   }
 </script>
+<script src="/finance-view.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
 :root{
@@ -1233,36 +1234,11 @@
     <div class="screen" id="s-field-orders"></div>
     <div class="screen" id="s-tec-orders"></div>
 
-    <!-- ══ ФИНАНСЫ — счета по категориям + движения (реальные /api/v2/finance) ══ -->
+    <!-- ══ ФИНАНСЫ — переиспользуемый компонент FinanceView (полный режим) ══ -->
     <div class="screen" id="s-finance">
       <div class="page-title">💳 Финансы</div>
       <div class="page-sub">Счета по категориям · движения · единая касса — баланс считается из операций</div>
-
-      <!-- Фильтры -->
-      <div class="fin-filters">
-        <button class="fin-chip on" data-c="all"    onclick="finSetCat('all')">Все</button>
-        <button class="fin-chip"    data-c="poverka" onclick="finSetCat('poverka')">📋 Поверка</button>
-        <button class="fin-chip"    data-c="sale"    onclick="finSetCat('sale')">💰 Продажа</button>
-        <button class="fin-chip"    data-c="other"   onclick="finSetCat('other')">📄 Прочие</button>
-        <button class="fin-chip"    data-c="branch"  onclick="finSetCat('branch')">🏢 Филиалы</button>
-        <span class="fin-sep"></span>
-        <label>с</label><input type="date" id="fin-d1" onchange="financeLoad()">
-        <label>по</label><input type="date" id="fin-d2" onchange="financeLoad()">
-        <span style="flex:1;"></span>
-        <button class="btn btn-primary btn-sm" onclick="finOpenOp()">＋ Операция</button>
-        <button class="btn btn-outline btn-sm" onclick="finOpenAcct()">+ Счёт</button>
-        <button class="btn btn-outline btn-sm" onclick="finExport()">⬇ Экспорт</button>
-      </div>
-
-      <!-- Сводка -->
-      <div class="fin-summary">
-        <div class="fin-scard"><div class="lbl">💼 Касса — по фильтру</div><div class="val" id="fin-total">0 ₸</div></div>
-        <div class="fin-scard in"><div class="lbl">↓ Приходы за период</div><div class="val" id="fin-sum-inc">0 ₸</div></div>
-        <div class="fin-scard out"><div class="lbl">↑ Расходы за период</div><div class="val" id="fin-sum-exp">0 ₸</div></div>
-      </div>
-
-      <!-- Колонки категорий -->
-      <div class="fin-cols" id="fin-cols"></div>
+      <div id="fin-root"></div>
     </div>
 
     <!-- ══ ДОЛГИ (дебиторка / кредиторка) ══ -->
@@ -5296,82 +5272,25 @@ async function clDeleteCat(id){
   }catch(e){ showToast('⚠️ '+e.message); }
 }
 
-// ── ФИНАНСЫ — счета по категориям + движения (реальные /api/v2/finance) ──
-let finAccts = [], finOps = [], finOpType = 'Приход', finCat = 'all';
+// ── ФИНАНСЫ — компонент FinanceView (полный режим) + формы добавления ──
 const FIN_SECTIONS = { poverka:'📋 Поверка', sale:'💰 Продажа', other:'📄 Прочие', branch:'🏢 Филиалы' };
-const FIN_BANK = { kaspi:'Kaspi Bank', bck:'БЦК', nalichka:'касса', other:'' };
-const finFmt = n => Math.round(Number(n)||0).toLocaleString('ru-RU') + ' ₸';
+let finOpType = 'Приход';
 const finDateStr = () => new Date().toISOString().slice(0,10);
-const finAcctName = id => { const a=finAccts.find(x=>x.id===id); return a?a.name:''; };
-const finSecOf = id => { const a=finAccts.find(x=>x.id===id); return a?(a.section||'other'):'other'; };
-const finCats = () => finCat==='all' ? Object.keys(FIN_SECTIONS) : [finCat];
-const finMovSign = o => o.opType==='Приход' ? 1 : -1;   // Приход +, Расход/Перевод −
-
 function financeInit(){
-  const d1=document.getElementById('fin-d1'), d2=document.getElementById('fin-d2');
-  if(d1 && !d1.value){ const d=new Date(); d.setDate(d.getDate()-60); d1.value=d.toISOString().slice(0,10); }
-  if(d2 && !d2.value){ d2.value=finDateStr(); }
-  financeLoad();
+  if(window.FinanceView) FinanceView.mount(document.getElementById('fin-root'), {
+    readOnly:false, onAddOp:finOpenOp, onAddAcct:finOpenAcct,
+    onError:(e)=>showToast('⚠️ Финансы: '+e.message),
+  });
 }
-async function financeLoad(){
-  const from=(document.getElementById('fin-d1')||{}).value||'', to=(document.getElementById('fin-d2')||{}).value||'';
-  try{
-    const r = await fetch(`${FINANCE_API}?from=${from}&to=${to}`, {cache:'no-store'});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const j = await r.json();
-    finAccts = Array.isArray(j.accounts)?j.accounts:[];
-    finOps   = Array.isArray(j.operations)?j.operations:[];
-  }catch(e){ showToast('⚠️ Финансы: '+e.message); }
-  financeRender();
-}
-function finSetCat(c){
-  finCat=c;
-  document.querySelectorAll('#s-finance .fin-chip').forEach(b=>b.classList.toggle('on', b.dataset.c===c));
-  financeRender();   // категория — клиентский фильтр (период уже загружен)
-}
-function finMovRow(o){
-  const d=(o.opDate||'').slice(0,10), dd=d.slice(8,10)+'.'+d.slice(5,7);
-  const plus=finMovSign(o)>0;
-  const acc=o.accountName||finAcctName(o.accountId);
-  return `<div class="fin-mov"><span class="md">${dd}</span>
-    <span class="mt">${debtEsc(o.name)} · <b>${debtEsc(acc)}</b></span>
-    <span class="ma ${plus?'plus':'minus'}">${plus?'+':'−'}${finFmt(Math.abs(Number(o.amount)||0))}</span></div>`;
-}
-function financeRender(){
-  const cats = finCats();
-  const cols = document.getElementById('fin-cols');
-  if(cols){
-    cols.className = 'fin-cols' + (finCat!=='all' ? ' single' : '');
-    cols.innerHTML = cats.map(c=>{
-      const accs = finAccts.filter(a=>(a.section||'other')===c);
-      const total = accs.reduce((s,a)=>s+(Number(a.balance)||0),0);
-      const movs = finOps.filter(o=>finSecOf(o.accountId)===c).sort((a,b)=>String(b.opDate).localeCompare(String(a.opDate)));
-      return `<div class="fin-col" data-c="${c}">
-        <div class="fin-col-head"><span class="name">${FIN_SECTIONS[c]}</span><span class="total">${finFmt(total)}</span></div>
-        <div class="fin-accs">${accs.length ? accs.map(a=>`
-          <div class="fin-acc"><div><div class="an">${debtEsc(a.icon||'')} ${debtEsc(a.name)}</div><div class="ab">${FIN_BANK[a.category]||''}</div></div>
-          <div class="av">${finFmt(a.balance)}</div></div>`).join('') : '<div class="fin-empty">Нет счетов</div>'}</div>
-        <div class="fin-movs"><div class="mh">Движения за период · ${movs.length}</div>
-          ${movs.length ? movs.map(finMovRow).join('') : '<div class="fin-empty">Нет движений за период</div>'}
-        </div></div>`;
-    }).join('');
-  }
-  // сводка по фильтру
-  const visMovs = finOps.filter(o=>cats.includes(finSecOf(o.accountId)));
-  const visAccs = finAccts.filter(a=>cats.includes(a.section||'other'));
-  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-  set('fin-total', finFmt(visAccs.reduce((s,a)=>s+(Number(a.balance)||0),0)));
-  set('fin-sum-inc', finFmt(visMovs.filter(o=>o.opType==='Приход').reduce((s,o)=>s+(Number(o.amount)||0),0)));
-  set('fin-sum-exp', finFmt(visMovs.filter(o=>o.opType!=='Приход').reduce((s,o)=>s+(Number(o.amount)||0),0)));
-}
-// ── операция (приход / расход / перевод) ──
+function financeReload(){ if(window.FinanceView) FinanceView.load(); }
+function finAccountsList(){ return (window.FinanceView && FinanceView.accounts) || []; }
 function finFillAccSelects(){
-  const opts = finAccts.map(a=>`<option value="${a.id}">${debtEsc(a.icon||'🏦')} ${debtEsc(a.name)} · ${FIN_SECTIONS[a.section||'other'].replace(/^[^ ]+ /,'')}</option>`).join('');
+  const opts = finAccountsList().map(a=>`<option value="${a.id}">${debtEsc(a.icon||'🏦')} ${debtEsc(a.name)} · ${(FIN_SECTIONS[a.section||'other']||'').replace(/^[^ ]+ /,'')}</option>`).join('');
   document.getElementById('finOpAcc').innerHTML = opts;
   document.getElementById('finOpTo').innerHTML = opts;
 }
 function finOpenOp(){
-  if(!finAccts.length){ showToast('⚠️ Сначала создайте счёт'); return; }
+  if(!finAccountsList().length){ showToast('⚠️ Сначала создайте счёт'); return; }
   finOpType='Приход';
   document.querySelectorAll('#finOpModal .fin-tt').forEach(b=>b.classList.toggle('on', b.dataset.t==='Приход'));
   document.getElementById('finOpToWrap').style.display='none';
@@ -5402,14 +5321,13 @@ async function finSaveOp(){
   try{
     const r=await fetch(FINANCE_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     if(!r.ok) throw new Error('HTTP '+r.status);
-    finCloseOp(); await financeLoad(); showToast('✅ Операция сохранена');
+    finCloseOp(); financeReload(); showToast('✅ Операция сохранена');
   }catch(e){ showToast('⚠️ '+e.message); }
 }
-// ── счёт (с категорией) ──
 function finOpenAcct(){
   ['finAccName','finAccIcon','finAccBal'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('finAccCat').value='kaspi';
-  const s=document.getElementById('finAccSection'); if(s) s.value = finCat!=='all'?finCat:'poverka';
+  const s=document.getElementById('finAccSection'); if(s) s.value='poverka';
   document.getElementById('finAcctModal').classList.add('open');
 }
 function finCloseAcct(){ document.getElementById('finAcctModal').classList.remove('open'); }
@@ -5421,22 +5339,8 @@ async function finSaveAcct(){
   try{
     const r=await fetch(FINANCE_API+'/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     if(!r.ok) throw new Error('HTTP '+r.status);
-    finCloseAcct(); await financeLoad(); showToast('✅ Счёт создан');
+    finCloseAcct(); financeReload(); showToast('✅ Счёт создан');
   }catch(e){ showToast('⚠️ '+e.message); }
-}
-// ── экспорт движений за период (CSV → Excel) ──
-function finExport(){
-  const cats=finCats();
-  const movs=finOps.filter(o=>cats.includes(finSecOf(o.accountId))).sort((a,b)=>String(b.opDate).localeCompare(String(a.opDate)));
-  const secN={poverka:'Поверка',sale:'Продажа',other:'Прочие',branch:'Филиалы'};
-  const esc=v=>{ v=String(v==null?'':v); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
-  const lines=[['Дата','Категория','Счёт','Операция','Тип','Сумма'].join(';')];
-  movs.forEach(o=>lines.push([o.opDate, secN[finSecOf(o.accountId)]||'', (o.accountName||finAcctName(o.accountId)), o.name, o.opType, finMovSign(o)*(Number(o.amount)||0)].map(esc).join(';')));
-  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download=`Финансы_${(document.getElementById('fin-d1')||{}).value||''}_${(document.getElementById('fin-d2')||{}).value||''}.csv`;
-  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
-  showToast('⬇ Экспортировано движений: '+movs.length);
 }
 
 // ── ДОЛГИ (дебиторка / кредиторка) ─────────────────────────────
@@ -8093,7 +7997,7 @@ async function finAutoOp(opType, name, account, amount, section, source){
       body: JSON.stringify({ opType, accountId:id, amount, name: name||opType, opDate: finDateStr(), source: source||'ERP' })});
     if(!r.ok) throw new Error('HTTP '+r.status);
     // если открыт экран Финансов — обновим
-    if(document.getElementById('s-finance')?.classList.contains('active') && typeof financeLoad==='function') financeLoad();
+    if(document.getElementById('s-finance')?.classList.contains('active') && typeof financeReload==='function') financeReload();
   }catch(e){ showToast('⚠️ Финансы: '+e.message); }
 }
 // ── ПРИХОД: оплата счёта / сертификата → реальная операция ──────

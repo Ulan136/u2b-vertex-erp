@@ -3,7 +3,7 @@ import { ZodError } from 'zod';
 import { ApiError } from './errors';
 import { CORS_HEADERS } from './cors';
 import { currentUser, type SessionUser } from './session';
-import { isCabinetPublicApi, apiScreenFor } from './apiAccess';
+import { isCabinetPublicApi, apiScreenFor, financeWriteAllowed } from './apiAccess';
 import { permissionsRepo } from '@/server/repositories/permissions.repo';
 import { isScreenAllowed } from '@/server/dto/permissions.dto';
 import { presenceService } from '@/server/services/presence.service';
@@ -38,6 +38,10 @@ export function withApi(handler: Handler) {
       if (!isCabinetPublicApi(req.method, path)) {
         if (!user) return json({ error: 'Требуется вход' }, 401);
         await presenceService.touch(user.id);   // presence (throttled to ≤1 write/min)
+        // Финансы: запись только Админу/Бухгалтеру (Директор и др. — только чтение)
+        if (!financeWriteAllowed(req.method, path, user.role)) {
+          return json({ error: 'Финансы: только просмотр для вашей роли' }, 403);
+        }
         const screen = url ? apiScreenFor(req.method, path, url.searchParams) : null;
         if (screen) {
           const perms = await permissionsRepo.list();

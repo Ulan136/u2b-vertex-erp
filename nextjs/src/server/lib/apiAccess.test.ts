@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isCabinetPublicApi, apiScreenFor } from './apiAccess';
+import { isCabinetPublicApi, apiScreenFor, isFinanceWrite, financeWriteAllowed } from './apiAccess';
 
 const sp = (q = '') => new URLSearchParams(q);
 
@@ -50,4 +50,25 @@ test('apiScreenFor: multi-purpose endpoints are session-only (no screen)', () =>
   assert.equal(apiScreenFor('GET', '/api/v2/me', sp()), null);
   assert.equal(apiScreenFor('PATCH', '/api/v2/orders/abc', sp()), null);
   assert.equal(apiScreenFor('PATCH', '/api/v2/certs/abc', sp()), null); // cert edit → session-only
+});
+
+// ── финансы: чтение всем, запись только admin/accountant ─────
+test('isFinanceWrite: только мутации финансов', () => {
+  assert.equal(isFinanceWrite('GET', '/api/v2/finance'), false);
+  assert.equal(isFinanceWrite('POST', '/api/v2/finance'), true);
+  assert.equal(isFinanceWrite('POST', '/api/v2/finance/accounts'), true);
+  assert.equal(isFinanceWrite('PATCH', '/api/v2/finance/accounts/abc'), true);
+  assert.equal(isFinanceWrite('GET', '/api/v2/debts'), false);
+});
+test('financeWriteAllowed: директор — только чтение; админ/бухгалтер — полный', () => {
+  // GET разрешён всем
+  assert.equal(financeWriteAllowed('GET', '/api/v2/finance', 'director'), true);
+  // запись
+  assert.equal(financeWriteAllowed('POST', '/api/v2/finance', 'admin'), true);
+  assert.equal(financeWriteAllowed('POST', '/api/v2/finance', 'accountant'), true);
+  assert.equal(financeWriteAllowed('POST', '/api/v2/finance', 'director'), false);
+  assert.equal(financeWriteAllowed('POST', '/api/v2/finance', 'manager'), false);
+  assert.equal(financeWriteAllowed('PATCH', '/api/v2/finance/accounts/x', 'director'), false);
+  // не финансовые записи не ограничиваем этим правилом
+  assert.equal(financeWriteAllowed('POST', '/api/v2/tasks', 'director'), true);
 });

@@ -37,6 +37,7 @@ export default auth((req) => {
     pathname === '/manifest.json' ||
     pathname === '/sw.js' ||
     pathname === '/cabinet-common.js' ||
+    pathname === '/finance-view.js' ||
     pathname.endsWith('.webmanifest') ||
     pathname.startsWith('/icons/');
 
