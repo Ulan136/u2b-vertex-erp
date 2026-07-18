@@ -18,7 +18,13 @@ export function apiScreenFor(method: string, pathname: string, searchParams: URL
   if (pathname.startsWith('/api/v2/clients') || pathname.startsWith('/api/v2/client-categories')) return 'clients';
   if (pathname.startsWith('/api/v2/sales')) return 'sales';
   if (pathname.startsWith('/api/v2/products')) return 'warehouse';
-  if (pathname.startsWith('/api/v2/users') || pathname.startsWith('/api/v2/role-permissions')) return 'settings';
+  if (pathname.startsWith('/api/v2/role-permissions')) return 'settings';
+  if (pathname === '/api/v2/users') {
+    // GET активного списка (пикер исполнителей для задач) — доступен любому
+    // вошедшему; полный список (?all) и создание — только «Настройки».
+    return (method === 'GET' && !searchParams.get('all')) ? null : 'settings';
+  }
+  if (pathname.startsWith('/api/v2/users/')) return 'settings';   // правка/деактивация — «Настройки»
   if (pathname === '/api/v2/orders' && method === 'GET') {
     return searchParams.get('source') === 'tec' ? 'orders_tec' : 'orders_field';
   }

@@ -22,17 +22,15 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 :root{--bg:#f5f6fa;--card:#fff;--border:#e5e7eb;--blue:#1a56db;--blue2:#0ea5e9;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--purple:#8b5cf6;--text:#111827;--muted:#6b7280;--muted2:#9ca3af;}
 html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;}
-.frame{width:390px;height:844px;margin:16px auto;background:var(--bg);border-radius:44px;box-shadow:0 0 0 8px #1a1a2e,0 0 0 10px #2a2a3e,0 30px 80px rgba(0,0,0,.4);overflow:hidden;display:flex;flex-direction:column;}
-@media(max-width:430px){.frame{width:100%;height:100vh;border-radius:0;box-shadow:none;margin:0;}body{background:#fff;}}
-.sb{height:44px;background:#1a56db;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
-.sb-time{font-size:15px;font-weight:700;color:#fff;}.sb-right{display:flex;gap:6px;color:#fff;font-size:13px;}
+/* Реальный экран телефона: во всю ширину, без рамки-макета и фейкового статус-бара */
+.frame{width:100%;max-width:600px;height:100dvh;margin:0 auto;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;}
 .nav{background:#fff;border-top:1px solid var(--border);display:flex;padding:6px 0;flex-shrink:0;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));}
 .ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:4px 0;}
 .ni-ico{font-size:22px;transition:transform .15s;}
 .ni-lbl{font-size:9px;color:var(--muted2);font-weight:600;text-transform:uppercase;letter-spacing:.3px;}
 .ni.on .ni-lbl{color:var(--blue);font-weight:700;}.ni.on .ni-ico{transform:scale(1.1);}
 .scr{display:none;flex:1;overflow-y:auto;flex-direction:column;}.scr.on{display:flex;}
-.hdr-strip{background:linear-gradient(135deg,#1a56db,#0ea5e9);padding:16px;flex-shrink:0;}
+.hdr-strip{background:linear-gradient(135deg,#1a56db,#0ea5e9);padding:calc(16px + env(safe-area-inset-top,0px)) 16px 16px;flex-shrink:0;}
 .hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
 .hdr-user{display:flex;align-items:center;gap:10px;}
 .hdr-avatar{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;border:2px solid rgba(255,255,255,.4);}
@@ -68,7 +66,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
 .usr-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
 .usr-info{flex:1;min-width:0;}.usr-name{font-size:13px;font-weight:700;}
 .usr-meta{font-size:10px;color:var(--muted);margin-top:1px;}
-.prof-header{background:linear-gradient(135deg,#1a56db,#0ea5e9);padding:24px 16px 20px;text-align:center;flex-shrink:0;}
+.prof-header{background:linear-gradient(135deg,#1a56db,#0ea5e9);padding:calc(24px + env(safe-area-inset-top,0px)) 16px 20px;text-align:center;flex-shrink:0;}
 .prof-avatar{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;border:3px solid rgba(255,255,255,.4);margin:0 auto 12px;}
 .prof-name{font-size:18px;font-weight:800;color:#fff;}.prof-role{font-size:12px;color:rgba(255,255,255,.75);margin-top:3px;}
 .act{display:block;padding:14px;border-radius:12px;font-size:14px;font-weight:800;text-align:center;text-decoration:none;color:#fff;margin-top:10px;}
@@ -79,7 +77,6 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
 </head>
 <body>
 <div class="frame">
-  <div class="sb"><div class="sb-time" id="clock">9:41</div><div class="sb-right"><span>📶</span><span>🔋</span></div></div>
 
   <!-- ГЛАВНАЯ -->
   <div class="scr on" id="scr-dash">
@@ -89,7 +86,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
           <div class="hdr-avatar" id="d-avatar">—</div>
           <div><div class="hdr-name" id="d-name">—</div><div class="hdr-role">👑 Директор · Vertex Metrology</div></div>
         </div>
-        <div class="hdr-date" id="d-date">—</div>
+        <div style="display:flex;align-items:center;gap:10px;"><span class="cc-bell-mount"></span><div class="hdr-date" id="d-date">—</div></div>
       </div>
       <div class="total-card">
         <div class="lbl">Касса — все счета</div>
@@ -125,11 +122,21 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
 
   <!-- ОНЛАЙН -->
   <div class="scr" id="scr-online">
-    <div style="background:linear-gradient(135deg,#1a56db,#0ea5e9);padding:16px;flex-shrink:0;">
-      <div style="font-size:16px;font-weight:800;color:#fff;">Сотрудники</div>
-      <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:2px;"><span id="online-count-2">0</span> онлайн</div>
+    <div style="background:linear-gradient(135deg,#1a56db,#0ea5e9);padding:calc(16px + env(safe-area-inset-top,0px)) 16px 16px;flex-shrink:0;display:flex;align-items:flex-start;justify-content:space-between;">
+      <div><div style="font-size:16px;font-weight:800;color:#fff;">Сотрудники</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:2px;"><span id="online-count-2">0</span> онлайн</div></div>
+      <span class="cc-bell-mount"></span>
     </div>
     <div class="content"><div id="online-full"></div><div style="height:16px;"></div></div>
+  </div>
+
+  <!-- ЗАДАЧИ -->
+  <div class="scr" id="scr-tasks">
+    <div style="background:linear-gradient(135deg,#1a56db,#0ea5e9);padding:calc(16px + env(safe-area-inset-top,0px)) 16px 16px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+      <div style="font-size:16px;font-weight:800;color:#fff;">Задачи</div>
+      <span class="cc-bell-mount"></span>
+    </div>
+    <div id="cc-tasks" style="flex:1;overflow-y:auto;"></div>
   </div>
 
   <!-- ПРОФИЛЬ -->
@@ -149,18 +156,18 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
 
   <div class="nav">
     <div class="ni on" id="nav-dash" onclick="goScr('dash',this)"><div class="ni-ico">🏠</div><div class="ni-lbl">Главная</div></div>
+    <div class="ni" id="nav-tasks" onclick="goScr('tasks',this)"><div class="ni-ico" style="position:relative;">✅<span class="cc-nav-badge" id="cc-tasks-badge" style="display:none;">0</span></div><div class="ni-lbl">Задачи</div></div>
     <div class="ni" id="nav-online" onclick="goScr('online',this)"><div class="ni-ico">🟢</div><div class="ni-lbl">Онлайн</div></div>
     <div class="ni" id="nav-prof" onclick="goScr('prof',this)"><div class="ni-ico">👤</div><div class="ni-lbl">Профиль</div></div>
   </div>
 </div>
 
+<script src="/cabinet-common.js"></script>
 <script>
 const ME_API='/api/v2/me',ORDERS_API='/api/v2/orders',SALES_API='/api/v2/sales',DEBTS_API='/api/v2/debts',FIN_API='/api/v2/finance',PRESENCE_API='/api/v2/presence';
 const ROLE_LABEL={admin:'Администратор',director:'Директор',accountant:'Бухгалтер',manager:'Менеджер',master:'Мастер'};
 let me=null;
 
-function clock(){const n=new Date();document.getElementById('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
-clock();setInterval(clock,30000);
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function num(v){const n=Number(v);return isNaN(n)?0:n;}
 function fmt(n){return Math.round(Math.abs(n||0)).toLocaleString('ru-KZ');}
@@ -254,6 +261,7 @@ function goScr(id,el){
   document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
   document.getElementById('scr-'+id).classList.add('on');el.classList.add('on');
+  if(id==='tasks' && window.CabinetCommon) CabinetCommon.renderTasks();
 }
 
 // Вернулся в кабинет — сбрасываем выбор «Полная версия ERP», чтобы при
@@ -264,6 +272,8 @@ document.cookie='erp_full=;path=/;max-age=0';
   await loadMe();
   try{await loadDash();}catch(e){}
   setInterval(()=>{loadDash().catch(()=>{});},60000);
+  // Общий модуль: колокольчик + экран «Задачи» + комментарии
+  if(window.CabinetCommon) CabinetCommon.init({ me, onOpenTasks:()=>goScr('tasks', document.getElementById('nav-tasks')) });
 })();
 </script>
 </body>

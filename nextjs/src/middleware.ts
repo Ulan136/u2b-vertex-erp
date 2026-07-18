@@ -36,6 +36,7 @@ export default auth((req) => {
   const publicAsset =
     pathname === '/manifest.json' ||
     pathname === '/sw.js' ||
+    pathname === '/cabinet-common.js' ||
     pathname.endsWith('.webmanifest') ||
     pathname.startsWith('/icons/');
 

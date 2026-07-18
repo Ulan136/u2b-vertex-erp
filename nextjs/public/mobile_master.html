@@ -26,12 +26,8 @@
   --safe-bottom:env(safe-area-inset-bottom,0px);
 }
 html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);font-size:14px;overflow:hidden;}
-.phone-frame{width:390px;height:844px;margin:20px auto;background:var(--bg);border-radius:44px;
-  box-shadow:0 0 0 8px #1a1a2e,0 0 0 10px #2a2a3e,0 30px 80px rgba(0,0,0,.4);overflow:hidden;display:flex;flex-direction:column;position:relative;}
-@media(max-width:430px){.phone-frame{width:100%;height:100vh;border-radius:0;box-shadow:none;margin:0;}body{background:#fff;}}
-.status-bar{height:44px;background:#0f172a;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;}
-.sb-time{font-size:15px;font-weight:600;color:#fff;}
-.sb-icons{display:flex;align-items:center;gap:5px;color:#fff;font-size:12px;}
+/* Реальный экран телефона: во всю ширину, без рамки-макета и фейкового статус-бара */
+.phone-frame{width:100%;max-width:600px;height:100dvh;margin:0 auto;background:var(--bg);overflow:hidden;display:flex;flex-direction:column;position:relative;}
 .nav-bar{background:#fff;border-top:1px solid var(--border);display:flex;padding:6px 0;flex-shrink:0;padding-bottom:calc(6px + var(--safe-bottom));}
 .nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;transition:all .15s;padding:4px 0;}
 .nav-icon{font-size:22px;transition:transform .15s;position:relative;}
@@ -41,7 +37,8 @@ html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:
 .nav-badge{position:absolute;top:-6px;right:-10px;background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;line-height:16px;border-radius:8px;text-align:center;padding:0 3px;}
 .screen{display:none;flex:1;overflow-y:auto;flex-direction:column;}
 .screen.active{display:flex;}
-.app-header{background:#fff;padding:14px 16px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:sticky;top:0;z-index:10;}
+.app-header{background:#fff;padding:calc(14px + env(safe-area-inset-top,0px)) 16px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;position:sticky;top:0;z-index:10;}
+.ah-right{display:flex;align-items:center;gap:10px;}
 .ah-title{font-size:17px;font-weight:800;color:var(--text);}
 .ah-sub{font-size:11px;color:var(--muted);margin-top:1px;}
 .avatar-sm{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1a56db,#0ea5e9);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;}
@@ -105,10 +102,6 @@ html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:
 </head>
 <body>
 <div class="phone-frame">
-  <div class="status-bar">
-    <div class="sb-time" id="clock">9:41</div>
-    <div class="sb-icons"><span>📶</span><span>🔋</span></div>
-  </div>
 
   <!-- ЗАЯВКИ -->
   <div class="screen active" id="screen-orders">
@@ -117,7 +110,7 @@ html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:
         <div class="ah-title">Заявки — выезд</div>
         <div class="ah-sub" id="hdr-sub">Загрузка…</div>
       </div>
-      <div class="avatar-sm" id="hdr-avatar">—</div>
+      <div class="ah-right"><span class="cc-bell-mount"></span><div class="avatar-sm" id="hdr-avatar">—</div></div>
     </div>
     <div class="filter-row">
       <div class="fchip on" id="f-today" onclick="setFilter('today')">Сегодня</div>
@@ -130,19 +123,25 @@ html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:
 
   <!-- ИСТОРИЯ -->
   <div class="screen" id="screen-history">
-    <div class="app-header"><div><div class="ah-title">История</div><div class="ah-sub">Выполненные заявки</div></div></div>
+    <div class="app-header"><div><div class="ah-title">История</div><div class="ah-sub">Выполненные заявки</div></div><div class="ah-right"><span class="cc-bell-mount"></span></div></div>
     <div id="history-list" style="flex:1;"></div>
     <div style="height:16px;"></div>
   </div>
 
+  <!-- ЗАДАЧИ -->
+  <div class="screen" id="screen-tasks">
+    <div class="app-header"><div class="ah-title">Задачи</div><div class="ah-right"><span class="cc-bell-mount"></span></div></div>
+    <div id="cc-tasks" style="flex:1;overflow-y:auto;"></div>
+  </div>
+
   <!-- ПРОФИЛЬ -->
   <div class="screen" id="screen-profile">
-    <div class="app-header"><div class="ah-title">Профиль</div></div>
+    <div class="app-header"><div class="ah-title">Профиль</div><div class="ah-right"><span class="cc-bell-mount"></span></div></div>
     <div style="padding:20px 14px;display:flex;flex-direction:column;align-items:center;gap:10px;">
       <div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#059669,#06b6d4);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;" id="pf-avatar">—</div>
       <div style="text-align:center;">
         <div style="font-size:18px;font-weight:800;" id="pf-name">—</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px;">🚗 Выездной мастер</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;" id="pf-sub">🚗 Мастер</div>
       </div>
       <div style="background:#d1fae5;color:#065f46;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;">● Онлайн</div>
     </div>
@@ -161,6 +160,7 @@ html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:
   <div class="nav-bar">
     <div class="nav-item active" id="nav-orders" onclick="goScreen('orders')">
       <div class="nav-icon">📥<span class="nav-badge" id="nav-orders-badge" style="display:none;">0</span></div><div class="nav-label">Заявки</div></div>
+    <div class="nav-item" id="nav-tasks" onclick="goScreen('tasks')"><div class="nav-icon">✅<span class="nav-badge" id="cc-tasks-badge" style="display:none;">0</span></div><div class="nav-label">Задачи</div></div>
     <div class="nav-item" id="nav-history" onclick="goScreen('history')"><div class="nav-icon">🗂</div><div class="nav-label">История</div></div>
     <div class="nav-item" id="nav-profile" onclick="goScreen('profile')"><div class="nav-icon">👤</div><div class="nav-label">Профиль</div></div>
   </div>
@@ -189,12 +189,12 @@ html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:
 
 <div class="toast" id="toast"></div>
 
+<script src="/cabinet-common.js"></script>
 <script>
 const ORDERS_API='/api/v2/orders', COMMENTS_API='/api/v2/comments', ME_API='/api/v2/me';
 let me=null, orders=[], filter='today', commentCounts={}, activeOrderId=null;
 
-function clock(){const n=new Date();document.getElementById('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
-clock();setInterval(clock,30000);
+const ROLE_LABEL={admin:'Администратор',director:'Директор',accountant:'Бухгалтер',manager:'Менеджер',master:'Мастер'};
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2500);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 
@@ -216,6 +216,7 @@ async function loadMe(){
   document.getElementById('hdr-avatar').textContent=ini;
   document.getElementById('pf-avatar').textContent=ini;
   document.getElementById('pf-name').textContent=nm;
+  const sub=document.getElementById('pf-sub'); if(sub) sub.textContent='🚗 '+(ROLE_LABEL[me&&me.role]||'Мастер');
 }
 
 async function loadCounts(){
@@ -368,6 +369,7 @@ function goScreen(id){
   document.getElementById('screen-'+id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('nav-'+id).classList.add('active');
+  if(id==='tasks' && window.CabinetCommon) CabinetCommon.renderTasks();
 }
 
 // ── INIT ──────────────────────────────────────────────────────
@@ -376,6 +378,8 @@ function goScreen(id){
   document.getElementById('hdr-sub').textContent=(me&&me.name?me.name:'Мастер')+' · '+new Date().toLocaleDateString('ru-KZ');
   await loadOrders();
   setInterval(loadOrders,60000);
+  // Общий модуль: колокольчик + экран «Задачи» + комментарии
+  if(window.CabinetCommon) CabinetCommon.init({ me, onOpenTasks:()=>goScreen('tasks') });
 })();
 </script>
 </body>

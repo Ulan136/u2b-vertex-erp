@@ -26,8 +26,13 @@ test('apiScreenFor: resource endpoints map to their screen', () => {
   assert.equal(apiScreenFor('GET', '/api/v2/client-categories', sp()), 'clients');
   assert.equal(apiScreenFor('GET', '/api/v2/sales', sp()), 'sales');
   assert.equal(apiScreenFor('POST', '/api/v2/products', sp()), 'warehouse');
-  assert.equal(apiScreenFor('GET', '/api/v2/users', sp()), 'settings');
   assert.equal(apiScreenFor('POST', '/api/v2/role-permissions', sp()), 'settings');
+});
+test('apiScreenFor: users picker vs management', () => {
+  assert.equal(apiScreenFor('GET', '/api/v2/users', sp()), null);              // пикер исполнителей — любой вошедший
+  assert.equal(apiScreenFor('GET', '/api/v2/users', sp('all=1')), 'settings'); // полный список
+  assert.equal(apiScreenFor('POST', '/api/v2/users', sp()), 'settings');       // создание
+  assert.equal(apiScreenFor('PATCH', '/api/v2/users/abc', sp()), 'settings');  // правка
 });
 test('apiScreenFor: orders list maps by source', () => {
   assert.equal(apiScreenFor('GET', '/api/v2/orders', sp('source=field_check')), 'orders_field');
