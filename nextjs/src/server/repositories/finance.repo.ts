@@ -1,16 +1,29 @@
 import { db } from '@/db';
 import { financeAccounts, financeOperations } from '@/db/schema';
-import { asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
 
 type OpInsert = typeof financeOperations.$inferInsert;
 type AccInsert = typeof financeAccounts.$inferInsert;
 
 export const financeRepo = {
-  async overview() {
-    const [accounts, operations] = await Promise.all([
-      db.select().from(financeAccounts).orderBy(asc(financeAccounts.sortOrder), asc(financeAccounts.name)),
-      db.select().from(financeOperations).orderBy(desc(financeOperations.createdAt)).limit(50),
-    ]);
+  // Счета + операции. С периодом [from,to] возвращаются все операции за период
+  // (по opDate); без периода — последние 50 (для дашборда).
+  async overview(from?: string | null, to?: string | null) {
+    const accounts = await db.select().from(financeAccounts)
+      .orderBy(asc(financeAccounts.sortOrder), asc(financeAccounts.name));
+
+    let operations;
+    if (from || to) {
+      const conds = [];
+      if (from) conds.push(gte(financeOperations.opDate, from));
+      if (to) conds.push(lte(financeOperations.opDate, to));
+      operations = await db.select().from(financeOperations)
+        .where(and(...conds))
+        .orderBy(desc(financeOperations.opDate), desc(financeOperations.createdAt));
+    } else {
+      operations = await db.select().from(financeOperations)
+        .orderBy(desc(financeOperations.createdAt)).limit(50);
+    }
     return { accounts, operations };
   },
 

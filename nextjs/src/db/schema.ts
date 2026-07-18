@@ -14,6 +14,8 @@ export const certSourceEnum  = pgEnum('cert_source',      ['САМИ','ВДК','
 export const stockMoveEnum   = pgEnum('stock_move_type',  ['IN','OUT','REV+','REV-']);
 export const financeOpEnum   = pgEnum('finance_op_type',  ['Приход','Расход','Перевод']);
 export const accountCatEnum  = pgEnum('account_category', ['kaspi','bck','nalichka','other']);
+// Раздел счёта (колонки экрана «Финансы»): Поверка / Продажа / Прочие / Филиалы.
+export const financeSectionEnum = pgEnum('finance_section', ['poverka','sale','other','branch']);
 export const orderSourceEnum = pgEnum('order_source',     ['field_check','tec']);
 export const debtTypeEnum    = pgEnum('debt_type',        ['debit','credit']);   // debit = нам должны, credit = мы должны
 export const debtStatusEnum  = pgEnum('debt_status',      ['open','partial','closed']);
@@ -149,8 +151,10 @@ export const sales = pgTable('sales', {
 // ── FINANCE ACCOUNTS ──────────────────────────────────────────
 export const financeAccounts = pgTable('finance_accounts', {
   id        : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
-  name      : varchar('name', { length: 100 }).notNull().unique(),
-  category  : accountCatEnum('category').default('kaspi'),
+  // name не уникален глобально: один банк (Каспи) может быть в разных разделах
+  name      : varchar('name', { length: 100 }).notNull(),
+  category  : accountCatEnum('category').default('kaspi'),       // банк: kaspi/bck/nalichka/other
+  section   : financeSectionEnum('section').default('other'),    // раздел: poverka/sale/other/branch
   icon      : varchar('icon', { length: 10 }).default('💳'),
   balance   : numeric('balance', { precision: 14, scale: 2 }).default('0'),
   isActive  : boolean('is_active').default(true),

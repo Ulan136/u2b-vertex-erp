@@ -1233,40 +1233,36 @@
     <div class="screen" id="s-field-orders"></div>
     <div class="screen" id="s-tec-orders"></div>
 
-    <!-- ══ ФИНАНСЫ (счета + операции, реальные данные /api/v2/finance) ══ -->
+    <!-- ══ ФИНАНСЫ — счета по категориям + движения (реальные /api/v2/finance) ══ -->
     <div class="screen" id="s-finance">
       <div class="page-title">💳 Финансы</div>
-      <div class="page-sub">Счета и операции · приход / расход / перевод · сохраняется в общую базу</div>
+      <div class="page-sub">Счета по категориям · движения · единая касса — баланс считается из операций</div>
 
-      <!-- SUMMARY -->
-      <div class="stat-row">
-        <div class="stat-card"><div class="stat-label">💰 Касса — все счета</div><div class="stat-val" id="fin-total">0 ₸</div></div>
-        <div class="stat-card ok"><div class="stat-label">📥 Приходы (последние 50)</div><div class="stat-val" id="fin-sum-inc">0 ₸</div></div>
-        <div class="stat-card blue"><div class="stat-label">📤 Расходы (последние 50)</div><div class="stat-val" id="fin-sum-exp">0 ₸</div></div>
+      <!-- Фильтры -->
+      <div class="fin-filters">
+        <button class="fin-chip on" data-c="all"    onclick="finSetCat('all')">Все</button>
+        <button class="fin-chip"    data-c="poverka" onclick="finSetCat('poverka')">📋 Поверка</button>
+        <button class="fin-chip"    data-c="sale"    onclick="finSetCat('sale')">💰 Продажа</button>
+        <button class="fin-chip"    data-c="other"   onclick="finSetCat('other')">📄 Прочие</button>
+        <button class="fin-chip"    data-c="branch"  onclick="finSetCat('branch')">🏢 Филиалы</button>
+        <span class="fin-sep"></span>
+        <label>с</label><input type="date" id="fin-d1" onchange="financeLoad()">
+        <label>по</label><input type="date" id="fin-d2" onchange="financeLoad()">
+        <span style="flex:1;"></span>
+        <button class="btn btn-primary btn-sm" onclick="finOpenOp()">＋ Операция</button>
+        <button class="btn btn-outline btn-sm" onclick="finOpenAcct()">+ Счёт</button>
+        <button class="btn btn-outline btn-sm" onclick="finExport()">⬇ Экспорт</button>
       </div>
 
-      <!-- СЧЕТА -->
-      <div class="tbl-wrap" style="margin-bottom:16px;">
-        <div class="tbl-header">
-          <span class="tbl-title">🏦 Счета</span>
-          <div class="btn-row">
-            <button class="btn btn-primary btn-sm" onclick="finOpenOp()">＋ Операция</button>
-            <button class="btn btn-outline btn-sm" onclick="finOpenAcct()">+ Счёт</button>
-            <button class="btn btn-outline btn-sm" onclick="financeLoad()">🔄 Обновить</button>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;padding:14px;" id="fin-accts"></div>
+      <!-- Сводка -->
+      <div class="fin-summary">
+        <div class="fin-scard"><div class="lbl">💼 Касса — по фильтру</div><div class="val" id="fin-total">0 ₸</div></div>
+        <div class="fin-scard in"><div class="lbl">↓ Приходы за период</div><div class="val" id="fin-sum-inc">0 ₸</div></div>
+        <div class="fin-scard out"><div class="lbl">↑ Расходы за период</div><div class="val" id="fin-sum-exp">0 ₸</div></div>
       </div>
 
-      <!-- ОПЕРАЦИИ -->
-      <div class="tbl-wrap">
-        <div class="tbl-header"><span class="tbl-title" id="fin-ops-count">История операций</span></div>
-        <div style="overflow-x:auto;">
-        <table><thead><tr>
-          <th>Дата</th><th>Операция</th><th>Счёт</th><th>Тип</th><th style="text-align:right;">Сумма</th>
-        </tr></thead><tbody id="fin-ops-body"></tbody></table>
-        </div>
-      </div>
+      <!-- Колонки категорий -->
+      <div class="fin-cols" id="fin-cols"></div>
     </div>
 
     <!-- ══ ДОЛГИ (дебиторка / кредиторка) ══ -->
@@ -2982,10 +2978,56 @@
     </div>
 
     <style>
+      /* палитра категорий */
+      #s-finance{--c-pov:#2563eb;--c-sale:#d97706;--c-other:#6f42c1;--c-branch:#0d9488;--c-navy:#1b2a4a;}
       .fin-tt{flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid var(--line);background:#fff;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;font-family:inherit;}
       .fin-tt.on{background:#eff6ff;border-color:#1a56db;color:#1d4ed8;}
-      .fin-acct-card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface);cursor:pointer;transition:border-color .15s;}
-      .fin-acct-card:hover{border-color:#1a56db;}
+      /* фильтры */
+      .fin-filters{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;}
+      .fin-chip{border:1.5px solid var(--line);background:#fff;border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer;font-weight:600;color:var(--muted);}
+      .fin-chip.on{color:#fff;}
+      .fin-chip[data-c="all"].on{background:var(--c-navy);border-color:var(--c-navy);}
+      .fin-chip[data-c="poverka"].on{background:var(--c-pov);border-color:var(--c-pov);}
+      .fin-chip[data-c="sale"].on{background:var(--c-sale);border-color:var(--c-sale);}
+      .fin-chip[data-c="other"].on{background:var(--c-other);border-color:var(--c-other);}
+      .fin-chip[data-c="branch"].on{background:var(--c-branch);border-color:var(--c-branch);}
+      .fin-filters .fin-sep{width:1px;height:26px;background:var(--line);margin:0 4px;}
+      .fin-filters label{font-size:12.5px;color:var(--muted);}
+      .fin-filters input[type=date]{border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:13px;background:#fff;color:var(--ink);}
+      /* сводка */
+      .fin-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px;}
+      .fin-scard{background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--c-navy);border-radius:10px;padding:13px 16px;}
+      .fin-scard.in{border-top-color:#16a34a;}.fin-scard.out{border-top-color:#dc2626;}
+      .fin-scard .lbl{font-size:12px;color:var(--muted);margin-bottom:4px;}
+      .fin-scard .val{font-size:22px;font-weight:800;}
+      .fin-scard.in .val{color:#16a34a;}.fin-scard.out .val{color:#dc2626;}
+      /* колонки */
+      .fin-cols{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start;}
+      .fin-cols.single{grid-template-columns:1fr;}
+      .fin-col{background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+      .fin-col-head{padding:12px 14px;color:#fff;display:flex;justify-content:space-between;align-items:baseline;}
+      .fin-col-head .name{font-weight:700;font-size:14px;}
+      .fin-col-head .total{font-weight:800;font-size:16px;}
+      .fin-col[data-c="poverka"] .fin-col-head{background:var(--c-pov);}
+      .fin-col[data-c="sale"] .fin-col-head{background:var(--c-sale);}
+      .fin-col[data-c="other"] .fin-col-head{background:var(--c-other);}
+      .fin-col[data-c="branch"] .fin-col-head{background:var(--c-branch);}
+      .fin-accs{padding:10px 12px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line);}
+      .fin-acc{border:1px solid var(--line);border-radius:9px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;background:var(--bg);}
+      .fin-acc .an{font-weight:600;font-size:13px;}
+      .fin-acc .ab{font-size:11.5px;color:var(--muted);}
+      .fin-acc .av{font-weight:800;font-size:14px;}
+      .fin-movs{padding:8px 12px 12px;}
+      .fin-movs .mh{font-size:11px;letter-spacing:.4px;color:var(--muted);text-transform:uppercase;padding:6px 2px;}
+      .fin-mov{display:flex;justify-content:space-between;gap:8px;padding:7px 2px;border-bottom:1px solid var(--line);font-size:12.5px;}
+      .fin-mov:last-child{border-bottom:none;}
+      .fin-mov .md{color:var(--muted);white-space:nowrap;}
+      .fin-mov .mt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+      .fin-mov .ma{font-weight:700;white-space:nowrap;}
+      .fin-mov .ma.plus{color:#146c43;}.fin-mov .ma.minus{color:#b02a37;}
+      .fin-empty{color:var(--muted);text-align:center;padding:14px;font-size:12.5px;}
+      @media(max-width:1200px){.fin-cols{grid-template-columns:repeat(2,1fr);}}
+      @media(max-width:820px){.fin-cols{grid-template-columns:1fr;}.fin-summary{grid-template-columns:1fr;}}
     </style>
     <!-- MODAL: ФИНАНСЫ — новая операция -->
     <div class="modal-overlay" id="finOpModal" onclick="if(event.target===this)finCloseOp()">
@@ -3012,10 +3054,11 @@
       <div class="modal" style="width:420px;">
         <div class="modal-head"><h3>🏦 Новый счёт</h3><button class="modal-close" onclick="finCloseAcct()">✕</button></div>
         <div class="modal-body" style="padding:18px;">
-          <div class="field" style="margin-bottom:12px;"><label>Название *</label><input id="finAccName" placeholder="Напр.: Каспи Основной"></div>
-          <div class="field" style="margin-bottom:12px;"><label>Категория</label><select id="finAccCat"><option value="kaspi">🍊 Kaspi</option><option value="bck">🏦 Банк</option><option value="nalichka">💵 Наличные</option><option value="other" selected>💳 Другое</option></select></div>
+          <div class="field" style="margin-bottom:12px;"><label>Название *</label><input id="finAccName" placeholder="Напр.: Каспи"></div>
+          <div class="field" style="margin-bottom:12px;"><label>Раздел *</label><select id="finAccSection"><option value="poverka">📋 Поверка</option><option value="sale">💰 Продажа</option><option value="other">📄 Прочие</option><option value="branch">🏢 Филиалы</option></select></div>
+          <div class="field" style="margin-bottom:12px;"><label>Банк</label><select id="finAccCat"><option value="kaspi" selected>🍊 Kaspi</option><option value="bck">🏦 БЦК</option><option value="nalichka">💵 Наличка</option><option value="other">💳 Другое</option></select></div>
           <div class="field" style="margin-bottom:12px;"><label>Иконка (эмодзи)</label><input id="finAccIcon" placeholder="🏦" maxlength="4"></div>
-          <div class="field"><label>Текущий баланс, ₸</label><input id="finAccBal" type="number" placeholder="0"></div>
+          <div class="field"><label>Начальный остаток, ₸ (создаст операцию)</label><input id="finAccBal" type="number" placeholder="0"></div>
         </div>
         <div class="modal-foot"><button class="btn btn-primary" onclick="finSaveAcct()">💾 Создать счёт</button><button class="btn btn-outline" onclick="finCloseAcct()">Отмена</button></div>
       </div>
@@ -4930,8 +4973,8 @@ function rshSaveExp(){
       name: (cat.name || 'Расход') + (rec.sub ? ' · ' + rec.sub : '') + ': ' + rec.desc,
       account: rec.account,
       amount: rec.amount,
-      date: rec.date,
-      source: 'expenses',
+      section: 'other',          // расходы уходят в раздел «Прочие»
+      source: 'Расходы',
     });
     showToast('✅ Расход добавлен → списано со счёта ' + rec.account);
   }
@@ -4971,36 +5014,15 @@ let acctSources = {
   ],
 };
 let branches=[{id:1,name:'Астана',account:'Каспи Голд',requisites:'4400 **** **** 1234',manager:'Серіков А.Т.',sources:['САМИ','Продажа'],active:true}];
-let invData={
-  poverka:[
-    {id:1,date:'29.05.2026',source:'САМИ',client:'Кулжанов',type:'Поверка ХВС',amount:3500,account:'Каспи',manager:'Ахметов Д.С.',status:'Оплачен'},
-    {id:2,date:'02.06.2026',source:'САМИ',client:'Тілеуберді',type:'Поверка ХВС x2',amount:7000,account:'Наличка',manager:'Смирнов Д.В.',status:'Оплачен'},
-    {id:3,date:'04.06.2026',source:'САМИ',client:'Абдуллаева',type:'Поверка ГВС',amount:3500,account:'БЦК',manager:'Кузьмина А.Н.',status:'Ожидает'},
-    {id:4,date:'10.01.2026',source:'ВДК',client:'КНС №3',type:'Расходомер DN50',amount:45000,account:'БЦК',manager:'Молдабаев М.',status:'Оплачен'},
-    {id:5,date:'20.02.2026',source:'ТЭЦ',client:'Котельная №2',type:'Теплосчётчик',amount:55000,account:'БЦК',manager:'Молдабаев М.',status:'Оплачен'},
-    {id:6,date:'05.07.2026',source:'Выездная',client:'Иванов А.А.',type:'Выезд+поверка',amount:8000,account:'Каспи',manager:'Смирнов Д.В.',status:'Оплачен'},
-  ],
-  sales:[
-    {id:1,date:'01.07.2026',source:'Продажа',client:'Иванов А.А.',item:'Счётчик ХВС DN15',amount:15000,account:'Каспи',manager:'Кузьмина А.Н.',status:'Оплачен'},
-    {id:2,date:'02.07.2026',source:'Продажа',client:'ТОО «Алма»',item:'Счётчик ГВС DN20',amount:22000,account:'БЦК',manager:'Кузьмина А.Н.',status:'Ожидает'},
-    {id:3,date:'08.06.2026',source:'Первичная поверка',client:'Раймбекова',item:'Первичная+счётчик',amount:18000,account:'Каспи',manager:'Ахметов Д.С.',status:'Оплачен'},
-  ],
-  other:[
-    {id:1,date:'15.05.2026',type:'Проект',client:'АО «КазВодКанал»',desc:'Разработка проекта водоснабжения',amount:320000,account:'БЦК',manager:'Молдабаев М.',status:'Оплачен'},
-    {id:2,date:'01.06.2026',type:'Тендер',client:'ГКП «Алматысу»',desc:'Тендер на поверку 2026',amount:850000,account:'БЦК',manager:'Молдабаев М.',status:'Ожидает'},
-    {id:3,date:'10.06.2026',type:'Услуга',client:'ТОО «СтройПро»',desc:'Консультация по метрологии',amount:45000,account:'БЦК',manager:'Кузьмина А.Н.',status:'Оплачен'},
-  ],
-  branch:[
-    {id:1,date:'15.06.2026',branch:'Астана',source:'САМИ',client:'Нурмагамбетов',amount:3500,account:'Каспи Голд',status:'Оплачен'},
-    {id:2,date:'20.06.2026',branch:'Астана',source:'Продажа',client:'ТОО «Астана»',amount:22000,account:'Каспи Голд',status:'Ожидает'},
-  ],
-};
+// Демо-данные убраны. Новое поступление со статусом «Оплачен» создаёт реальную
+// операцию в Финансах (financeAutoIncome). Список ниже — рабочая сессия ввода.
+let invData={ poverka:[], sales:[], other:[], branch:[] };
 let invTypeFilter={poverka:'all',sales:'all',other:'all'};
 let invCurrentModal='poverka'; let invSelAccount='';
 
 const INV_SOURCES={poverka:['САМИ','ВДК','ТЭЦ','Выездная'],sales:['Продажа','Первичная поверка'],other:['Проект','Услуга','Тендер'],branch:['САМИ','ВДК','Продажа','Услуга']};
 const INV_LABELS={poverka:{icon:'📋',name:'Поверка'},sales:{icon:'💰',name:'Продажа'},other:{icon:'📄',name:'Прочие'},branch:{icon:'🏢',name:'Филиал'}};
-const ACCTS_PER={poverka:['Каспи','БЦК','Наличка'],sales:['Каспи','БЦК','Наличка'],other:['БЦК'],branch:['Каспи Голд','Каспи','БЦК','Наличка']};
+const ACCTS_PER={poverka:['Каспи','БЦК','Наличка'],sales:['Каспи','БЦК','Наличка'],other:['Каспи','БЦК','Наличка'],branch:['Каспи','БЦК','Наличка']};
 
 function invAccBadge(v){const m={Каспи:'background:#fce7f3;color:#9d174d',БЦК:'background:#ede9fe;color:#5b21b6',Наличка:'background:#d1fae5;color:#065f46','Каспи Голд':'background:#fef3c7;color:#92400e'};const ic={Каспи:'🍊',БЦК:'🏦',Наличка:'💵','Каспи Голд':'⭐'};return `<span class="badge" style="${m[v]||''}">${ic[v]||''} ${v}</span>`;}
 function invStBadge(v){return `<span class="badge ${v==='Оплачен'?'b-ok':v==='Ожидает'?'b-warn':'b-new'}">${v==='Оплачен'?'✓':v==='Ожидает'?'⏳':'~'} ${v}</span>`;}
@@ -5075,6 +5097,12 @@ function invSave(){
   const dp=document.getElementById('invDate').value.split('-');
   const rec={id:(invData[type]?.length||0)+1,date:`${dp[2]}.${dp[1]}.${dp[0]}`,source:document.getElementById('invSource').value,client:document.getElementById('invClient').value||'—',item:document.getElementById('invDesc').value,desc:document.getElementById('invDesc').value,type:document.getElementById('invSource').value,amount,account:invSelAccount,manager:document.getElementById('invResp').value,status:document.getElementById('invStatus').value,branch:document.getElementById('invBranch').value||'Алматы'};
   (invData[type]=invData[type]||[]).push(rec);
+  // Оплаченное поступление → реальная операция в Финансах (раздел = категория счёта)
+  if(rec.status==='Оплачен'){
+    const secMap={poverka:'poverka',sales:'sale',other:'other',branch:'branch'};
+    const label=(rec.client&&rec.client!=='—'?rec.client+' · ':'')+(rec.item||rec.type||'Поступление');
+    financeAutoIncome({ name:label, account:invSelAccount, amount, section:secMap[type]||'other', source:'Счета' });
+  }
   invCloseModal(); invRender(type); invRenderStats(type);
   showToast(`✅ Поступление ${amount.toLocaleString('ru')} ₸ → ${invSelAccount}`);
 }
@@ -5268,16 +5296,27 @@ async function clDeleteCat(id){
   }catch(e){ showToast('⚠️ '+e.message); }
 }
 
-// ── ФИНАНСЫ (реальные счета/операции через /api/v2/finance) ─────
-let finAccts = [], finOps = [], finOpType = 'Приход';
-const finFmt = n => Math.round(Number(n)||0).toLocaleString('ru-KZ');
+// ── ФИНАНСЫ — счета по категориям + движения (реальные /api/v2/finance) ──
+let finAccts = [], finOps = [], finOpType = 'Приход', finCat = 'all';
+const FIN_SECTIONS = { poverka:'📋 Поверка', sale:'💰 Продажа', other:'📄 Прочие', branch:'🏢 Филиалы' };
+const FIN_BANK = { kaspi:'Kaspi Bank', bck:'БЦК', nalichka:'касса', other:'' };
+const finFmt = n => Math.round(Number(n)||0).toLocaleString('ru-RU') + ' ₸';
 const finDateStr = () => new Date().toISOString().slice(0,10);
 const finAcctName = id => { const a=finAccts.find(x=>x.id===id); return a?a.name:''; };
+const finSecOf = id => { const a=finAccts.find(x=>x.id===id); return a?(a.section||'other'):'other'; };
+const finCats = () => finCat==='all' ? Object.keys(FIN_SECTIONS) : [finCat];
+const finMovSign = o => o.opType==='Приход' ? 1 : -1;   // Приход +, Расход/Перевод −
 
-function financeInit(){ financeLoad(); }
+function financeInit(){
+  const d1=document.getElementById('fin-d1'), d2=document.getElementById('fin-d2');
+  if(d1 && !d1.value){ const d=new Date(); d.setDate(d.getDate()-60); d1.value=d.toISOString().slice(0,10); }
+  if(d2 && !d2.value){ d2.value=finDateStr(); }
+  financeLoad();
+}
 async function financeLoad(){
+  const from=(document.getElementById('fin-d1')||{}).value||'', to=(document.getElementById('fin-d2')||{}).value||'';
   try{
-    const r = await fetch(FINANCE_API, {cache:'no-store'});
+    const r = await fetch(`${FINANCE_API}?from=${from}&to=${to}`, {cache:'no-store'});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const j = await r.json();
     finAccts = Array.isArray(j.accounts)?j.accounts:[];
@@ -5285,45 +5324,56 @@ async function financeLoad(){
   }catch(e){ showToast('⚠️ Финансы: '+e.message); }
   financeRender();
 }
-function financeRender(){
-  const total = finAccts.reduce((s,a)=>s+(Number(a.balance)||0),0);
-  const inc = finOps.filter(o=>o.opType==='Приход').reduce((s,o)=>s+(Number(o.amount)||0),0);
-  const exp = finOps.filter(o=>o.opType==='Расход').reduce((s,o)=>s+(Number(o.amount)||0),0);
-  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-  set('fin-total', finFmt(total)+' ₸'); set('fin-sum-inc', finFmt(inc)+' ₸'); set('fin-sum-exp', finFmt(exp)+' ₸');
-  const ag = document.getElementById('fin-accts');
-  if(ag) ag.innerHTML = finAccts.length ? finAccts.map(a=>`
-    <div class="fin-acct-card" onclick="finEditBalance('${a.id}')" title="Изменить баланс">
-      <div style="font-size:22px;">${debtEsc(a.icon||'🏦')}</div>
-      <div style="font-weight:700;margin-top:4px;">${debtEsc(a.name)}</div>
-      <div style="font-size:18px;font-weight:800;margin-top:2px;">${finFmt(a.balance)} ₸</div>
-      <div style="font-size:10px;color:var(--muted);margin-top:2px;">нажмите, чтобы изменить баланс</div>
-    </div>`).join('') : '<div style="color:#9ca3af;padding:8px;">Нет счетов — создайте первый кнопкой «+ Счёт»</div>';
-  const tb = document.getElementById('fin-ops-body');
-  set('fin-ops-count', 'История операций · '+finOps.length);
-  if(tb) tb.innerHTML = finOps.length ? finOps.map(o=>{
-    const isInc=o.opType==='Приход', trf=o.opType==='Перевод';
-    const color = trf?'#6b7280':isInc?'#059669':'#dc2626', sign=isInc?'+':trf?'⇄':'−';
-    const badge = trf?'<span class="badge b-active">⇄ Перевод</span>':isInc?'<span class="badge b-ok">Приход</span>':'<span class="badge b-err">Расход</span>';
-    return `<tr>
-      <td style="font-size:11px;color:#6b7280;">${debtEsc((o.opDate||'').slice(0,10))}</td>
-      <td>${debtEsc(o.name)}</td>
-      <td style="font-size:11px;color:#6b7280;">${debtEsc(o.accountName||finAcctName(o.accountId))}</td>
-      <td>${badge}</td>
-      <td style="text-align:right;font-weight:700;color:${color};">${sign}${finFmt(o.amount)} ₸</td>
-    </tr>`;
-  }).join('') : '<tr><td colspan="5" style="text-align:center;padding:20px;color:#9ca3af;">Нет операций</td></tr>';
+function finSetCat(c){
+  finCat=c;
+  document.querySelectorAll('#s-finance .fin-chip').forEach(b=>b.classList.toggle('on', b.dataset.c===c));
+  financeRender();   // категория — клиентский фильтр (период уже загружен)
 }
-// операция
+function finMovRow(o){
+  const d=(o.opDate||'').slice(0,10), dd=d.slice(8,10)+'.'+d.slice(5,7);
+  const plus=finMovSign(o)>0;
+  const acc=o.accountName||finAcctName(o.accountId);
+  return `<div class="fin-mov"><span class="md">${dd}</span>
+    <span class="mt">${debtEsc(o.name)} · <b>${debtEsc(acc)}</b></span>
+    <span class="ma ${plus?'plus':'minus'}">${plus?'+':'−'}${finFmt(Math.abs(Number(o.amount)||0))}</span></div>`;
+}
+function financeRender(){
+  const cats = finCats();
+  const cols = document.getElementById('fin-cols');
+  if(cols){
+    cols.className = 'fin-cols' + (finCat!=='all' ? ' single' : '');
+    cols.innerHTML = cats.map(c=>{
+      const accs = finAccts.filter(a=>(a.section||'other')===c);
+      const total = accs.reduce((s,a)=>s+(Number(a.balance)||0),0);
+      const movs = finOps.filter(o=>finSecOf(o.accountId)===c).sort((a,b)=>String(b.opDate).localeCompare(String(a.opDate)));
+      return `<div class="fin-col" data-c="${c}">
+        <div class="fin-col-head"><span class="name">${FIN_SECTIONS[c]}</span><span class="total">${finFmt(total)}</span></div>
+        <div class="fin-accs">${accs.length ? accs.map(a=>`
+          <div class="fin-acc"><div><div class="an">${debtEsc(a.icon||'')} ${debtEsc(a.name)}</div><div class="ab">${FIN_BANK[a.category]||''}</div></div>
+          <div class="av">${finFmt(a.balance)}</div></div>`).join('') : '<div class="fin-empty">Нет счетов</div>'}</div>
+        <div class="fin-movs"><div class="mh">Движения за период · ${movs.length}</div>
+          ${movs.length ? movs.map(finMovRow).join('') : '<div class="fin-empty">Нет движений за период</div>'}
+        </div></div>`;
+    }).join('');
+  }
+  // сводка по фильтру
+  const visMovs = finOps.filter(o=>cats.includes(finSecOf(o.accountId)));
+  const visAccs = finAccts.filter(a=>cats.includes(a.section||'other'));
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('fin-total', finFmt(visAccs.reduce((s,a)=>s+(Number(a.balance)||0),0)));
+  set('fin-sum-inc', finFmt(visMovs.filter(o=>o.opType==='Приход').reduce((s,o)=>s+(Number(o.amount)||0),0)));
+  set('fin-sum-exp', finFmt(visMovs.filter(o=>o.opType!=='Приход').reduce((s,o)=>s+(Number(o.amount)||0),0)));
+}
+// ── операция (приход / расход / перевод) ──
 function finFillAccSelects(){
-  const opts = finAccts.map(a=>`<option value="${a.id}">${debtEsc(a.icon||'🏦')} ${debtEsc(a.name)}</option>`).join('');
+  const opts = finAccts.map(a=>`<option value="${a.id}">${debtEsc(a.icon||'🏦')} ${debtEsc(a.name)} · ${FIN_SECTIONS[a.section||'other'].replace(/^[^ ]+ /,'')}</option>`).join('');
   document.getElementById('finOpAcc').innerHTML = opts;
   document.getElementById('finOpTo').innerHTML = opts;
 }
 function finOpenOp(){
-  if(!finAccts.length){ if(confirm('Сначала создайте счёт. Создать сейчас?')) finOpenAcct(); return; }
+  if(!finAccts.length){ showToast('⚠️ Сначала создайте счёт'); return; }
   finOpType='Приход';
-  document.querySelectorAll('.fin-tt').forEach(b=>b.classList.toggle('on', b.dataset.t==='Приход'));
+  document.querySelectorAll('#finOpModal .fin-tt').forEach(b=>b.classList.toggle('on', b.dataset.t==='Приход'));
   document.getElementById('finOpToWrap').style.display='none';
   document.getElementById('finOpAccLbl').textContent='Счёт';
   finFillAccSelects();
@@ -5333,7 +5383,7 @@ function finOpenOp(){
 function finCloseOp(){ document.getElementById('finOpModal').classList.remove('open'); }
 function finSetType(btn,t){
   finOpType=t;
-  document.querySelectorAll('.fin-tt').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+  document.querySelectorAll('#finOpModal .fin-tt').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
   document.getElementById('finOpToWrap').style.display = t==='Перевод'?'':'none';
   document.getElementById('finOpAccLbl').textContent = t==='Перевод'?'Счёт-источник':'Счёт';
 }
@@ -5355,32 +5405,38 @@ async function finSaveOp(){
     finCloseOp(); await financeLoad(); showToast('✅ Операция сохранена');
   }catch(e){ showToast('⚠️ '+e.message); }
 }
-// счёт
+// ── счёт (с категорией) ──
 function finOpenAcct(){
   ['finAccName','finAccIcon','finAccBal'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('finAccCat').value='other';
+  document.getElementById('finAccCat').value='kaspi';
+  const s=document.getElementById('finAccSection'); if(s) s.value = finCat!=='all'?finCat:'poverka';
   document.getElementById('finAcctModal').classList.add('open');
 }
 function finCloseAcct(){ document.getElementById('finAcctModal').classList.remove('open'); }
 async function finSaveAcct(){
   const name=document.getElementById('finAccName').value.trim();
   if(!name){ showToast('⚠️ Введите название'); return; }
-  const body={ name, category:document.getElementById('finAccCat').value, icon:document.getElementById('finAccIcon').value.trim()||null, balance:Number(document.getElementById('finAccBal').value)||0 };
+  const body={ name, category:document.getElementById('finAccCat').value, section:document.getElementById('finAccSection').value,
+    icon:document.getElementById('finAccIcon').value.trim()||null, balance:Number(document.getElementById('finAccBal').value)||0 };
   try{
     const r=await fetch(FINANCE_API+'/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     if(!r.ok) throw new Error('HTTP '+r.status);
     finCloseAcct(); await financeLoad(); showToast('✅ Счёт создан');
   }catch(e){ showToast('⚠️ '+e.message); }
 }
-async function finEditBalance(id){
-  const a=finAccts.find(x=>x.id===id); if(!a) return;
-  const v=prompt('Баланс счёта «'+a.name+'», ₸:', Number(a.balance)||0); if(v===null) return;
-  const n=Number(v); if(isNaN(n)){ showToast('⚠️ Некорректное значение'); return; }
-  try{
-    const r=await fetch(FINANCE_API+'/accounts/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({balance:n})});
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    await financeLoad(); showToast('✅ Баланс обновлён');
-  }catch(e){ showToast('⚠️ '+e.message); }
+// ── экспорт движений за период (CSV → Excel) ──
+function finExport(){
+  const cats=finCats();
+  const movs=finOps.filter(o=>cats.includes(finSecOf(o.accountId))).sort((a,b)=>String(b.opDate).localeCompare(String(a.opDate)));
+  const secN={poverka:'Поверка',sale:'Продажа',other:'Прочие',branch:'Филиалы'};
+  const esc=v=>{ v=String(v==null?'':v); return /[;"\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+  const lines=[['Дата','Категория','Счёт','Операция','Тип','Сумма'].join(';')];
+  movs.forEach(o=>lines.push([o.opDate, secN[finSecOf(o.accountId)]||'', (o.accountName||finAcctName(o.accountId)), o.name, o.opType, finMovSign(o)*(Number(o.amount)||0)].map(esc).join(';')));
+  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`Финансы_${(document.getElementById('fin-d1')||{}).value||''}_${(document.getElementById('fin-d2')||{}).value||''}.csv`;
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href);
+  showToast('⬇ Экспортировано движений: '+movs.length);
 }
 
 // ── ДОЛГИ (дебиторка / кредиторка) ─────────────────────────────
@@ -8016,57 +8072,37 @@ const ACCT_MAP = {
   'Каспи Голд': 'Каспи Голд (Астана)',
 };
 
-// ── ПРИХОД: Оплата сертификата ────────────────────────────────
-function financeAutoIncome({ name, account, amount, date, source }) {
-  if (!amount || amount <= 0) return;
-  const s = finGetState();
-  if (!s) return;
-
-  const acctKey = ACCT_MAP[account] || account;
-  if (!s.accts[acctKey]) {
-    // Создаём счёт если нет
-    s.accts[acctKey] = { cat: account==='БЦК'?'bck':account==='Наличка'?'nalichka':'kaspi', bal: 0, icon: account==='БЦК'?'🏦':account==='Наличка'?'💵':'🍊' };
-  }
-
-  s.accts[acctKey].bal = (s.accts[acctKey].bal || 0) + amount;
-  s.ops.push({
-    id: finUuid(),
-    date: date || finToday(),
-    name: name || 'Поверка',
-    account: acctKey,
-    type: 'Приход',
-    amount: Math.round(amount),
-    comment: '🔗 Авто из ERP · ' + (source || 'поверка'),
-  });
-  finSetState(s);
+// Найти реальный счёт финансов по (имя банка, раздел) и создать операцию в БД.
+async function finFindAccountId(name, section){
+  try{
+    const r = await fetch(FINANCE_API, {cache:'no-store'});
+    if(!r.ok) return null;
+    const accs = (await r.json()).accounts || [];
+    let a = accs.find(x=>x.name===name && (x.section||'other')===section);
+    if(!a) a = accs.find(x=>x.name===name);   // запасной вариант — любой счёт с таким именем
+    return a ? a.id : null;
+  }catch(e){ return null; }
 }
-
-// ── РАСХОД: Списание со счёта ─────────────────────────────────
-function financeAutoExpense({ name, account, amount, date, source }) {
-  if (!amount || amount <= 0) return;
-  const s = finGetState();
-  if (!s) return;
-
-  const acctKey = ACCT_MAP[account] || account;
-  if (!s.accts[acctKey]) return;
-
-  const cur = s.accts[acctKey].bal || 0;
-  if (cur < amount) {
-    showToast('⚠️ Недостаточно средств на счёте ' + account + ' для списания ' + amount.toLocaleString('ru-KZ') + ' ₸');
-    return;
-  }
-
-  s.accts[acctKey].bal = cur - amount;
-  s.ops.push({
-    id: finUuid(),
-    date: date || finToday(),
-    name: name || 'Расход',
-    account: acctKey,
-    type: 'Расход',
-    amount: Math.round(amount),
-    comment: '🔗 Авто из ERP · ' + (source || 'расходы'),
-  });
-  finSetState(s);
+async function finAutoOp(opType, name, account, amount, section, source){
+  amount = Number(amount)||0;
+  if(amount <= 0) return;
+  const id = await finFindAccountId(account, section||'other');
+  if(!id){ showToast('⚠️ Счёт «'+account+'» ('+ (section||'other') +') не найден в Финансах — операция не создана'); return; }
+  try{
+    const r = await fetch(FINANCE_API, {method:'POST',headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ opType, accountId:id, amount, name: name||opType, opDate: finDateStr(), source: source||'ERP' })});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    // если открыт экран Финансов — обновим
+    if(document.getElementById('s-finance')?.classList.contains('active') && typeof financeLoad==='function') financeLoad();
+  }catch(e){ showToast('⚠️ Финансы: '+e.message); }
+}
+// ── ПРИХОД: оплата счёта / сертификата → реальная операция ──────
+function financeAutoIncome({ name, account, amount, section, source }) {
+  finAutoOp('Приход', name, account, amount, section, source);
+}
+// ── РАСХОД: списание со счёта → реальная операция ──────────────
+function financeAutoExpense({ name, account, amount, section, source }) {
+  finAutoOp('Расход', name, account, amount, section, source);
 }
 
 // ── СОХРАНЕНИЕ СЕРТИФИКАТА — главная функция ──────────────────
@@ -8177,8 +8213,8 @@ function saveCertModal() {
         name:    `Поверка: ${fio} · №${serial}`,
         account: inv,
         amount:  +amtStr,
-        date:    finToday(),
-        source:  'поверка САМИ',
+        section: 'poverka',       // оплата поверки → раздел «Поверка»
+        source:  'Поверка',
       });
       saveMsg = `✅ Сохранено + приход ${(+amtStr).toLocaleString('ru-KZ')} ₸ → ${inv}`;
       // Показываем баннер
