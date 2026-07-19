@@ -204,6 +204,45 @@ export const expenses = pgTable('expenses', {
   createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── ORGANIZATION (реквизиты нашей стороны + печать/подпись/логотип) ──
+// Единственная строка (id=1). Реквизиты берутся в документы; ассеты — base64.
+export const orgSettings = pgTable('org_settings', {
+  id           : integer('id').primaryKey().default(1),
+  companyName  : varchar('company_name', { length: 200 }),
+  companyFull  : varchar('company_full', { length: 300 }),
+  bin          : varchar('bin', { length: 20 }),
+  address      : text('address'),
+  phone        : varchar('phone', { length: 50 }),
+  directorName : varchar('director_name', { length: 150 }),
+  banks        : jsonb('banks').$type<Array<{ key: string; name: string; iik: string; bik: string; kbe?: string }>>().default([]),
+  logoB64      : text('logo_b64'),
+  stampB64     : text('stamp_b64'),
+  signB64      : text('sign_b64'),
+  updatedAt    : timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// ── DOCUMENTS (счета/накладные/акты/КП) ──────────────────────
+export const documents = pgTable('documents', {
+  id             : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  type           : varchar('type', { length: 20 }).notNull(),   // invoice | nakladnaya | akt | kp
+  number         : integer('number').notNull(),
+  docNo          : varchar('doc_no', { length: 50 }),
+  docDate        : date('doc_date').default(sql`CURRENT_DATE`),
+  buyerName      : varchar('buyer_name', { length: 250 }),
+  buyerBin       : varchar('buyer_bin', { length: 20 }),
+  buyerAddress   : text('buyer_address'),
+  buyerRequisites: text('buyer_requisites'),
+  bank           : varchar('bank', { length: 20 }),
+  items          : jsonb('items').$type<Array<{ name: string; sku?: string; qty: number; unit: string; price: number; sum: number }>>().default([]),
+  total          : numeric('total', { precision: 14, scale: 2 }).default('0'),
+  amountWords    : text('amount_words'),
+  withStamp      : boolean('with_stamp').default(false),
+  withSign       : boolean('with_sign').default(false),
+  comment        : text('comment'),
+  createdBy      : uuid('created_by').references(() => users.id),
+  createdAt      : timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
 // ── EMPLOYEE SALARY (кадры: оклад сотрудника) ─────────────────
 // Сотрудник = пользователь системы. Оклад держим ОТДЕЛЬНОЙ таблицей (не в users),
 // чтобы доступ к пользователям не раскрывал зарплаты.

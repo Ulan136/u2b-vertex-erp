@@ -34,6 +34,11 @@ test('apiScreenFor: resource endpoints map to their screen', () => {
   assert.equal(apiScreenFor('GET', '/api/v2/expense-categories', sp()), 'expenses');
   assert.equal(apiScreenFor('POST', '/api/v2/expense-categories', sp()), 'expenses');
   assert.equal(apiScreenFor('DELETE', '/api/v2/expense-categories/abc', sp()), 'expenses');
+  assert.equal(apiScreenFor('GET', '/api/v2/documents', sp()), 'accounting');
+  assert.equal(apiScreenFor('POST', '/api/v2/documents', sp()), 'accounting');
+  assert.equal(apiScreenFor('GET', '/api/v2/org', sp()), null);          // реквизиты читают все
+  assert.equal(apiScreenFor('PATCH', '/api/v2/org', sp()), 'settings');  // правка — Настройки
+  assert.equal(apiScreenFor('GET', '/api/v2/orders', sp()), 'orders_field'); // не спутать org с orders
 });
 test('apiScreenFor: users picker vs management', () => {
   assert.equal(apiScreenFor('GET', '/api/v2/users', sp()), null);              // пикер исполнителей — любой вошедший
