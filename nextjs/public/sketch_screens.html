@@ -1529,6 +1529,7 @@
           </div>
           <div class="btn-row">
             <button class="btn btn-outline btn-sm" onclick="certExport(certData,'САМИ')">📤 Экспорт</button>
+            <button class="btn btn-outline btn-sm" onclick="certWord(certData,'САМИ')">⬇ Word</button>
             <button class="btn btn-primary btn-sm" onclick="openNew('САМИ')">+ Новый</button>
           </div>
         </div>
@@ -1564,6 +1565,7 @@
           <span class="tbl-title" id="cert-unfit-count">Извещение о непригодности</span>
           <div class="btn-row">
             <button class="btn btn-outline btn-sm" onclick="certExportUnfit(certData,'САМИ')">📤 Экспорт извещения</button>
+            <button class="btn btn-outline btn-sm" onclick="certUnfitWord(certData,'САМИ')">⬇ Word</button>
           </div>
         </div>
         <div id="cert-unfit-list" style="padding:8px 12px;"></div>
@@ -1631,6 +1633,7 @@
           <span class="tbl-title">Список сертификатов ВДК</span>
           <div class="btn-row">
             <button class="btn btn-outline btn-sm" onclick="certExport(certVdkData,'ВДК')">📤 Экспорт</button>
+            <button class="btn btn-outline btn-sm" onclick="certWord(certVdkData,'ВДК')">⬇ Word</button>
             <button class="btn btn-primary btn-sm" onclick="openNew('ВДК')">+ Новый</button>
           </div>
         </div>
@@ -1724,6 +1727,7 @@
           <span class="tbl-title">Продажи</span>
           <div class="btn-row">
             <button class="btn btn-outline btn-sm" onclick="salesExport()">📤 Экспорт</button>
+            <button class="btn btn-outline btn-sm" onclick="salesWord()">⬇ Word</button>
             <button class="btn btn-primary btn-sm" onclick="salesOpenNew()">+ Новая продажа</button>
           </div>
         </div>
@@ -1790,6 +1794,7 @@
             <span class="tbl-title">Все товары (21 позиция)</span>
             <div class="btn-row">
               <button class="btn btn-outline btn-sm" onclick="whPrintInvoice()">🖨 Накладная</button>
+              <button class="btn btn-outline btn-sm" onclick="whInvoiceWord()">⬇ Word</button>
               <button class="btn btn-outline btn-sm" onclick="whOpenRevision(null)" style="color:#7c3aed;border-color:#c4b5fd;">📋 Ревизия</button>
               <button class="btn btn-primary btn-sm" onclick="whOpenIncoming(null)">📥 Приход</button>
             </div>
@@ -1821,6 +1826,7 @@
           <div class="tbl-header">
             <span class="tbl-title">Движения товаров</span>
             <button class="btn btn-outline btn-sm" onclick="whPrintInvoice()">🖨 Накладная</button>
+              <button class="btn btn-outline btn-sm" onclick="whInvoiceWord()">⬇ Word</button>
           </div>
           <table>
             <thead>
@@ -1950,6 +1956,7 @@
           <span class="tbl-title" id="prim-count">Журнал первичной поверки</span>
           <div class="btn-row">
             <button class="btn btn-outline btn-sm" onclick="primExport()">📤 Экспорт</button>
+            <button class="btn btn-outline btn-sm" onclick="primWord()">⬇ Word</button>
             <button class="btn btn-primary btn-sm" onclick="primOpenNew()">+ Новая запись</button>
           </div>
         </div>
@@ -3643,6 +3650,7 @@ function buildIzvScreens() {
           <span class="tbl-title" id="izv-${key}-count">Извещения</span>
           <div class="btn-row">
             <button class="btn btn-outline btn-sm" onclick="certExportUnfit(izvData['${key}'],'${IZV_LABEL[key]}')">📤 Экспорт непригодности</button>
+            <button class="btn btn-outline btn-sm" onclick="certUnfitWord(izvData['${key}'],'${IZV_LABEL[key]}')">⬇ Word</button>
             <button class="btn btn-primary btn-sm" onclick="openNewIzv('${key}')">+ Создать</button>
           </div>
         </div>
@@ -3950,6 +3958,7 @@ function buildCertExtraScreens() {
           </div>
           <div class="btn-row">
             <button class="btn btn-outline btn-sm" onclick="certExport(certDatasetFor('${c.org}').arr,'${c.org}')">📤 Экспорт</button>
+            <button class="btn btn-outline btn-sm" onclick="certWord(certDatasetFor('${c.org}').arr,'${c.org}')">⬇ Word</button>
             <button class="btn btn-primary btn-sm" onclick="openNew('${c.org}')">+ Новый</button>
           </div>
         </div>
@@ -3968,7 +3977,9 @@ function buildCertExtraScreens() {
       <div class="tbl-wrap">
         <div class="tbl-header">
           <span class="tbl-title" id="cert-${c.key}-unfit-count">Извещение о непригодности</span>
-          <div class="btn-row"><button class="btn btn-outline btn-sm" onclick="certExportUnfit(certDatasetFor('${c.org}').arr,'${c.org}')">📤 Экспорт извещения</button></div>
+          <div class="btn-row"><button class="btn btn-outline btn-sm" onclick="certExportUnfit(certDatasetFor('${c.org}').arr,'${c.org}')">📤 Экспорт извещения</button>
+            <button class="btn btn-outline btn-sm" onclick="certWord(certDatasetFor('${c.org}').arr,'${c.org}')">⬇ Word реестра</button>
+            <button class="btn btn-outline btn-sm" onclick="certUnfitWord(certDatasetFor('${c.org}').arr,'${c.org}')">⬇ Word извещения</button></div>
         </div>
         <div id="cert-${c.key}-unfit-list" style="padding:8px 12px;"></div>
       </div>
@@ -4140,6 +4151,117 @@ function certFilterField(f,v) { activeFilters[f]=v; renderCert(certData,'certBod
 // ── ПЕЧАТЬ РЕЕСТРА ПОВЕРКИ ─────────────────────────────────────────
 // Printable registry in the official column order (A4 landscape).
 // Phone is NOT printed — it is intentionally absent from the document.
+// ── ЭКСПОРТ В WORD (.docx) — единый серверный генератор /api/v2/docx ───────────
+// Содержимое = то же, что в печатной форме (та же таблица/фильтр/данные).
+async function docxDownload(spec){
+  try{
+    const r = await fetch('/api/v2/docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(spec)});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||('HTTP '+r.status)); }
+    const blob = await r.blob();
+    const a = Object.assign(document.createElement('a'),{ href:URL.createObjectURL(blob), download: spec.filename||'Документ.docx' });
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+    showToast('⬇ Word-документ скачан');
+  }catch(e){ showToast('⚠️ Word: '+e.message); }
+}
+// Реестр поверки (СAMI/ВДК/ТЭЦ/…)
+function certWord(arr, org){
+  const data = arr || certData; const label = org || 'САМИ';
+  const today = new Date().toLocaleDateString('ru-KZ');
+  if(!data.length){ showToast('⚠️ Нет записей для экспорта'); return; }
+  docxDownload({
+    orientation:'landscape',
+    titleLines:['РЕЕСТР','счётчиков, прошедших поверку за '+new Date().getFullYear()+' г.','специалистом ТОО «VERTEX METROLOGY»'],
+    subtitle:`Источник: ${label} · ${today} · записей: ${data.length}`,
+    columns:[
+      {header:'№',width:4},{header:'ФИО абонента',width:14,align:'left'},{header:'Адрес абонента',width:19,align:'left'},
+      {header:'Тип прибора учёта',width:8},{header:'Заводской номер',width:13},{header:'Дата поверки',width:9},
+      {header:'Дата очередной поверки',width:9},{header:'Номер и тип поверительного клейма',width:10},
+      {header:'Показания м³',width:6,align:'right'},{header:'Гор/хол вода',width:4},{header:'Год выпуска',width:4},
+    ],
+    rows:data.map((r,i)=>[i+1,r.fio||'',r.addr||'',r.type||'',r.serial||'',r.d1||'',r.d2||'',r.stamp||'—',(r.val||0).toLocaleString('ru-KZ'),r.water||'',r.year||'']),
+    signatures:['Директор _________________ М.Молдабаев'],
+    filename:`Реестр ${label} ${today}.docx`,
+  });
+}
+// Извещение о непригодности
+function certUnfitWord(arr, org){
+  const data = (arr || certData).filter(r=>r.result==='Не годен'); const label = org || 'САМИ';
+  const today = new Date().toLocaleDateString('ru-KZ');
+  if(!data.length){ showToast('⚠️ Нет непригодных счётчиков для экспорта'); return; }
+  docxDownload({
+    orientation:'landscape',
+    titleLines:['РЕЕСТР','извещение о непригодности'],
+    subtitle:`Источник: ${label} · ${today} · записей: ${data.length}`,
+    columns:[
+      {header:'№',width:5},{header:'ФИО абонента',width:20,align:'left'},{header:'Адрес абонента',width:27,align:'left'},
+      {header:'Тип прибора учёта',width:12},{header:'Заводской номер',width:15},{header:'Дата поверки',width:11},
+      {header:'Гор/хол вода',width:5},{header:'Год выпуска',width:5},
+    ],
+    rows:data.map((r,i)=>[i+1,r.fio||'',r.addr||'',r.type||'',r.serial||'',r.d1||'',r.water||'',r.year||'']),
+    signatures:['Директор _________________ М.Молдабаев'],
+    filename:`Извещение о непригодности ${label} ${today}.docx`,
+  });
+}
+// Первичная поверка
+function primWord(){
+  const today = new Date().toLocaleDateString('ru-KZ');
+  if(!primData.length){ showToast('⚠️ Нет записей'); return; }
+  const total = primData.reduce((s,r)=>s+r.sum,0);
+  docxDownload({
+    orientation:'landscape',
+    titleLines:['Первичная поверка — ТОО «Vertex Metrology»'],
+    subtitle:today,
+    columns:[
+      {header:'№',width:3},{header:'Номер',width:7},{header:'Клиент',width:12,align:'left'},{header:'Адрес',width:15,align:'left'},
+      {header:'Мастер',width:9},{header:'Тип',width:7},{header:'№ счётчика',width:9},{header:'Дата',width:8},
+      {header:'Результат',width:7},{header:'Сумма',width:8,align:'right'},{header:'Оплата',width:6},{header:'Счёт',width:5},{header:'Статус',width:5},
+    ],
+    rows:primData.map((r,i)=>[i+1,r.no,r.client,r.addr,r.master||'—',r.type,r.serial,r.date,r.result||'—',r.sum.toLocaleString('ru-KZ')+' ₸',r.pay,r.inv,r.status]),
+    totalRow:['','','','','','','','','Итого:',total.toLocaleString('ru-KZ')+' ₸','','',''],
+    filename:`Первичная поверка ${today}.docx`,
+  });
+}
+// Журнал продаж
+function salesWord(){
+  salesLoadFromStorage();
+  if(!salesData.length){ showToast('⚠️ Нет продаж для экспорта'); return; }
+  const today = whToday().split('-').reverse().join('.');
+  const total = salesData.reduce((s,x)=>s+x.sum,0);
+  docxDownload({
+    orientation:'portrait',
+    titleLines:['Журнал продаж — ТОО «Vertex Metrology»'],
+    subtitle:today,
+    columns:[
+      {header:'№',width:4},{header:'Номер',width:10},{header:'Дата',width:10},{header:'Клиент',width:20,align:'left'},
+      {header:'Товар',width:22,align:'left'},{header:'Кол-во',width:7},{header:'Цена',width:9,align:'right'},
+      {header:'Сумма',width:9,align:'right'},{header:'Оплата',width:5},{header:'Счёт',width:4},
+    ],
+    rows:salesData.map((s,i)=>[i+1,s.no,s.date,s.client,s.name,s.qty,whFmt(s.price),whFmt(s.sum),s.pay,s.inv]),
+    totalRow:['','','','','','','Итого:',whFmt(total)+' ₸','',''],
+    filename:`Продажи ${today}.docx`,
+  });
+}
+// Приходная накладная
+function whInvoiceWord(){
+  const today = whToday().split('-').reverse().join('.');
+  const last = stockMovements.filter(m=>m.type==='IN').slice(-20);
+  if(!last.length){ showToast('⚠️ Нет приходных операций'); return; }
+  const total = last.reduce((s,m)=>s+m.sum,0);
+  docxDownload({
+    orientation:'portrait',
+    titleLines:['ПРИХОДНАЯ НАКЛАДНАЯ'],
+    subtitle:`ТОО «Vertex Metrology» · ${today} · Склад`,
+    columns:[
+      {header:'№',width:5},{header:'Наименование',width:40,align:'left'},{header:'SKU',width:15},
+      {header:'Кол-во',width:12},{header:'Цена',width:14,align:'right'},{header:'Сумма',width:14,align:'right'},
+    ],
+    rows:last.map((m,i)=>[i+1,m.name,m.sku,m.qty,whFmt(m.price)+' ₸',whFmt(m.sum)+' ₸']),
+    totalRow:['','','','','Итого:',whFmt(total)+' ₸'],
+    signatures:['Принял: _________________','Кладовщик: _________________','Директор: _________________'],
+    filename:`Приходная накладная ${today}.docx`,
+  });
+}
+
 function certExport(arr, org) {
   const data  = arr || certData;
   const label = org || 'САМИ';
