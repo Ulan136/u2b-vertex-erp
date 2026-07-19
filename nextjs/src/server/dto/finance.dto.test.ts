@@ -1,6 +1,35 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { balanceDeltas, accountCreateSchema, financeOperationSchema, scopeFinance, movementAmount, inPeriod } from './finance.dto';
+import { balanceDeltas, accountCreateSchema, financeOperationSchema, scopeFinance, movementAmount, inPeriod, FINANCE_SECTIONS, FINANCE_SECTION_META, sectionNo, sectionTitle, numberAccounts } from './finance.dto';
+
+// ── нумерация и порядок разделов (категорий) ─────────────────
+test('FINANCE_SECTIONS: порядок №1 Поверка · №2 Продажа · №3 Филиалы · №4 Прочие', () => {
+  assert.deepEqual([...FINANCE_SECTIONS], ['poverka', 'sale', 'branch', 'other']);
+  assert.deepEqual(FINANCE_SECTION_META.map(s => s.no), [1, 2, 3, 4]);
+});
+test('sectionNo / sectionTitle', () => {
+  assert.equal(sectionNo('poverka'), 1);
+  assert.equal(sectionNo('branch'), 3);
+  assert.equal(sectionNo('other'), 4);
+  assert.equal(sectionTitle('poverka'), '№1 Поверка');
+  assert.equal(sectionTitle('branch'), '№3 Филиалы');
+  assert.equal(sectionTitle('other'), '№4 Прочие операции');
+  assert.equal(sectionTitle('other', false), 'Прочие операции');
+  assert.equal(sectionNo('unknown'), 4);   // фолбэк на «Прочие»
+});
+test('numberAccounts: нумерует счета внутри раздела по sort_order', () => {
+  const accs = [
+    { id: 'p-nal', section: 'poverka', sortOrder: 2, name: 'Наличка' },
+    { id: 'p-kaspi', section: 'poverka', sortOrder: 0, name: 'Каспи' },
+    { id: 'p-bck', section: 'poverka', sortOrder: 1, name: 'БЦК' },
+    { id: 's-kaspi', section: 'sale', sortOrder: 10, name: 'Каспи' },
+  ];
+  const n = numberAccounts(accs);
+  assert.equal(n['p-kaspi'], 1);   // №1 Каспи
+  assert.equal(n['p-bck'], 2);     // №2 БЦК
+  assert.equal(n['p-nal'], 3);     // №3 Наличка
+  assert.equal(n['s-kaspi'], 1);   // нумерация отдельная в каждом разделе
+});
 
 test('balanceDeltas: приход +сумма на счёт', () => {
   assert.deepEqual(balanceDeltas('Приход', '5000', 'a'), [{ id: 'a', delta: 5000 }]);

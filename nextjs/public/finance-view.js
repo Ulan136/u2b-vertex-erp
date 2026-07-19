@@ -3,7 +3,8 @@
    Стили инъектируются (классы .fv-*). Данные: GET /api/v2/finance?from=&to=. */
 (function () {
   'use strict';
-  const SECTIONS = { poverka: '📋 Поверка', sale: '💰 Продажа', other: '📄 Прочие', branch: '🏢 Филиалы' };
+  // Порядок = нумерация категорий. Держать в синхроне с finance.dto.ts (FINANCE_SECTION_META).
+  const SECTIONS = { poverka: '№1 📋 Поверка', sale: '№2 💰 Продажа', branch: '№3 🏢 Филиалы', other: '№4 📄 Прочие операции' };
   const BANK = { kaspi: 'Kaspi Bank', bck: 'БЦК', nalichka: 'касса', other: '' };
   const S = { root: null, accounts: [], ops: [], cat: 'all', readOnly: false, stack: false, api: '/api/v2/finance', hooks: {}, collapsed: {} };
 
@@ -55,6 +56,7 @@
   .fv-acc{border:1px solid var(--fv-line);border-radius:9px;padding:9px 12px;display:flex;justify-content:space-between;align-items:center;background:var(--fv-bg);}
   .fv-acc .an{font-weight:600;font-size:13px;}
   .fv-acc .ab{font-size:11.5px;color:var(--fv-muted);}
+  .fv-acc .ano{display:inline-block;font-size:10px;font-weight:800;color:var(--fv-muted);background:var(--fv-bg);border:1px solid var(--fv-line);border-radius:5px;padding:0 4px;margin-right:2px;}
   .fv-acc .av{font-weight:800;font-size:14px;white-space:nowrap;}
   .fv-movs{padding:8px 12px 12px;}
   .fv-movs .mh{font-size:11px;letter-spacing:.4px;color:var(--fv-muted);text-transform:uppercase;padding:6px 2px;}
@@ -77,10 +79,10 @@
     return `
     <div class="fv-filters">
       <button class="fv-chip on" data-c="all"     onclick="FinanceView.setCat('all')">Все</button>
-      <button class="fv-chip"    data-c="poverka" onclick="FinanceView.setCat('poverka')">📋 Поверка</button>
-      <button class="fv-chip"    data-c="sale"    onclick="FinanceView.setCat('sale')">💰 Продажа</button>
-      <button class="fv-chip"    data-c="other"   onclick="FinanceView.setCat('other')">📄 Прочие</button>
-      <button class="fv-chip"    data-c="branch"  onclick="FinanceView.setCat('branch')">🏢 Филиалы</button>
+      <button class="fv-chip"    data-c="poverka" onclick="FinanceView.setCat('poverka')">№1 📋 Поверка</button>
+      <button class="fv-chip"    data-c="sale"    onclick="FinanceView.setCat('sale')">№2 💰 Продажа</button>
+      <button class="fv-chip"    data-c="branch"  onclick="FinanceView.setCat('branch')">№3 🏢 Филиалы</button>
+      <button class="fv-chip"    data-c="other"   onclick="FinanceView.setCat('other')">№4 📄 Прочие операции</button>
       <span class="fv-sep"></span>
       <label>с</label><input type="date" id="fv-d1" onchange="FinanceView.load()">
       <label>по</label><input type="date" id="fv-d2" onchange="FinanceView.load()">
@@ -144,15 +146,16 @@
     const cols = r.querySelector('#fv-cols');
     cols.className = 'fv-cols' + (S.stack ? ' stack' : (S.cat !== 'all' ? ' single' : ''));
     cols.innerHTML = cs.map(c => {
-      const accs = S.accounts.filter(a => (a.section || 'other') === c);
+      const accs = S.accounts.filter(a => (a.section || 'other') === c)
+        .sort((x, y) => (Number(x.sortOrder ?? 0) - Number(y.sortOrder ?? 0)) || String(x.name || '').localeCompare(String(y.name || '')));
       const total = accs.reduce((s, a) => s + (Number(a.balance) || 0), 0);
       const movs = S.ops.filter(o => secOf(o.accountId) === c).sort((a, b) => String(b.opDate).localeCompare(String(a.opDate)));
       const acc = S.stack ? ' acc' + (S.collapsed[c] ? ' collapsed' : '') : '';
       const headClick = S.stack ? ` onclick="FinanceView._toggle('${c}')"` : '';
       return `<div class="fv-col${acc}" data-c="${c}">
         <div class="fv-col-head"${headClick}><span class="name">${SECTIONS[c]}</span><span class="total">${fmt(total)}</span></div>
-        <div class="fv-accs">${accs.length ? accs.map(a => `
-          <div class="fv-acc"><div><div class="an">${esc(a.icon || '')} ${esc(a.name)}</div><div class="ab">${BANK[a.category] || ''}</div></div>
+        <div class="fv-accs">${accs.length ? accs.map((a, i) => `
+          <div class="fv-acc"><div><div class="an"><span class="ano">№${i + 1}</span> ${esc(a.icon || '')} ${esc(a.name)}</div><div class="ab">${BANK[a.category] || ''}</div></div>
           <div class="av">${fmt(a.balance)}</div></div>`).join('') : '<div class="fv-empty">Нет счетов</div>'}</div>
         <div class="fv-movs"><div class="mh">Движения за период · ${movs.length}</div>
           ${movs.length ? movs.map(movRow).join('') : '<div class="fv-empty">Нет движений за период</div>'}</div>
@@ -169,7 +172,7 @@
   function doExport() {
     const cs = cats();
     const movs = S.ops.filter(o => cs.includes(secOf(o.accountId))).sort((a, b) => String(b.opDate).localeCompare(String(a.opDate)));
-    const secN = { poverka: 'Поверка', sale: 'Продажа', other: 'Прочие', branch: 'Филиалы' };
+    const secN = { poverka: '№1 Поверка', sale: '№2 Продажа', branch: '№3 Филиалы', other: '№4 Прочие операции' };
     const csvEsc = v => { v = String(v == null ? '' : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     const lines = [['Дата', 'Категория', 'Счёт', 'Операция', 'Тип', 'Сумма'].join(';')];
     movs.forEach(o => lines.push([o.opDate, secN[secOf(o.accountId)] || '', (o.accountName || ''), o.name, o.opType, movSign(o) * (Number(o.amount) || 0)].map(csvEsc).join(';')));

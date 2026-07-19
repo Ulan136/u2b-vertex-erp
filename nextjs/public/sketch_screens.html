@@ -1121,10 +1121,10 @@
   <div class="sb-section">
     <button class="sb-group open" onclick="toggleGroup(this)"><span>🧾 СЧЕТА</span><span class="arrow">▾</span></button>
     <div class="sb-sub open">
-      <button class="sb-item" onclick="go('inv-poverka','Счета','Поверка',this)">📋 Поверка</button>
-      <button class="sb-item" onclick="go('inv-sales','Счета','Продажа',this)">💰 Продажа</button>
-      <button class="sb-item" onclick="go('inv-other','Счета','Прочие',this)">📄 Прочие</button>
-      <button class="sb-item" onclick="go('inv-branches','Счета','Филиалы',this)">🏢 Филиалы</button>
+      <button class="sb-item" onclick="go('inv-poverka','Счета','Поверка',this)">№1 📋 Поверка</button>
+      <button class="sb-item" onclick="go('inv-sales','Счета','Продажа',this)">№2 💰 Продажа</button>
+      <button class="sb-item" onclick="go('inv-branches','Счета','Филиалы',this)">№3 🏢 Филиалы</button>
+      <button class="sb-item" onclick="go('inv-other','Счета','Прочие операции',this)">№4 📄 Прочие операции</button>
     </div>
   </div>
 
@@ -2252,37 +2252,30 @@
             <div class="field"><label>Дата *</label><input type="date" id="rshDate" value="2026-07-04"></div>
             <div class="field"><label>Сумма (₸) *</label><input type="number" id="rshAmount" placeholder="0"></div>
             <div class="field" style="grid-column:1/-1;"><label>Описание *</label><input id="rshDesc" placeholder="Краткое описание расхода"></div>
-            <div class="field"><label>Поставщик / Получатель</label><input id="rshSupplier" placeholder="Название или ФИО"></div>
+            <div class="field" id="rshSupplierWrap"><label>Поставщик / Получатель</label><input id="rshSupplier" placeholder="Название или ФИО"></div>
+            <div class="field" id="rshEmployeeWrap" style="display:none;"><label>Сотрудник (получатель) *</label><select id="rshEmployee"><option value="">— выберите сотрудника —</option></select></div>
             <div class="field"><label>Статус</label><select id="rshStatus"><option>Оплачен</option><option>Ожидает</option><option>Отменён</option></select></div>
           </div>
           <hr style="border:none;border-top:1px solid #f3f4f6;margin:14px 0;">
-          <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">🧾 Привязка к счетам и данным</div>
+          <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">🧾 Привязка</div>
           <div class="fg fg3">
-            <div class="field"><label>Счёт оплаты *</label>
-              <select id="rshAccount">
+            <div class="field"><label>Категория *</label>
+              <select id="rshFinSection" onchange="rshOnSectionChange()">
                 <option value="">— выберите —</option>
-                <option>Каспи</option><option>БЦК</option><option>Наличка</option><option>Перевод</option>
               </select>
+            </div>
+            <div class="field"><label>Счёт оплаты (подкатегория) *</label>
+              <select id="rshAccount"><option value="">— сначала категория —</option></select>
             </div>
             <div class="field"><label>Привязать к заказу</label>
-              <select id="rshOrder">
-                <option value="">— не привязан —</option>
-                <option>ЗАК-001 · Кулжанов</option><option>ЗАК-002 · Коканбаева</option>
-                <option>ЗАК-003 · Тілеуберді</option><option>ЗАК-004 · Абдуллаева</option>
-              </select>
-            </div>
-            <div class="field"><label>Привязать к поверке</label>
-              <select id="rshPoverka">
-                <option value="">— не привязан —</option>
-                <option>САМИ — Кулжанов</option><option>САМИ — Тойбай</option>
-                <option>ВДК — КНС №3</option><option>ТЭЦ — Котельная №2</option>
-              </select>
+              <input id="rshOrderSearch" placeholder="🔍 Поиск по номеру" oninput="rshRenderOrders()" style="margin-bottom:5px;padding:6px 8px;font-size:12px;border:1px solid #d1d5db;border-radius:7px;width:100%;box-sizing:border-box;">
+              <select id="rshOrder"><option value="">— не привязан —</option></select>
             </div>
           </div>
           <div class="fg">
             <div class="field"><label>№ документа</label><input id="rshDocNo" placeholder="СЧ-2026-001"></div>
             <div class="field"><label>Ответственный</label>
-              <select id="rshResp"><option>Молдабаев М.</option><option>Кузьмина А.Н.</option><option>Ахметов Д.С.</option><option>Смирнов Д.В.</option></select>
+              <input id="rshResp" readonly value="—" title="Текущий пользователь из сессии" style="background:#f3f4f6;color:#374151;cursor:not-allowed;">
             </div>
             <div class="field" style="grid-column:1/-1;"><label>Комментарий</label><textarea id="rshNote" style="resize:vertical;min-height:52px;" placeholder="Доп. информация..."></textarea></div>
           </div>
@@ -4953,16 +4946,77 @@ function rshUpdateSubs(){
   const cat=rshCats.find(c=>c.id===catId);
   const s=document.getElementById('rshSubSel');
   if(s) s.innerHTML='<option value="">— выберите —</option>'+(cat?.subs||[]).map(sb=>`<option>${sb}</option>`).join('');
+  rshToggleEmployee(cat);
 }
-function rshOpenExpModal(){
+// Категория «Зарплата»: «Поставщик/Получатель» → селект сотрудников из «Зарплата и кадры».
+function rshToggleEmployee(cat){
+  const isSalary = !!cat && cat.name==='Зарплата';
+  const sw=document.getElementById('rshSupplierWrap'), ew=document.getElementById('rshEmployeeWrap');
+  if(sw) sw.style.display=isSalary?'none':'';
+  if(ew) ew.style.display=isSalary?'':'none';
+  if(isSalary) rshLoadEmployees();
+}
+async function rshLoadEmployees(){
+  const sel=document.getElementById('rshEmployee'); if(!sel) return;
+  try{
+    const r=await fetch(EMP_API); const j=r.ok?await r.json():{employees:[]};
+    const list=Array.isArray(j.employees)?j.employees:[];
+    sel.innerHTML='<option value="">— выберите сотрудника —</option>'+list.map(e=>`<option value="${e.userId}">${finEsc(e.name)}${e.position?' · '+finEsc(e.position):''}</option>`).join('');
+  }catch(e){ sel.innerHTML='<option value="">— нет данных —</option>'; }
+}
+// Селект «Категория» в блоке «Привязка» = разделы финансов (№1..№4).
+function rshFillSections(){
+  const sel=document.getElementById('rshFinSection'); if(!sel) return;
+  sel.innerHTML='<option value="">— выберите —</option>'+FIN_SECTIONS.map(s=>`<option value="${s.key}">№${s.no} ${s.icon} ${s.label}</option>`).join('');
+}
+// Категория(раздел) → «Счёт оплаты» = счета раздела (с номерами) + заказы по источнику раздела.
+async function rshOnSectionChange(){
+  const secKey=document.getElementById('rshFinSection').value;
+  const accSel=document.getElementById('rshAccount');
+  const all=await finLoadAccounts();
+  accSel.innerHTML = secKey ? finSectionAccountOptions(all, secKey, '') : '<option value="">— сначала категория —</option>';
+  await rshLoadOrdersForSection(secKey);
+}
+let rshOrders=[];   // последние заказы для «Привязать к заказу» [{label}]
+async function rshLoadOrdersForSection(secKey){
+  rshOrders=[];
+  try{
+    if(secKey==='sale'){
+      const r=await fetch('/api/v2/sales',{cache:'no-store'}); const rows=r.ok?await r.json():[];
+      rshOrders=(Array.isArray(rows)?rows:[]).slice(0,10).map(s=>({label:`${s.saleNo||'—'} · ${s.clientName||''}`}));
+    } else if(secKey==='poverka'||secKey==='branch'){
+      const r=await fetch(`${ORDERS_API}?source=field_check`,{cache:'no-store'}); const rows=r.ok?await r.json():[];
+      rshOrders=(Array.isArray(rows)?rows:[]).slice(0,10).map(o=>({label:`${o.orderNo||'—'} · ${o.clientName||''}`}));
+    }
+    // «Прочие операции» (other) — к заказам не привязываются
+  }catch(e){ rshOrders=[]; }
+  rshRenderOrders();
+}
+function rshRenderOrders(){
+  const sel=document.getElementById('rshOrder'); if(!sel) return;
+  const q=(document.getElementById('rshOrderSearch')?.value||'').toLowerCase();
+  const list=rshOrders.filter(o=>!q||o.label.toLowerCase().includes(q));
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— не привязан —</option>'+list.map(o=>`<option value="${finEsc(o.label)}">${finEsc(o.label)}</option>`).join('');
+  if(cur) sel.value=cur;
+}
+const rshMeName = () => (typeof meUser!=='undefined' && meUser && meUser.name) ? meUser.name : '—';
+async function rshOpenExpModal(){
   rshEditId=null;
   document.getElementById('rshExpTitle').textContent='💸 Добавить расход';
   document.getElementById('rshDelBtn').style.display='none';
-  ['rshCatSel','rshSubSel','rshOrder','rshPoverka','rshDocNo','rshNote','rshDesc','rshSupplier','rshAmount'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  document.getElementById('rshDate').value='2026-07-04';
+  ['rshCatSel','rshSubSel','rshOrder','rshDocNo','rshNote','rshDesc','rshSupplier','rshAmount'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  document.getElementById('rshDate').value = finDateStr();
   document.getElementById('rshStatus').value='Оплачен';
-  document.getElementById('rshAccount').value='';
-  // preselect active cat
+  document.getElementById('rshResp').value = rshMeName();          // «Ответственный» = текущий пользователь
+  rshFillSections();
+  document.getElementById('rshFinSection').value='';
+  document.getElementById('rshAccount').innerHTML='<option value="">— сначала категория —</option>';
+  document.getElementById('rshEmployeeWrap').style.display='none';
+  document.getElementById('rshSupplierWrap').style.display='';
+  const os=document.getElementById('rshOrderSearch'); if(os) os.value='';
+  rshOrders=[]; rshRenderOrders();
+  finLoadAccounts(true);   // прогрев кэша счетов
   if(rshFilters.catId){ document.getElementById('rshCatSel').value=rshFilters.catId; rshUpdateSubs(); if(rshFilters.sub) document.getElementById('rshSubSel').value=rshFilters.sub; }
   document.getElementById('rshExpOverlay').classList.add('open');
   setTimeout(()=>document.getElementById('rshDesc').focus(),100);
@@ -4974,58 +5028,81 @@ function rshOpenEdit(id){
   document.getElementById('rshDelBtn').style.display='flex';
   const cat=rshCats.find(c=>c.name===e.cat);
   document.getElementById('rshCatSel').value=cat?.id||''; rshUpdateSubs();
-  document.getElementById('rshSubSel').value=e.sub;
+  document.getElementById('rshSubSel').value=e.sub||'';
   document.getElementById('rshDate').value=e.date.split('.').reverse().join('-');
   document.getElementById('rshAmount').value=e.amount;
   document.getElementById('rshDesc').value=e.desc;
-  document.getElementById('rshSupplier').value=e.supplier;
-  document.getElementById('rshStatus').value=e.status;
-  document.getElementById('rshAccount').value=e.account;
-  document.getElementById('rshOrder').value=e.order;
-  document.getElementById('rshPoverka').value=e.poverka;
-  document.getElementById('rshDocNo').value=e.docNo;
-  document.getElementById('rshResp').value=e.resp;
+  const sup=document.getElementById('rshSupplier'); if(sup) sup.value=e.supplier||'';
+  document.getElementById('rshStatus').value=e.status||'Оплачен';
+  rshFillSections();
+  document.getElementById('rshResp').value=e.resp||rshMeName();
+  document.getElementById('rshDocNo').value=e.docNo||'';
   document.getElementById('rshNote').value=e.note||'';
+  const os=document.getElementById('rshOrderSearch'); if(os) os.value='';
+  rshOrders=[]; rshRenderOrders();
   document.getElementById('rshExpOverlay').classList.add('open');
 }
 function rshCloseExp(){ document.getElementById('rshExpOverlay').classList.remove('open'); rshEditId=null; }
-function rshSaveExp(){
+async function rshSaveExp(){
   const catId=+document.getElementById('rshCatSel').value;
   const cat=rshCats.find(c=>c.id===catId);
   const desc=document.getElementById('rshDesc').value.trim();
   const amount=+document.getElementById('rshAmount').value;
-  const account=document.getElementById('rshAccount').value;
+  const accountId=document.getElementById('rshAccount').value;
+  const secKey=document.getElementById('rshFinSection').value;
   if(!cat){showToast('⚠️ Выберите категорию');return;}
   if(!desc){showToast('⚠️ Введите описание');return;}
-  if(!amount){showToast('⚠️ Введите сумму');return;}
-  if(!account){showToast('⚠️ Выберите счёт');return;}
-  const dp=document.getElementById('rshDate').value.split('-');
-  const rec={
-    id:rshEditId||(Math.max(...rshExp.map(e=>e.id),0)+1),
-    date:`${dp[2]}.${dp[1]}.${dp[0]}`, cat:cat.name,
-    sub:document.getElementById('rshSubSel').value,
-    desc, supplier:document.getElementById('rshSupplier').value,
-    amount, account,
-    order:document.getElementById('rshOrder').value,
-    poverka:document.getElementById('rshPoverka').value,
-    docNo:document.getElementById('rshDocNo').value,
-    resp:document.getElementById('rshResp').value,
-    note:document.getElementById('rshNote').value,
-    status:document.getElementById('rshStatus').value,
-  };
-  if(rshEditId){ const i=rshExp.findIndex(e=>e.id===rshEditId); rshExp[i]=rec; showToast('✅ Обновлено'); }
-  else {
-    rshExp.push(rec);
-    // ── АВТО-СПИСАНИЕ со счёта в finance_module ──────────────
-    financeAutoExpense({
-      name: (cat.name || 'Расход') + (rec.sub ? ' · ' + rec.sub : '') + ': ' + rec.desc,
-      account: rec.account,
-      amount: rec.amount,
-      section: 'other',          // расходы уходят в раздел «Прочие»
-      source: 'Расходы',
-    });
-    showToast('✅ Расход добавлен → списано со счёта ' + rec.account);
+  if(!(amount>0)){showToast('⚠️ Введите сумму больше 0');return;}
+
+  // Правка демо-строки — без повторной проводки в финансах
+  if(rshEditId){
+    const i=rshExp.findIndex(e=>e.id===rshEditId);
+    if(i>=0) Object.assign(rshExp[i],{ cat:cat.name, sub:document.getElementById('rshSubSel').value, desc, amount,
+      supplier:document.getElementById('rshSupplier').value, note:document.getElementById('rshNote').value,
+      status:document.getElementById('rshStatus').value, docNo:document.getElementById('rshDocNo').value });
+    showToast('✅ Обновлено'); rshCloseExp(); rshApplyFilters(); rshRenderTree(); return;
   }
+
+  // Категория «Зарплата» → та же логика, что кнопка «Выплатить» (эндпоинт выплат + контроль переплаты)
+  if(cat.name==='Зарплата'){
+    const userId=document.getElementById('rshEmployee').value;
+    if(!userId){ showToast('⚠️ Выберите сотрудника'); return; }
+    if(!accountId){ showToast('⚠️ Выберите счёт оплаты'); return; }
+    const url=`${EMP_API}/${userId}/payments`;
+    const payload={ amount, accountId, kind:'salary', comment: desc||null, confirmOverpay:false };
+    let r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(r.status===409){
+      const e=await r.json().catch(()=>({}));
+      if(!confirm((e.error||'Оклад за месяц уже выплачен.')+'\n\nПровести превышение как аванс следующего месяца?')) return;
+      payload.confirmOverpay=true;
+      r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    }
+    if(!r.ok){ const e=await r.json().catch(()=>({})); showToast('⚠️ '+(e.error||('HTTP '+r.status))); return; }
+    showToast('✅ Зарплата выплачена → Расход в финансах');
+    rshCloseExp();
+    if(typeof staffLoad==='function' && document.getElementById('s-staff-hr')?.classList.contains('active')) staffLoad();
+    if(document.getElementById('s-finance')?.classList.contains('active') && typeof financeReload==='function') financeReload();
+    return;
+  }
+
+  // Обычный расход → реальная операция «Расход» на выбранный счёт (ложится в колонку его раздела)
+  if(!secKey){ showToast('⚠️ Выберите категорию (раздел) для счёта'); return; }
+  if(!accountId){ showToast('⚠️ Выберите счёт оплаты'); return; }
+  const sub=document.getElementById('rshSubSel').value;
+  const orderRef=document.getElementById('rshOrder').value;
+  const note=document.getElementById('rshNote').value.trim();
+  const name=(cat.name||'Расход')+(sub?' · '+sub:'')+': '+desc;
+  const comment=[orderRef?('Заказ: '+orderRef):'', note].filter(Boolean).join(' · ')||null;
+  const ok=await finPostOp('Расход', name, accountId, amount, 'Расходы', comment);
+  if(!ok) return;
+  const acc=(finAccountsCache||[]).find(a=>a.id===accountId);
+  const dp=document.getElementById('rshDate').value.split('-');
+  rshExp.push({ id:(Math.max(0,...rshExp.map(e=>e.id))+1), date:`${dp[2]}.${dp[1]}.${dp[0]}`, cat:cat.name, sub, desc,
+    supplier:document.getElementById('rshSupplier').value, amount,
+    account: acc?`${finSecMeta(secKey).label} · ${acc.name}`:'', order:orderRef, poverka:'',
+    docNo:document.getElementById('rshDocNo').value, resp:document.getElementById('rshResp').value, note,
+    status:document.getElementById('rshStatus').value });
+  showToast('✅ Расход добавлен → списано со счёта '+(acc?acc.name:''));
   rshCloseExp(); rshApplyFilters(); rshRenderTree();
 }
 function rshDeleteExp(){
@@ -5446,10 +5523,9 @@ async function initDebtsScreen(){
 }
 
 function debtFillAccountSelects(){
-  const optHtml = debtAccounts.map(a=>`<option value="${a.id}">${debtEsc(a.name)}</option>`).join('');
-  const f=document.getElementById('debt-f-account'); if(f){ const cur=f.value; f.innerHTML=`<option value="">Все счета</option>`+optHtml; f.value=cur; }
-  const m=document.getElementById('debt-account');     if(m) m.innerHTML=`<option value="">— без счёта —</option>`+optHtml;
-  const p=document.getElementById('debt-pay-account'); if(p) p.innerHTML=`<option value="">— без счёта —</option>`+optHtml;
+  const f=document.getElementById('debt-f-account'); if(f){ const cur=f.value; f.innerHTML=finAccountOptions(debtAccounts, '', 'Все счета'); f.value=cur; }
+  const m=document.getElementById('debt-account');     if(m) m.innerHTML=finAccountOptions(debtAccounts, '', '— без счёта —');
+  const p=document.getElementById('debt-pay-account'); if(p) p.innerHTML=finAccountOptions(debtAccounts, '', '— без счёта —');
 }
 function debtFillClientSelect(){
   const m=document.getElementById('debt-client');
@@ -5735,7 +5811,7 @@ function staffOpenPay(userId){
   const e=staffList.find(x=>x.userId===userId); if(!e||e.salaryHidden) return;
   staffPayUserId=userId;
   const sel=document.getElementById('staff-pay-account');
-  sel.innerHTML='<option value="">— выберите счёт —</option>'+staffAccounts.map(a=>`<option value="${a.id}">${staffEsc(a.name)}</option>`).join('');
+  sel.innerHTML=finAccountOptions(staffAccounts, '', '— выберите счёт —');   // сгруппировано по разделам, с номерами
   document.getElementById('staffPayName').textContent=e.name;
   document.getElementById('staffPayInfo').innerHTML=`Оклад: <strong>${staffFmt(e.fixedSalary)} ₸</strong> · Выплачено: <strong>${staffFmt(e.paidThisMonth)} ₸</strong> · Остаток: <strong style="color:#b45309;">${staffFmt(e.remaining)} ₸</strong>`;
   document.getElementById('staff-pay-amount').value=Number(e.remaining)>0?e.remaining:'';
@@ -8279,6 +8355,58 @@ function financeAutoIncome({ name, account, amount, section, source }) {
 // ── РАСХОД: списание со счёта → реальная операция ──────────────
 function financeAutoExpense({ name, account, amount, section, source }) {
   finAutoOp('Расход', name, account, amount, section, source);
+}
+
+// ── Разделы финансов: единый порядок/номера/цвета (синхрон с finance.dto.ts) ──
+const FIN_SECTIONS = [
+  { key:'poverka', no:1, label:'Поверка',         icon:'📋', color:'#2563eb' },
+  { key:'sale',    no:2, label:'Продажа',         icon:'💰', color:'#d97706' },
+  { key:'branch',  no:3, label:'Филиалы',         icon:'🏢', color:'#0d9488' },
+  { key:'other',   no:4, label:'Прочие операции', icon:'📄', color:'#6f42c1' },
+];
+const finEsc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const finSecMeta = k => FIN_SECTIONS.find(s=>s.key===k) || FIN_SECTIONS[3];
+
+let finAccountsCache = [];
+async function finLoadAccounts(force){
+  if(finAccountsCache.length && !force) return finAccountsCache;
+  try{ const r=await fetch(FINANCE_API); const j=r.ok?await r.json():{}; finAccountsCache=Array.isArray(j.accounts)?j.accounts:[]; }catch(e){ finAccountsCache=[]; }
+  return finAccountsCache;
+}
+function finSecAccounts(all, secKey){
+  return all.filter(a=>(a.section||'other')===secKey)
+    .sort((x,y)=>(Number(x.sortOrder??0)-Number(y.sortOrder??0))||String(x.name||'').localeCompare(String(y.name||'')));
+}
+// Сгруппированный список счетов: <optgroup> по разделам (№N), счета с номерами. «Перевод» — не счёт, его тут нет.
+function finAccountOptions(accounts, selectedId, placeholder){
+  let html=`<option value="">${placeholder||'— выберите счёт —'}</option>`;
+  for(const sec of FIN_SECTIONS){
+    const list=finSecAccounts(accounts, sec.key);
+    if(!list.length) continue;
+    html+=`<optgroup label="№${sec.no} ${sec.label}">`;
+    list.forEach((a,i)=>{ html+=`<option value="${a.id}"${a.id===selectedId?' selected':''}>№${i+1} ${finEsc(a.icon||'')} ${finEsc(a.name)}</option>`; });
+    html+='</optgroup>';
+  }
+  return html;
+}
+// Простой список счетов одного раздела (для каскада Категория→Счёт оплаты).
+function finSectionAccountOptions(accounts, secKey, selectedId){
+  const list=finSecAccounts(accounts, secKey);
+  let html=`<option value="">— выберите счёт —</option>`;
+  list.forEach((a,i)=>{ html+=`<option value="${a.id}"${a.id===selectedId?' selected':''}>№${i+1} ${finEsc(a.icon||'')} ${finEsc(a.name)}</option>`; });
+  return html;
+}
+// Публикация операции с готовым accountId → ложится в колонку раздела этого счёта.
+async function finPostOp(opType, name, accountId, amount, source, comment){
+  amount=Number(amount)||0; if(amount<=0||!accountId) return false;
+  try{
+    const body={ opType, accountId, amount, name:name||opType, opDate:finDateStr(), source:source||'ERP' };
+    if(comment) body.comment=comment;
+    const r=await fetch(FINANCE_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if(!r.ok){ const e=await r.json().catch(()=>({})); throw new Error(e.error||('HTTP '+r.status)); }
+    if(document.getElementById('s-finance')?.classList.contains('active') && typeof financeReload==='function') financeReload();
+    return true;
+  }catch(e){ showToast('⚠️ Финансы: '+e.message); return false; }
 }
 
 // ── СОХРАНЕНИЕ СЕРТИФИКАТА — главная функция ──────────────────
