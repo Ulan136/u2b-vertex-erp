@@ -2251,7 +2251,7 @@
           <div class="fg">
             <div class="field"><label>Дата *</label><input type="date" id="rshDate" value="2026-07-04"></div>
             <div class="field"><label>Сумма (₸) *</label><input type="number" id="rshAmount" placeholder="0"></div>
-            <div class="field" style="grid-column:1/-1;"><label>Описание *</label><input id="rshDesc" placeholder="Краткое описание расхода"></div>
+            <div class="field" style="grid-column:1/-1;"><label>Описание</label><input id="rshDesc" placeholder="Необязательно — по умолчанию название категории / «Зарплата: ФИО»"></div>
             <div class="field" id="rshSupplierWrap"><label>Поставщик / Получатель</label><input id="rshSupplier" placeholder="Название или ФИО"></div>
             <div class="field" id="rshEmployeeWrap" style="display:none;"><label>Сотрудник (получатель) *</label><select id="rshEmployee"><option value="">— выберите сотрудника —</option></select></div>
             <div class="field"><label>Статус</label><select id="rshStatus"><option>Оплачен</option><option>Ожидает</option><option>Отменён</option></select></div>
@@ -4611,7 +4611,8 @@ function go(screenId, section, page, el) {
   if (CERT_EXTRA[screenId]) { const c=CERT_EXTRA[screenId]; certLoaded[c.org] ? renderCert(c.arr(), c.tbodyId) : certFetch(c.org); }
   if (screenId==='field-orders') { ordersLoadExtUrl('field_check'); ordersState.field_check.loaded ? renderOrders('field_check') : ordersFetch('field_check'); }
   if (screenId==='tec-orders')   { ordersLoadExtUrl('tec');         ordersState.tec.loaded         ? renderOrders('tec')         : ordersFetch('tec'); }
-  if (screenId==='rashody')       { rshApplyFilters(); rshRenderTree(); rshPopulateCatSels(); }
+  if (screenId==='dashboard')     { dashLoadFinance(); }
+  if (screenId==='rashody')       { rshLoadFromFinance(); rshPopulateCatSels(); }
   if (screenId==='warehouse')       { renderWarehouse(); whFetchFromApi().then(renderWarehouse); }
   if (screenId==='sales')            { salesLoadFromStorage(); renderSales(); }
   if (screenId==='debts')            { initDebtsScreen(); }
@@ -4623,8 +4624,8 @@ function go(screenId, section, page, el) {
   if (screenId==='other-ops-proj')    { oopRenderTable('proj');    oopRenderStats('proj'); }
   if (screenId==='other-ops-tender')  { oopRenderTable('tender');  oopRenderStats('tender'); }
   if (screenId==='other-ops-service') { oopRenderTable('service'); oopRenderStats('service'); }
-  if (screenId==='rashody-cats')  { rshRenderCatGrid(); }
-  if (screenId==='rashody-stats') { rshRenderAnalytics(); }
+  if (screenId==='rashody-cats')  { rshLoadFromFinance().then(rshRenderCatGrid); }
+  if (screenId==='rashody-stats') { rshLoadFromFinance().then(rshRenderAnalytics); }
   // invoice screens
   const _invMap={'inv-poverka':'poverka','inv-sales':'sales','inv-other':'other','inv-branches':'branch'};
   if (_invMap[screenId]) {
@@ -4709,6 +4710,32 @@ let rshFiltered = [...rshExp];
 let rshFilters = {q:'', account:'', status:'', catId:null, sub:''};
 let rshEditId = null;
 
+// ── ЕДИНЫЙ ИСТОЧНИК: журнал расходов = реальные операции «Расход» из Финансов ──
+async function rshLoadFromFinance(){
+  const { accounts, operations } = await finLoadOverview();
+  const accById = Object.fromEntries(accounts.map(a=>[a.id,a]));
+  const exp = operations.filter(o=>o.opType==='Расход');
+  rshExp = exp.map((o,i)=>{
+    const acc = accById[o.accountId];
+    const isSalary = o.source==='Зарплата';
+    let orderRef=''; if(o.comment){ const m=/Заказ:\s*([^·]+)/.exec(o.comment); if(m) orderRef=m[1].trim(); }
+    return {
+      id:o.id, seq:i+1,
+      date:(String(o.opDate||'').slice(0,10).split('-').reverse().join('.'))||'—',
+      cat:isSalary?'Зарплата':'Прочие',
+      sub:'',
+      desc:o.name || (isSalary?'Зарплата':'Расход'),
+      supplier:'',
+      amount:Number(o.amount)||0,
+      account: acc?acc.name:(o.accountName||'—'),
+      accSection: acc?(acc.section||'other'):'other',
+      order:orderRef, poverka:'',
+      status:'Оплачен', source:o.source||'',
+    };
+  });
+  rshApplyFilters(); rshRenderTree();
+}
+
 // ── TREE ──────────────────────────────────────────────────────
 function rshRenderTree() {
   const el = document.getElementById('rshTree');
@@ -4791,25 +4818,21 @@ function rshRenderTable() {
   }
   tbody.innerHTML = rshFiltered.map(e => {
     const cat = rshCats.find(c=>c.name===e.cat);
+    const secLbl = (typeof finSecMeta==='function' && e.accSection) ? `№${finSecMeta(e.accSection).no} ${finSecMeta(e.accSection).label}` : '';
     return `<tr>
-      <td style="color:#9ca3af;font-size:11px;">${e.id}</td>
+      <td style="color:#9ca3af;font-size:11px;">${e.seq||''}</td>
       <td style="font-size:11px;color:#6b7280;">${e.date}</td>
       <td><span class="badge b-active">${cat?.icon||'📦'} ${e.cat}</span></td>
-      <td style="font-size:11px;color:#6b7280;">${e.sub}</td>
-      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;">${e.desc}</td>
+      <td style="font-size:11px;color:#6b7280;">${e.sub||'—'}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${(e.desc||'').replace(/"/g,'&quot;')}">${e.desc||'—'}</td>
       <td style="font-size:11px;">${e.supplier||'—'}</td>
       <td style="font-weight:700;text-align:right;">${e.amount.toLocaleString('ru')} ₸</td>
-      <td>${rshAccBadge(e.account)}</td>
+      <td>${rshAccBadge(e.account)}${secLbl?`<div style="font-size:10px;color:#9ca3af;">${secLbl}</div>`:''}</td>
       <td style="font-size:11px;color:#6b7280;max-width:130px;">
-        ${e.order   ? `<div style="overflow:hidden;text-overflow:ellipsis;" title="${e.order}">📋 ${e.order}</div>` : ''}
-        ${e.poverka ? `<div style="overflow:hidden;text-overflow:ellipsis;" title="${e.poverka}">🔬 ${e.poverka}</div>` : ''}
-        ${!e.order&&!e.poverka ? '—' : ''}
+        ${e.order ? `<div style="overflow:hidden;text-overflow:ellipsis;" title="${e.order}">📋 ${e.order}</div>` : '—'}
       </td>
       <td>${rshStatusBadge(e.status)}</td>
-      <td><div class="actions-cell">
-        <button class="act-btn" onclick="rshOpenEdit(${e.id})" title="Редактировать">✏️</button>
-        <button class="btn-clone" onclick="rshClone(${e.id})">⎘ Клон.</button>
-      </div></td>
+      <td style="font-size:11px;color:#9ca3af;text-align:center;" title="Из реестра Финансов">💳</td>
     </tr>`;
   }).join('');
 }
@@ -5046,22 +5069,12 @@ function rshCloseExp(){ document.getElementById('rshExpOverlay').classList.remov
 async function rshSaveExp(){
   const catId=+document.getElementById('rshCatSel').value;
   const cat=rshCats.find(c=>c.id===catId);
-  const desc=document.getElementById('rshDesc').value.trim();
+  const desc=document.getElementById('rshDesc').value.trim();   // описание необязательно
   const amount=+document.getElementById('rshAmount').value;
   const accountId=document.getElementById('rshAccount').value;
   const secKey=document.getElementById('rshFinSection').value;
   if(!cat){showToast('⚠️ Выберите категорию');return;}
-  if(!desc){showToast('⚠️ Введите описание');return;}
   if(!(amount>0)){showToast('⚠️ Введите сумму больше 0');return;}
-
-  // Правка демо-строки — без повторной проводки в финансах
-  if(rshEditId){
-    const i=rshExp.findIndex(e=>e.id===rshEditId);
-    if(i>=0) Object.assign(rshExp[i],{ cat:cat.name, sub:document.getElementById('rshSubSel').value, desc, amount,
-      supplier:document.getElementById('rshSupplier').value, note:document.getElementById('rshNote').value,
-      status:document.getElementById('rshStatus').value, docNo:document.getElementById('rshDocNo').value });
-    showToast('✅ Обновлено'); rshCloseExp(); rshApplyFilters(); rshRenderTree(); return;
-  }
 
   // Категория «Зарплата» → та же логика, что кнопка «Выплатить» (эндпоинт выплат + контроль переплаты)
   if(cat.name==='Зарплата'){
@@ -5080,6 +5093,7 @@ async function rshSaveExp(){
     if(!r.ok){ const e=await r.json().catch(()=>({})); showToast('⚠️ '+(e.error||('HTTP '+r.status))); return; }
     showToast('✅ Зарплата выплачена → Расход в финансах');
     rshCloseExp();
+    await rshLoadFromFinance();   // журнал = реальные операции
     if(typeof staffLoad==='function' && document.getElementById('s-staff-hr')?.classList.contains('active')) staffLoad();
     if(document.getElementById('s-finance')?.classList.contains('active') && typeof financeReload==='function') financeReload();
     return;
@@ -5091,19 +5105,14 @@ async function rshSaveExp(){
   const sub=document.getElementById('rshSubSel').value;
   const orderRef=document.getElementById('rshOrder').value;
   const note=document.getElementById('rshNote').value.trim();
-  const name=(cat.name||'Расход')+(sub?' · '+sub:'')+': '+desc;
+  const catPart=(cat.name||'Расход')+(sub?' · '+sub:'');
+  const name = desc ? (catPart+': '+desc) : catPart;   // пустое описание → название категории
   const comment=[orderRef?('Заказ: '+orderRef):'', note].filter(Boolean).join(' · ')||null;
   const ok=await finPostOp('Расход', name, accountId, amount, 'Расходы', comment);
   if(!ok) return;
-  const acc=(finAccountsCache||[]).find(a=>a.id===accountId);
-  const dp=document.getElementById('rshDate').value.split('-');
-  rshExp.push({ id:(Math.max(0,...rshExp.map(e=>e.id))+1), date:`${dp[2]}.${dp[1]}.${dp[0]}`, cat:cat.name, sub, desc,
-    supplier:document.getElementById('rshSupplier').value, amount,
-    account: acc?`${finSecMeta(secKey).label} · ${acc.name}`:'', order:orderRef, poverka:'',
-    docNo:document.getElementById('rshDocNo').value, resp:document.getElementById('rshResp').value, note,
-    status:document.getElementById('rshStatus').value });
-  showToast('✅ Расход добавлен → списано со счёта '+(acc?acc.name:''));
-  rshCloseExp(); rshApplyFilters(); rshRenderTree();
+  showToast('✅ Расход добавлен → списано со счёта');
+  rshCloseExp();
+  await rshLoadFromFinance();
 }
 function rshDeleteExp(){
   if(!rshEditId) return;
@@ -7128,12 +7137,32 @@ function renderAccountSources() {
 //  DASHBOARD — агрегирует данные из всех модулей
 // ══════════════════════════════════════════════════════════════
 
+// Реальные финансы для дашборда (единый реестр /api/v2/finance, не localStorage).
+let dashFinance = { accts:{}, ops:[] };
+function dashFinanceShape(ov){
+  const accounts=ov.accounts||[], operations=ov.operations||[];
+  const accById=Object.fromEntries(accounts.map(a=>[a.id,a]));
+  const accts={};
+  accounts.forEach(a=>{ const k=`${a.name} · ${(typeof finSecMeta==='function'?finSecMeta(a.section).label:(a.section||''))}`; accts[k]={ bal:Number(a.balance)||0, icon:a.icon||'💳' }; });
+  const ops=operations.map(o=>{ const acc=accById[o.accountId];
+    return { type:o.opType, amount:Number(o.amount)||0, name:o.name||o.opType,
+      date:(String(o.opDate||'').slice(0,10).split('-').reverse().join('.'))||'—',
+      account: acc?acc.name:(o.accountName||'—'),
+      cat: o.source==='Зарплата'?'Зарплата':(o.source||'Прочие') }; });
+  return { accts, ops };
+}
+async function dashLoadFinance(){
+  const ov = await finLoadOverview();
+  dashFinance = dashFinanceShape(ov);
+  renderDash();
+}
+
 function renderDash() {
   // ── Загружаем все данные ───────────────────────────────────
   whLoadFromStorage();
   salesLoadFromStorage();
 
-  const finState = (()=>{try{return JSON.parse(localStorage.getItem('u2b_finance_v2')||'null');}catch(e){return null;}})();
+  const finState = dashFinance;   // реальный реестр Финансов (см. dashLoadFinance)
 
   // ── Все сертификаты ────────────────────────────────────────
   const allCerts = [...certData,...certVdkData,...certTecData,...notifData,...notifVdkData,...notifTecData];
@@ -7162,7 +7191,7 @@ function renderDash() {
   const whEmpty = warehouseData.filter(p=>p.stock<=0).length;
 
   // ── Расходы ────────────────────────────────────────────────
-  const expTotal = rshExp ? rshExp.reduce((s,e)=>s+(e.amount||0),0) : 0;
+  const expTotal = finOps.filter(o=>o.type==='Расход').reduce((s,o)=>s+(o.amount||0),0);
 
   // ── Алерты ────────────────────────────────────────────────
   const alerts = [];
@@ -7348,10 +7377,9 @@ function renderDash() {
   const expEl = document.getElementById('dash-expenses');
   if (expEl) {
     const byCat = {};
-    (rshExp||[]).forEach(e=>{
-      const cat = rshCats?.find(c=>c.id===e.cat);
-      const name = cat?.name || e.cat || 'Прочие';
-      byCat[name] = (byCat[name]||0) + (e.amount||0);
+    finOps.filter(o=>o.type==='Расход').forEach(o=>{
+      const name = o.cat || 'Прочие';
+      byCat[name] = (byCat[name]||0) + (o.amount||0);
     });
     const sorted = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).slice(0,5);
     const maxVal = sorted.length ? sorted[0][1] : 1;
@@ -7926,6 +7954,7 @@ window.addEventListener('DOMContentLoaded', () => {
   whFetchFromApi().then(() => renderWarehouse());
   // Render dashboard on load
   setTimeout(renderDash, 200);
+  dashLoadFinance();   // подтянуть реальные финансы (расходы/счета) в дашборд
 
   renderCertStats(certData,'cert-stats');
   renderCert(certData,'certBody');
@@ -8372,6 +8401,14 @@ async function finLoadAccounts(force){
   if(finAccountsCache.length && !force) return finAccountsCache;
   try{ const r=await fetch(FINANCE_API); const j=r.ok?await r.json():{}; finAccountsCache=Array.isArray(j.accounts)?j.accounts:[]; }catch(e){ finAccountsCache=[]; }
   return finAccountsCache;
+}
+// Единый источник расходов/движений: {accounts, operations} из реального реестра.
+async function finLoadOverview(){
+  try{
+    const r=await fetch(FINANCE_API,{cache:'no-store'}); const j=r.ok?await r.json():{};
+    finAccountsCache=Array.isArray(j.accounts)?j.accounts:[];
+    return { accounts: finAccountsCache, operations: Array.isArray(j.operations)?j.operations:[] };
+  }catch(e){ return { accounts:[], operations:[] }; }
 }
 function finSecAccounts(all, secKey){
   return all.filter(a=>(a.section||'other')===secKey)
