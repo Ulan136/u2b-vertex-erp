@@ -2,8 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withApi, created, optionsHandler } from '@/server/lib/http';
 import { documentsService } from '@/server/services/documents.service';
 import { buildInvoiceExcel, buildInvoiceWord } from '@/server/lib/doc-invoice';
+import {
+  buildNakladnayaExcel, buildNakladnayaWord, buildAktExcel, buildAktWord, buildKpExcel, buildKpWord,
+} from '@/server/lib/doc-forms';
 import { CORS_HEADERS } from '@/server/lib/cors';
 import { badRequest } from '@/server/lib/errors';
+
+type Gen = (doc: never, org: never) => Promise<Buffer>;
+const GENERATORS: Record<string, { excel: Gen; word: Gen }> = {
+  invoice: { excel: buildInvoiceExcel as Gen, word: buildInvoiceWord as Gen },
+  nakladnaya: { excel: buildNakladnayaExcel as Gen, word: buildNakladnayaWord as Gen },
+  akt: { excel: buildAktExcel as Gen, word: buildAktWord as Gen },
+  kp: { excel: buildKpExcel as Gen, word: buildKpWord as Gen },
+};
 import type { DocType } from '@/server/dto/documents.dto';
 
 export const OPTIONS = optionsHandler;
@@ -27,9 +38,10 @@ export const DELETE = withApi(async (_req: NextRequest, ctx) => documentsService
 export const FILE = withApi(async (req: NextRequest, ctx) => {
   const fmt = new URL(req.url).searchParams.get('fmt') || 'excel';
   const { doc, org } = await documentsService.withOrg(ctx.params!.id);
-  if (doc.type !== 'invoice') throw badRequest('Генератор пока только для «Счёта на оплату»');
+  const gen = GENERATORS[doc.type];
+  if (!gen) throw badRequest('Неизвестный тип документа');
   const isWord = fmt === 'word';
-  const buffer = isWord ? await buildInvoiceWord(doc, org || {}) : await buildInvoiceExcel(doc, org || {});
+  const buffer = isWord ? await gen.word(doc as never, (org || {}) as never) : await gen.excel(doc as never, (org || {}) as never);
   const ext = isWord ? 'docx' : 'xlsx';
   const ctype = isWord
     ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'

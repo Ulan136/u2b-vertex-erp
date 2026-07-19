@@ -2336,17 +2336,17 @@
           <div style="font-size:28px;">🧾</div><div style="font-weight:700;margin-top:6px;">Счёт на оплату</div>
           <div style="font-size:11px;color:#6b7280;margin-top:2px;">Каспи / БЦК · сумма прописью</div>
         </div>
-        <div class="card" onclick="accOpenForm('nakladnaya')" style="cursor:pointer;border:1px solid #e5e7eb;border-radius:12px;padding:16px;opacity:.6;">
+        <div class="card" onclick="accOpenForm('nakladnaya')" style="cursor:pointer;border:1px solid #e5e7eb;border-radius:12px;padding:16px;transition:.15s;" onmouseover="this.style.borderColor='#1a56db';this.style.boxShadow='0 2px 10px rgba(26,86,219,.12)'" onmouseout="this.style.borderColor='#e5e7eb';this.style.boxShadow='none'">
           <div style="font-size:28px;">📦</div><div style="font-weight:700;margin-top:6px;">Накладная (З-2)</div>
-          <div style="font-size:11px;color:#9ca3af;margin-top:2px;">официальная форма · скоро</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px;">официальная форма отпуска запасов</div>
         </div>
-        <div class="card" onclick="accOpenForm('akt')" style="cursor:pointer;border:1px solid #e5e7eb;border-radius:12px;padding:16px;opacity:.6;">
+        <div class="card" onclick="accOpenForm('akt')" style="cursor:pointer;border:1px solid #e5e7eb;border-radius:12px;padding:16px;transition:.15s;" onmouseover="this.style.borderColor='#1a56db';this.style.boxShadow='0 2px 10px rgba(26,86,219,.12)'" onmouseout="this.style.borderColor='#e5e7eb';this.style.boxShadow='none'">
           <div style="font-size:28px;">📝</div><div style="font-weight:700;margin-top:6px;">Акт (Р-1)</div>
-          <div style="font-size:11px;color:#9ca3af;margin-top:2px;">выполненных работ · скоро</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px;">выполненных работ / услуг</div>
         </div>
-        <div class="card" onclick="accOpenForm('kp')" style="cursor:pointer;border:1px solid #e5e7eb;border-radius:12px;padding:16px;opacity:.6;">
+        <div class="card" onclick="accOpenForm('kp')" style="cursor:pointer;border:1px solid #e5e7eb;border-radius:12px;padding:16px;transition:.15s;" onmouseover="this.style.borderColor='#1a56db';this.style.boxShadow='0 2px 10px rgba(26,86,219,.12)'" onmouseout="this.style.borderColor='#e5e7eb';this.style.boxShadow='none'">
           <div style="font-size:28px;">📄</div><div style="font-weight:700;margin-top:6px;">КП</div>
-          <div style="font-size:11px;color:#9ca3af;margin-top:2px;">коммерческое предложение · скоро</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px;">коммерческое предложение</div>
         </div>
       </div>
 
@@ -6234,9 +6234,13 @@ async function accLoadList(){
       <button class="act-btn" title="Удалить" style="color:#dc2626;" onclick="accDelete('${d.id}')">🗑️</button>
     </td></tr>`).join('');
 }
+let accCurType='invoice';
+const ACC_TITLES={invoice:'🧾 Счёт на оплату',nakladnaya:'📦 Накладная (форма З-2)',akt:'📝 Акт выполненных работ (форма Р-1)',kp:'📄 Коммерческое предложение'};
 async function accOpenForm(type){
-  if(type!=='invoice'){ showToast('⚠️ «'+({nakladnaya:'Накладная З-2',akt:'Акт Р-1',kp:'КП'}[type]||type)+'» — в следующем обновлении'); return; }
+  accCurType=type||'invoice';
   if(!accOrg) await accInit();
+  document.getElementById('accFormTitle').textContent=ACC_TITLES[accCurType]||'Документ';
+  const bw=document.getElementById('acc-bank-wrap'); if(bw) bw.style.display=(accCurType==='invoice')?'':'none';
   const bs=document.getElementById('acc-bank');
   bs.innerHTML=((accOrg&&accOrg.banks)||[]).map(b=>`<option value="${b.key}">${accEsc(b.name)} · ${accEsc(b.iik)}</option>`).join('');
   const cs=document.getElementById('acc-client');
@@ -6247,7 +6251,7 @@ async function accOpenForm(type){
   document.getElementById('acc-stamp').checked=false; document.getElementById('acc-sign').checked=false;
   document.getElementById('acc-item-results').style.display='none';
   accItems=[]; accRenderItems();
-  try{ const r=await fetch(DOCS_API+'?next=invoice'); const j=r.ok?await r.json():{}; document.getElementById('acc-num').value=j.number?('№ '+j.number):''; }catch(e){ document.getElementById('acc-num').value=''; }
+  try{ const r=await fetch(DOCS_API+'?next='+accCurType); const j=r.ok?await r.json():{}; document.getElementById('acc-num').value=j.number?('№ '+j.number):''; }catch(e){ document.getElementById('acc-num').value=''; }
   document.getElementById('accFormOverlay').classList.add('open');
 }
 function accCloseForm(){ document.getElementById('accFormOverlay').classList.remove('open'); }
@@ -6291,9 +6295,9 @@ async function accSaveDoc(){
   if(!buyerName){ showToast('⚠️ Укажите покупателя'); return; }
   const items=accItems.filter(it=>String(it.name).trim()&&(Number(it.qty)||0)>0);
   if(!items.length){ showToast('⚠️ Добавьте хотя бы одну позицию'); return; }
-  const payload={ type:'invoice', docDate:document.getElementById('acc-date').value||null, buyerName,
+  const payload={ type:accCurType, docDate:document.getElementById('acc-date').value||null, buyerName,
     buyerBin:document.getElementById('acc-buyer-bin').value.trim()||null, buyerAddress:document.getElementById('acc-buyer-addr').value.trim()||null,
-    bank:document.getElementById('acc-bank').value||'kaspi',
+    bank:accCurType==='invoice'?(document.getElementById('acc-bank').value||'kaspi'):null,
     items:items.map(it=>({name:it.name,sku:it.sku||null,qty:Number(it.qty)||0,unit:it.unit||'шт',price:Number(it.price)||0})),
     withStamp:document.getElementById('acc-stamp').checked, withSign:document.getElementById('acc-sign').checked };
   try{
@@ -6306,7 +6310,7 @@ function accDownload(id,fmt){ const a=Object.assign(document.createElement('a'),
 async function accClone(id){
   let d; try{ const r=await fetch(`${DOCS_API}/${id}`); d=r.ok?await r.json():null; }catch(e){ d=null; }
   if(!d){ showToast('⚠️ Документ не найден'); return; }
-  await accOpenForm('invoice');
+  await accOpenForm(d.type||'invoice');
   document.getElementById('acc-buyer-name').value=d.buyerName||'';
   document.getElementById('acc-buyer-bin').value=d.buyerBin||'';
   document.getElementById('acc-buyer-addr').value=d.buyerAddress||'';
@@ -6315,31 +6319,84 @@ async function accClone(id){
 }
 async function accDelete(id){ if(!confirm('Удалить документ?')) return; try{ const r=await fetch(`${DOCS_API}/${id}`,{method:'DELETE'}); if(!r.ok) throw new Error('HTTP '+r.status); await accLoadList(); showToast('🗑️ Удалён'); }catch(e){ showToast('⚠️ '+e.message); } }
 // Печать/PDF — HTML печатная форма (PDF = сохранить как PDF из диалога печати)
-async function accPrint(id, doPrint){
-  let d; try{ const r=await fetch(`${DOCS_API}/${id}`); d=r.ok?await r.json():null; }catch(e){ d=null; }
-  if(!d){ showToast('⚠️ Документ не найден'); return; }
-  const org=accOrg||{}; const bank=((org.banks)||[]).find(b=>b.key===d.bank)||((org.banks)||[])[0]||{};
-  const rows=(d.items||[]).map((it,i)=>`<tr><td>${i+1}</td><td>${accEsc(it.sku||'')}</td><td style="text-align:left;">${accEsc(it.name)}</td><td>${it.qty}</td><td>${accEsc(it.unit||'шт')}</td><td class="r">${accFmt(it.price)}</td><td class="r">${accFmt(it.sum)}</td></tr>`).join('');
+// печать/подпись у строки подписи (абсолютное позиционирование)
+function accSignHtml(d,org){
   const sign=(d.withSign&&org.signB64)?`<img src="${org.signB64}" style="position:absolute;width:110px;left:96px;top:-8px;">`:'';
   const stamp=(d.withStamp&&org.stampB64)?`<img src="${org.stampB64}" style="position:absolute;width:120px;transform:rotate(-8deg);left:186px;top:-34px;opacity:.9;">`:'';
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${accEsc(d.docNo||'Счет')}</title>
-  <style>@page{size:A4 portrait;margin:12mm;} body{font-family:'Times New Roman',serif;color:#000;font-size:12px;} h2{font-size:15px;margin:10px 0 6px;} .items{width:100%;border-collapse:collapse;} .items td,.items th{border:1px solid #000;padding:4px 6px;text-align:center;} .items th{background:#f0f0f0;} .r{text-align:right;} .bank td{border:1px solid #000;padding:3px 6px;font-size:11px;}</style></head><body>
+  return sign+stamp;
+}
+const ACC_ITEMS_CSS=`.items{width:100%;border-collapse:collapse;} .items td,.items th{border:1px solid #000;padding:4px 6px;text-align:center;} .items th{background:#f0f0f0;} .r{text-align:right;} .l{text-align:left;}`;
+const accDoc = (title,orient,body) => `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${accEsc(title)}</title><style>@page{size:A4 ${orient};margin:12mm;} body{font-family:'Times New Roman',serif;color:#000;font-size:12px;} h2{font-size:15px;margin:8px 0 6px;text-align:center;} .app{text-align:right;font-size:10px;color:#333;} ${ACC_ITEMS_CSS}</style></head><body>${body}</body></html>`;
+
+function accInvoiceHtml(d,org){
+  const bank=((org.banks)||[]).find(b=>b.key===d.bank)||((org.banks)||[])[0]||{};
+  const rows=(d.items||[]).map((it,i)=>`<tr><td>${i+1}</td><td>${accEsc(it.sku||'')}</td><td class="l">${accEsc(it.name)}</td><td>${it.qty}</td><td>${accEsc(it.unit||'шт')}</td><td class="r">${accFmt(it.price)}</td><td class="r">${accFmt(it.sum)}</td></tr>`).join('');
+  return accDoc(d.docNo||'Счет','portrait',`
   ${org.logoB64?`<img src="${org.logoB64}" style="float:right;width:88px;">`:''}
   <div style="font-size:10px;font-style:italic;margin-bottom:8px;max-width:70%;">Внимание! Оплата данного счета означает согласие с условиями поставки товара.</div>
-  <table class="bank" style="border-collapse:collapse;margin-bottom:10px;"><tr><td style="font-weight:700;">Бенефициар:</td><td colspan="3">${accEsc(org.companyName||'')} · БИН ${accEsc(org.bin||'')}</td></tr>
-  <tr><td>ИИК</td><td>${accEsc(bank.iik||'')}</td><td>БИК</td><td>${accEsc(bank.bik||'')}</td></tr>
-  <tr><td>Банк бенефициара:</td><td colspan="3">${accEsc(bank.name||'')}</td></tr></table>
+  <table style="border-collapse:collapse;margin-bottom:10px;font-size:11px;"><tr><td style="border:1px solid #000;padding:3px 6px;font-weight:700;">Бенефициар:</td><td style="border:1px solid #000;padding:3px 6px;" colspan="3">${accEsc(org.companyName||'')} · БИН ${accEsc(org.bin||'')}</td></tr>
+  <tr><td style="border:1px solid #000;padding:3px 6px;">ИИК</td><td style="border:1px solid #000;padding:3px 6px;">${accEsc(bank.iik||'')}</td><td style="border:1px solid #000;padding:3px 6px;">БИК</td><td style="border:1px solid #000;padding:3px 6px;">${accEsc(bank.bik||'')}</td></tr>
+  <tr><td style="border:1px solid #000;padding:3px 6px;">Банк бенефициара:</td><td style="border:1px solid #000;padding:3px 6px;" colspan="3">${accEsc(bank.name||'')}</td></tr></table>
   <h2>${accEsc(d.docNo||'Счет на оплату')} от ${accDMY(d.docDate)} г.</h2>
   <div><strong>Поставщик:</strong> БИН ${accEsc(org.bin||'')}, ${accEsc(org.companyName||'')}, ${accEsc(org.address||'')}</div>
   <div style="margin-bottom:8px;"><strong>Покупатель:</strong> ${d.buyerBin?'БИН '+accEsc(d.buyerBin)+', ':''}${accEsc(d.buyerName||'')}${d.buyerAddress?', '+accEsc(d.buyerAddress):''}</div>
   <table class="items"><thead><tr><th>№</th><th>Код</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>${rows}</tbody>
   <tfoot><tr><td colspan="6" class="r" style="font-weight:700;">Итого:</td><td class="r" style="font-weight:700;">${accFmt(d.total)}</td></tr></tfoot></table>
   <div style="margin-top:6px;">Всего наименований ${(d.items||[]).length}, на сумму ${accFmt(d.total)} KZT</div>
-  <div style="font-weight:700;">Всего к оплате: ${accEsc(d.amountWords||'')}</div>
-  <div style="font-style:italic;">Без НДС</div>
-  <div style="position:relative;margin-top:40px;font-weight:700;">Исполнитель  ________________  ${sign}${stamp}  / ${accEsc(org.directorName||'')} /</div>
-  ${doPrint?'<'+'script>window.onload=()=>window.print()<\/script>':''}
-  </body></html>`;
+  <div style="font-weight:700;">Всего к оплате: ${accEsc(d.amountWords||'')}</div><div style="font-style:italic;">Без НДС</div>
+  <div style="position:relative;margin-top:40px;font-weight:700;">Исполнитель  ________________  ${accSignHtml(d,org)}  / ${accEsc(org.directorName||'')} /</div>`);
+}
+function accNaklHtml(d,org){
+  const qty=(d.items||[]).reduce((s,i)=>s+(Number(i.qty)||0),0);
+  const rows=(d.items||[]).map((it,i)=>`<tr><td>${i+1}</td><td class="l">${accEsc(it.name)}</td><td>${accEsc(it.sku||'')}</td><td>${accEsc(it.unit||'шт')}</td><td>${it.qty}</td><td class="r">${accFmt(it.price)}</td><td class="r">${accFmt(it.sum)}</td></tr>`).join('');
+  return accDoc(d.docNo||'Накладная','landscape',`
+  <div class="app">Приложение 26 · Форма З-2<br>приказ Минфина РК от 20.12.2012 № 562</div>
+  <h2>НАКЛАДНАЯ НА ОТПУСК ЗАПАСОВ НА СТОРОНУ<br>${accEsc(d.docNo||'')} от ${accDMY(d.docDate)} г.</h2>
+  <div><strong>Организация-отправитель:</strong> ${accEsc(org.companyName||'')}, БИН ${accEsc(org.bin||'')}, ${accEsc(org.address||'')}</div>
+  <div style="margin-bottom:8px;"><strong>Организация-получатель:</strong> ${accEsc(d.buyerName||'')}${d.buyerBin?', БИН '+accEsc(d.buyerBin):''}${d.buyerAddress?', '+accEsc(d.buyerAddress):''}</div>
+  <table class="items"><thead><tr><th>№</th><th>Наименование, характеристика</th><th>Номенкл. №</th><th>Ед. изм.</th><th>Кол-во</th><th>Цена, KZT</th><th>Сумма с НДС</th></tr></thead><tbody>${rows}</tbody>
+  <tfoot><tr><td colspan="4" class="r" style="font-weight:700;">Итого</td><td style="font-weight:700;">${qty}</td><td>х</td><td class="r" style="font-weight:700;">${accFmt(d.total)}</td></tr></tfoot></table>
+  <div style="margin-top:6px;">Всего отпущено количество запасов (прописью): ${accEsc(accAmountWords(qty).replace(/ тенге.*/,''))}</div>
+  <div style="font-weight:700;">на сумму (прописью), в KZT: ${accEsc(d.amountWords||'')}</div>
+  <div style="position:relative;margin-top:34px;font-weight:700;">Отпуск разрешил   Директор   ________________  ${accSignHtml(d,org)}  / ${accEsc(org.directorName||'')} /</div>
+  <div style="margin-top:22px;">Главный бухгалтер ______________     Отпустил ______________     Запасы получил ______________</div>
+  <div style="margin-top:14px;font-weight:700;">М.П.</div>`);
+}
+function accAktHtml(d,org){
+  const rows=(d.items||[]).map((it,i)=>`<tr><td>${i+1}</td><td class="l">${accEsc(it.name)}</td><td></td><td>${accEsc(it.unit||'услуга')}</td><td>${it.qty}</td><td class="r">${accFmt(it.price)}</td><td class="r">${accFmt(it.sum)}</td></tr>`).join('');
+  return accDoc(d.docNo||'Акт','landscape',`
+  <div class="app">Приложение 50 · Форма Р-1<br>приказ Минфина РК от 20.12.2012 № 562</div>
+  <div><strong>Заказчик:</strong> ${accEsc(d.buyerName||'')}${d.buyerAddress?', '+accEsc(d.buyerAddress):''}${d.buyerBin?', БИН/ИИН '+accEsc(d.buyerBin):''}</div>
+  <div style="margin-bottom:6px;"><strong>Исполнитель:</strong> ${accEsc(org.companyFull||org.companyName||'')}, ${accEsc(org.address||'')}, БИН ${accEsc(org.bin||'')}</div>
+  <h2>АКТ ВЫПОЛНЕННЫХ РАБОТ (ОКАЗАННЫХ УСЛУГ)<br>${d.docNo?'№ '+d.number:''} от ${accDMY(d.docDate)} г.</h2>
+  <table class="items"><thead><tr><th>№</th><th>Наименование работ (услуг)</th><th>Сведения об отчёте</th><th>Ед. изм.</th><th>Кол-во</th><th>Цена</th><th>Стоимость</th></tr></thead><tbody>${rows}</tbody>
+  <tfoot><tr><td colspan="6" class="r" style="font-weight:700;">Итого</td><td class="r" style="font-weight:700;">${accFmt(d.total)}</td></tr></tfoot></table>
+  <div style="margin-top:6px;font-weight:700;">Всего на сумму (прописью): ${accEsc(d.amountWords||'')}</div>
+  <div style="position:relative;margin-top:34px;font-weight:700;">Сдал (Исполнитель)   Директор   ______________  ${accSignHtml(d,org)}  / ${accEsc(org.directorName||'')} /</div>
+  <div style="margin-top:22px;font-weight:700;">Принял (Заказчик) ______________ /______________/</div>
+  <div style="margin-top:14px;font-weight:700;">М.П.</div>`);
+}
+function accKpHtml(d,org){
+  const rows=(d.items||[]).map((it,i)=>`<tr><td>${i+1}</td><td class="l">${accEsc(it.name)}</td><td>${it.qty}</td><td>${accEsc(it.unit||'шт')}</td><td class="r">${accFmt(it.price)}</td><td class="r">${accFmt(it.sum)}</td></tr>`).join('');
+  return accDoc(d.docNo||'КП','portrait',`
+  ${org.logoB64?`<img src="${org.logoB64}" style="float:left;width:80px;margin-right:12px;">`:''}
+  <div style="text-align:right;font-weight:700;">${accEsc(org.companyName||'')} · БИН ${accEsc(org.bin||'')}</div>
+  <div style="text-align:right;font-size:11px;">${accEsc(org.address||'')} · ${accEsc(org.phone||'')}</div>
+  <h2 style="clear:both;">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ<br>${d.docNo?'№ '+d.number:''} от ${accDMY(d.docDate)} г.</h2>
+  <div style="font-weight:700;">Кому: ${accEsc(d.buyerName||'')}${d.buyerBin?' (БИН/ИИН '+accEsc(d.buyerBin)+')':''}</div>
+  <div style="margin-bottom:8px;">${accEsc(org.companyName||'')} предлагает Вам следующие товары и услуги:</div>
+  <table class="items"><thead><tr><th>№</th><th>Наименование</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>${rows}</tbody>
+  <tfoot><tr><td colspan="5" class="r" style="font-weight:700;">Итого:</td><td class="r" style="font-weight:700;">${accFmt(d.total)}</td></tr></tfoot></table>
+  <div style="margin-top:6px;font-weight:700;">Всего на сумму: ${accEsc(d.amountWords||'')}</div>
+  <div style="font-size:11px;">Предложение действительно 30 дней. Условия оплаты и поставки обсуждаются.</div>
+  <div style="position:relative;margin-top:40px;font-weight:700;">С уважением, Директор  ______________  ${accSignHtml(d,org)}  / ${accEsc(org.directorName||'')} /</div>`);
+}
+async function accPrint(id, doPrint){
+  let d; try{ const r=await fetch(`${DOCS_API}/${id}`); d=r.ok?await r.json():null; }catch(e){ d=null; }
+  if(!d){ showToast('⚠️ Документ не найден'); return; }
+  const org=accOrg||{};
+  let html = d.type==='nakladnaya'?accNaklHtml(d,org) : d.type==='akt'?accAktHtml(d,org) : d.type==='kp'?accKpHtml(d,org) : accInvoiceHtml(d,org);
+  if(doPrint) html=html.replace('</body>','<'+'script>window.onload=()=>window.print()<\/script></body>');
   const b=new Blob([html],{type:'text/html'});
   const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(b),target:'_blank'});
   a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2500);
