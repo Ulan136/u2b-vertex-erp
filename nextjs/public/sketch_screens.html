@@ -5422,7 +5422,7 @@ async function clDeleteCat(id){
 }
 
 // ── ФИНАНСЫ — компонент FinanceView (полный режим) + формы добавления ──
-const FIN_SECTIONS = { poverka:'📋 Поверка', sale:'💰 Продажа', other:'📄 Прочие', branch:'🏢 Филиалы' };
+// (единый источник разделов — FIN_SECTIONS ниже, массив с номерами)
 let finOpType = 'Приход';
 const finDateStr = () => new Date().toISOString().slice(0,10);
 function financeInit(){
@@ -5434,7 +5434,7 @@ function financeInit(){
 function financeReload(){ if(window.FinanceView) FinanceView.load(); }
 function finAccountsList(){ return (window.FinanceView && FinanceView.accounts) || []; }
 function finFillAccSelects(){
-  const opts = finAccountsList().map(a=>`<option value="${a.id}">${debtEsc(a.icon||'🏦')} ${debtEsc(a.name)} · ${(FIN_SECTIONS[a.section||'other']||'').replace(/^[^ ]+ /,'')}</option>`).join('');
+  const opts = finAccountOptions(finAccountsList(), '', '— выберите счёт —');   // сгруппировано по разделам, с номерами
   document.getElementById('finOpAcc').innerHTML = opts;
   document.getElementById('finOpTo').innerHTML = opts;
 }
