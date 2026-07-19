@@ -4612,7 +4612,7 @@ function go(screenId, section, page, el) {
   if (screenId==='field-orders') { ordersLoadExtUrl('field_check'); ordersState.field_check.loaded ? renderOrders('field_check') : ordersFetch('field_check'); }
   if (screenId==='tec-orders')   { ordersLoadExtUrl('tec');         ordersState.tec.loaded         ? renderOrders('tec')         : ordersFetch('tec'); }
   if (screenId==='dashboard')     { dashLoadFinance(); }
-  if (screenId==='rashody')       { rshLoadFromFinance(); rshPopulateCatSels(); }
+  if (screenId==='rashody')       { rshLoadCats().then(()=>{ rshLoadFromFinance(); rshPopulateCatSels(); }); }
   if (screenId==='warehouse')       { renderWarehouse(); whFetchFromApi().then(renderWarehouse); }
   if (screenId==='sales')            { salesLoadFromStorage(); renderSales(); }
   if (screenId==='debts')            { initDebtsScreen(); }
@@ -4624,8 +4624,8 @@ function go(screenId, section, page, el) {
   if (screenId==='other-ops-proj')    { oopRenderTable('proj');    oopRenderStats('proj'); }
   if (screenId==='other-ops-tender')  { oopRenderTable('tender');  oopRenderStats('tender'); }
   if (screenId==='other-ops-service') { oopRenderTable('service'); oopRenderStats('service'); }
-  if (screenId==='rashody-cats')  { rshLoadFromFinance().then(rshRenderCatGrid); }
-  if (screenId==='rashody-stats') { rshLoadFromFinance().then(rshRenderAnalytics); }
+  if (screenId==='rashody-cats')  { rshLoadCats().then(()=>rshLoadFromFinance().then(rshRenderCatGrid)); }
+  if (screenId==='rashody-stats') { rshLoadCats().then(()=>rshLoadFromFinance().then(rshRenderAnalytics)); }
   // invoice screens
   const _invMap={'inv-poverka':'poverka','inv-sales':'sales','inv-other':'other','inv-branches':'branch'};
   if (_invMap[screenId]) {
@@ -4705,6 +4705,24 @@ let rshCats = [
 
 // Записи расходов добавляются через «+ Расход». Демо-данных нет.
 let rshExp = [];
+
+// Категории расходов ПЕРСИСТЯТСЯ в БД (/api/v2/expense-categories) — не пропадают при перезагрузке.
+const EXPENSE_CATS_API = '/api/v2/expense-categories';
+async function rshLoadCats(){
+  try{
+    const r = await fetch(EXPENSE_CATS_API, {cache:'no-store'});
+    if(!r.ok) return;   // нет доступа/ошибка — оставляем текущий список
+    const tree = await r.json();
+    if(!Array.isArray(tree)) return;
+    rshCats = tree.map((c,i)=>({
+      id:i+1, dbId:c.id, name:c.name, icon:c.icon||'📦', base:!!c.base,
+      subs:(c.subs||[]).map(s=>s.name),
+      subMap:Object.fromEntries((c.subs||[]).map(s=>[s.name, s.id])),
+    }));
+    if(!rshCats.some(c=>c.name==='Зарплата'))
+      rshCats.unshift({id:0,dbId:null,name:'Зарплата',icon:'👤',base:true,subs:['Основная з/п','Премии','Командировочные'],subMap:{}});
+  }catch(e){ /* оставляем текущий список */ }
+}
 
 let rshFiltered = [...rshExp];
 let rshFilters = {q:'', account:'', status:'', catId:null, sub:''};
@@ -4915,19 +4933,29 @@ function rshOpenCatModal() {
 }
 function rshSelIconFn(ic,el){ rshSelIcon=ic; document.querySelectorAll('#rshIconPicker>div').forEach(d=>{d.style.borderColor='#e5e7eb';d.style.background='#fff';}); el.style.borderColor='#1a56db';el.style.background='#eff6ff'; }
 function rshCloseCat(){ document.getElementById('rshCatOverlay').classList.remove('open'); }
-function rshSaveCat(){
+async function rshSaveCat(){
   const name=document.getElementById('rshCatName').value.trim();
   if(!name){showToast('⚠️ Введите название');return;}
   if(rshCats.find(c=>c.name.toLowerCase()===name.toLowerCase())){showToast('⚠️ Уже существует');return;}
-  rshCats.push({id:Date.now(),name,icon:rshSelIcon,subs:[]});
-  rshCloseCat(); rshRenderTree(); rshRenderCatGrid(); rshPopulateCatSels();
-  showToast(`✅ Категория «${name}» создана`);
+  try{
+    const r=await fetch(EXPENSE_CATS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,icon:rshSelIcon})});
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||('HTTP '+r.status));}
+    await rshLoadCats();
+    rshCloseCat(); rshRenderTree(); rshRenderCatGrid(); rshPopulateCatSels();
+    showToast(`✅ Категория «${name}» создана`);
+  }catch(e){ showToast('⚠️ '+e.message); }
 }
-function rshDeleteCat(id){
-  const cat=rshCats.find(c=>c.id===id);
-  if(rshExp.filter(e=>e.cat===cat?.name).length>0){showToast('⚠️ Нельзя — используется в расходах');return;}
-  rshCats=rshCats.filter(c=>c.id!==id); rshRenderTree(); rshRenderCatGrid(); rshPopulateCatSels();
-  showToast('🗑 Категория удалена');
+async function rshDeleteCat(id){
+  const cat=rshCats.find(c=>c.id===id); if(!cat) return;
+  if(cat.base||cat.name==='Зарплата'){showToast('⚠️ Базовую категорию «Зарплата» удалить нельзя');return;}
+  if(rshExp.filter(e=>e.cat===cat.name).length>0){showToast('⚠️ Нельзя — используется в расходах');return;}
+  if(!cat.dbId){ rshCats=rshCats.filter(c=>c.id!==id); rshRenderTree(); rshRenderCatGrid(); rshPopulateCatSels(); return; }
+  try{
+    const r=await fetch(`${EXPENSE_CATS_API}/${cat.dbId}`,{method:'DELETE'});
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||('HTTP '+r.status));}
+    await rshLoadCats(); rshRenderTree(); rshRenderCatGrid(); rshPopulateCatSels();
+    showToast('🗑 Категория удалена');
+  }catch(e){ showToast('⚠️ '+e.message); }
 }
 
 // ── MODALS: SUBCAT ────────────────────────────────────────────
@@ -4940,22 +4968,32 @@ function rshOpenSubFor(catId){
 }
 function rshOpenSubCatModal(){ rshOpenSubFor(null); }
 function rshCloseSub(){ document.getElementById('rshSubOverlay').classList.remove('open'); }
-function rshSaveSub(){
+async function rshSaveSub(){
   const catId=+document.getElementById('rshSubParent').value;
   const name=document.getElementById('rshSubName').value.trim();
   if(!catId){showToast('⚠️ Выберите категорию');return;}
   if(!name){showToast('⚠️ Введите название');return;}
   const cat=rshCats.find(c=>c.id===catId);
   if(cat.subs.includes(name)){showToast('⚠️ Уже существует');return;}
-  cat.subs.push(name);
-  rshCloseSub(); rshRenderTree(); rshRenderCatGrid(); rshPopulateCatSels();
-  showToast(`✅ Подкатегория «${name}» добавлена`);
+  if(!cat.dbId){ cat.subs.push(name); rshCloseSub(); rshRenderTree(); rshRenderCatGrid(); rshPopulateCatSels(); return; }
+  try{
+    const r=await fetch(EXPENSE_CATS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,parentId:cat.dbId})});
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||('HTTP '+r.status));}
+    await rshLoadCats(); rshCloseSub(); rshRenderTree(); rshRenderCatGrid(); rshPopulateCatSels();
+    showToast(`✅ Подкатегория «${name}» добавлена`);
+  }catch(e){ showToast('⚠️ '+e.message); }
 }
-function rshDeleteSub(catId,sub){
+async function rshDeleteSub(catId,sub){
   const cat=rshCats.find(c=>c.id===catId);
   if(rshExp.filter(e=>e.cat===cat?.name&&e.sub===sub).length>0){showToast('⚠️ Используется в расходах');return;}
-  cat.subs=cat.subs.filter(s=>s!==sub); rshRenderTree(); rshRenderCatGrid(); rshPopulateCatSels();
-  showToast('🗑 Подкатегория удалена');
+  const childId=cat&&cat.subMap?cat.subMap[sub]:null;
+  if(!childId){ if(cat) cat.subs=cat.subs.filter(s=>s!==sub); rshRenderTree(); rshRenderCatGrid(); rshPopulateCatSels(); return; }
+  try{
+    const r=await fetch(`${EXPENSE_CATS_API}/${childId}`,{method:'DELETE'});
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||('HTTP '+r.status));}
+    await rshLoadCats(); rshRenderTree(); rshRenderCatGrid(); rshPopulateCatSels();
+    showToast('🗑 Подкатегория удалена');
+  }catch(e){ showToast('⚠️ '+e.message); }
 }
 
 // ── MODALS: EXPENSE ───────────────────────────────────────────
@@ -7955,6 +7993,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Render dashboard on load
   setTimeout(renderDash, 200);
   dashLoadFinance();   // подтянуть реальные финансы (расходы/счета) в дашборд
+  rshLoadCats();       // категории расходов из БД (персистентные)
 
   renderCertStats(certData,'cert-stats');
   renderCert(certData,'certBody');
