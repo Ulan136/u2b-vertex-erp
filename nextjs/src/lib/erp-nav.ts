@@ -54,6 +54,7 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Клиенты', screenKey: 'clients', href: '/erp/clients' },
   ] },
   { title: 'Настройки', icon: '⚙️', items: [
+    { label: 'Доступы', screenKey: 'settings', href: '/erp/access' },
     { label: 'Настройки', screenKey: 'settings', href: L, legacy: true },
   ] },
 ];

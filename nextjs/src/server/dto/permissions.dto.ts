@@ -23,6 +23,17 @@ export const SCREEN_KEYS = [
 ] as const;
 export type ScreenKey = (typeof SCREEN_KEYS)[number];
 
+// Русские подписи экранов (для матрицы «Доступы»). Ключи = SCREEN_KEYS.
+export const SCREEN_LABELS: Record<ScreenKey, string> = {
+  dashboard: 'Рабочий стол',
+  poverka_sami: 'Поверка · САМИ', poverka_vdk: 'Поверка · ВДК', poverka_tec: 'Поверка · ТЭЦ',
+  poverka_field: 'Поверка · Выездная', poverka_primary: 'Поверка · Первичная', poverka_astana: 'Поверка · Астана',
+  orders_field: 'Заявки · Выездная', orders_tec: 'Заявки · ТЭЦ',
+  sales: 'Продажа', other_ops: 'Прочие операции', expenses: 'Расходы', accounting: 'Бухгалтерия',
+  debts: 'Долги', tasks: 'Задачи', warehouse: 'Склад', purchases: 'Закупки', staff: 'Сотрудники',
+  clients: 'Клиенты', invoices: 'Счета', database: 'База данных', reports: 'Отчёт', handbook: 'Справочник', settings: 'Настройки',
+};
+
 // ── Pure helpers (no DB) — unit-testable ──────────────────────
 
 // Migrate an old role key to the new set. Nobody is lost:

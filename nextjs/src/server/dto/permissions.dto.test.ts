@@ -2,8 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   migrateRole, isScreenAllowed, visibleScreenKeys, permissionUpsertSchema,
-  startScreenKey, SCREEN_KEYS, type PermRow,
+  startScreenKey, SCREEN_KEYS, SCREEN_LABELS, type PermRow,
 } from './permissions.dto';
+
+test('SCREEN_LABELS: подпись есть для каждого экрана матрицы «Доступы»', () => {
+  for (const k of SCREEN_KEYS) assert.ok(SCREEN_LABELS[k], `нет подписи для ${k}`);
+});
 
 // ── role migration (nobody is lost) ──────────────────────────
 test('migrateRole: old roles map to the new set', () => {
