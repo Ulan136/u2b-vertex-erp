@@ -7,7 +7,7 @@ import { isMobileUA } from './device';
 test('postLoginPath: master → /master, остальные → ERP', () => {
   assert.equal(postLoginPath('master'), '/master');
   for (const r of ['admin', 'director', 'accountant', 'manager', undefined, null]) {
-    assert.equal(postLoginPath(r as string), '/sketch_screens.html');
+    assert.equal(postLoginPath(r as string), '/erp');
   }
 });
 

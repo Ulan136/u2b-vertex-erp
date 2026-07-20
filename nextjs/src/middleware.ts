@@ -69,7 +69,7 @@ export default auth((req) => {
   // Мобильный редирект в свой кабинет при ЛЮБОМ заходе с телефона на ERP:
   // мастер → /master; директор → /director, пока сам не выбрал «Полная версия ERP»
   // (флаг в cookie erp_full, сбрасывается при возврате в кабинет).
-  if (loggedIn && (pathname === '/' || pathname === '/sketch_screens.html')) {
+  if (loggedIn && (pathname === '/' || pathname === '/sketch_screens.html' || pathname === '/erp')) {
     const dest = mobileCabinetRedirect({
       role,
       mobile: isMobileUA(req.headers.get('user-agent')),

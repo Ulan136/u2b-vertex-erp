@@ -3,9 +3,10 @@
 
 // Куда отправить сразу после логина (устройство-независимо; мобильный
 // редирект в кабинет навешивает middleware при КАЖДОМ заходе).
-//   master → всегда свой кабинет; остальные → ERP.
-export function postLoginPath(role?: string | null): '/master' | '/sketch_screens.html' {
-  return role === 'master' ? '/master' : '/sketch_screens.html';
+//   master → всегда свой кабинет; остальные → новый ERP (/erp). Старый интерфейс
+//   (/sketch_screens.html) остаётся доступным как fallback по прямой ссылке.
+export function postLoginPath(role?: string | null): '/master' | '/erp' {
+  return role === 'master' ? '/master' : '/erp';
 }
 
 // Нужно ли увести пользователя с ERP-страницы в его мобильный кабинет.

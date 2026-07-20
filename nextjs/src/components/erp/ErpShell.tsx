@@ -20,7 +20,7 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
           <span className="erp-brand-logo">V</span>
           <div>
             <div className="erp-brand-name">VERTEX ERP</div>
-            <div className="erp-brand-sub">новый интерфейс · бета</div>
+            <div className="erp-brand-sub">VERTEX METROLOGY</div>
           </div>
         </div>
         <nav className="erp-nav">
