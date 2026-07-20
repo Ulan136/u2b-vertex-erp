@@ -12,12 +12,12 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Рабочий стол', screenKey: 'dashboard', href: '/erp' },
   ] },
   { title: 'Поверка', icon: '📋', items: [
-    { label: 'САМИ', screenKey: 'poverka_sami', href: L, legacy: true },
-    { label: 'ВДК', screenKey: 'poverka_vdk', href: L, legacy: true },
-    { label: 'ТЭЦ', screenKey: 'poverka_tec', href: L, legacy: true },
-    { label: 'Выездная', screenKey: 'poverka_field', href: L, legacy: true },
-    { label: 'Первичная', screenKey: 'poverka_primary', href: L, legacy: true },
-    { label: 'Астана', screenKey: 'poverka_astana', href: L, legacy: true },
+    { label: 'САМИ', screenKey: 'poverka_sami', href: '/erp/certs?source=САМИ' },
+    { label: 'ВДК', screenKey: 'poverka_vdk', href: '/erp/certs?source=ВДК' },
+    { label: 'ТЭЦ', screenKey: 'poverka_tec', href: '/erp/certs?source=ТЭЦ' },
+    { label: 'Выездная', screenKey: 'poverka_field', href: '/erp/certs?source=Выездная' },
+    { label: 'Первичная', screenKey: 'poverka_primary', href: '/erp/certs?source=Первичная-КМ' },
+    { label: 'Астана', screenKey: 'poverka_astana', href: '/erp/certs?source=Астана' },
   ] },
   { title: 'Заявки', icon: '📥', items: [
     { label: 'Выездная поверка', screenKey: 'orders_field', href: L, legacy: true },
