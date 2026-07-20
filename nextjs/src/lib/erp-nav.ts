@@ -20,8 +20,8 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Астана', screenKey: 'poverka_astana', href: '/erp/certs?source=Астана' },
   ] },
   { title: 'Заявки', icon: '📥', items: [
-    { label: 'Выездная поверка', screenKey: 'orders_field', href: L, legacy: true },
-    { label: 'ТЭЦ', screenKey: 'orders_tec', href: L, legacy: true },
+    { label: 'Выездная поверка', screenKey: 'orders_field', href: '/erp/orders?source=field_check' },
+    { label: 'ТЭЦ', screenKey: 'orders_tec', href: '/erp/orders?source=tec' },
   ] },
   { title: 'Продажи', icon: '💰', items: [
     { label: 'Журнал продаж', screenKey: 'sales', href: '/erp/sales' },
