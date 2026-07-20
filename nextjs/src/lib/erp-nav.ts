@@ -44,8 +44,8 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Покупки', screenKey: 'purchases', href: L, legacy: true },
   ] },
   { title: 'Сотрудники', icon: '👥', items: [
-    { label: 'Руководитель', screenKey: 'staff', href: L, legacy: true },
-    { label: 'Зарплата и кадры', screenKey: 'staff', href: L, legacy: true },
+    { label: 'Руководитель', screenKey: 'staff', href: '/erp/staff/directory' },
+    { label: 'Зарплата и кадры', screenKey: 'staff', href: '/erp/staff' },
   ] },
   { title: 'Прочее', icon: '🗂', items: [
     { label: 'База данных', screenKey: 'database', href: L, legacy: true },
