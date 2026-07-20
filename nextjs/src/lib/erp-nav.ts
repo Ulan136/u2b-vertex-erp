@@ -33,8 +33,8 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Документы', screenKey: 'accounting', href: L, legacy: true },
   ] },
   { title: 'Финансы', icon: '💳', items: [
-    { label: 'Счета и операции', screenKey: 'invoices', href: L, legacy: true },
-    { label: 'Долги', screenKey: 'debts', href: L, legacy: true },
+    { label: 'Счета и операции', screenKey: 'invoices', href: '/erp/finance' },
+    { label: 'Долги', screenKey: 'debts', href: '/erp/debts' },
   ] },
   { title: 'Задачи', icon: '✅', items: [
     { label: 'Задачи сотрудникам', screenKey: 'tasks', href: '/erp/tasks' },

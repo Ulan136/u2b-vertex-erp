@@ -130,6 +130,24 @@
 .erp-matrix th, .erp-matrix td { padding: 8px 10px; white-space: nowrap; }
 .erp-matrix tbody tr:hover { background: #f8fafc; }
 
+/* ── Chips (фильтры/табы) ── */
+.erp-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.erp-chip { border: 1.5px solid var(--erp-line); background: #fff; border-radius: 20px; padding: 6px 14px; font-size: 13px; cursor: pointer; font-weight: 600; color: var(--erp-muted); font-family: inherit; }
+.erp-chip.on { background: var(--erp-navy); border-color: var(--erp-navy); color: #fff; }
+
+/* ── Finance columns ── */
+.erp-fin-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 12px; }
+.erp-fin-col { background: var(--erp-surface); border: 1px solid var(--erp-line); border-radius: 12px; overflow: hidden; }
+.erp-fin-head { padding: 12px 14px; color: #fff; display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; }
+.erp-fin-accs { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--erp-line); }
+.erp-fin-acc { border: 1px solid var(--erp-line); border-radius: 9px; padding: 9px 12px; display: flex; justify-content: space-between; align-items: center; background: var(--erp-bg); font-size: 13px; }
+.erp-fin-movs { padding: 8px 12px 12px; }
+.erp-fin-movh { font-size: 11px; letter-spacing: .4px; color: var(--erp-muted); text-transform: uppercase; padding: 6px 2px; }
+.erp-fin-mov { display: flex; justify-content: space-between; gap: 8px; padding: 7px 2px; border-bottom: 1px solid #f1f5f9; font-size: 12.5px; }
+.erp-fin-mov:last-child { border-bottom: none; }
+.erp-fin-movd { color: var(--erp-muted); white-space: nowrap; }
+.erp-fin-movt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ── Mobile ── */
 @media (max-width: 860px) {
   .erp-sidebar { position: fixed; z-index: 40; left: 0; top: 0; transform: translateX(-100%); transition: transform .2s; box-shadow: 0 0 24px rgba(0,0,0,.18); }
