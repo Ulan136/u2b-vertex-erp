@@ -37,7 +37,7 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Долги', screenKey: 'debts', href: L, legacy: true },
   ] },
   { title: 'Задачи', icon: '✅', items: [
-    { label: 'Задачи сотрудникам', screenKey: 'tasks', href: L, legacy: true },
+    { label: 'Задачи сотрудникам', screenKey: 'tasks', href: '/erp/tasks' },
   ] },
   { title: 'Склад', icon: '🏭', items: [
     { label: 'Журнал склада', screenKey: 'warehouse', href: L, legacy: true },
