@@ -39,14 +39,21 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
             <div className="erp-nav-section" key={section.title}>
               <div className="erp-nav-title"><span>{section.icon}</span>{section.title}</div>
               {section.items.map((item, i) => {
-                const isActive = !item.legacy && item.href === pathname;
+                const isActive = !item.legacy && !item.external && item.href === pathname;
+                if (item.external) {
+                  return (
+                    <a key={item.label + i} href={item.href} className="erp-nav-item erp-nav-cab" onClick={() => setMobileOpen(false)}>
+                      {item.label}
+                      <span className="erp-nav-legacy" title="Мобильный кабинет">↗</span>
+                    </a>
+                  );
+                }
                 return (
                   <Link
                     key={item.label + i}
                     href={item.href}
                     className={`erp-nav-item${isActive ? ' active' : ''}`}
                     onClick={() => setMobileOpen(false)}
-                    {...(item.legacy ? {} : {})}
                   >
                     {item.label}
                     {item.legacy && <span className="erp-nav-legacy" title="Пока в старом интерфейсе">↗</span>}

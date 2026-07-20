@@ -1,7 +1,7 @@
 // Навигация нового ERP-шелла. Каждый пункт гейтится по screenKey из
 // permissions.dto (единый источник с серверной матрицей). Все экраны переехали
 // на Next `/erp/*`; `legacy` оставлен в типе на случай отката отдельного пункта.
-export type NavItem = { label: string; screenKey: string; href: string; legacy?: boolean };
+export type NavItem = { label: string; screenKey: string; href: string; legacy?: boolean; external?: boolean };
 export type NavSection = { title: string; icon: string; items: NavItem[] };
 
 export const ERP_NAV: NavSection[] = [
@@ -58,5 +58,7 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Доступы', screenKey: 'settings', href: '/erp/access' },
     { label: 'Организация', screenKey: 'settings', href: '/erp/settings/org' },
     { label: 'Пользователи', screenKey: 'settings', href: '/erp/settings/users' },
+    { label: '📱 Кабинет мастера', screenKey: 'settings', href: '/master', external: true },
+    { label: '📱 Кабинет директора', screenKey: 'settings', href: '/director', external: true },
   ] },
 ];
