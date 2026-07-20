@@ -11,10 +11,10 @@
   width: 244px; flex-shrink: 0; background: var(--erp-surface); border-right: 1px solid var(--erp-line);
   display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
 }
-.erp-brand { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: linear-gradient(135deg, #1b2a4a 0%, #1a56db 100%); color: #fff; }
-.erp-brand-logo { width: 34px; height: 34px; border-radius: 9px; background: #fff; color: #1a56db; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-.erp-brand-name { font-weight: 800; font-size: 14px; letter-spacing: .02em; color: #fff; }
-.erp-brand-sub { font-size: 10px; color: #c7d2fe; }
+.erp-brand { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: var(--erp-surface); border-bottom: 1px solid var(--erp-line); color: var(--erp-ink); }
+.erp-brand-logo { width: 34px; height: 34px; border-radius: 9px; background: var(--erp-blue); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.erp-brand-name { font-weight: 800; font-size: 14px; letter-spacing: .02em; color: var(--erp-ink); }
+.erp-brand-sub { font-size: 10px; color: var(--erp-muted); }
 .erp-nav { flex: 1; overflow-y: auto; padding: 8px 0; }
 .erp-nav-section { margin-bottom: 6px; }
 .erp-nav-title { display: flex; align-items: center; gap: 7px; padding: 8px 16px 4px; font-size: 11px; font-weight: 700; color: #475569; letter-spacing: .05em; text-transform: uppercase; }
@@ -133,7 +133,7 @@
 /* ── Chips (фильтры/табы) ── */
 .erp-chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .erp-chip { border: 1.5px solid var(--erp-line); background: #fff; border-radius: 20px; padding: 6px 14px; font-size: 13px; cursor: pointer; font-weight: 600; color: var(--erp-muted); font-family: inherit; }
-.erp-chip.on { background: var(--erp-navy); border-color: var(--erp-navy); color: #fff; }
+.erp-chip.on { background: var(--erp-blue); border-color: var(--erp-blue); color: #fff; }
 
 /* ── Finance columns ── */
 .erp-fin-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 12px; }
@@ -148,20 +148,8 @@
 .erp-fin-movd { color: var(--erp-muted); white-space: nowrap; }
 .erp-fin-movt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ── Цвет: фон, KPI-карточки, заголовки, колокол ── */
-.erp-content { background: linear-gradient(180deg, #eef2f9 0%, #f8fafc 220px); min-height: calc(100vh - 54px); }
-.erp-nav-title { color: #1e3a8a; }
-.ui-card h3 { color: #1b2a4a; }
-.ui-pagetitle h1 { color: #1b2a4a; }
-
-.erp-kpi { border-top: 3px solid #1a56db; position: relative; }
-.erp-kpi-ico { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; background: #eff6ff; font-size: 16px; }
-.erp-kpi-grid > .erp-kpi:nth-child(6n+1) { border-top-color: #2563eb; } .erp-kpi-grid > .erp-kpi:nth-child(6n+1) .erp-kpi-ico { background: #dbeafe; }
-.erp-kpi-grid > .erp-kpi:nth-child(6n+2) { border-top-color: #16a34a; } .erp-kpi-grid > .erp-kpi:nth-child(6n+2) .erp-kpi-ico { background: #dcfce7; }
-.erp-kpi-grid > .erp-kpi:nth-child(6n+3) { border-top-color: #dc2626; } .erp-kpi-grid > .erp-kpi:nth-child(6n+3) .erp-kpi-ico { background: #fee2e2; }
-.erp-kpi-grid > .erp-kpi:nth-child(6n+4) { border-top-color: #d97706; } .erp-kpi-grid > .erp-kpi:nth-child(6n+4) .erp-kpi-ico { background: #fef3c7; }
-.erp-kpi-grid > .erp-kpi:nth-child(6n+5) { border-top-color: #0d9488; } .erp-kpi-grid > .erp-kpi:nth-child(6n+5) .erp-kpi-ico { background: #ccfbf1; }
-.erp-kpi-grid > .erp-kpi:nth-child(6n+6) { border-top-color: #6f42c1; } .erp-kpi-grid > .erp-kpi:nth-child(6n+6) .erp-kpi-ico { background: #ede9fe; }
+/* ── Фон и колокол (палитра старого интерфейса) ── */
+.erp-content { background: #f5f6fa; min-height: calc(100vh - 54px); }
 
 .erp-bell { position: relative; text-decoration: none; font-size: 18px; padding: 4px 6px; border-radius: 8px; line-height: 1; }
 .erp-bell:hover { background: #eff6ff; }
