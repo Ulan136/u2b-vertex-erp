@@ -51,7 +51,7 @@ export const ERP_NAV: NavSection[] = [
     { label: 'База данных', screenKey: 'database', href: L, legacy: true },
     { label: 'Отчёты', screenKey: 'reports', href: L, legacy: true },
     { label: 'Справочник', screenKey: 'handbook', href: L, legacy: true },
-    { label: 'Клиенты', screenKey: 'clients', href: L, legacy: true },
+    { label: 'Клиенты', screenKey: 'clients', href: '/erp/clients' },
   ] },
   { title: 'Настройки', icon: '⚙️', items: [
     { label: 'Настройки', screenKey: 'settings', href: L, legacy: true },
