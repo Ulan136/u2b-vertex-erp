@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { NavSection } from '@/lib/erp-nav';
 import { useApi } from '@/lib/api';
+import { ROLE_LABELS_RU, type Role } from '@/server/dto/permissions.dto';
 
 function Bell() {
   const { data } = useApi<{ unread: number }>('/api/v2/notifications', { refreshInterval: 60000 });
@@ -12,6 +13,54 @@ function Bell() {
     <Link href="/erp/notifications" className="erp-bell" title="Уведомления">
       🔔{unread > 0 && <span className="erp-bell-badge">{unread > 9 ? '9+' : unread}</span>}
     </Link>
+  );
+}
+
+type PresenceUser = { id: string; name: string; role: string; lastSeenAt: string | null; online: boolean };
+const roleRu = (r: string) => ROLE_LABELS_RU[r as Role] || r;
+function lastSeen(ts: string | null): string {
+  if (!ts) return 'не заходил';
+  const diff = Date.now() - new Date(ts).getTime();
+  if (!Number.isFinite(diff)) return '';
+  const m = Math.floor(diff / 60000);
+  if (m < 60) return `был ${m} мин назад`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `был ${h} ч назад`;
+  return `был ${Math.floor(h / 24)} дн назад`;
+}
+
+function Presence() {
+  const { data } = useApi<{ onlineCount: number; users: PresenceUser[] }>('/api/v2/presence', { refreshInterval: 30000 });
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('click', onDoc);
+    return () => document.removeEventListener('click', onDoc);
+  }, [open]);
+  const users = data?.users || [];
+  const count = data?.onlineCount || 0;
+  return (
+    <div className="erp-presence" ref={ref}>
+      <button className="erp-presence-btn" title="Кто онлайн" onClick={e => { e.stopPropagation(); setOpen(v => !v); }}>
+        🟢 <span className="erp-presence-lbl">Онлайн: </span>{count}
+      </button>
+      {open && (
+        <div className="erp-presence-panel">
+          <div className="erp-presence-head">🟢 Онлайн: {count}</div>
+          {users.length === 0 ? <div className="erp-presence-empty">Нет сотрудников</div> : users.map(u => (
+            <div key={u.id} className={`erp-presence-row${u.online ? '' : ' off'}`}>
+              <span className="erp-presence-dot" />
+              <div>
+                <div className="erp-presence-name">{u.name}</div>
+                <div className="erp-presence-sub">{roleRu(u.role)}{u.online ? '' : ` · ${lastSeen(u.lastSeenAt)}`}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -79,6 +128,7 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
           <button className="erp-burger" onClick={() => setMobileOpen(v => !v)} aria-label="Меню">☰</button>
           <div className="erp-header-title">{active ? active.label : 'Рабочий стол'}</div>
           <div className="erp-header-right">
+            <Presence />
             <Bell />
             <a href="/sketch_screens.html" className="erp-legacy-link">Старый интерфейс</a>
           </div>

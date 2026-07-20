@@ -156,6 +156,21 @@
 .erp-bell-badge { position: absolute; top: -2px; right: -2px; background: #dc2626; color: #fff; font-size: 9px; font-weight: 700; min-width: 15px; height: 15px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 3px; }
 .erp-header-right { display: flex; align-items: center; gap: 10px; }
 
+/* ── Кто онлайн ── */
+.erp-presence { position: relative; }
+.erp-presence-btn { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--erp-line); background: var(--erp-surface); border-radius: 8px; padding: 5px 10px; font-size: 12px; font-weight: 600; color: var(--erp-ink); cursor: pointer; font-family: inherit; line-height: 1; }
+.erp-presence-btn:hover { background: #f9fafb; border-color: #cbd5e1; }
+.erp-presence-panel { position: absolute; right: 0; top: 38px; width: 250px; max-height: 360px; overflow-y: auto; background: #fff; border: 1px solid var(--erp-line); border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.14); z-index: 60; }
+.erp-presence-head { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; font-size: 12px; font-weight: 700; }
+.erp-presence-empty { padding: 16px; text-align: center; color: #9ca3af; font-size: 12px; }
+.erp-presence-row { display: flex; align-items: center; gap: 8px; padding: 7px 12px; }
+.erp-presence-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+.erp-presence-row.off .erp-presence-dot { background: #d1d5db; }
+.erp-presence-name { font-size: 12px; color: #111; }
+.erp-presence-sub { font-size: 10px; color: #9ca3af; }
+.erp-presence-row.off .erp-presence-name { color: #9ca3af; }
+@media (max-width: 560px) { .erp-presence-lbl { display: none; } }
+
 /* ── Mobile ── */
 @media (max-width: 860px) {
   .erp-sidebar { position: fixed; z-index: 40; left: 0; top: 0; transform: translateX(-100%); transition: transform .2s; box-shadow: 0 0 24px rgba(0,0,0,.18); }
