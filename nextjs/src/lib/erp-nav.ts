@@ -9,7 +9,7 @@ const L = '/sketch_screens.html';
 
 export const ERP_NAV: NavSection[] = [
   { title: 'Главная', icon: '🏠', items: [
-    { label: 'Рабочий стол', screenKey: 'dashboard', href: L, legacy: true },
+    { label: 'Рабочий стол', screenKey: 'dashboard', href: '/erp' },
   ] },
   { title: 'Поверка', icon: '📋', items: [
     { label: 'САМИ', screenKey: 'poverka_sami', href: L, legacy: true },
