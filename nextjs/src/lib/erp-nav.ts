@@ -1,11 +1,8 @@
 // Навигация нового ERP-шелла. Каждый пункт гейтится по screenKey из
-// permissions.dto (единый источник с серверной матрицей). Пока экран не
-// переехал, href ведёт в legacy-интерфейс (sketch_screens.html); по мере
-// миграции меняем href на '/erp/<screen>' и снимаем legacy.
+// permissions.dto (единый источник с серверной матрицей). Все экраны переехали
+// на Next `/erp/*`; `legacy` оставлен в типе на случай отката отдельного пункта.
 export type NavItem = { label: string; screenKey: string; href: string; legacy?: boolean };
 export type NavSection = { title: string; icon: string; items: NavItem[] };
-
-const L = '/sketch_screens.html';
 
 export const ERP_NAV: NavSection[] = [
   { title: 'Главная', icon: '🏠', items: [
@@ -34,6 +31,8 @@ export const ERP_NAV: NavSection[] = [
   ] },
   { title: 'Финансы', icon: '💳', items: [
     { label: 'Счета и операции', screenKey: 'invoices', href: '/erp/finance' },
+    { label: 'Поступления (Счета)', screenKey: 'invoices', href: '/erp/invoices' },
+    { label: 'Прочие операции', screenKey: 'other_ops', href: '/erp/invoices?section=other' },
     { label: 'Долги', screenKey: 'debts', href: '/erp/debts' },
   ] },
   { title: 'Задачи', icon: '✅', items: [
@@ -48,9 +47,10 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Зарплата и кадры', screenKey: 'staff', href: '/erp/staff' },
   ] },
   { title: 'Прочее', icon: '🗂', items: [
+    { label: 'Уведомления', screenKey: 'dashboard', href: '/erp/notifications' },
     { label: 'База данных', screenKey: 'database', href: '/erp/database' },
     { label: 'Отчёты', screenKey: 'reports', href: '/erp/reports' },
-    { label: 'Справочник', screenKey: 'handbook', href: L, legacy: true },
+    { label: 'Справочник', screenKey: 'handbook', href: '/erp/handbook' },
     { label: 'Клиенты', screenKey: 'clients', href: '/erp/clients' },
   ] },
   { title: 'Настройки', icon: '⚙️', items: [

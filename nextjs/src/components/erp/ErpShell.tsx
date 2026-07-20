@@ -3,6 +3,17 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { NavSection } from '@/lib/erp-nav';
+import { useApi } from '@/lib/api';
+
+function Bell() {
+  const { data } = useApi<{ unread: number }>('/api/v2/notifications', { refreshInterval: 60000 });
+  const unread = data?.unread || 0;
+  return (
+    <Link href="/erp/notifications" className="erp-bell" title="Уведомления">
+      🔔{unread > 0 && <span className="erp-bell-badge">{unread > 9 ? '9+' : unread}</span>}
+    </Link>
+  );
+}
 
 type ShellUser = { name: string; role: string; roleLabel: string };
 
@@ -61,6 +72,7 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
           <button className="erp-burger" onClick={() => setMobileOpen(v => !v)} aria-label="Меню">☰</button>
           <div className="erp-header-title">{active ? active.label : 'Рабочий стол'}</div>
           <div className="erp-header-right">
+            <Bell />
             <a href="/sketch_screens.html" className="erp-legacy-link">Старый интерфейс</a>
           </div>
         </header>
