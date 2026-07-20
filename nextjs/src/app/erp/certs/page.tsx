@@ -23,8 +23,9 @@ function CertsInner() {
   const sp = useSearchParams();
   const initial = sp.get('source');
   const [source, setSource] = React.useState(initial && SOURCES.includes(initial) ? initial : 'САМИ');
+  const [docType, setDocType] = React.useState<'cert' | 'izv'>('cert');
   const [q, setQ] = React.useState('');
-  const { data: certs, error, isLoading, mutate } = useApi<Cert[]>(`/api/v2/certs?source=${encodeURIComponent(source)}&archived=false&type=cert`);
+  const { data: certs, error, isLoading, mutate } = useApi<Cert[]>(`/api/v2/certs?source=${encodeURIComponent(source)}&archived=false&type=${docType}`);
   const [modal, setModal] = React.useState(false);
   const [form, setForm] = React.useState<typeof EMPTY>(EMPTY);
   const [saving, setSaving] = React.useState(false);
@@ -38,7 +39,7 @@ function CertsInner() {
   async function save() {
     if (!form.fio.trim()) { setErr('Укажите ФИО / объект'); return; }
     setSaving(true); setErr('');
-    const body = { source, fio: form.fio.trim(), address: form.address || null, phone: form.phone || null, meterType: form.meterType || null, serialNo: form.serialNo || null, yearMade: form.yearMade ? Number(form.yearMade) : null, waterType: form.waterType, checkDate: form.checkDate || null, nextCheckDate: form.nextCheckDate || null, stampNo: form.stampNo || null, readings: form.readings || null, result: form.result, operStatus: form.operStatus, payStatus: form.payStatus, note: form.note || null, docType: 'cert' };
+    const body = { source, fio: form.fio.trim(), address: form.address || null, phone: form.phone || null, meterType: form.meterType || null, serialNo: form.serialNo || null, yearMade: form.yearMade ? Number(form.yearMade) : null, waterType: form.waterType, checkDate: form.checkDate || null, nextCheckDate: form.nextCheckDate || null, stampNo: form.stampNo || null, readings: form.readings || null, result: form.result, operStatus: form.operStatus, payStatus: form.payStatus, note: form.note || null, docType };
     try {
       if (form.id) await apiSend(`/api/v2/certs/${form.id}`, 'PATCH', body);
       else await apiSend('/api/v2/certs', 'POST', body);
@@ -53,9 +54,13 @@ function CertsInner() {
 
   return (
     <div>
-      <PageTitle title="Поверка — сертификаты" sub={`Направление: ${source} · записей: ${list.length}`} action={<Button onClick={openNew}>+ Сертификат</Button>} />
+      <PageTitle title={`Поверка — ${docType === 'izv' ? 'извещения' : 'сертификаты'}`} sub={`Направление: ${source} · записей: ${list.length}`} action={<Button onClick={openNew}>+ {docType === 'izv' ? 'Извещение' : 'Сертификат'}</Button>} />
 
       <Card className="erp-filters">
+        <div className="erp-chips">
+          <button className={`erp-chip${docType === 'cert' ? ' on' : ''}`} onClick={() => setDocType('cert')}>📄 Сертификаты</button>
+          <button className={`erp-chip${docType === 'izv' ? ' on' : ''}`} onClick={() => setDocType('izv')}>📃 Извещения</button>
+        </div>
         <div className="erp-chips">{SOURCES.map(s => <button key={s} className={`erp-chip${source === s ? ' on' : ''}`} onClick={() => setSource(s)}>{s}</button>)}</div>
         <Input placeholder="🔍 ФИО, адрес, № счётчика" value={q} onChange={e => setQ(e.target.value)} />
       </Card>

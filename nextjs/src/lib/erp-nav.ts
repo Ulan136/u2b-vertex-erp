@@ -30,7 +30,7 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Журнал расходов', screenKey: 'expenses', href: L, legacy: true },
   ] },
   { title: 'Бухгалтерия', icon: '📒', items: [
-    { label: 'Документы', screenKey: 'accounting', href: L, legacy: true },
+    { label: 'Документы', screenKey: 'accounting', href: '/erp/documents' },
   ] },
   { title: 'Финансы', icon: '💳', items: [
     { label: 'Счета и операции', screenKey: 'invoices', href: '/erp/finance' },
@@ -41,20 +41,22 @@ export const ERP_NAV: NavSection[] = [
   ] },
   { title: 'Склад', icon: '🏭', items: [
     { label: 'Журнал склада', screenKey: 'warehouse', href: '/erp/warehouse' },
-    { label: 'Покупки', screenKey: 'purchases', href: L, legacy: true },
+    { label: 'Покупки (приход)', screenKey: 'purchases', href: '/erp/warehouse' },
   ] },
   { title: 'Сотрудники', icon: '👥', items: [
     { label: 'Руководитель', screenKey: 'staff', href: '/erp/staff/directory' },
     { label: 'Зарплата и кадры', screenKey: 'staff', href: '/erp/staff' },
   ] },
   { title: 'Прочее', icon: '🗂', items: [
-    { label: 'База данных', screenKey: 'database', href: L, legacy: true },
-    { label: 'Отчёты', screenKey: 'reports', href: L, legacy: true },
+    { label: 'База данных', screenKey: 'database', href: '/erp/database' },
+    { label: 'Отчёты', screenKey: 'reports', href: '/erp/reports' },
     { label: 'Справочник', screenKey: 'handbook', href: L, legacy: true },
     { label: 'Клиенты', screenKey: 'clients', href: '/erp/clients' },
   ] },
   { title: 'Настройки', icon: '⚙️', items: [
+    { label: 'Настройки', screenKey: 'settings', href: '/erp/settings' },
     { label: 'Доступы', screenKey: 'settings', href: '/erp/access' },
-    { label: 'Настройки', screenKey: 'settings', href: L, legacy: true },
+    { label: 'Организация', screenKey: 'settings', href: '/erp/settings/org' },
+    { label: 'Пользователи', screenKey: 'settings', href: '/erp/settings/users' },
   ] },
 ];
