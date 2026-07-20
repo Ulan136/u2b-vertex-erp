@@ -24,7 +24,7 @@ export const ERP_NAV: NavSection[] = [
     { label: 'ТЭЦ', screenKey: 'orders_tec', href: L, legacy: true },
   ] },
   { title: 'Продажи', icon: '💰', items: [
-    { label: 'Журнал продаж', screenKey: 'sales', href: L, legacy: true },
+    { label: 'Журнал продаж', screenKey: 'sales', href: '/erp/sales' },
   ] },
   { title: 'Расходы', icon: '💸', items: [
     { label: 'Журнал расходов', screenKey: 'expenses', href: L, legacy: true },
