@@ -142,6 +142,11 @@ export const sales = pgTable('sales', {
   totalSum    : numeric('total_sum', { precision: 12, scale: 2 }).default('0'),
   payStatus   : payStatusEnum('pay_status').default('В ожидании'),
   invoiceType : invoiceTypeEnum('invoice_type').default('Каспи'),
+  // Тип клиента: retail (Покупатель, розница) | client (Клиент со скидкой).
+  clientType  : varchar('client_type', { length: 20 }).default('retail'),
+  // Позиции продажи (мультипозиция). Агрегаты (product_id/qty/price/total) —
+  // сводка по items для списков и финансов.
+  items       : jsonb('items').$type<Array<{ productId: string; productName?: string | null; skuCode?: string | null; qty: number; price: number; sum: number }>>(),
   comment     : text('comment'),
   // Отмена продажи (не удаление): сторно прихода + возврат склада, след кто/когда.
   cancelledAt : timestamp('cancelled_at', { withTimezone: true }),

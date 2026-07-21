@@ -28,4 +28,9 @@ export const salesRepo = {
     const [row] = await exec.insert(sales).values(data as unknown as SaleInsert).returning();
     return row;
   },
+
+  async update(id: string, data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.update(sales).set({ ...(data as Partial<SaleInsert>), updatedAt: new Date() }).where(eq(sales.id, id)).returning();
+    return row;
+  },
 };

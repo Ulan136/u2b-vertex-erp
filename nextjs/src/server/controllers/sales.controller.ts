@@ -9,6 +9,10 @@ export const GET = withApi(async () => salesService.list());
 export const POST = withApi(async (req: NextRequest, ctx) =>
   created(await salesService.create(await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null)));
 
+// PATCH /api/v2/sales/[id] — правка продажи / переключение оплаты (реконсиляция склада+финансов)
+export const PATCH = withApi(async (req: NextRequest, ctx) =>
+  salesService.update(ctx.params!.id, await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
+
 // POST /api/v2/sales/[id]/cancel — отмена продажи. Право: Админ и Бухгалтер.
 const CANCEL_ROLES = ['admin', 'accountant'];
 export const CANCEL = withApi(async (_req: NextRequest, ctx) => {
