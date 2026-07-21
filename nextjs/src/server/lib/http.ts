@@ -7,6 +7,8 @@ import { isCabinetPublicApi, apiScreenFor, financeWriteAllowed } from './apiAcce
 import { permissionsRepo } from '@/server/repositories/permissions.repo';
 import { isScreenAllowed } from '@/server/dto/permissions.dto';
 import { presenceService } from '@/server/services/presence.service';
+import { recordMutation, type AuditDraft } from './audit';
+import { clientIp } from './rateLimit';
 
 // ── Response helpers ──────────────────────────────────────────────
 export function json(data: unknown, status = 200) {
@@ -21,7 +23,9 @@ export const optionsHandler = () => noContent();
 // Every wrapped route (except the cabinet allowlist) requires a session, and
 // when the path maps to a screen the «Доступы» matrix is enforced for the
 // session's role. The resolved user is passed to the handler via ctx.user.
-export type RouteCtx = { params?: Record<string, string>; user?: SessionUser | null };
+export type RouteCtx = { params?: Record<string, string>; user?: SessionUser | null; audit?: AuditDraft };
+
+const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 type Handler = (req: NextRequest, ctx: RouteCtx) => Promise<unknown> | unknown;
 
 export function withApi(handler: Handler) {
@@ -53,7 +57,19 @@ export function withApi(handler: Handler) {
         await presenceService.touch(user.id);    // ERP user on a public route — keep presence fresh
       }
 
-      const result = await handler(req, { ...(ctx ?? {}), user });
+      const audit: AuditDraft = {};
+      const result = await handler(req, { ...(ctx ?? {}), user, audit });
+
+      // Централизованный аудит: любая успешная мутация → запись в журнал.
+      if (url && MUTATION_METHODS.has(req.method)) {
+        const payload = result instanceof NextResponse ? await result.clone().json().catch(() => null) : result;
+        recordMutation({
+          method: req.method, path, params: ctx?.params, result: payload,
+          actor: user ? { id: user.id, name: user.name } : { id: null, name: 'Внешний кабинет' },
+          ip: clientIp(req.headers), draft: audit,
+        });
+      }
+
       return result instanceof NextResponse ? result : json(result);
     } catch (err) {
       if (err instanceof ZodError) {

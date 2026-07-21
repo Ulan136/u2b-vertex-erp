@@ -169,7 +169,7 @@
 /* ── Фон и колокол (палитра старого интерфейса) ── */
 .erp-content { background: #f5f6fa; min-height: calc(100vh - 54px); }
 
-.erp-bell { position: relative; text-decoration: none; font-size: 18px; padding: 4px 6px; border-radius: 8px; line-height: 1; }
+.erp-bell { position: relative; text-decoration: none; font-size: 18px; padding: 4px 6px; border-radius: 8px; line-height: 1; border: none; background: transparent; cursor: pointer; font-family: inherit; }
 .erp-bell:hover { background: #eff6ff; }
 .erp-bell-badge { position: absolute; top: -2px; right: -2px; background: #dc2626; color: #fff; font-size: 9px; font-weight: 700; min-width: 15px; height: 15px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 3px; }
 .erp-header-right { display: flex; align-items: center; gap: 10px; }
@@ -188,6 +188,40 @@
 .erp-presence-sub { font-size: 10px; color: #9ca3af; }
 .erp-presence-row.off .erp-presence-name { color: #9ca3af; }
 @media (max-width: 560px) { .erp-presence-lbl { display: none; } }
+
+/* ── История (панель + блок в модалках) ── */
+.erp-hist-overlay { position: fixed; inset: 0; z-index: 70; background: rgba(15,23,42,.35); }
+.erp-hist { position: fixed; top: 0; right: 0; z-index: 71; width: 400px; max-width: 94vw; height: 100vh; background: #fff; box-shadow: -8px 0 34px rgba(0,0,0,.18); display: flex; flex-direction: column; }
+.erp-hist-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--erp-line); }
+.erp-hist-title { font-weight: 800; font-size: 15px; color: #1b2a4a; }
+.erp-hist-x { border: none; background: none; font-size: 15px; cursor: pointer; color: var(--erp-muted); }
+.erp-hist-tabs { display: flex; gap: 6px; padding: 10px 14px 0; }
+.erp-hist-tab { border: 1px solid var(--erp-line); background: #fff; border-radius: 8px 8px 0 0; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--erp-muted); font-family: inherit; }
+.erp-hist-tab.on { background: var(--erp-blue); border-color: var(--erp-blue); color: #fff; }
+.erp-hist-search { padding: 10px 14px 4px; }
+.erp-hist-search input { width: 100%; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 8px; padding: 7px 10px; font-size: 13px; font-family: inherit; }
+.erp-hist-note { padding: 4px 14px 8px; font-size: 11px; color: #94a3b8; }
+.erp-hist-feed { flex: 1; overflow-y: auto; padding: 0 8px 16px; }
+.erp-hist-empty { padding: 30px; text-align: center; color: var(--erp-muted); font-size: 13px; }
+.erp-hist-day { position: sticky; top: 0; background: #f1f5f9; color: #475569; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 5px 10px; margin: 8px 0 2px; border-radius: 6px; }
+.erp-hist-row { display: flex; align-items: flex-start; gap: 9px; width: 100%; text-align: left; border: none; background: none; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-family: inherit; }
+.erp-hist-row:hover { background: #eff6ff; }
+.erp-hist-ico { font-size: 15px; line-height: 1.3; flex-shrink: 0; }
+.erp-hist-main { display: flex; flex-direction: column; min-width: 0; }
+.erp-hist-text { font-size: 13px; color: #1e293b; }
+.erp-hist-text b { color: #1d4ed8; }
+.erp-hist-sub { font-size: 11px; color: var(--erp-muted); margin-top: 1px; }
+.erp-hist-more { display: block; width: calc(100% - 20px); margin: 10px; padding: 8px; border: 1px solid var(--erp-line); background: #fff; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; color: var(--erp-blue-d); }
+
+.erp-eh { margin-top: 12px; border-top: 1px solid var(--erp-line); padding-top: 10px; }
+.erp-eh-title { font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 8px; }
+.erp-eh-empty { font-size: 12px; color: var(--erp-muted); }
+.erp-eh-list { list-style: none; margin: 0; padding: 0; }
+.erp-eh-row { display: flex; gap: 8px; padding: 5px 0; }
+.erp-eh-dot { width: 7px; height: 7px; border-radius: 50%; background: #93c5fd; margin-top: 6px; flex-shrink: 0; }
+.erp-eh-body { font-size: 12.5px; color: #334155; }
+.erp-eh-time { font-size: 11px; color: var(--erp-muted); }
+.erp-eh-diff { font-size: 11px; color: #475569; margin-top: 2px; }
 
 /* ── Mobile ── */
 @media (max-width: 860px) {

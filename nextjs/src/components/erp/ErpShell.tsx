@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import type { NavSection } from '@/lib/erp-nav';
 import { ZONE_LABELS } from '@/lib/erp-nav';
 import { useApi } from '@/lib/api';
+import HistoryPanel from '@/components/erp/HistoryPanel';
 import { ROLE_LABELS_RU, type Role } from '@/server/dto/permissions.dto';
 
 function Bell() {
@@ -70,6 +71,7 @@ type ShellUser = { name: string; role: string; roleLabel: string };
 export default function ErpShell({ user, sections, children }: { user: ShellUser; sections: NavSection[]; children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [histOpen, setHistOpen] = React.useState(false);
 
   // Заголовок страницы = активный пункт навигации (для не-legacy маршрутов).
   const active = sections.flatMap(s => s.items).find(i => !i.legacy && i.href === pathname);
@@ -141,12 +143,14 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
           <div className="erp-header-title">{active ? active.label : 'Рабочий стол'}</div>
           <div className="erp-header-right">
             <Presence />
+            <button className="erp-bell" title="История" onClick={() => setHistOpen(true)}>🕘</button>
             <Bell />
             <a href="/sketch_screens.html" className="erp-legacy-link">Старый интерфейс</a>
           </div>
         </header>
         <main className="erp-content">{children}</main>
       </div>
+      <HistoryPanel open={histOpen} onClose={() => setHistOpen(false)} />
     </div>
   );
 }

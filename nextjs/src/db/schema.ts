@@ -405,6 +405,22 @@ export const tasks = pgTable('tasks', {
   completedAt : timestamp('completed_at', { withTimezone: true }),
 });
 
+// ── AUDIT LOG (журнал действий — неизменяемый) ────────────────
+// Пишется на всех мутациях API + на входах. Правки/удаления записей нет
+// (юридический след). user_name/ip денормализованы — лог самодостаточен.
+export const auditLog = pgTable('audit_log', {
+  id          : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  userId      : uuid('user_id').references(() => users.id),
+  userName    : varchar('user_name', { length: 200 }),
+  action      : varchar('action', { length: 30 }).notNull(),   // created/updated/deleted/cancelled/reversed/payment/status_changed/login
+  entityType  : varchar('entity_type', { length: 40 }),        // sale/order/certificate/operation/debt/task/client/user/document/stock/salary…
+  entityId    : uuid('entity_id'),
+  entityLabel : varchar('entity_label', { length: 200 }),      // «ПРД-003», «Счёт №37»
+  details     : jsonb('details'),                              // {field: [было, стало], …}
+  ip          : varchar('ip', { length: 60 }),
+  createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
 // ── TYPES ─────────────────────────────────────────────────────
 export type Branch           = typeof branches.$inferSelect;
 export type User             = typeof users.$inferSelect;

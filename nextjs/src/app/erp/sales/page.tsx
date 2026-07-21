@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import EntityHistory from '@/components/erp/EntityHistory';
 
 type Sale = { id: string; saleNo?: string | null; saleDate?: string | null; clientName?: string | null; productName?: string | null; skuCode?: string | null; qty?: number; price?: string | number; totalSum?: string | number; payStatus?: string | null; invoiceType?: string | null; cancelledAt?: string | null };
 type Client = { id: string; name: string };
@@ -27,6 +28,7 @@ export default function SalesPage() {
   const [form, setForm] = React.useState<typeof EMPTY>(EMPTY);
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState('');
+  const [histSale, setHistSale] = React.useState<Sale | null>(null);
 
   const list = sales || [];
   const total = list.filter(x => !x.cancelledAt).reduce((s, x) => s + (Number(x.totalSum) || 0), 0);
@@ -86,6 +88,7 @@ export default function SalesPage() {
                     <td>{cancelled ? <Badge tone="err">✕ Отменена</Badge> : <Badge tone={s.payStatus === 'Оплачено' ? 'ok' : 'warn'}>{s.payStatus === 'Оплачено' ? '✓ Оплачено' : '⏳ Ожидает'}</Badge>}</td>
                     <td className="erp-muted" style={{ fontSize: 12 }}>{s.invoiceType || '—'}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button className="erp-icon-btn" title="История" onClick={() => setHistSale(s)}>🕘</button>
                       {!cancelled && canCancel && <button className="erp-icon-btn" title="Отменить продажу" onClick={() => cancelSale(s)}>↩️</button>}
                     </td>
                   </tr>
@@ -131,6 +134,11 @@ export default function SalesPage() {
           </Field>
         )}
         <Field label="Комментарий"><Input value={form.comment} onChange={e => setForm(f => ({ ...f, comment: e.target.value }))} /></Field>
+      </Modal>
+
+      <Modal open={!!histSale} onClose={() => setHistSale(null)} title={`Продажа ${histSale?.saleNo || ''}`}
+        footer={<Button variant="outline" onClick={() => setHistSale(null)}>Закрыть</Button>}>
+        {histSale && <EntityHistory entityType="sale" entityId={histSale.id} />}
       </Modal>
     </div>
   );

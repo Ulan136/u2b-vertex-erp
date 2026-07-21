@@ -6,6 +6,7 @@ import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { authConfig } from './auth.config';
 import { rateLimit, clientIp } from '@/server/lib/rateLimit';
+import { logLogin } from '@/server/lib/audit';
 
 // Safe phone → +7XXXXXXXXXX (returns null for non-phone input, never throws).
 function toPhone(raw: string): string | null {
@@ -50,6 +51,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!ok) return null;
 
         await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, user.id));  // best-effort
+        await logLogin({ id: user.id, name: user.name }, ip);                                 // журнал входов (кто/когда/IP)
         return {
           id: user.id, email: user.email, name: user.name, role: user.role,
           remember: credentials?.remember === 'true' || credentials?.remember === true,
