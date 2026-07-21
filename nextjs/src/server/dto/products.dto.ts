@@ -1,5 +1,16 @@
 import { z } from 'zod';
 
+// PATCH /products/[id] — карточка товара (наименование, мин.остаток, цены, тип воды, группа).
+export const productUpdateSchema = z.object({
+  name: z.string().trim().min(1).optional(),
+  fullName: z.string().nullish(),
+  minStock: z.coerce.number().int().nonnegative().optional(),
+  price: z.union([z.string(), z.number()]).optional(),
+  priceDiscount: z.union([z.string(), z.number()]).optional(),
+  waterType: z.string().nullish(),
+  groupId: z.string().nullish(),
+});
+
 // POST /products records a stock movement (приход/расход), not a product.
 export const stockMovementSchema = z.object({
   productId: z.string(),

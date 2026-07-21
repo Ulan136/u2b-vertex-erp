@@ -53,7 +53,7 @@ export const ERP_NAV: NavSection[] = [
   ] },
   { title: 'Склад', icon: '🏭', zone: 'ops', items: [
     { label: 'Журнал склада', screenKey: 'warehouse', href: '/erp/warehouse' },
-    { label: 'Покупки (приход)', screenKey: 'purchases', href: '/erp/warehouse' },
+    { label: '🛒 Закупки', screenKey: 'purchases', href: '/erp/purchases' },
   ] },
   { title: 'Сотрудники', icon: '👥', zone: 'ops', items: [
     { label: 'Руководитель', screenKey: 'staff', href: '/erp/staff/directory' },

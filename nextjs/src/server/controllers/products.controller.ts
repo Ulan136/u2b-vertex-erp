@@ -10,8 +10,11 @@ export const GET = withApi(async () => productsService.list());
 export const POST = withApi(async (req: NextRequest, ctx) =>
   created(await productsService.createMovement(await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null)));
 
-// GET /api/v2/products/movements — журнал движений
+// PATCH /api/v2/products/[id] — карточка товара (наименование/мин/цены/тип воды)
+export const PATCH = withApi(async (req: NextRequest, ctx) => productsService.update(ctx.params!.id, await req.json()));
+
+// GET /api/v2/products/movements?limit=&type=IN|OUT|REV+|REV- — журнал движений
 export const MOVEMENTS = withApi(async (req: NextRequest) => {
-  const lim = Number(new URL(req.url).searchParams.get('limit')) || 60;
-  return productsService.movements(lim);
+  const sp = new URL(req.url).searchParams;
+  return productsService.movements(Number(sp.get('limit')) || 60, sp.get('type'));
 });

@@ -25,6 +25,15 @@ export const productsRepo = {
       .set({ currentStock: sql`${products.currentStock} + ${delta}`, updatedAt: new Date() })
       .where(eq(products.id, id)),
 
-  listMovements: (limit = 60) =>
-    db.select().from(stockMovements).orderBy(desc(stockMovements.createdAt), desc(stockMovements.moveDate)).limit(limit),
+  // Правка карточки товара (наименование/мин/цены/тип воды/группа).
+  async update(id: string, data: Record<string, unknown>) {
+    const [row] = await db.update(products).set({ ...(data as Partial<typeof products.$inferInsert>), updatedAt: new Date() }).where(eq(products.id, id)).returning();
+    return row ?? null;
+  },
+
+  listMovements: (limit = 60, type?: string | null) => {
+    const base = db.select().from(stockMovements);
+    const q = type ? base.where(eq(stockMovements.moveType, type as typeof stockMovements.$inferSelect.moveType)) : base;
+    return q.orderBy(desc(stockMovements.createdAt), desc(stockMovements.moveDate)).limit(limit);
+  },
 };

@@ -1,6 +1,6 @@
 import { db, type Executor } from '@/db';
 import { productsRepo } from '@/server/repositories/products.repo';
-import { stockMovementSchema } from '@/server/dto/products.dto';
+import { stockMovementSchema, productUpdateSchema } from '@/server/dto/products.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
 // Знак движения для остатка: приход/ревизия+ увеличивают, расход/ревизия− уменьшают.
@@ -46,7 +46,23 @@ async function doMovement(input: unknown, actor: { id: string; name?: string } |
 
 export const productsService = {
   list: () => productsRepo.listActive(),
-  movements: (limit?: number) => productsRepo.listMovements(limit),
+  movements: (limit?: number, type?: string | null) => productsRepo.listMovements(limit, type),
+
+  // Правка карточки товара (наименование/мин.остаток/цены/тип воды/группа).
+  async update(id: string, input: unknown) {
+    const d = productUpdateSchema.parse(input);
+    const patch: Record<string, unknown> = {};
+    if (d.name !== undefined) patch.name = d.name;
+    if (d.fullName !== undefined) patch.fullName = d.fullName || null;
+    if (d.minStock !== undefined) patch.minStock = d.minStock;
+    if (d.price !== undefined) patch.price = money(Number(d.price) || 0);
+    if (d.priceDiscount !== undefined) patch.priceDiscount = money(Number(d.priceDiscount) || 0);
+    if (d.waterType !== undefined) patch.waterType = d.waterType || null;
+    if (d.groupId !== undefined) patch.groupId = d.groupId || null;
+    const row = await productsRepo.update(id, patch);
+    if (!row) throw notFound('Товар не найден');
+    return row;
+  },
 
   // exec передаётся, когда движение — часть внешней транзакции (напр. продажи);
   // иначе открываем свою, чтобы движение и остаток всегда были согласованы.
