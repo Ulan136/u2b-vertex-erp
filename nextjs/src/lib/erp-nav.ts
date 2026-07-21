@@ -45,7 +45,7 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Документы', screenKey: 'accounting', href: '/erp/documents' },
   ] },
   { title: 'Финансы', icon: '💳', zone: 'ops', items: [
-    { label: 'Счета и операции', screenKey: 'invoices', href: '/erp/finance' },
+    { label: 'Счета и операции', screenKey: 'finance', href: '/erp/finance' },
     { label: 'Долги', screenKey: 'debts', href: '/erp/debts' },
   ] },
   { title: 'Задачи', icon: '✅', zone: 'ops', items: [
