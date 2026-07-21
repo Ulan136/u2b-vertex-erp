@@ -3,6 +3,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { NavSection } from '@/lib/erp-nav';
+import { ZONE_LABELS } from '@/lib/erp-nav';
 import { useApi } from '@/lib/api';
 import { ROLE_LABELS_RU, type Role } from '@/server/dto/permissions.dto';
 
@@ -84,8 +85,17 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
           </div>
         </div>
         <nav className="erp-nav">
-          {sections.map(section => (
-            <div className="erp-nav-section" key={section.title}>
+          {sections.map((section, si) => {
+          const prevZone = si > 0 ? sections[si - 1].zone : undefined;
+          const showZoneHead = section.zone && section.zone !== prevZone;
+          return (
+            <React.Fragment key={section.title}>
+            {showZoneHead && (
+              <div className={`erp-zone-head erp-zone-head-${section.zone}`}>
+                <span>{ZONE_LABELS[section.zone!]}</span><span className="erp-zh-line" />
+              </div>
+            )}
+            <div className={`erp-nav-section${section.zone ? ' erp-zone-' + section.zone : ''}`}>
               <div className="erp-nav-title"><span>{section.icon}</span>{section.title}</div>
               {section.items.map((item, i) => {
                 const isActive = !item.legacy && !item.external && item.href === pathname;
@@ -110,7 +120,9 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
                 );
               })}
             </div>
-          ))}
+            </React.Fragment>
+          );
+          })}
         </nav>
         <div className="erp-sidebar-foot">
           <div className="erp-user">
