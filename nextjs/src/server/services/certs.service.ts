@@ -13,13 +13,21 @@ export const certsService = {
 
   async create(input: unknown) {
     const data = certUpsertSchema.parse(input);
-    return certsRepo.create(cleanCertFields(data));
+    const fields = cleanCertFields(data);
+    // fio/address — NOT NULL в БД без дефолта: гарантируем непустую строку (иначе 500).
+    fields.fio ??= '';
+    fields.address ??= '';
+    return certsRepo.create(fields);
   },
 
   async update(id: string, input: unknown) {
     if (!id) throw badRequest('id is required');
     const data = certUpdateSchema.parse(input);
-    const row = await certsRepo.update(id, cleanCertFields(data));
+    const fields = cleanCertFields(data);
+    // нельзя занулять NOT NULL поля — если пришёл null, пишем ''
+    if ('fio' in fields && fields.fio == null) fields.fio = '';
+    if ('address' in fields && fields.address == null) fields.address = '';
+    const row = await certsRepo.update(id, fields);
     if (!row) throw notFound('Certificate not found');
     return row;
   },
