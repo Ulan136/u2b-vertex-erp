@@ -6,6 +6,9 @@ import { saleCreateSchema } from '@/server/dto/sales.dto';
 import { badRequest } from '@/server/lib/errors';
 
 const money = (n: number) => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
+// invoice_type — enum БД; произвольное имя счёта туда класть нельзя (иначе 500).
+const INVOICE_TYPES = ['Каспи', 'БЦК', 'Наличка', 'Каспи Голд'];
+const invType = (v: unknown) => (INVOICE_TYPES.includes(String(v)) ? String(v) : null);
 
 export const salesService = {
   list: () => salesRepo.list(),
@@ -37,7 +40,7 @@ export const salesService = {
         price: money(price),
         totalSum: total,
         payStatus: data.payStatus || 'В ожидании',
-        invoiceType: data.invoiceType || null,
+        invoiceType: invType(data.invoiceType),
         comment: data.comment || null,
         createdBy: actor?.id || null,
       }, tx);
@@ -57,6 +60,7 @@ export const salesService = {
             amount: total,
             name: `Продажа ${saleNo}${data.productName ? ': ' + data.productName : ''}`,
             source: 'Продажа',
+            saleId: sale.id,                       // связь приход→продажа (трассируемость)
             opDate: data.saleDate || undefined,
             comment: data.clientName || undefined,
           },
