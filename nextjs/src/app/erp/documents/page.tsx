@@ -4,8 +4,9 @@ import { useApi, apiFetch, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 import { amountInWordsKzt } from '@/server/dto/documents.dto';
+import EntityHistory from '@/components/erp/EntityHistory';
 
-type Doc = { id: string; type: string; number: number; docNo?: string | null; docDate?: string | null; buyerName?: string | null; total?: string | number | null; bank?: string | null };
+type Doc = { id: string; type: string; number: number; docNo?: string | null; docDate?: string | null; buyerName?: string | null; total?: string | number | null; bank?: string | null; createdByName?: string | null };
 type Client = { id: string; name: string };
 type Product = { id: string; skuCode: string; name: string; price: string | number };
 type Org = { banks?: { key: string; name: string; iik?: string }[] | null };
@@ -37,6 +38,7 @@ export default function DocumentsPage() {
   const [prodQ, setProdQ] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState('');
+  const [histDoc, setHistDoc] = React.useState<Doc | null>(null);
 
   const total = items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
   const list = docs || [];
@@ -79,13 +81,15 @@ export default function DocumentsPage() {
       <Card style={{ padding: 0 }}>
         {list.length === 0 ? <EmptyRow>Пока нет документов. Нажмите на карточку выше.</EmptyRow> : (
           <table className="erp-table">
-            <thead><tr><th>Тип</th><th>Номер</th><th>Дата</th><th>Покупатель</th><th style={{ textAlign: 'right' }}>Сумма</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
+            <thead><tr><th>Тип</th><th>Номер</th><th>Дата</th><th>Покупатель</th><th style={{ textAlign: 'right' }}>Сумма</th><th>Автор</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
             <tbody>
               {list.map(d => (
                 <tr key={d.id}>
                   <td>{TLABEL[d.type] || d.type}</td><td className="erp-muted" style={{ fontSize: 12 }}>{d.docNo}</td><td className="erp-muted" style={{ fontSize: 12 }}>{dmy(d.docDate)}</td>
                   <td className="erp-td-main">{d.buyerName}</td><td style={{ textAlign: 'right', fontWeight: 700 }}>{fmt(d.total || 0)}</td>
+                  <td className="erp-muted" style={{ fontSize: 12 }}>{d.createdByName || '—'}</td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <button className="erp-icon-btn" title="История" onClick={() => setHistDoc(d)}>🕘</button>
                     <button className="erp-icon-btn" title="Excel" onClick={() => download(d.id, 'excel')}>⬇xls</button>
                     <button className="erp-icon-btn" title="Word" onClick={() => download(d.id, 'word')}>⬇doc</button>
                     <button className="erp-icon-btn" title="PDF / печать" onClick={() => print(d.id)}>🖨</button>
@@ -131,6 +135,11 @@ export default function DocumentsPage() {
           <label style={{ fontSize: 13, cursor: 'pointer' }}><input type="checkbox" checked={f.withStamp} onChange={e => setF({ ...f, withStamp: e.target.checked })} /> 🔵 Печать</label>
           <label style={{ fontSize: 13, cursor: 'pointer' }}><input type="checkbox" checked={f.withSign} onChange={e => setF({ ...f, withSign: e.target.checked })} /> ✍ Подпись</label>
         </div>
+      </Modal>
+
+      <Modal open={!!histDoc} onClose={() => setHistDoc(null)} title={`Документ ${histDoc?.docNo || ''}`}
+        footer={<Button variant="outline" onClick={() => setHistDoc(null)}>Закрыть</Button>}>
+        {histDoc && <EntityHistory entityType="document" entityId={histDoc.id} />}
       </Modal>
     </div>
   );

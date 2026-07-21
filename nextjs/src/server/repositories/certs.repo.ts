@@ -1,6 +1,6 @@
 import { db } from '@/db';
-import { certificates } from '@/db/schema';
-import { and, desc, eq } from 'drizzle-orm';
+import { certificates, users } from '@/db/schema';
+import { and, desc, eq, getTableColumns } from 'drizzle-orm';
 
 type CertInsert = typeof certificates.$inferInsert;
 type Source = typeof certificates.source.enumValues[number];
@@ -12,7 +12,9 @@ export const certsRepo = {
       eq(certificates.docType, type),
     ];
     if (source) conds.push(eq(certificates.source, source as Source));
-    return db.select().from(certificates).where(and(...conds)).orderBy(desc(certificates.createdAt));
+    return db.select({ ...getTableColumns(certificates), createdByName: users.name }).from(certificates)
+      .leftJoin(users, eq(certificates.createdBy, users.id))
+      .where(and(...conds)).orderBy(desc(certificates.createdAt));
   },
 
   async create(data: Record<string, unknown>) {

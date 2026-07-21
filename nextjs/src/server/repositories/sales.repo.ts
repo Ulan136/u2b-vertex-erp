@@ -1,11 +1,12 @@
 import { db, type Executor } from '@/db';
-import { sales } from '@/db/schema';
-import { desc, eq, sql } from 'drizzle-orm';
+import { sales, users } from '@/db/schema';
+import { desc, eq, sql, getTableColumns } from 'drizzle-orm';
 
 type SaleInsert = typeof sales.$inferInsert;
 
 export const salesRepo = {
-  list: () => db.select().from(sales).orderBy(desc(sales.createdAt)),
+  list: () => db.select({ ...getTableColumns(sales), createdByName: users.name }).from(sales)
+    .leftJoin(users, eq(sales.createdBy, users.id)).orderBy(desc(sales.createdAt)),
 
   async findById(id: string, exec: Executor = db) {
     const [row] = await exec.select().from(sales).where(eq(sales.id, id)).limit(1);

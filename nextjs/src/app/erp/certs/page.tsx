@@ -4,12 +4,13 @@ import { useSearchParams } from 'next/navigation';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import EntityHistory from '@/components/erp/EntityHistory';
 
 type Cert = {
   id: string; source: string; fio?: string | null; address?: string | null; phone?: string | null;
   meterType?: string | null; serialNo?: string | null; yearMade?: number | null; waterType?: string | null;
   checkDate?: string | null; nextCheckDate?: string | null; stampNo?: string | null; readings?: string | number | null;
-  result?: string | null; operStatus?: string | null; payStatus?: string | null; note?: string | null;
+  result?: string | null; operStatus?: string | null; payStatus?: string | null; note?: string | null; createdByName?: string | null;
 };
 
 const SOURCES = ['САМИ', 'ВДК', 'ТЭЦ', 'Выездная', 'Первичная-КМ', 'Первичная-АК', 'Астана'];
@@ -70,7 +71,7 @@ function CertsInner() {
           : list.length === 0 ? <EmptyRow>Записей нет. Нажмите «+ Сертификат».</EmptyRow>
           : (
             <table className="erp-table">
-              <thead><tr><th>ФИО / объект</th><th>Адрес</th><th>Тип · № счётчика</th><th>Поверка</th><th>След.</th><th>Клеймо</th><th>Результат</th><th>Оплата</th><th>Статус</th><th style={{ textAlign: 'right' }}></th></tr></thead>
+              <thead><tr><th>ФИО / объект</th><th>Адрес</th><th>Тип · № счётчика</th><th>Поверка</th><th>След.</th><th>Клеймо</th><th>Результат</th><th>Оплата</th><th>Статус</th><th>Автор</th><th style={{ textAlign: 'right' }}></th></tr></thead>
               <tbody>
                 {list.map(c => (
                   <tr key={c.id}>
@@ -83,6 +84,7 @@ function CertsInner() {
                     <td><Badge tone={c.result === 'Не годен' ? 'err' : 'ok'}>{c.result || 'Годен'}</Badge></td>
                     <td><Badge tone={c.payStatus === 'Оплачено' ? 'ok' : 'warn'}>{c.payStatus === 'Оплачено' ? '✓' : '⏳'}</Badge></td>
                     <td><Badge tone={operTone(c.operStatus)}>{c.operStatus}</Badge></td>
+                    <td className="erp-muted" style={{ fontSize: 12 }}>{c.createdByName || '—'}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(c)}>✏️</button>
                       <button className="erp-icon-btn" title="Удалить" style={{ color: '#dc2626' }} onClick={() => remove(c)}>🗑️</button>
@@ -124,6 +126,7 @@ function CertsInner() {
         </div>
         <Field label="Статус"><Select value={form.operStatus} onChange={e => setForm({ ...form, operStatus: e.target.value })}>{OPER.map(o => <option key={o}>{o}</option>)}</Select></Field>
         <Field label="Примечание"><Input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} /></Field>
+        {form.id && <EntityHistory entityType="certificate" entityId={form.id} />}
       </Modal>
     </div>
   );

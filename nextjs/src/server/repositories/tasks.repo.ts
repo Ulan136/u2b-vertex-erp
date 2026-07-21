@@ -1,5 +1,6 @@
 import { db } from '@/db';
 import { tasks, users } from '@/db/schema';
+import { alias } from 'drizzle-orm/pg-core';
 import { and, eq, ilike, desc, type SQL } from 'drizzle-orm';
 
 type TaskInsert = typeof tasks.$inferInsert;
@@ -9,7 +10,9 @@ export type TaskListFilter = {
   q?: string | null;            // search over title
 };
 
-// Task row enriched with the resolved assignee name.
+const creators = alias(users, 'creators');
+
+// Task row enriched with the resolved assignee + creator name.
 const taskSelection = {
   id: tasks.id,
   title: tasks.title,
@@ -22,22 +25,24 @@ const taskSelection = {
   updatedAt: tasks.updatedAt,
   completedAt: tasks.completedAt,
   assigneeName: users.name,
+  createdByName: creators.name,
 };
+
+const withJoins = () => db.select(taskSelection).from(tasks)
+  .leftJoin(users, eq(tasks.assigneeId, users.id))
+  .leftJoin(creators, eq(tasks.createdBy, creators.id));
 
 export const tasksRepo = {
   list({ assigneeId, q }: TaskListFilter) {
     const conds: SQL[] = [];
     if (assigneeId && assigneeId !== 'none') conds.push(eq(tasks.assigneeId, assigneeId));
     if (q && q.trim()) conds.push(ilike(tasks.title, `%${q.trim()}%`));
-    const base = db.select(taskSelection).from(tasks)
-      .leftJoin(users, eq(tasks.assigneeId, users.id));
+    const base = withJoins();
     return (conds.length ? base.where(and(...conds)) : base).orderBy(desc(tasks.createdAt));
   },
 
   async findById(id: string) {
-    const [row] = await db.select(taskSelection).from(tasks)
-      .leftJoin(users, eq(tasks.assigneeId, users.id))
-      .where(eq(tasks.id, id)).limit(1);
+    const [row] = await withJoins().where(eq(tasks.id, id)).limit(1);
     return row ?? null;
   },
 

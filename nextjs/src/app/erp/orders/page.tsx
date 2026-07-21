@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import EntityHistory from '@/components/erp/EntityHistory';
 
 type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null };
 type Branch = { id: string; name: string };
@@ -111,6 +112,7 @@ function OrdersInner() {
           <Field label="Статус"><Select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>{STATUSES.map(s => <option key={s}>{s}</option>)}</Select></Field>
         </div>
         <Field label="Комментарий"><Input value={form.comment} onChange={e => setForm({ ...form, comment: e.target.value })} /></Field>
+        {form.id && <EntityHistory entityType="order" entityId={form.id} />}
       </Modal>
     </div>
   );

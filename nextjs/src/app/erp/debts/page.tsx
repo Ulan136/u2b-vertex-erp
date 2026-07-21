@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import EntityHistory from '@/components/erp/EntityHistory';
 
 type Debt = { id: string; type: string; amount: string | number; paidAmount: string | number; status: string; clientName?: string | null; counterpartyName?: string | null; accountId?: string | null; accountName?: string | null; dueDate?: string | null };
 type Acct = { id: string; name: string; icon?: string | null };
@@ -32,6 +33,7 @@ export default function DebtsPage() {
   const [modal, setModal] = React.useState(false);
   const [form, setForm] = React.useState({ type: 'debit', name: '', amount: '', accountId: '', dueDate: '', comment: '', err: '', saving: false });
   const [pay, setPay] = React.useState({ open: false, debt: null as Debt | null, amount: '', accountId: '', date: today(), comment: '', err: '', saving: false });
+  const [histDebt, setHistDebt] = React.useState<Debt | null>(null);
 
   async function saveDebt() {
     if (!form.name.trim()) { setForm(f => ({ ...f, err: 'Укажите контрагента' })); return; }
@@ -92,6 +94,7 @@ export default function DebtsPage() {
                     <td><Badge tone={d.status === 'closed' ? 'ok' : d.status === 'partial' ? 'warn' : 'info'}>{d.status === 'closed' ? '✅ Закрыт' : d.status === 'partial' ? '◐ Частично' : '● Открыт'}</Badge></td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {d.status !== 'closed' && <Button variant="outline" onClick={() => openPay(d)} style={{ fontSize: 12, padding: '4px 8px' }}>Погасить</Button>}
+                      <button className="erp-icon-btn" title="История" onClick={() => setHistDebt(d)}>🕘</button>
                       <button className="erp-icon-btn" title="Удалить" style={{ color: '#dc2626' }} onClick={() => remove(d)}>🗑️</button>
                     </td>
                   </tr>
@@ -129,6 +132,11 @@ export default function DebtsPage() {
         </div>
         <Field label="Счёт (приход/расход)"><Select value={pay.accountId} onChange={e => setPay(p => ({ ...p, accountId: e.target.value }))}><option value="">— без счёта —</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}</Select></Field>
         <Field label="Комментарий"><Input value={pay.comment} onChange={e => setPay(p => ({ ...p, comment: e.target.value }))} /></Field>
+      </Modal>
+
+      <Modal open={!!histDebt} onClose={() => setHistDebt(null)} title={`Долг — ${histDebt ? counterparty(histDebt) : ''}`}
+        footer={<Button variant="outline" onClick={() => setHistDebt(null)}>Закрыть</Button>}>
+        {histDebt && <EntityHistory entityType="debt" entityId={histDebt.id} />}
       </Modal>
     </div>
   );

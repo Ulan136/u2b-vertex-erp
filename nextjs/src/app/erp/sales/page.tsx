@@ -5,7 +5,7 @@ import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
 
-type Sale = { id: string; saleNo?: string | null; saleDate?: string | null; clientName?: string | null; productName?: string | null; skuCode?: string | null; qty?: number; price?: string | number; totalSum?: string | number; payStatus?: string | null; invoiceType?: string | null; cancelledAt?: string | null };
+type Sale = { id: string; saleNo?: string | null; saleDate?: string | null; clientName?: string | null; productName?: string | null; skuCode?: string | null; qty?: number; price?: string | number; totalSum?: string | number; payStatus?: string | null; invoiceType?: string | null; cancelledAt?: string | null; createdByName?: string | null };
 type Client = { id: string; name: string };
 type Product = { id: string; skuCode: string; name: string; price: string | number; currentStock: number };
 type Acct = { id: string; name: string; section?: string | null; icon?: string | null };
@@ -73,7 +73,7 @@ export default function SalesPage() {
           : list.length === 0 ? <EmptyRow>Продаж пока нет. Нажмите «+ Продажа».</EmptyRow>
           : (
             <table className="erp-table">
-              <thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Товар</th><th style={{ textAlign: 'right' }}>Кол-во</th><th style={{ textAlign: 'right' }}>Сумма</th><th>Оплата</th><th>Счёт</th><th></th></tr></thead>
+              <thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Товар</th><th style={{ textAlign: 'right' }}>Кол-во</th><th style={{ textAlign: 'right' }}>Сумма</th><th>Оплата</th><th>Счёт</th><th>Автор</th><th></th></tr></thead>
               <tbody>
                 {list.map(s => {
                   const cancelled = !!s.cancelledAt;
@@ -87,6 +87,7 @@ export default function SalesPage() {
                     <td style={{ textAlign: 'right', fontWeight: 700, ...(cancelled ? { textDecoration: 'line-through' } : {}) }}>{fmt(s.totalSum || 0)} ₸</td>
                     <td>{cancelled ? <Badge tone="err">✕ Отменена</Badge> : <Badge tone={s.payStatus === 'Оплачено' ? 'ok' : 'warn'}>{s.payStatus === 'Оплачено' ? '✓ Оплачено' : '⏳ Ожидает'}</Badge>}</td>
                     <td className="erp-muted" style={{ fontSize: 12 }}>{s.invoiceType || '—'}</td>
+                    <td className="erp-muted" style={{ fontSize: 12 }}>{s.createdByName || '—'}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <button className="erp-icon-btn" title="История" onClick={() => setHistSale(s)}>🕘</button>
                       {!cancelled && canCancel && <button className="erp-icon-btn" title="Отменить продажу" onClick={() => cancelSale(s)}>↩️</button>}

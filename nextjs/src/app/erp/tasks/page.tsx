@@ -3,8 +3,9 @@ import * as React from 'react';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Textarea, Select, EmptyRow } from '@/components/ui';
+import EntityHistory from '@/components/erp/EntityHistory';
 
-type Task = { id: string; title: string; description?: string | null; assigneeId?: string | null; assigneeName?: string | null; dueDate?: string | null; status: string; completedAt?: string | null };
+type Task = { id: string; title: string; description?: string | null; assigneeId?: string | null; assigneeName?: string | null; createdByName?: string | null; dueDate?: string | null; status: string; completedAt?: string | null };
 type User = { id: string; name: string };
 
 const STATUS: Record<string, { label: string; tone: 'info' | 'warn' | 'ok' | 'neutral' }> = {
@@ -81,12 +82,13 @@ export default function TasksPage() {
           : list.length === 0 ? <EmptyRow>Задач нет. Нажмите «+ Задача».</EmptyRow>
           : (
             <table className="erp-table">
-              <thead><tr><th>Задача</th><th>Исполнитель</th><th>Срок</th><th>Статус</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
+              <thead><tr><th>Задача</th><th>Исполнитель</th><th>Автор</th><th>Срок</th><th>Статус</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
               <tbody>
                 {list.map(t => (
                   <tr key={t.id}>
                     <td><div className="erp-td-main">{t.title}</div>{t.description && <div className="erp-td-sub">{t.description}</div>}</td>
                     <td>{t.assigneeName || <span className="erp-muted">не назначен</span>}</td>
+                    <td className="erp-muted" style={{ fontSize: 12 }}>{t.createdByName || '—'}</td>
                     <td>{t.dueDate ? <span style={isOverdue(t) ? { color: '#dc2626', fontWeight: 600 } : undefined}>{dmy(t.dueDate)}{isOverdue(t) ? ' ⏰' : ''}</span> : '—'}</td>
                     <td><Badge tone={STATUS[t.status]?.tone || 'neutral'}>{STATUS[t.status]?.label || t.status}</Badge></td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -110,6 +112,7 @@ export default function TasksPage() {
           <Field label="Исполнитель"><Select value={form.assigneeId} onChange={e => setForm({ ...form, assigneeId: e.target.value })}><option value="">— не назначен —</option>{(users || []).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</Select></Field>
           <Field label="Срок"><Input type="date" value={form.dueDate} onChange={e => setForm({ ...form, dueDate: e.target.value })} /></Field>
         </div>
+        {form.id && <EntityHistory entityType="task" entityId={form.id} />}
       </Modal>
     </div>
   );

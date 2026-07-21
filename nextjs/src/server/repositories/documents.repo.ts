@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { documents } from '@/db/schema';
+import { documents, users } from '@/db/schema';
 import { asc, desc, eq } from 'drizzle-orm';
 
 type DocInsert = typeof documents.$inferInsert;
@@ -8,11 +8,12 @@ type DocInsert = typeof documents.$inferInsert;
 const listSelection = {
   id: documents.id, type: documents.type, number: documents.number, docNo: documents.docNo,
   docDate: documents.docDate, buyerName: documents.buyerName, total: documents.total,
-  bank: documents.bank, createdAt: documents.createdAt,
+  bank: documents.bank, createdAt: documents.createdAt, createdByName: users.name,
 };
 
 export const documentsRepo = {
-  list: () => db.select(listSelection).from(documents).orderBy(desc(documents.createdAt)),
+  list: () => db.select(listSelection).from(documents)
+    .leftJoin(users, eq(documents.createdBy, users.id)).orderBy(desc(documents.createdAt)),
 
   async findById(id: string) {
     const [row] = await db.select().from(documents).where(eq(documents.id, id)).limit(1);
