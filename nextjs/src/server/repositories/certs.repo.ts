@@ -6,11 +6,9 @@ type CertInsert = typeof certificates.$inferInsert;
 type Source = typeof certificates.source.enumValues[number];
 
 export const certsRepo = {
-  list({ source, archived, type }: { source?: string | null; archived: boolean; type: string }) {
-    const conds = [
-      eq(certificates.isArchived, archived),
-      eq(certificates.docType, type),
-    ];
+  list({ source, archived, type }: { source?: string | null; archived: boolean; type?: string | null }) {
+    const conds = [eq(certificates.isArchived, archived)];
+    if (type) conds.push(eq(certificates.docType, type));          // без type → все документы (для дашборда)
     if (source) conds.push(eq(certificates.source, source as Source));
     return db.select({ ...getTableColumns(certificates), createdByName: users.name }).from(certificates)
       .leftJoin(users, eq(certificates.createdBy, users.id))
