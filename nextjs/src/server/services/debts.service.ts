@@ -1,3 +1,4 @@
+import { db } from '@/db';
 import { debtsRepo, type DebtListFilter } from '@/server/repositories/debts.repo';
 import { financeService } from '@/server/services/finance.service';
 import {
@@ -54,16 +55,19 @@ export const debtsService = {
     return row;
   },
 
-  // Deleting a debt rolls back the ledger operations of all its payments,
-  // then removes the debt (payments cascade in the DB).
-  async remove(id: string) {
+  // Удаление долга сторнирует финоперации всех его погашений (обратной операцией,
+  // не молчаливым DELETE), затем удаляет долг (погашения удалит cascade). Всё в
+  // одной транзакции.
+  async remove(id: string, actorId?: string | null) {
     if (!id) throw badRequest('id обязателен');
-    const payments = await debtsRepo.listPayments(id);
-    for (const p of payments) {
-      if (p.financeOpId) await financeService.removeOperation(p.financeOpId);
-    }
-    await debtsRepo.remove(id);
-    return { ok: true };
+    return db.transaction(async (tx) => {
+      const payments = await debtsRepo.listPayments(id, tx);
+      for (const p of payments) {
+        if (p.financeOpId) await financeService.reverseOperation(p.financeOpId, actorId, tx);
+      }
+      await debtsRepo.remove(id, tx);
+      return { ok: true };
+    });
   },
 
   listPayments: (debtId: string) => debtsRepo.listPayments(debtId),
@@ -71,7 +75,7 @@ export const debtsService = {
   // Record a payment: create the matching finance operation (Приход for debit,
   // Расход for credit) when an account is available, then advance paid_amount
   // and recompute status.
-  async addPayment(debtId: string, input: unknown) {
+  async addPayment(debtId: string, input: unknown, actorId?: string | null) {
     if (!debtId) throw badRequest('debtId обязателен');
     const data = debtPaymentSchema.parse(input);
     const debt = await debtsRepo.findById(debtId);
@@ -84,60 +88,64 @@ export const debtsService = {
       throw badRequest(`Сумма погашения больше остатка (${remaining})`);
     }
 
-    // reuse the finance ledger — do not invent a parallel accounting
+    // Финоперация + запись погашения + пересчёт долга — в одной транзакции.
     const opSpec = buildPaymentFinanceOp(debt, data, counterpartyLabel(debt));
-    let financeOpId: string | null = null;
-    if (opSpec) {
-      const op = await financeService.createOperation({
-        opDate: opSpec.opDate,
-        name: opSpec.name,
-        accountId: opSpec.accountId,
-        opType: opSpec.opType,
-        amount: money(opSpec.amount),
-        source: opSpec.source,
-        comment: opSpec.comment,
-      });
-      financeOpId = op?.id ?? null;
-    }
+    return db.transaction(async (tx) => {
+      let financeOpId: string | null = null;
+      if (opSpec) {
+        const op = await financeService.createOperation({
+          opDate: opSpec.opDate,
+          name: opSpec.name,
+          accountId: opSpec.accountId,
+          opType: opSpec.opType,
+          amount: money(opSpec.amount),
+          source: opSpec.source,
+          comment: opSpec.comment,
+        }, actorId, tx);
+        financeOpId = op?.id ?? null;
+      }
 
-    const payment = await debtsRepo.createPayment({
-      debtId,
-      amount: money(data.amount),
-      accountId: data.accountId ?? debt.accountId ?? null,
-      financeOpId,
-      payDate: data.payDate ?? null,
-      comment: data.comment ?? null,
+      const payment = await debtsRepo.createPayment({
+        debtId,
+        amount: money(data.amount),
+        accountId: data.accountId ?? debt.accountId ?? null,
+        financeOpId,
+        payDate: data.payDate ?? null,
+        comment: data.comment ?? null,
+      }, tx);
+
+      const newPaid = round2(paid + data.amount);
+      const updated = await debtsRepo.update(debtId, {
+        paidAmount: money(newPaid),
+        status: computeStatus(amount, newPaid),
+      }, tx);
+
+      return { debt: updated, payment };
     });
-
-    const newPaid = round2(paid + data.amount);
-    const updated = await debtsRepo.update(debtId, {
-      paidAmount: money(newPaid),
-      status: computeStatus(amount, newPaid),
-    });
-
-    return { debt: updated, payment };
   },
 
-  // Delete a payment: roll back its finance operation, then subtract from
-  // paid_amount and recompute status.
-  async removePayment(paymentId: string) {
+  // Удаление погашения: сторнируем его финоперацию, затем уменьшаем paid_amount
+  // и пересчитываем статус — в одной транзакции.
+  async removePayment(paymentId: string, actorId?: string | null) {
     if (!paymentId) throw badRequest('paymentId обязателен');
     const payment = await debtsRepo.findPayment(paymentId);
     if (!payment) throw notFound('Погашение не найдено');
 
-    if (payment.financeOpId) await financeService.removeOperation(payment.financeOpId);
-    await debtsRepo.removePayment(paymentId);
+    return db.transaction(async (tx) => {
+      if (payment.financeOpId) await financeService.reverseOperation(payment.financeOpId, actorId, tx);
+      await debtsRepo.removePayment(paymentId, tx);
 
-    const debt = await debtsRepo.findById(payment.debtId);
-    if (debt) {
-      const amount = num(debt.amount);
-      const newPaid = Math.max(0, round2(num(debt.paidAmount) - num(payment.amount)));
-      const updated = await debtsRepo.update(payment.debtId, {
-        paidAmount: money(newPaid),
-        status: computeStatus(amount, newPaid),
-      });
-      return { debt: updated };
-    }
-    return { ok: true };
+      const debt = await debtsRepo.findById(payment.debtId, tx);
+      if (debt) {
+        const amount = num(debt.amount);
+        const newPaid = Math.max(0, round2(num(debt.paidAmount) - num(payment.amount)));
+        const updated = await debtsRepo.update(payment.debtId, {
+          paidAmount: money(newPaid),
+          status: computeStatus(amount, newPaid),
+        }, tx);
+        return { debt: updated };
+      }
+      return { ok: true };
+    });
   },
 };

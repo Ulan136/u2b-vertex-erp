@@ -175,6 +175,10 @@ export const financeOperations = pgTable('finance_operations', {
   certId      : uuid('cert_id').references(() => certificates.id),
   saleId      : uuid('sale_id').references(() => sales.id),
   comment     : text('comment'),
+  // Аудит сторно: reverses = id операции, которую отменяет эта запись;
+  // reversedAt проставляется на ИСХОДНОЙ операции, когда её сторнировали.
+  reverses    : uuid('reverses'),
+  reversedAt  : timestamp('reversed_at', { withTimezone: true }),
   createdBy   : uuid('created_by').references(() => users.id),
   createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
 });

@@ -1,4 +1,4 @@
-import { db } from '@/db';
+import { db, type Executor } from '@/db';
 import { employeeSalary, salaryPayments, users, branches } from '@/db/schema';
 import { and, asc, desc, eq, isNull } from 'drizzle-orm';
 
@@ -98,8 +98,8 @@ export const employeesRepo = {
   removeSalary: (userId: string) =>
     db.delete(employeeSalary).where(eq(employeeSalary.userId, userId)),
 
-  async createPayment(data: Record<string, unknown>) {
-    const [row] = await db.insert(salaryPayments).values(data as unknown as PaymentInsert).returning();
+  async createPayment(data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.insert(salaryPayments).values(data as unknown as PaymentInsert).returning();
     return row;
   },
 };

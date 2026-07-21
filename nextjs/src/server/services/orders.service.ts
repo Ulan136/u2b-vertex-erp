@@ -4,7 +4,7 @@ import { branchesRepo } from '@/server/repositories/branches.repo';
 import { notificationsService } from '@/server/services/notifications.service';
 import {
   orderCreateSchema, orderUpdateSchema,
-  nextOrderNoFor, filterOrdersBySource, externalCabinetUrl, scopeOrdersByBranch,
+  filterOrdersBySource, externalCabinetUrl, scopeOrdersByBranch,
   type OrderSource,
 } from '@/server/dto/orders.dto';
 import { orderRecipients } from '@/server/dto/notifications.dto';
@@ -38,8 +38,7 @@ export const ordersService = {
   async create(input: unknown, actor?: SessionUser | null) {
     const data = orderCreateSchema.parse(input);
     if (!data.orderNo) {
-      const nos = (await ordersRepo.listNos()).map(r => r.no);
-      data.orderNo = nextOrderNoFor(data.source, nos);
+      data.orderNo = await ordersRepo.nextOrderNo(data.source);   // номер из секвенса БД
     }
     // филиал: из ERP — филиал создателя, из внешнего кабинета — головной (Алматы)
     if (data.branchId == null) {

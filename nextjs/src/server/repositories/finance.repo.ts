@@ -1,4 +1,4 @@
-import { db } from '@/db';
+import { db, type Executor } from '@/db';
 import { financeAccounts, financeOperations } from '@/db/schema';
 import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
 
@@ -27,27 +27,33 @@ export const financeRepo = {
     return { accounts, operations };
   },
 
-  async createOperation(data: Record<string, unknown>) {
-    const [row] = await db.insert(financeOperations).values(data as unknown as OpInsert).returning();
+  async createOperation(data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.insert(financeOperations).values(data as unknown as OpInsert).returning();
     return row;
   },
 
-  // Roll back a ledger operation (used when a debt payment is deleted).
-  removeOperation: (id: string) => db.delete(financeOperations).where(eq(financeOperations.id, id)),
+  async findOperation(id: string, exec: Executor = db) {
+    const [row] = await exec.select().from(financeOperations).where(eq(financeOperations.id, id)).limit(1);
+    return row ?? null;
+  },
+
+  // Пометить исходную операцию как сторнированную (защита от двойной отмены + аудит).
+  markReversed: (id: string, exec: Executor = db) =>
+    exec.update(financeOperations).set({ reversedAt: new Date() }).where(eq(financeOperations.id, id)),
 
   // Сдвинуть баланс счёта на delta (может быть отрицательным).
-  adjustBalance: (id: string, delta: number) =>
-    db.update(financeAccounts)
+  adjustBalance: (id: string, delta: number, exec: Executor = db) =>
+    exec.update(financeAccounts)
       .set({ balance: sql`${financeAccounts.balance} + ${delta}` })
       .where(eq(financeAccounts.id, id)),
 
-  async createAccount(data: Record<string, unknown>) {
-    const [row] = await db.insert(financeAccounts).values(data as unknown as AccInsert).returning();
+  async createAccount(data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.insert(financeAccounts).values(data as unknown as AccInsert).returning();
     return row;
   },
 
-  async updateAccount(id: string, data: Record<string, unknown>) {
-    const [row] = await db.update(financeAccounts).set(data as Partial<AccInsert>).where(eq(financeAccounts.id, id)).returning();
+  async updateAccount(id: string, data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.update(financeAccounts).set(data as Partial<AccInsert>).where(eq(financeAccounts.id, id)).returning();
     return row;
   },
 };

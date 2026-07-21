@@ -1,3 +1,4 @@
+import { db } from '@/db';
 import { employeesRepo } from '@/server/repositories/employees.repo';
 import { financeService } from '@/server/services/finance.service';
 import {
@@ -114,27 +115,31 @@ export const employeesService = {
       throw conflict(`Оклад за месяц уже выплачен. Превышение ${over.excess.toLocaleString('ru-RU')} ₸ — это деньги следующего месяца. Подтвердите переплату.`);
     }
 
-    // Реальная операция «Расход» в финансах (видна отдельной строкой, источник «Зарплата»).
+    // Расход в финансах + запись выплаты — в ОДНОЙ транзакции: не бывает
+    // «из кассы списано, а выплаты нет» (и наоборот).
     const opSpec = buildSalaryFinanceOp(user, data);
-    const op = await financeService.createOperation({
-      opDate: opSpec.opDate,
-      name: opSpec.name,
-      accountId: opSpec.accountId,
-      opType: opSpec.opType,
-      amount: money(opSpec.amount),
-      source: opSpec.source,
-      comment: opSpec.comment,
-    }, actor?.id ?? null);
+    const { payment } = await db.transaction(async (tx) => {
+      const op = await financeService.createOperation({
+        opDate: opSpec.opDate,
+        name: opSpec.name,
+        accountId: opSpec.accountId,
+        opType: opSpec.opType,
+        amount: money(opSpec.amount),
+        source: opSpec.source,
+        comment: opSpec.comment,
+      }, actor?.id ?? null, tx);
 
-    const payment = await employeesRepo.createPayment({
-      userId,
-      amount: money(data.amount),
-      accountId: data.accountId,
-      financeOpId: op?.id ?? null,
-      payDate: data.payDate ?? undefined,
-      kind: data.kind,
-      comment: data.comment ?? null,
-      createdBy: actor?.id ?? null,
+      const payment = await employeesRepo.createPayment({
+        userId,
+        amount: money(data.amount),
+        accountId: data.accountId,
+        financeOpId: op?.id ?? null,
+        payDate: data.payDate ?? undefined,
+        kind: data.kind,
+        comment: data.comment ?? null,
+        createdBy: actor?.id ?? null,
+      }, tx);
+      return { payment };
     });
 
     // Пересчёт статуса после выплаты.

@@ -5,6 +5,7 @@ import { db } from '@/db';
 import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { authConfig } from './auth.config';
+import { rateLimit, clientIp } from '@/server/lib/rateLimit';
 
 // Safe phone → +7XXXXXXXXXX (returns null for non-phone input, never throws).
 function toPhone(raw: string): string | null {
@@ -24,10 +25,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: 'Пароль', type: 'password' },
         remember: { label: 'Запомнить меня', type: 'checkbox' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const login = String(credentials?.login ?? '').trim();
         const password = String(credentials?.password ?? '').trim();   // tolerate copy-paste whitespace
         if (!login || !password) return null;
+
+        // Антибрутфорс: не больше 6 попыток/мин на связку логин+IP и 30/мин на IP.
+        const ip = clientIp((request as Request | undefined)?.headers ?? new Headers());
+        if (!rateLimit(`login:acct:${login.toLowerCase()}:${ip}`, 6, 60_000).ok) return null;
+        if (!rateLimit(`login:ip:${ip}`, 30, 60_000).ok) return null;
 
         // Try phone first (if it looks like one), then email.
         const phone = toPhone(login);

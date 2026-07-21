@@ -18,11 +18,11 @@ export const POST = withApi(async (req: NextRequest) => created(await debtsServi
 
 // item: /api/v2/debts/[id]
 export const PATCH = withApi(async (req: NextRequest, ctx) => debtsService.update(ctx.params!.id, await req.json()));
-export const DELETE = withApi(async (req: NextRequest, ctx) => debtsService.remove(ctx.params!.id));
+export const DELETE = withApi(async (req: NextRequest, ctx) => debtsService.remove(ctx.params!.id, ctx.user?.id ?? null));
 
 // payments collection: /api/v2/debts/[id]/payments  (ctx.params.id = debtId)
 export const LIST_PAYMENTS = withApi(async (req: NextRequest, ctx) => debtsService.listPayments(ctx.params!.id));
-export const ADD_PAYMENT = withApi(async (req: NextRequest, ctx) => created(await debtsService.addPayment(ctx.params!.id, await req.json())));
+export const ADD_PAYMENT = withApi(async (req: NextRequest, ctx) => created(await debtsService.addPayment(ctx.params!.id, await req.json(), ctx.user?.id ?? null)));
 
 // payment item: /api/v2/debt-payments/[id]  (ctx.params.id = paymentId)
-export const REMOVE_PAYMENT = withApi(async (req: NextRequest, ctx) => debtsService.removePayment(ctx.params!.id));
+export const REMOVE_PAYMENT = withApi(async (req: NextRequest, ctx) => debtsService.removePayment(ctx.params!.id, ctx.user?.id ?? null));

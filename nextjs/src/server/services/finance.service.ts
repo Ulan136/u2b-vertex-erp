@@ -1,11 +1,26 @@
+import { db, type Executor } from '@/db';
 import { financeRepo } from '@/server/repositories/finance.repo';
 import {
   financeOperationSchema, accountCreateSchema, accountUpdateSchema, balanceDeltas,
 } from '@/server/dto/finance.dto';
 
-// Создать операцию и сдвинуть балансы задействованных счетов.
+// Вставить операцию + сдвинуть балансы задействованных счетов (в рамках exec).
+async function insertOperation(
+  insert: Record<string, unknown>,
+  opType: string, amount: string | number, accountId: string, toAccountId: string | null | undefined,
+  exec: Executor,
+) {
+  const row = await financeRepo.createOperation(insert, exec);
+  for (const { id, delta } of balanceDeltas(opType, amount, accountId, toAccountId)) {
+    await financeRepo.adjustBalance(id, delta, exec);
+  }
+  return row;
+}
+
+// Создать операцию и сдвинуть балансы. Атомарно: если exec не передан — открываем
+// свою транзакцию (операция + движение баланса всегда фиксируются вместе).
 // Собираем только заданные поля — undefined для uuid/date колонок ломает вставку.
-async function createOperation(input: unknown, actorId?: string | null) {
+async function createOperation(input: unknown, actorId?: string | null, exec?: Executor) {
   const data = financeOperationSchema.parse(input);
   const insert: Record<string, unknown> = {
     name: data.name,
@@ -21,29 +36,55 @@ async function createOperation(input: unknown, actorId?: string | null) {
   if (data.saleId) insert.saleId = data.saleId;
   if (data.comment) insert.comment = data.comment;
 
-  const row = await financeRepo.createOperation(insert);
-  for (const { id, delta } of balanceDeltas(data.opType, data.amount, data.accountId, data.toAccountId)) {
-    await financeRepo.adjustBalance(id, delta);
-  }
-  return row;
+  const run = (e: Executor) => insertOperation(insert, data.opType, data.amount, data.accountId, data.toAccountId, e);
+  return exec ? run(exec) : db.transaction(run);
+}
+
+// Отмена операции СТОРНО-операцией (не молчаливый DELETE): создаём обратную
+// операцию, ссылающуюся на исходную, и помечаем исходную reversedAt. В истории
+// видно и приход, и его отмену — это заодно начало аудита.
+async function reverseOperation(id: string, actorId?: string | null, exec?: Executor) {
+  const run = async (e: Executor) => {
+    const orig = await financeRepo.findOperation(id, e);
+    if (!orig || orig.reversedAt) return null;                 // нет или уже отменена
+    const invType = orig.opType === 'Приход' ? 'Расход' : orig.opType === 'Расход' ? 'Приход' : null;
+    if (!invType) return null;                                 // Перевод/иное без сохранённого 2-го счёта не сторнируем
+    const insert: Record<string, unknown> = {
+      name: `Сторно: ${orig.name}`.slice(0, 200),
+      accountId: orig.accountId,
+      opType: invType,
+      amount: String(orig.amount),
+      reverses: orig.id,
+      comment: `Отмена операции от ${String(orig.opDate ?? '').slice(0, 10)}`,
+      createdBy: actorId ?? null,
+    };
+    if (orig.accountName) insert.accountName = orig.accountName;
+    if (orig.source) insert.source = orig.source;
+    const rev = await insertOperation(insert, invType, orig.amount, orig.accountId, null, e);
+    await financeRepo.markReversed(orig.id, e);
+    return rev;
+  };
+  return exec ? run(exec) : db.transaction(run);
 }
 
 // Счёт стартует с балансом 0; начальный остаток заводится ОПЕРАЦИЕЙ
-// «Начальный остаток» (баланс всегда = сумма операций).
+// «Начальный остаток» (баланс всегда = сумма операций). Атомарно.
 async function createAccount(input: unknown, actorId?: string | null) {
   const d = accountCreateSchema.parse(input);
-  const acc = await financeRepo.createAccount({
-    name: d.name, category: d.category, section: d.section, icon: d.icon || '💳', balance: '0',
+  return db.transaction(async (tx) => {
+    const acc = await financeRepo.createAccount({
+      name: d.name, category: d.category, section: d.section, icon: d.icon || '💳', balance: '0',
+    }, tx);
+    const start = Number(d.balance) || 0;
+    if (start > 0 && acc) {
+      await createOperation(
+        { opType: 'Приход', accountId: acc.id, amount: start, name: 'Начальный остаток', accountName: acc.name, source: 'Старт' },
+        actorId, tx,
+      );
+      (acc as { balance?: string }).balance = String(start.toFixed(2));
+    }
+    return acc;
   });
-  const start = Number(d.balance) || 0;
-  if (start > 0 && acc) {
-    await createOperation(
-      { opType: 'Приход', accountId: acc.id, amount: start, name: 'Начальный остаток', accountName: acc.name, source: 'Старт' },
-      actorId,
-    );
-    (acc as { balance?: string }).balance = String(start.toFixed(2));
-  }
-  return acc;
 }
 
 async function updateAccount(id: string, input: unknown) {
@@ -58,7 +99,7 @@ async function updateAccount(id: string, input: unknown) {
 export const financeService = {
   overview: (from?: string | null, to?: string | null) => financeRepo.overview(from, to),
   createOperation,
-  removeOperation: (id: string) => financeRepo.removeOperation(id),
+  reverseOperation,
   createAccount,
   updateAccount,
 };

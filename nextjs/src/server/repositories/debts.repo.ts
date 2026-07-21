@@ -1,4 +1,4 @@
-import { db } from '@/db';
+import { db, type Executor } from '@/db';
 import { debts, debtPayments, clients, financeAccounts } from '@/db/schema';
 import { and, or, eq, ilike, desc, asc, type SQL } from 'drizzle-orm';
 
@@ -46,8 +46,8 @@ export const debtsRepo = {
     return (conds.length ? base.where(and(...conds)) : base).orderBy(desc(debts.createdAt));
   },
 
-  async findById(id: string) {
-    const [row] = await db.select(debtSelection).from(debts)
+  async findById(id: string, exec: Executor = db) {
+    const [row] = await exec.select(debtSelection).from(debts)
       .leftJoin(clients, eq(debts.counterpartyClientId, clients.id))
       .leftJoin(financeAccounts, eq(debts.accountId, financeAccounts.id))
       .where(eq(debts.id, id)).limit(1);
@@ -59,28 +59,28 @@ export const debtsRepo = {
     return row;
   },
 
-  async update(id: string, data: Record<string, unknown>) {
-    const [row] = await db.update(debts)
+  async update(id: string, data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.update(debts)
       .set({ ...(data as Partial<DebtInsert>), updatedAt: new Date() })
       .where(eq(debts.id, id)).returning();
     return row;
   },
 
-  remove: (id: string) => db.delete(debts).where(eq(debts.id, id)),
+  remove: (id: string, exec: Executor = db) => exec.delete(debts).where(eq(debts.id, id)),
 
   // ── payments ──
-  listPayments: (debtId: string) =>
-    db.select().from(debtPayments).where(eq(debtPayments.debtId, debtId)).orderBy(asc(debtPayments.createdAt)),
+  listPayments: (debtId: string, exec: Executor = db) =>
+    exec.select().from(debtPayments).where(eq(debtPayments.debtId, debtId)).orderBy(asc(debtPayments.createdAt)),
 
-  async findPayment(id: string) {
-    const [row] = await db.select().from(debtPayments).where(eq(debtPayments.id, id)).limit(1);
+  async findPayment(id: string, exec: Executor = db) {
+    const [row] = await exec.select().from(debtPayments).where(eq(debtPayments.id, id)).limit(1);
     return row ?? null;
   },
 
-  async createPayment(data: Record<string, unknown>) {
-    const [row] = await db.insert(debtPayments).values(data as unknown as PaymentInsert).returning();
+  async createPayment(data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.insert(debtPayments).values(data as unknown as PaymentInsert).returning();
     return row;
   },
 
-  removePayment: (id: string) => db.delete(debtPayments).where(eq(debtPayments.id, id)),
+  removePayment: (id: string, exec: Executor = db) => exec.delete(debtPayments).where(eq(debtPayments.id, id)),
 };
