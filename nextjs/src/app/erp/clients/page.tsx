@@ -12,6 +12,8 @@ const EMPTY = { id: '', name: '', phone: '', categoryId: '' };
 export default function ClientsPage() {
   const [cat, setCat] = React.useState('');
   const [q, setQ] = React.useState('');
+  const [qd, setQd] = React.useState('');   // дебаунс-версия поиска (как в старом, 300 мс)
+  React.useEffect(() => { const t = setTimeout(() => setQd(q), 300); return () => clearTimeout(t); }, [q]);
   const [modal, setModal] = React.useState(false);
   const [catModal, setCatModal] = React.useState(false);
   const [form, setForm] = React.useState<typeof EMPTY>(EMPTY);
@@ -21,7 +23,7 @@ export default function ClientsPage() {
 
   const params = new URLSearchParams();
   if (cat) params.set('categoryId', cat);
-  if (q.trim()) params.set('q', q.trim());
+  if (qd.trim()) params.set('q', qd.trim());
   const { data: clients, error, isLoading, mutate } = useApi<Client[]>('/api/v2/clients' + (params.toString() ? '?' + params : ''));
   const { data: cats, mutate: mutateCats } = useApi<Cat[]>('/api/v2/client-categories');
 
@@ -79,6 +81,20 @@ export default function ClientsPage() {
         <Input placeholder="🔍 Имя или телефон" value={q} onChange={e => setQ(e.target.value)} />
       </Card>
 
+      {/* Инлайн-полоса категорий: клик по бейджу — фильтр, ✕ — удалить (как в старом) */}
+      <Card className="erp-filters" style={{ marginTop: 12 }}>
+        <span className="erp-muted" style={{ fontSize: 12 }}>🏷 Категории:</span>
+        {(cats || []).length === 0
+          ? <span className="erp-muted" style={{ fontSize: 12 }}>Пока нет категорий. Нажмите «+ Категория».</span>
+          : (cats || []).map(c => (
+            <span key={c.id} className={`erp-chip${cat === c.id ? ' on' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+              <span style={{ cursor: 'pointer' }} onClick={() => setCat(cat === c.id ? '' : c.id)}>{c.name}</span>
+              <span style={{ cursor: 'pointer', opacity: .6 }} title="Удалить категорию" onClick={() => delCat(c)}>✕</span>
+            </span>
+          ))}
+        <Button variant="outline" onClick={() => setCatModal(true)} style={{ fontSize: 12, padding: '5px 11px' }}>+ Категория</Button>
+      </Card>
+
       <Card style={{ marginTop: 12, padding: 0 }}>
         {error ? <EmptyRow>Нет доступа к клиентам.</EmptyRow>
           : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
@@ -90,7 +106,7 @@ export default function ClientsPage() {
                 {list.map(c => (
                   <tr key={c.id}>
                     <td className="erp-td-main">{c.name}</td>
-                    <td>{c.phone || '—'}</td>
+                    <td style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 13 }}>{c.phone || '—'}</td>
                     <td>{catName(c.categoryId) ? <Badge tone="info">{catName(c.categoryId)}</Badge> : <span className="erp-muted">—</span>}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(c)}>✏️</button>
@@ -116,7 +132,7 @@ export default function ClientsPage() {
       <Modal open={catModal} onClose={() => setCatModal(false)} title="🏷 Категории клиентов" width={440}
         footer={<Button variant="outline" onClick={() => setCatModal(false)}>Закрыть</Button>}>
         <div className="erp-cat-add">
-          <Input placeholder="Новая категория" value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addCat(); }} />
+          <Input placeholder="Например: ТЭЦ, ОСИ, Частники" value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addCat(); }} />
           <Button onClick={addCat}>Добавить</Button>
         </div>
         <div style={{ marginTop: 12 }}>
