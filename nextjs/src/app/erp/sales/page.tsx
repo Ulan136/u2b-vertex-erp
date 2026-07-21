@@ -4,7 +4,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 
-type Sale = { id: string; saleNo?: string | null; saleDate?: string | null; clientName?: string | null; productName?: string | null; skuCode?: string | null; qty?: number; price?: string | number; totalSum?: string | number; payStatus?: string | null; invoiceType?: string | null };
+type Sale = { id: string; saleNo?: string | null; saleDate?: string | null; clientName?: string | null; productName?: string | null; skuCode?: string | null; qty?: number; price?: string | number; totalSum?: string | number; payStatus?: string | null; invoiceType?: string | null; cancelledAt?: string | null };
 type Client = { id: string; name: string };
 type Product = { id: string; skuCode: string; name: string; price: string | number; currentStock: number };
 type Acct = { id: string; name: string; section?: string | null; icon?: string | null };
@@ -19,6 +19,8 @@ export default function SalesPage() {
   const { data: clients } = useApi<Client[]>('/api/v2/clients');
   const { data: products } = useApi<Product[]>('/api/v2/products');
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
+  const { data: session } = useApi<{ user?: { role?: string } }>('/api/auth/session');
+  const canCancel = ['admin', 'accountant'].includes(session?.user?.role || '');
   const saleAccounts = (fin?.accounts || []).filter(a => (a.section || '') === 'sale');
 
   const [modal, setModal] = React.useState(false);
@@ -27,7 +29,17 @@ export default function SalesPage() {
   const [err, setErr] = React.useState('');
 
   const list = sales || [];
-  const total = list.reduce((s, x) => s + (Number(x.totalSum) || 0), 0);
+  const total = list.filter(x => !x.cancelledAt).reduce((s, x) => s + (Number(x.totalSum) || 0), 0);
+  const activeCount = list.filter(x => !x.cancelledAt).length;
+
+  async function cancelSale(s: Sale) {
+    if (!confirm(`Отменить продажу ${s.saleNo}?\n\nПриход в финансах будет сторнирован, остаток вернётся на склад. Продажа останется в журнале как «Отменена».`)) return;
+    try {
+      await apiSend(`/api/v2/sales/${s.id}/cancel`, 'POST');
+      await mutate();
+      toast('↩️ Продажа отменена: сторно + возврат склада');
+    } catch (e) { toast('⚠️ ' + (e as Error).message); }
+  }
 
   function openNew() { setForm({ ...EMPTY, accountId: saleAccounts[0]?.id || '' }); setErr(''); setModal(true); }
 
@@ -52,27 +64,33 @@ export default function SalesPage() {
 
   return (
     <div>
-      <PageTitle title="Продажи" sub={`Продаж: ${list.length} · на ${fmt(total)} ₸`} action={<Button onClick={openNew}>+ Продажа</Button>} />
+      <PageTitle title="Продажи" sub={`Активных: ${activeCount} · на ${fmt(total)} ₸`} action={<Button onClick={openNew}>+ Продажа</Button>} />
 
       <Card style={{ padding: 0 }}>
         {error ? <EmptyRow>Нет доступа к продажам.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
           : list.length === 0 ? <EmptyRow>Продаж пока нет. Нажмите «+ Продажа».</EmptyRow>
           : (
             <table className="erp-table">
-              <thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Товар</th><th style={{ textAlign: 'right' }}>Кол-во</th><th style={{ textAlign: 'right' }}>Сумма</th><th>Оплата</th><th>Счёт</th></tr></thead>
+              <thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Товар</th><th style={{ textAlign: 'right' }}>Кол-во</th><th style={{ textAlign: 'right' }}>Сумма</th><th>Оплата</th><th>Счёт</th><th></th></tr></thead>
               <tbody>
-                {list.map(s => (
-                  <tr key={s.id}>
+                {list.map(s => {
+                  const cancelled = !!s.cancelledAt;
+                  return (
+                  <tr key={s.id} style={cancelled ? { opacity: 0.55 } : undefined}>
                     <td className="erp-muted" style={{ fontSize: 12 }}>{s.saleNo}</td>
                     <td className="erp-muted" style={{ fontSize: 12 }}>{dmy(s.saleDate)}</td>
                     <td className="erp-td-main">{s.clientName || '—'}</td>
-                    <td>{s.productName || '—'} <span className="erp-muted" style={{ fontSize: 11 }}>{s.skuCode}</span></td>
+                    <td style={cancelled ? { textDecoration: 'line-through' } : undefined}>{s.productName || '—'} <span className="erp-muted" style={{ fontSize: 11 }}>{s.skuCode}</span></td>
                     <td style={{ textAlign: 'right' }}>{fmt(s.qty || 0)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 700 }}>{fmt(s.totalSum || 0)} ₸</td>
-                    <td><Badge tone={s.payStatus === 'Оплачено' ? 'ok' : 'warn'}>{s.payStatus === 'Оплачено' ? '✓ Оплачено' : '⏳ Ожидает'}</Badge></td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, ...(cancelled ? { textDecoration: 'line-through' } : {}) }}>{fmt(s.totalSum || 0)} ₸</td>
+                    <td>{cancelled ? <Badge tone="err">✕ Отменена</Badge> : <Badge tone={s.payStatus === 'Оплачено' ? 'ok' : 'warn'}>{s.payStatus === 'Оплачено' ? '✓ Оплачено' : '⏳ Ожидает'}</Badge>}</td>
                     <td className="erp-muted" style={{ fontSize: 12 }}>{s.invoiceType || '—'}</td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {!cancelled && canCancel && <button className="erp-icon-btn" title="Отменить продажу" onClick={() => cancelSale(s)}>↩️</button>}
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}

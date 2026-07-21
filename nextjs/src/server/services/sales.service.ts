@@ -1,9 +1,10 @@
 import { db } from '@/db';
 import { salesRepo } from '@/server/repositories/sales.repo';
+import { financeRepo } from '@/server/repositories/finance.repo';
 import { productsService } from '@/server/services/products.service';
 import { financeService } from '@/server/services/finance.service';
 import { saleCreateSchema } from '@/server/dto/sales.dto';
-import { badRequest } from '@/server/lib/errors';
+import { badRequest, notFound } from '@/server/lib/errors';
 
 const money = (n: number) => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
 // invoice_type — enum БД; произвольное имя счёта туда класть нельзя (иначе 500).
@@ -69,6 +70,36 @@ export const salesService = {
       }
 
       return sale;
+    });
+  },
+
+  // Отмена продажи (не удаление): сторно прихода + возврат остатка на склад —
+  // всё в ОДНОЙ транзакции. Продажа помечается «Отменена» (cancelledAt/By) —
+  // остаётся в журнале со следом. Идемпотентно: повторная отмена запрещена.
+  async cancel(id: string, actor?: { id: string; name?: string } | null) {
+    if (!id) throw badRequest('id обязателен');
+    return db.transaction(async (tx) => {
+      const sale = await salesRepo.findById(id, tx);
+      if (!sale) throw notFound('Продажа не найдена');
+      if (sale.cancelledAt) throw badRequest('Продажа уже отменена');
+
+      // сторнируем приход(ы), привязанные к продаже (если была оплачена)
+      const ops = await financeRepo.findBySale(sale.id, tx);
+      for (const op of ops) {
+        if (!op.reversedAt && !op.reverses) await financeService.reverseOperation(op.id, actor?.id ?? null, tx);
+      }
+
+      // возвращаем остаток на склад (движение IN — виден в журнале как «Возврат»)
+      const qty = Math.abs(Number(sale.qty) || 0);
+      if (sale.productId && qty > 0) {
+        await productsService.createMovement(
+          { productId: sale.productId, moveType: 'IN', qty, price: Number(sale.price) || 0, comment: `Возврат: отмена продажи ${sale.saleNo ?? ''}` },
+          actor, tx,
+        );
+      }
+
+      await salesRepo.markCancelled(id, actor?.id ?? null, tx);
+      return { ok: true };
     });
   },
 };

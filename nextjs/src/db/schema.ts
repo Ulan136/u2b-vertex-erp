@@ -143,6 +143,9 @@ export const sales = pgTable('sales', {
   payStatus   : payStatusEnum('pay_status').default('В ожидании'),
   invoiceType : invoiceTypeEnum('invoice_type').default('Каспи'),
   comment     : text('comment'),
+  // Отмена продажи (не удаление): сторно прихода + возврат склада, след кто/когда.
+  cancelledAt : timestamp('cancelled_at', { withTimezone: true }),
+  cancelledBy : uuid('cancelled_by').references(() => users.id),
   createdBy   : uuid('created_by').references(() => users.id),
   createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt   : timestamp('updated_at', { withTimezone: true }).defaultNow(),

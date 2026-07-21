@@ -1,11 +1,19 @@
 import { db, type Executor } from '@/db';
 import { sales } from '@/db/schema';
-import { desc, sql } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 
 type SaleInsert = typeof sales.$inferInsert;
 
 export const salesRepo = {
   list: () => db.select().from(sales).orderBy(desc(sales.createdAt)),
+
+  async findById(id: string, exec: Executor = db) {
+    const [row] = await exec.select().from(sales).where(eq(sales.id, id)).limit(1);
+    return row ?? null;
+  },
+
+  markCancelled: (id: string, actorId: string | null, exec: Executor = db) =>
+    exec.update(sales).set({ cancelledAt: new Date(), cancelledBy: actorId, updatedAt: new Date() }).where(eq(sales.id, id)),
 
   // Номер продажи из секвенса БД (без гонок и задвоений). ПРД-NNN.
   async nextSaleNo(exec: Executor = db): Promise<string> {

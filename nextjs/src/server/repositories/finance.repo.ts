@@ -37,6 +37,10 @@ export const financeRepo = {
     return row ?? null;
   },
 
+  // Операции, привязанные к продаже (для отмены продажи — их сторнируем).
+  findBySale: (saleId: string, exec: Executor = db) =>
+    exec.select().from(financeOperations).where(eq(financeOperations.saleId, saleId)),
+
   // Пометить исходную операцию как сторнированную (защита от двойной отмены + аудит).
   markReversed: (id: string, exec: Executor = db) =>
     exec.update(financeOperations).set({ reversedAt: new Date() }).where(eq(financeOperations.id, id)),
