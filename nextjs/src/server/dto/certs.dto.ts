@@ -29,3 +29,15 @@ export const certUpsertSchema = z.object({
 export const certUpdateSchema = certUpsertSchema.partial();
 
 export type CertQuery = { source?: string | null; archived?: boolean; type?: string | null };
+
+// Подготовка полей к вставке/апдейту: undefined убираем (→ дефолт БД / без изменения),
+// пустую строку в date/uuid-колонках приводим к null (иначе Postgres 500 на '').
+const CERT_DATE_OR_UUID = new Set(['checkDate', 'nextCheckDate', 'branchId']);
+export function cleanCertFields(data: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  Object.entries(data).forEach(([k, v]) => {
+    if (v === undefined) return;
+    out[k] = (v === '' && CERT_DATE_OR_UUID.has(k)) ? null : v;
+  });
+  return out;
+}
