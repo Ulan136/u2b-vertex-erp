@@ -220,11 +220,30 @@ export default function WarehousePage() {
             : all.length === 0 ? <EmptyRow>💡 Склад пустой. Нажмите «📥 Приход».</EmptyRow>
             : (
               <table className="erp-table">
-                <thead><tr><th>SKU</th><th>Наименование</th><th>Вода</th><th style={{ textAlign: 'right' }}>Остаток</th><th style={{ textAlign: 'right' }}>Резерв</th><th style={{ textAlign: 'right' }}>Свободно</th><th style={{ textAlign: 'right', color: '#16a34a' }} title="Приход за период">Приход</th><th style={{ textAlign: 'right', color: '#dc2626' }} title="Расход за период">Расход</th><th style={{ textAlign: 'right' }}>Мин</th><th style={{ textAlign: 'right' }}>Себест.</th><th style={{ textAlign: 'right' }}>Цена</th><th style={{ textAlign: 'right' }}>Со скидкой</th><th>Статус</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
+                <thead>
+                  <tr className="wh-grp-row">
+                    <th colSpan={3}></th>
+                    <th colSpan={4} className="wh-div">ДВИЖЕНИЕ И ОСТАТКИ</th>
+                    <th colSpan={3} className="wh-div">ЦЕНЫ, ₸</th>
+                    <th colSpan={2} className="wh-div"></th>
+                  </tr>
+                  <tr>
+                    <th>SKU</th><th>Наименование</th><th>Тип счётчика</th>
+                    <th className="wh-div" style={{ textAlign: 'right', color: '#16a34a' }} title="Приход за период">Приход</th>
+                    <th style={{ textAlign: 'right', color: '#dc2626' }} title="Расход за период">Расход</th>
+                    <th style={{ textAlign: 'right' }}>Остаток</th>
+                    <th style={{ textAlign: 'right' }}>Мин</th>
+                    <th className="wh-div" style={{ textAlign: 'right' }}>Себест.</th>
+                    <th style={{ textAlign: 'right' }}>Розница</th>
+                    <th style={{ textAlign: 'right' }}>Со скидкой</th>
+                    <th className="wh-div">Статус</th>
+                    <th style={{ textAlign: 'right' }}>Действия</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {Object.entries(groups).map(([gid, items]) => (
                     <React.Fragment key={gid}>
-                      <tr><td colSpan={14} className="erp-group-sub">{groupLabel(gid)} <span className="erp-block-count">· {items.length}</span></td></tr>
+                      <tr><td colSpan={12} className="erp-group-sub">{groupLabel(gid)} <span className="erp-block-count">· {items.length}</span></td></tr>
                       {items.map(p => {
                         const f = free(p); const low = f < num(p.minStock);
                         const s = p.skuCode ? sumBySku[p.skuCode] : undefined;
@@ -235,11 +254,9 @@ export default function WarehousePage() {
                             <td className="erp-muted" style={{ fontSize: 12 }}>{p.skuCode}</td>
                             <td className="erp-td-main" title={p.fullName || p.name}>{p.name}</td>
                             <td style={{ fontSize: 12 }}>{p.waterType === 'г/в' ? '🔴 г/в' : p.waterType === 'х/в' ? '🔵 х/в' : '—'}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 700, color: low ? '#dc2626' : undefined }}>{fmt(p.currentStock)}</td>
-                            <td style={{ textAlign: 'right' }} className="erp-muted">{fmt(p.reserved || 0)}</td>
-                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(f)}</td>
-                            <td style={{ textAlign: 'right', color: inq ? '#16a34a' : undefined, fontWeight: inq ? 600 : 400 }} title={s && (s.revPlus || s.revMinus) ? `ревизии: +${s.revPlus} / −${s.revMinus}` : undefined}>{inq ? '+' + fmt(inq) : '—'}</td>
-                            <td style={{ textAlign: 'right', color: outq ? '#dc2626' : undefined, fontWeight: outq ? 600 : 400 }}>{outq ? '−' + fmt(outq) : '—'}</td>
+                            <td className="wh-div" style={{ textAlign: 'right', color: inq ? '#16a34a' : undefined, fontWeight: inq ? 700 : 400 }} title={s && (s.revPlus || s.revMinus) ? `ревизии: +${s.revPlus} / −${s.revMinus}` : undefined}>{inq ? '+' + fmt(inq) : <span className="erp-muted">—</span>}</td>
+                            <td style={{ textAlign: 'right', color: outq ? '#dc2626' : undefined, fontWeight: outq ? 700 : 400 }}>{outq ? '−' + fmt(outq) : <span className="erp-muted">—</span>}</td>
+                            <td className="wh-stock" style={{ textAlign: 'right', color: low ? '#dc2626' : undefined }}>{fmt(p.currentStock)}</td>
                             <td style={{ textAlign: 'right' }}>
                               {editing ? (
                                 <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', justifyContent: 'flex-end' }}>
@@ -256,10 +273,10 @@ export default function WarehousePage() {
                                 </span>
                               )}
                             </td>
-                            <td style={{ textAlign: 'right' }} className="erp-muted">{num(p.costPrice) ? fmt(p.costPrice!) : '—'}</td>
+                            <td className="wh-div erp-muted" style={{ textAlign: 'right' }}>{num(p.costPrice) ? fmt(p.costPrice!) : '—'}</td>
                             <td style={{ textAlign: 'right' }}>{fmt(p.price)}</td>
-                            <td style={{ textAlign: 'right' }} className="erp-muted">{num(p.priceDiscount) ? fmt(p.priceDiscount!) : '—'}</td>
-                            <td>{statusBadge(p)}</td>
+                            <td className="erp-muted" style={{ textAlign: 'right' }}>{num(p.priceDiscount) ? fmt(p.priceDiscount!) : '—'}</td>
+                            <td className="wh-div">{statusBadge(p)}</td>
                             <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                               <button className="erp-icon-btn" title="Приход" onClick={() => openMove('IN', p.id)}>📥</button>
                               <button className="erp-icon-btn" title="Расход" onClick={() => openMove('OUT', p.id)}>📤</button>
