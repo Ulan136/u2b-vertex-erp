@@ -19,6 +19,11 @@ export const expenseCategoriesRepo = {
     return row;
   },
 
+  async update(id: string, data: Record<string, unknown>) {
+    const [row] = await db.update(expenseCategories).set(data as Partial<CatInsert>).where(eq(expenseCategories.id, id)).returning();
+    return row ?? null;
+  },
+
   remove: (id: string) => db.delete(expenseCategories).where(eq(expenseCategories.id, id)),
   removeChildren: (parentId: string) => db.delete(expenseCategories).where(eq(expenseCategories.parentId, parentId)),
 };

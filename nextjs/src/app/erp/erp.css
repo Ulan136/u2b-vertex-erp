@@ -248,6 +248,11 @@
 .rsh-tree-sub:hover { background: #f3f4f6; }
 .rsh-tree-sub.on { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
 .rsh-main { min-width: 0; }
+.rsh-icon-btn { flex: none; width: 38px; height: 38px; font-size: 18px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; cursor: pointer; line-height: 1; }
+.rsh-icon-btn:hover { border-color: #2563eb; background: #eff6ff; }
+.rsh-icon-pal { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; margin: 6px 0; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; }
+.rsh-icon-opt { width: 32px; height: 32px; font-size: 17px; border: 1px solid transparent; border-radius: 7px; background: #fff; cursor: pointer; line-height: 1; }
+.rsh-icon-opt:hover { border-color: #2563eb; background: #eff6ff; }
 .sale-client-link { cursor: pointer; border-bottom: 1px dashed #94a3b8; }
 .sale-client-link:hover { color: #2563eb; border-color: #2563eb; }
 

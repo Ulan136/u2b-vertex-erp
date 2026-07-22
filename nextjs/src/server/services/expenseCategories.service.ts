@@ -45,6 +45,24 @@ async function create(input: unknown) {
   return expenseCategoriesRepo.create({ name, parentId, icon: data.icon || '📦' });
 }
 
+// Правка категории — иконка и/или название (иконку можно менять у любой,
+// в т.ч. базовой «Зарплата»; переименование базовой не даём, чтобы не сломать логику).
+async function update(id: string, input: unknown) {
+  const data = (input ?? {}) as { name?: string; icon?: string; color?: string };
+  const row = await expenseCategoriesRepo.findById(id);
+  if (!row) throw notFound('Категория не найдена');
+  const patch: Record<string, unknown> = {};
+  if (data.icon !== undefined) patch.icon = String(data.icon).slice(0, 8) || '📦';
+  if (data.color !== undefined) patch.color = data.color || null;
+  if (data.name !== undefined) {
+    const name = String(data.name).trim();
+    if (!name) throw badRequest('Название обязательно');
+    if (!row.parentId && row.name === BASE.name) throw badRequest('Базовую категорию переименовывать нельзя');
+    patch.name = name;
+  }
+  return expenseCategoriesRepo.update(id, patch);
+}
+
 async function remove(id: string) {
   const row = await expenseCategoriesRepo.findById(id);
   if (!row) throw notFound('Категория не найдена');
@@ -54,4 +72,4 @@ async function remove(id: string) {
   return { ok: true };
 }
 
-export const expenseCategoriesService = { tree, create, remove };
+export const expenseCategoriesService = { tree, create, update, remove };

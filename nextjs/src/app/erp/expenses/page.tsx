@@ -11,6 +11,17 @@ type Emp = { userId: string; name: string; salaryHidden?: boolean };
 type Order = { id: string; orderNo?: string | null; clientName?: string | null };
 
 const SECTIONS = [{ key: 'poverka', no: 1, label: 'Поверка' }, { key: 'sale', no: 2, label: 'Продажа' }, { key: 'branch', no: 3, label: 'Филиалы' }, { key: 'other', no: 4, label: 'Прочие операции' }];
+// Умная иконка по названию категории + палитра для ручного выбора.
+const ICON_RULES: Array<[RegExp, string]> = [
+  [/аренд/i, '🏢'], [/коммунал|свет|электр|вода|отоплен|газ/i, '⚡'], [/налог|платеж|госпошлин|штраф/i, '🧾'],
+  [/офис|канцеляр/i, '🗂️'], [/зарплат|оклад|з\/п|аванс|преми/i, '👤'], [/транспорт|гсм|авто|бензин|топлив|проезд|такси/i, '🚗'],
+  [/связ|телефон|интернет|мобильн/i, '📞'], [/материал|запчаст|инструмент|фитинг|пломб|счётчик|оборудов/i, '🔧'],
+  [/реклам|маркетинг|продвижен|smm/i, '📢'], [/банк|комисс|эквайринг|обслуж.*банк/i, '🏦'], [/ремонт/i, '🛠️'],
+  [/обучен|курс|тренинг|семинар/i, '📚'], [/страхов/i, '🛡️'], [/питани|еда|обед|кофе|вода питьев/i, '🍽️'],
+  [/зарплатн/i, '👥'], [/склад/i, '📦'], [/хоз|уборк|клинин/i, '🧹'], [/команд|поездк|проживан/i, '✈️'],
+];
+function suggestIcon(name: string): string { for (const [re, ic] of ICON_RULES) if (re.test(name || '')) return ic; return '📦'; }
+const ICON_PALETTE = ['🏢', '⚡', '🧾', '🗂️', '👤', '👥', '🚗', '📞', '🔧', '📢', '🏦', '🛠️', '📚', '🛡️', '🍽️', '💧', '🔌', '🖨️', '🧰', '💼', '📦', '💰', '🚚', '🏗️', '🧹', '✈️', '🎁', '📱'];
 const STATUSES = ['Оплачен', 'Ожидает', 'Отменён'];
 const num = (v: unknown) => Number(v) || 0;
 const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU') + ' ₸';
@@ -56,6 +67,8 @@ export default function ExpensesPage() {
   const [modal, setModal] = React.useState(false);
   const [catModal, setCatModal] = React.useState(false);
   const [newCat, setNewCat] = React.useState('');
+  const [newCatIcon, setNewCatIcon] = React.useState('');   // '' → авто по названию
+  const [iconEdit, setIconEdit] = React.useState<string | null>(null);   // catId, у которого открыта палитра
   const [ordQ, setOrdQ] = React.useState('');
   const emptyF = () => ({ editId: '', catId: catList[0]?.id || '', subName: '', section: 'other', accountId: '', amount: '', desc: '', supplier: '', docNo: '', status: 'Оплачен', orderId: '', comment: '', employeeId: '', date: today(), err: '', saving: false });
   const [f, setF] = React.useState(emptyF());
@@ -98,7 +111,8 @@ export default function ExpensesPage() {
     try { await apiSend(`/api/v2/finance/${o.id}/reverse`, 'POST'); await mutate(); toast('↩️ Расход сторнирован'); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
-  async function addCat() { if (!newCat.trim()) return; try { await apiSend('/api/v2/expense-categories', 'POST', { name: newCat.trim() }); setNewCat(''); await mutateCats(); toast('✅ Категория добавлена'); } catch (e) { toast('⚠️ ' + (e as Error).message); } }
+  async function addCat() { if (!newCat.trim()) return; const icon = newCatIcon || suggestIcon(newCat); try { await apiSend('/api/v2/expense-categories', 'POST', { name: newCat.trim(), icon }); setNewCat(''); setNewCatIcon(''); await mutateCats(); toast('✅ Категория добавлена'); } catch (e) { toast('⚠️ ' + (e as Error).message); } }
+  async function setCatIcon(c: Cat, icon: string) { setIconEdit(null); try { await apiSend(`/api/v2/expense-categories/${c.id}`, 'PATCH', { icon }); await mutateCats(); } catch (e) { toast('⚠️ ' + (e as Error).message); } }
   async function delCat(c: Cat) { if (c.base) { toast('⚠️ Базовую нельзя'); return; } if (!confirm(`Удалить категорию «${c.name}»?`)) return; try { await apiSend(`/api/v2/expense-categories/${c.id}`, 'DELETE'); await mutateCats(); toast('🗑️ Удалено'); } catch (e) { toast('⚠️ ' + (e as Error).message); } }
 
   const ordHits = (orders || []).filter(o => !ordQ.trim() || (o.orderNo || '').toLowerCase().includes(ordQ.toLowerCase())).slice(0, 20);
@@ -216,10 +230,27 @@ export default function ExpensesPage() {
         <div className="erp-muted" style={{ fontSize: 11, marginTop: 6 }}>Ответственный: <b>{respName}</b> (текущий пользователь).{f.editId ? ' Сумму и счёт при правке не меняем — балансы защищены (для смены — удалите и создайте заново).' : (isSalary ? ' Выплата идёт через кадры (контроль переплаты).' : '')}</div>
       </Modal>
 
-      <Modal open={catModal} onClose={() => setCatModal(false)} title="🏷 Категории расходов" width={440} footer={<Button variant="outline" onClick={() => setCatModal(false)}>Закрыть</Button>}>
-        <div className="erp-cat-add"><Input placeholder="Новая категория" value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addCat(); }} /><Button onClick={addCat}>Добавить</Button></div>
-        <div style={{ marginTop: 12 }}>{catList.map(c => <div className="erp-cat-row" key={c.id}><span style={{ flex: 1 }}>{c.icon} {c.name}{c.base && <span className="erp-muted" style={{ fontSize: 11 }}> · базовая</span>}</span>{!c.base && <button className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => delCat(c)}>🗑️</button>}</div>)}</div>
-        <div className="erp-muted" style={{ fontSize: 11, marginTop: 8 }}>Категории и подкатегории веду только я — по кнопке «+». Здесь ничего не удаляется автоматически.</div>
+      <Modal open={catModal} onClose={() => { setCatModal(false); setIconEdit(null); }} title="🏷 Категории расходов" width={460} footer={<Button variant="outline" onClick={() => setCatModal(false)}>Закрыть</Button>}>
+        <div className="erp-cat-add">
+          <button type="button" className="rsh-icon-btn" title="Выбрать иконку" onClick={() => setIconEdit(iconEdit === 'new' ? null : 'new')}>{newCatIcon || suggestIcon(newCat)}</button>
+          <Input placeholder="Новая категория" value={newCat} onChange={e => setNewCat(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addCat(); }} />
+          <Button onClick={addCat}>Добавить</Button>
+        </div>
+        {iconEdit === 'new' && (
+          <div className="rsh-icon-pal">{ICON_PALETTE.map(ic => <button key={ic} type="button" className="rsh-icon-opt" onClick={() => { setNewCatIcon(ic); setIconEdit(null); }}>{ic}</button>)}</div>
+        )}
+        <div className="erp-muted" style={{ fontSize: 11, marginTop: 4 }}>Иконка подставляется по названию автоматически — можно сменить кнопкой слева.</div>
+        <div style={{ marginTop: 12 }}>{catList.map(c => (
+          <div key={c.id}>
+            <div className="erp-cat-row">
+              <button type="button" className="rsh-icon-btn" title="Сменить иконку" onClick={() => setIconEdit(iconEdit === c.id ? null : c.id)}>{c.icon || '📦'}</button>
+              <span style={{ flex: 1 }}>{c.name}{c.base && <span className="erp-muted" style={{ fontSize: 11 }}> · базовая</span>}</span>
+              {!c.base && <button className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => delCat(c)}>🗑️</button>}
+            </div>
+            {iconEdit === c.id && <div className="rsh-icon-pal">{ICON_PALETTE.map(ic => <button key={ic} type="button" className="rsh-icon-opt" onClick={() => setCatIcon(c, ic)}>{ic}</button>)}</div>}
+          </div>
+        ))}</div>
+        <div className="erp-muted" style={{ fontSize: 11, marginTop: 8 }}>Категории веду только я — по кнопке «+». Иконку любой категории меняю кликом по ней. Здесь ничего не удаляется автоматически.</div>
       </Modal>
     </div>
   );

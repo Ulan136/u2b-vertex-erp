@@ -1,1 +1,1 @@
-export { DELETE, OPTIONS } from '@/server/controllers/expenseCategories.controller';
+export { PATCH, DELETE, OPTIONS } from '@/server/controllers/expenseCategories.controller';
