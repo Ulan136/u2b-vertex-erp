@@ -1,0 +1,119 @@
+ЕДИНЫЙ СПРАВОЧНИК ТИПОВ ПРИБОРОВ УЧЁТА ВОДЫ — U2B-SuTrack
+Для загрузки (seed) в таблицу device_types.
+Формат строки: название | частота (reestr = из реестра, market = рыночное дополнение) | алиасы через ;
+
+=== ГРУППА 1 · ОЧЕНЬ ЧАСТЫЕ (из реестра) ===
+СГВ-15 | reestr |
+СВК-15 | reestr | СВК-15     ;СВK-15
+Декаст ВСКМ90-32 | reestr | Декаст, ВСКМ90 32
+СГВ-20 | reestr |
+
+=== ГРУППА 2 · ЧАСТЫЕ (из реестра) ===
+ARZAMAS-15 | reestr | ARZAMAS-15  
+CASCAD WM-CW | reestr | CASCAD", WM-CW
+Maddalena CD SD TOP | reestr | Maddalena. CD SD TOP
+TU 4 UNIMAG | reestr |
+Drop DHC-R-Universal | reestr | DHC-R-Universal
+ЭКО НОМ СВ | reestr | ЭКО НОМ СВ  
+Eco Meter EMHC-U | reestr | Eco Meter, EMHC-U 
+СВУ-20 Росконтроль | reestr |
+СВК-20 Gerrida | reestr | СВK-20 Gerrida
+СВК-15 Gerrida | reestr | СВK-15 Gerrida
+
+=== ГРУППА 3 · СРЕДНИЕ (из реестра) ===
+Vodomer ВСКМ-15 | reestr | Vodomer BCKM-15 
+СВУ-15 Росконтроль | reestr |
+Minol Minomess | reestr | Minol, Minomess
+ITRON TU Flodis | reestr | ITRON, TU Flodis  
+Счетприбор СВ-15М | reestr |
+Норма СВКМ | reestr |
+МЕРОКОМ МК-15 | reestr | МЕРОКОМ МК-15  
+Sensus | reestr |
+СВ-15 Meter | reestr | Meter
+VALTEC VLF-R-U 15 | reestr | VALTEC. VLF-R-U 15 
+WASSERUHR-ET | reestr |
+
+=== ГРУППА 4 · РЕДКИЕ (из реестра) ===
+Allmess | reestr |
+Casela | reestr |
+Cem | reestr |
+CSS-20 ABSERON | reestr | CSS-20, ABSERON
+DROP-15 | reestr |
+Itelma | reestr |
+ITELMA WFW2 | reestr | WFW2, ITELMA
+Пульсар | reestr |
+WG | reestr | "	WG"
+ZENNER ETK | reestr |
+Сапфир Эком | reestr |
+СВМ-25 Бетар | reestr |
+СВМ-32 | reestr |
+Эко-М Экомера-15 | reestr | Эко-М, Экомера-15
+
+=== ГРУППА 5 · РЫНОЧНЫЕ ДОПОЛНЕНИЯ (usage_count = 0) ===
+СХВ-15 | market |
+СХВ-20 | market |
+СГВМ-15 | market |
+Декаст ВСКМ 90-15 | market |
+Декаст ВСКМ 90-20 | market |
+Декаст ВСКМ 90-25 | market |
+Декаст ОСВХ «Нептун» | market | Декаст ОСВХ Нептун
+Декаст ОСВУ | market |
+Декаст СТВХ-80 | market |
+Декаст СТВХ-100 | market |
+Декаст СТВХ-150 | market |
+Baylan TK-3 | market |
+Baylan TK-3S | market |
+Baylan TK-7 | market |
+Baylan KK-12 | market |
+Baylan KK-14 | market |
+Baylan TY | market |
+Baylan Woltman | market |
+СВК-25 Gerrida | market |
+СВК-32 Gerrida | market |
+Vodomer ВСКМ-20 | market |
+Vodomer ВСКМ-25 | market |
+СВК-15 Росконтроль | market |
+ARZAMAS-20 | market |
+Itelma WFW20 | market |
+Itelma WFW24 | market |
+Itelma WFK20 | market |
+ZENNER ETW | market |
+ZENNER MTK | market |
+ZENNER MNK | market |
+Sensus 420 | market |
+Sensus Residia Jet | market |
+Sensus iPERL | market |
+Maddalena CD ONE | market |
+Maddalena DS TRP | market |
+ITRON Aquadis+ | market |
+ITRON Multimag | market |
+Minol Zelsius | market |
+Пульсар Ду15 | market |
+Норма ИС | market |
+Apator Powogaz JS-90 | market |
+B METERS GSD8 | market |
+VALTEC VLF-R-L | market |
+Тепловодомер ВСТ-15 | market |
+Метер СВ-15 | market |
+Аква С | market |
+KAZMETER KM-CW25 | market |
+KAZMETER KM-CW32 | market |
+KAZMETER KM-UW15 | market |
+KAZMETER Pro15C-LRW | market |
+KAZMETER Pro15H-LRW | market |
+KAZMETER Pro15C-NB | market |
+KAZMETER Pro15H-NB | market |
+
+=== ПРАВИЛА ЗАГРУЗКИ ===
+1. Название — уникальный ключ (после нормализации: трим, схлопнуть
+   пробелы, кириллическая К = латинская K при сравнении).
+2. Алиасы — варианты написания из реестра; при импорте из Google
+   Таблицы значение сначала ищется по алиасам, потом по названию.
+3. Стартовый usage_count: Группа 1 = 1000, Группа 2 = 100,
+   Группа 3 = 30, Группа 4 = 5, Группа 5 (market) = 0 —
+   чтобы подсказки сразу сортировались реалистично.
+4. Новые значения, введённые пользователями при сохранении
+   сертификата/извещения, добавляются в справочник автоматически
+   (самообучение).
+
+Итого: 39 из реестра + 53 рыночных = 92 типа.

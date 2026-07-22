@@ -80,7 +80,7 @@ function InvoicesInner() {
         <span style={{ color: '#9ca3af', margin: '0 4px' }}>→</span>
         <span className="erp-muted" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Счета:</span>
         <Badge tone="warn">🍊 Каспи</Badge><Badge tone="info">🏦 БЦК</Badge><Badge tone="ok">💵 Наличка</Badge>
-        <Link href="/erp/finance" style={{ marginLeft: 'auto', fontSize: 11, color: '#6b7280', border: '1px dashed #d1d5db', borderRadius: 6, padding: '3px 9px', textDecoration: 'none' }}>⚙️ Настроить счета</Link>
+        <Link href="/erp/finance/accounts" style={{ marginLeft: 'auto', fontSize: 11, color: '#6b7280', border: '1px dashed #d1d5db', borderRadius: 6, padding: '3px 9px', textDecoration: 'none' }}>⚙️ Настроить связи</Link>
       </Card>
 
       {/* Разделы №1–№4 */}
