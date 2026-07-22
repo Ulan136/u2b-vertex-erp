@@ -428,6 +428,22 @@ export const auditLog = pgTable('audit_log', {
   createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── DEVICE TYPES (справочник типов приборов, самообучающийся) ──
+export const deviceTypes = pgTable('device_types', {
+  id         : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  name       : varchar('name', { length: 200 }).notNull(),
+  norm       : varchar('norm', { length: 200 }).notNull().unique(),   // нормализованный ключ (уникален)
+  usageCount : integer('usage_count').notNull().default(0),
+  lastUsedAt : timestamp('last_used_at', { withTimezone: true }),
+  createdAt  : timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+export const deviceTypeAliases = pgTable('device_type_aliases', {
+  id           : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  alias        : varchar('alias', { length: 200 }).notNull(),
+  norm         : varchar('norm', { length: 200 }).notNull(),          // нормализованный алиас (для поиска)
+  deviceTypeId : uuid('device_type_id').references(() => deviceTypes.id, { onDelete: 'cascade' }).notNull(),
+});
+
 // ── TYPES ─────────────────────────────────────────────────────
 export type Branch           = typeof branches.$inferSelect;
 export type User             = typeof users.$inferSelect;

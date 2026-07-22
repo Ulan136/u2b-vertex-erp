@@ -1,5 +1,6 @@
 import { certsRepo } from '@/server/repositories/certs.repo';
 import { certUpsertSchema, certUpdateSchema, cleanCertFields, type CertQuery } from '@/server/dto/certs.dto';
+import { deviceTypesService } from '@/server/services/deviceTypes.service';
 import { badRequest, notFound } from '@/server/lib/errors';
 
 export const certsService = {
@@ -17,7 +18,10 @@ export const certsService = {
     // fio/address — NOT NULL в БД без дефолта: гарантируем непустую строку (иначе 500).
     fields.fio ??= '';
     fields.address ??= '';
-    return certsRepo.create(fields);
+    const row = await certsRepo.create(fields);
+    // Самообучение справочника типов приборов (best-effort, не роняет сохранение).
+    if (fields.meterType) await deviceTypesService.touch(fields.meterType);
+    return row;
   },
 
   async update(id: string, input: unknown) {
@@ -29,6 +33,7 @@ export const certsService = {
     if ('address' in fields && fields.address == null) fields.address = '';
     const row = await certsRepo.update(id, fields);
     if (!row) throw notFound('Certificate not found');
+    if ('meterType' in fields && fields.meterType) await deviceTypesService.touch(fields.meterType);
     return row;
   },
 

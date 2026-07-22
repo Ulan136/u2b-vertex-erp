@@ -14,13 +14,13 @@ type Cert = {
 };
 type Product = { id: string; skuCode: string; name: string };
 type Client = { id: string; name: string };
+type DeviceTypeHit = { id: string; name: string; usageCount: number };
 
 const SOURCES = ['САМИ', 'ВДК', 'ТЭЦ', 'Выездная', 'Первичная-КМ', 'Первичная-АК', 'Астана'];
 const OPER = ['В работе', 'Готова к КТРМ', 'Внести в КТРМ', 'КТРМ 70%', 'Внесён в КТРМ'];
 const PAY = ['В ожидании', 'Оплачено'];
 const INV = ['Каспи', 'БЦК', 'Наличка', 'Каспи Голд'];
-const DEFAULT_METERS = ['СГВ-15', 'СВК-15', 'СВК-20', 'СГВ-20'];
-const dmy = (d?: string | null) => (d ? String(d).slice(0, 10).split('-').reverse().join('.') : '—');
+const dmy =(d?: string | null) => (d ? String(d).slice(0, 10).split('-').reverse().join('.') : '—');
 const iso = (d?: string | null) => (d ? String(d).slice(0, 10) : '');
 const operTone = (s?: string | null): 'ok' | 'warn' | 'info' | 'neutral' => s === 'Внесён в КТРМ' ? 'ok' : s === 'В работе' ? 'neutral' : 'warn';
 const EMPTY = { id: '', fio: '', address: '', phone: '', client: '', meterType: '', serialNo: '', yearMade: '', waterType: 'х/в', checkDate: '', nextCheckDate: '', stampNo: '', sealType: 'СЛ', readings: '', result: 'Годен', operStatus: 'В работе', payStatus: 'В ожидании', invoiceType: 'Каспи', note: '' };
@@ -48,17 +48,33 @@ function CertsInner() {
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState('');
 
-  // Тип прибора — умный поиск по складу (typeahead), не выпадающий список.
+  // Тип прибора — автоподсказка: справочник типов (самообучающийся) + склад.
   const [meterOpen, setMeterOpen] = React.useState(false);
-  const meterHits = React.useMemo(() => {
-    const pool = [
-      ...(products || []).map(p => ({ label: `${p.skuCode} · ${p.name}`, value: p.name })),
-      ...DEFAULT_METERS.map(t => ({ label: t, value: t })),
-    ];
-    const qq = form.meterType.trim().toLowerCase();
+  const [meterIdx, setMeterIdx] = React.useState(-1);
+  const meterQuery = form.meterType.trim();
+  const { data: deviceHits } = useApi<DeviceTypeHit[]>(meterQuery ? `/api/v2/device-types?q=${encodeURIComponent(meterQuery)}` : null);
+  const skuHits = React.useMemo(() => {
+    const qq = meterQuery.toLowerCase();
+    if (!qq) return [] as { label: string; value: string }[];
     const seen = new Set<string>();
-    return pool.filter(x => (!qq || x.label.toLowerCase().includes(qq)) && !seen.has(x.value) && seen.add(x.value)).slice(0, 8);
-  }, [products, form.meterType]);
+    return (products || [])
+      .filter(p => `${p.skuCode} ${p.name}`.toLowerCase().includes(qq) && !seen.has(p.name) && seen.add(p.name))
+      .map(p => ({ label: `${p.skuCode} · ${p.name}`, value: p.name })).slice(0, 6);
+  }, [products, meterQuery]);
+  // Плоский список для навигации клавишами: [справочник…, затем склад…].
+  const meterFlat = React.useMemo(() => [
+    ...(deviceHits || []).map(d => d.name),
+    ...skuHits.map(s => s.value),
+  ], [deviceHits, skuHits]);
+  React.useEffect(() => { setMeterIdx(-1); }, [meterQuery]);
+  const pickMeter = (value: string) => { setForm(f => ({ ...f, meterType: value })); setMeterOpen(false); setMeterIdx(-1); };
+  function meterKey(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') { setMeterOpen(false); setMeterIdx(-1); return; }
+    if (!meterOpen || meterFlat.length === 0) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setMeterIdx(i => Math.min(i + 1, meterFlat.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setMeterIdx(i => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter' && meterIdx >= 0) { e.preventDefault(); pickMeter(meterFlat[meterIdx]); }
+  }
 
   // ── Голосовой ввод (Web Speech API, ru-RU) ──
   const recog = React.useRef<{ abort: () => void } | null>(null);
@@ -195,12 +211,22 @@ function CertsInner() {
           <Field label="Адрес"><div className="cert-vf"><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Адрес" /><Mic k="address" h="Адрес" /></div></Field>
         </div>
         <div className="erp-form-row">
-          <Field label="Тип прибора (поиск по складу)">
+          <Field label="Тип прибора">
             <div style={{ position: 'relative' }}>
-              <Input value={form.meterType} onChange={e => { setForm({ ...form, meterType: e.target.value }); setMeterOpen(true); }} onFocus={() => setMeterOpen(true)} onBlur={() => setTimeout(() => setMeterOpen(false), 150)} placeholder="Начните вводить — поиск по складу" />
-              {meterOpen && meterHits.length > 0 && (
+              <Input value={form.meterType} onChange={e => { setForm({ ...form, meterType: e.target.value }); setMeterOpen(true); }} onFocus={() => setMeterOpen(true)} onBlur={() => setTimeout(() => setMeterOpen(false), 150)} onKeyDown={meterKey} placeholder="Начните вводить — справочник и склад" />
+              {meterOpen && meterFlat.length > 0 && (
                 <div className="cert-meter-dd">
-                  {meterHits.map(h => <div key={h.label} className="cert-meter-opt" onMouseDown={() => { setForm(f => ({ ...f, meterType: h.value })); setMeterOpen(false); }}>{h.label}</div>)}
+                  {(deviceHits || []).length > 0 && <div className="cert-meter-grp">Справочник типов</div>}
+                  {(deviceHits || []).map((d, i) => (
+                    <div key={`d-${d.id}`} className={`cert-meter-opt${meterIdx === i ? ' is-active' : ''}`} onMouseEnter={() => setMeterIdx(i)} onMouseDown={() => pickMeter(d.name)}>
+                      <span>{d.name}</span>{d.usageCount > 0 && <span className="cert-meter-uses">{d.usageCount}</span>}
+                    </div>
+                  ))}
+                  {skuHits.length > 0 && <div className="cert-meter-grp">Со склада</div>}
+                  {skuHits.map((s, j) => {
+                    const idx = (deviceHits || []).length + j;
+                    return <div key={`s-${s.label}`} className={`cert-meter-opt${meterIdx === idx ? ' is-active' : ''}`} onMouseEnter={() => setMeterIdx(idx)} onMouseDown={() => pickMeter(s.value)}>{s.label}</div>;
+                  })}
                 </div>
               )}
             </div>

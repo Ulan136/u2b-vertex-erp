@@ -107,6 +107,7 @@ export const ERP_NAV: NavSection[] = [
   ] },
   { title: 'Справочник', icon: '📖', zone: 'ops', items: [
     { label: 'Справочники', screenKey: 'handbook', href: '/erp/handbook' },
+    { label: 'Типы приборов', screenKey: 'handbook', href: '/erp/handbook/device-types' },
   ] },
 
   // ── под-раздел «Система» ──
