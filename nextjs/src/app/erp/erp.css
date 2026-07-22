@@ -189,6 +189,25 @@
 .erp-presence-row.off .erp-presence-name { color: #9ca3af; }
 @media (max-width: 560px) { .erp-presence-lbl { display: none; } }
 
+/* ── Поверка: голосовой ввод ── */
+.cert-vf { display: flex; gap: 6px; align-items: stretch; }
+.cert-vf > .ui-input, .cert-vf > .ui-select, .cert-vf > input, .cert-vf > select { flex: 1; min-width: 0; }
+.cert-mic { flex-shrink: 0; width: 34px; border: 1px solid var(--erp-line); background: #f9fafb; border-radius: 8px; cursor: pointer; font-size: 15px; line-height: 1; }
+.cert-mic:hover { background: #eef2f7; }
+.cert-mic.on { background: #fee2e2; border-color: #ef4444; animation: certPulse 1s infinite; }
+@keyframes certPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.4); } 50% { box-shadow: 0 0 0 5px rgba(239,68,68,0); } }
+.cert-voice-all { margin-left: auto; font-size: 11px; background: linear-gradient(135deg,#ef4444,#dc2626); color: #fff; border: none; border-radius: 20px; padding: 5px 14px; cursor: pointer; font-weight: 700; }
+.cert-voice-ov { position: fixed; inset: 0; z-index: 90; background: rgba(15,23,42,.55); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.cert-voice-sheet { background: #fff; border-radius: 18px; width: 340px; max-width: 94vw; padding: 26px 22px; text-align: center; box-shadow: 0 24px 70px rgba(0,0,0,.3); }
+.cert-voice-ind { font-size: 40px; margin-bottom: 8px; }
+.cert-voice-ind.on { animation: certPulse 1s infinite; }
+.cert-voice-hint { font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--erp-blue-d); }
+.cert-voice-label { font-size: 13px; color: var(--erp-muted); margin: 6px 0; }
+.cert-voice-tr { min-height: 40px; font-size: 16px; font-weight: 600; color: #111; margin: 8px 0 14px; }
+.cert-sec-lbl { font-size: 12px; font-weight: 700; color: #475569; margin: 14px 0 8px; display: flex; align-items: center; }
+.cert-seal { display: flex; flex-direction: column; gap: 5px; padding-top: 4px; }
+.cert-seal label { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 13px; cursor: pointer; margin: 0; }
+
 /* ── Блоки-заголовки (задачи по статусам, «Готовые») ── */
 .erp-block-head { display: flex; align-items: center; gap: 6px; padding: 10px 16px; font-size: 13px; font-weight: 700; color: #1b2a4a; border-bottom: 1px solid var(--erp-line); background: #f8fafc; }
 .erp-block-count { color: var(--erp-muted); font-weight: 600; }

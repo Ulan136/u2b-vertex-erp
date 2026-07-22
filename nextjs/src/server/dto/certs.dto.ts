@@ -18,6 +18,7 @@ export const certUpsertSchema = z.object({
   readings: z.union([z.string(), z.number()]).nullish(),
   note: z.string().nullish(),
   phone: z.string().nullish(),
+  client: z.string().nullish(),
   sealType: z.string().nullish(),
   result: z.string().optional(),
   docType: z.string().optional(),
