@@ -11,12 +11,7 @@ const roleRu = (r: string) => ROLE_LABELS_RU[r as Role] || r;
 // GET /api/v2/reports/analytics?from=&to= — сводка работы сотрудников + динамика
 export const ANALYTICS = withApi(async (req: NextRequest) => {
   const sp = new URL(req.url).searchParams;
-  try {
-    return await reportsService.analytics(sp.get('from'), sp.get('to'));
-  } catch (e) {
-    // ВРЕМЕННО: вернуть текст ошибки для диагностики прод-500
-    return { __diag: String((e as Error)?.message || e), stack: String((e as Error)?.stack || '').split('\n').slice(0, 4) };
-  }
+  return reportsService.analytics(sp.get('from'), sp.get('to'));
 });
 
 // GET /api/v2/reports/employee-activity?userId=&from=&to= — лента действий сотрудника
