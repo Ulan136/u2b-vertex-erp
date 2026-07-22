@@ -62,8 +62,8 @@ export const ERP_NAV: NavSection[] = [
   // ── Зона «Операции и учёт» (sky) · под-раздел «Операционные» ──
   { title: 'Расходы', icon: '💸', zone: 'ops', divider: 'Операционные', items: [
     { label: 'Журнал расходов', screenKey: 'expenses', href: '/erp/expenses' },
-    { label: 'Категории', screenKey: 'expenses', href: '/erp/expenses?tab=cats' },
-    { label: 'Аналитика', screenKey: 'expenses', href: '/erp/reports?kind=expenses' },
+    { label: 'Категории', screenKey: 'expenses', href: '/erp/expenses/categories' },
+    { label: 'Аналитика', screenKey: 'expenses', href: '/erp/expenses/analytics' },
   ] },
   { title: 'Бухгалтерия', icon: '📒', zone: 'ops', items: [
     { label: 'Документы', screenKey: 'accounting', href: '/erp/documents' },
@@ -94,7 +94,10 @@ export const ERP_NAV: NavSection[] = [
     { label: '№4 📄 Прочие операции', screenKey: 'invoices', href: '/erp/invoices?section=other' },
   ] },
   { title: 'База данных', icon: '🗄', zone: 'ops', items: [
-    { label: 'База данных', screenKey: 'database', href: '/erp/database' },
+    { label: '⏰ Сроки счётчиков', screenKey: 'database', href: '/erp/database?view=deadlines' },
+    { label: '🗂 Архив сертификатов', screenKey: 'database', href: '/erp/database?view=archive-cert' },
+    { label: '📭 Архив извещений', screenKey: 'database', href: '/erp/database?view=archive-izv' },
+    { label: '📋 Авто-заказы', screenKey: 'database', href: '/erp/database?view=orders' },
   ] },
 
   // ── под-раздел «Аналитика» ──

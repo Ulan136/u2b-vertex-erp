@@ -25,6 +25,7 @@ export const certUpsertSchema = z.object({
   operStatus: z.string().optional(),
   payStatus: z.string().optional(),
   invoiceType: z.string().optional(),
+  isArchived: z.boolean().optional(),   // в архив / из архива
 });
 
 export const certUpdateSchema = certUpsertSchema.partial();
