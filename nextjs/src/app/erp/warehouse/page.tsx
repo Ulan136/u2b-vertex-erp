@@ -6,6 +6,27 @@ import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow }
 
 type Product = { id: string; skuCode: string; name: string; fullName?: string | null; groupId?: string | null; waterType?: string | null; minStock: number; currentStock: number; reserved?: number | null; price: string | number; priceDiscount?: string | number | null; costPrice?: string | number | null };
 type Movement = { id: string; skuCode?: string | null; productName?: string | null; moveType: string; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; comment?: string | null; author?: string | null; moveDate?: string | null };
+type SummaryRow = { skuCode: string | null; inQty: number; outQty: number; revPlus: number; revMinus: number };
+type Period = { preset: string; from: string; to: string };
+
+const PERIOD_PRESETS: Array<{ key: string; label: string }> = [
+  { key: 'all', label: 'Всё время' }, { key: 'today', label: 'Сегодня' }, { key: '7d', label: '7 дней' },
+  { key: 'month', label: 'Месяц' }, { key: 'quarter', label: 'Квартал' }, { key: 'year', label: 'Год' }, { key: 'custom', label: 'Период…' },
+];
+// Диапазон дат для колонок Приход/Расход. Пусто → без ограничения (всё время).
+function periodRange(p: Period): { from: string; to: string } {
+  const isoDate = (d: Date) => d.toISOString().slice(0, 10);
+  const now = new Date(); const t = isoDate(now);
+  switch (p.preset) {
+    case 'today': return { from: t, to: t };
+    case '7d': { const d = new Date(now); d.setDate(d.getDate() - 6); return { from: isoDate(d), to: t }; }
+    case 'month': return { from: isoDate(new Date(now.getFullYear(), now.getMonth(), 1)), to: t };
+    case 'quarter': { const q = Math.floor(now.getMonth() / 3) * 3; return { from: isoDate(new Date(now.getFullYear(), q, 1)), to: t }; }
+    case 'year': return { from: isoDate(new Date(now.getFullYear(), 0, 1)), to: t };
+    case 'custom': return { from: p.from, to: p.to };
+    default: return { from: '', to: '' };
+  }
+}
 
 const num = (v: unknown) => Number(v) || 0;
 const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU');
@@ -28,9 +49,29 @@ function statusBadge(p: Product) {
 
 export default function WarehousePage() {
   const { data: products, error, isLoading, mutate } = useApi<Product[]>('/api/v2/products');
-  const { data: movements, mutate: mutateMoves } = useApi<Movement[]>('/api/v2/products/movements?limit=60');
   const [tab, setTab] = React.useState<'stock' | 'moves'>('stock');
   const [q, setQ] = React.useState('');
+
+  // ── фильтр периода (для колонок Приход/Расход и журнала движений) ──
+  const [period, setPeriod] = React.useState<Period>({ preset: 'all', from: '', to: '' });
+  const range = React.useMemo(() => periodRange(period), [period]);
+  const rangeQs = `${range.from ? `&from=${range.from}` : ''}${range.to ? `&to=${range.to}` : ''}`;
+  const { data: movements, mutate: mutateMoves } = useApi<Movement[]>(`/api/v2/products/movements?limit=200${rangeQs}`);
+  const { data: summary } = useApi<SummaryRow[]>(`/api/v2/products/movements/summary${range.from || range.to ? `?from=${range.from}&to=${range.to}` : ''}`);
+  const sumBySku = React.useMemo(() => { const m: Record<string, SummaryRow> = {}; (summary || []).forEach(r => { if (r.skuCode) m[r.skuCode] = r; }); return m; }, [summary]);
+  const periodTotals = React.useMemo(() => (summary || []).reduce((a, r) => ({ in: a.in + r.inQty, out: a.out + r.outQty }), { in: 0, out: 0 }), [summary]);
+
+  // ── инлайн-правка «Мин» (пишет ТОЛЬКО min_stock, аудит автоматически) ──
+  const [minEdit, setMinEdit] = React.useState<{ id: string; value: string; saving: boolean } | null>(null);
+  async function saveMin() {
+    if (!minEdit) return;
+    const v = Math.max(0, Math.floor(Number(minEdit.value) || 0));
+    setMinEdit(m => m && ({ ...m, saving: true }));
+    try {
+      await apiSend(`/api/v2/products/${minEdit.id}`, 'PATCH', { minStock: v });
+      setMinEdit(null); await mutate(); toast('✅ Мин. остаток обновлён');
+    } catch (e) { toast('⚠️ ' + (e as Error).message); setMinEdit(m => m && ({ ...m, saving: false })); }
+  }
 
   const all = products || [];
   const list = all.filter(p => !q.trim() || (p.name + ' ' + p.skuCode).toLowerCase().includes(q.toLowerCase()));
@@ -151,19 +192,44 @@ export default function WarehousePage() {
         {tab === 'stock' && <Input placeholder="🔍 Наименование или SKU" value={q} onChange={e => setQ(e.target.value)} />}
       </Card>
 
+      {/* Фильтр периода — управляет колонками Приход/Расход и журналом (только чтение) */}
+      <Card className="erp-filters" style={{ marginTop: 8, flexWrap: 'wrap', gap: 8 }}>
+        <span className="erp-muted" style={{ fontSize: 12, fontWeight: 600 }}>📅 Период движений:</span>
+        <div className="erp-chips">
+          {PERIOD_PRESETS.map(p => (
+            <button key={p.key} className={`erp-chip${period.preset === p.key ? ' on' : ''}`} onClick={() => setPeriod(s => ({ ...s, preset: p.key }))}>{p.label}</button>
+          ))}
+        </div>
+        {period.preset === 'custom' && (
+          <>
+            <Input type="date" value={period.from} onChange={e => setPeriod(s => ({ ...s, from: e.target.value }))} style={{ width: 150 }} />
+            <span className="erp-muted">—</span>
+            <Input type="date" value={period.to} onChange={e => setPeriod(s => ({ ...s, to: e.target.value }))} style={{ width: 150 }} />
+          </>
+        )}
+        <span style={{ marginLeft: 'auto', fontSize: 12 }}>
+          <span style={{ color: '#16a34a', fontWeight: 700 }}>📥 {fmt(periodTotals.in)}</span>
+          <span className="erp-muted"> / </span>
+          <span style={{ color: '#dc2626', fontWeight: 700 }}>📤 {fmt(periodTotals.out)}</span>
+        </span>
+      </Card>
+
       {tab === 'stock' ? (
         <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>
           {error ? <EmptyRow>Нет доступа к складу.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
             : all.length === 0 ? <EmptyRow>💡 Склад пустой. Нажмите «📥 Приход».</EmptyRow>
             : (
               <table className="erp-table">
-                <thead><tr><th>SKU</th><th>Наименование</th><th>Вода</th><th style={{ textAlign: 'right' }}>Остаток</th><th style={{ textAlign: 'right' }}>Резерв</th><th style={{ textAlign: 'right' }}>Свободно</th><th style={{ textAlign: 'right' }}>Мин</th><th style={{ textAlign: 'right' }}>Себест.</th><th style={{ textAlign: 'right' }}>Цена</th><th style={{ textAlign: 'right' }}>Со скидкой</th><th>Статус</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
+                <thead><tr><th>SKU</th><th>Наименование</th><th>Вода</th><th style={{ textAlign: 'right' }}>Остаток</th><th style={{ textAlign: 'right' }}>Резерв</th><th style={{ textAlign: 'right' }}>Свободно</th><th style={{ textAlign: 'right', color: '#16a34a' }} title="Приход за период">Приход</th><th style={{ textAlign: 'right', color: '#dc2626' }} title="Расход за период">Расход</th><th style={{ textAlign: 'right' }}>Мин</th><th style={{ textAlign: 'right' }}>Себест.</th><th style={{ textAlign: 'right' }}>Цена</th><th style={{ textAlign: 'right' }}>Со скидкой</th><th>Статус</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
                 <tbody>
                   {Object.entries(groups).map(([gid, items]) => (
                     <React.Fragment key={gid}>
-                      <tr><td colSpan={12} className="erp-group-sub">{groupLabel(gid)} <span className="erp-block-count">· {items.length}</span></td></tr>
+                      <tr><td colSpan={14} className="erp-group-sub">{groupLabel(gid)} <span className="erp-block-count">· {items.length}</span></td></tr>
                       {items.map(p => {
                         const f = free(p); const low = f < num(p.minStock);
+                        const s = p.skuCode ? sumBySku[p.skuCode] : undefined;
+                        const inq = s?.inQty || 0, outq = s?.outQty || 0;
+                        const editing = minEdit?.id === p.id;
                         return (
                           <tr key={p.id}>
                             <td className="erp-muted" style={{ fontSize: 12 }}>{p.skuCode}</td>
@@ -172,7 +238,24 @@ export default function WarehousePage() {
                             <td style={{ textAlign: 'right', fontWeight: 700, color: low ? '#dc2626' : undefined }}>{fmt(p.currentStock)}</td>
                             <td style={{ textAlign: 'right' }} className="erp-muted">{fmt(p.reserved || 0)}</td>
                             <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(f)}</td>
-                            <td style={{ textAlign: 'right' }} className="erp-muted">{fmt(p.minStock)}</td>
+                            <td style={{ textAlign: 'right', color: inq ? '#16a34a' : undefined, fontWeight: inq ? 600 : 400 }} title={s && (s.revPlus || s.revMinus) ? `ревизии: +${s.revPlus} / −${s.revMinus}` : undefined}>{inq ? '+' + fmt(inq) : '—'}</td>
+                            <td style={{ textAlign: 'right', color: outq ? '#dc2626' : undefined, fontWeight: outq ? 600 : 400 }}>{outq ? '−' + fmt(outq) : '—'}</td>
+                            <td style={{ textAlign: 'right' }}>
+                              {editing ? (
+                                <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', justifyContent: 'flex-end' }}>
+                                  <Input type="number" min={0} value={minEdit!.value} autoFocus disabled={minEdit!.saving}
+                                    onChange={e => setMinEdit(m => m && ({ ...m, value: e.target.value }))}
+                                    onKeyDown={e => { if (e.key === 'Enter') saveMin(); if (e.key === 'Escape') setMinEdit(null); }}
+                                    style={{ width: 64, textAlign: 'right', padding: '2px 6px' }} />
+                                  <button className="erp-icon-btn" title="Сохранить" onClick={saveMin} disabled={minEdit!.saving}>✅</button>
+                                  <button className="erp-icon-btn" title="Отмена" onClick={() => setMinEdit(null)}>✕</button>
+                                </span>
+                              ) : (
+                                <span className="wh-min-edit" title="Изменить минимум" onClick={() => setMinEdit({ id: p.id, value: String(p.minStock ?? 0), saving: false })}>
+                                  <span className="erp-muted">{fmt(p.minStock)}</span> <span className="wh-min-pen">✎</span>
+                                </span>
+                              )}
+                            </td>
                             <td style={{ textAlign: 'right' }} className="erp-muted">{num(p.costPrice) ? fmt(p.costPrice!) : '—'}</td>
                             <td style={{ textAlign: 'right' }}>{fmt(p.price)}</td>
                             <td style={{ textAlign: 'right' }} className="erp-muted">{num(p.priceDiscount) ? fmt(p.priceDiscount!) : '—'}</td>

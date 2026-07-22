@@ -1,6 +1,6 @@
 import { db, type Executor } from '@/db';
 import { products, stockMovements } from '@/db/schema';
-import { asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
 
 type MovementInsert = typeof stockMovements.$inferInsert;
 
@@ -31,9 +31,28 @@ export const productsRepo = {
     return row ?? null;
   },
 
-  listMovements: (limit = 60, type?: string | null) => {
-    const base = db.select().from(stockMovements);
-    const q = type ? base.where(eq(stockMovements.moveType, type as typeof stockMovements.$inferSelect.moveType)) : base;
-    return q.orderBy(desc(stockMovements.createdAt), desc(stockMovements.moveDate)).limit(limit);
+  listMovements: (limit = 60, type?: string | null, from?: string | null, to?: string | null) => {
+    const conds = [];
+    if (type) conds.push(eq(stockMovements.moveType, type as typeof stockMovements.$inferSelect.moveType));
+    if (from) conds.push(gte(stockMovements.moveDate, from));
+    if (to) conds.push(lte(stockMovements.moveDate, to));
+    return db.select().from(stockMovements)
+      .where(conds.length ? and(...conds) : undefined)
+      .orderBy(desc(stockMovements.createdAt), desc(stockMovements.moveDate)).limit(limit);
+  },
+
+  // Сводка движений по SKU за период (ТОЛЬКО чтение): Приход = Σ IN, Расход = Σ OUT,
+  // ревизии отдельно. Ничего не пишет — для колонок Приход/Расход на экране остатков.
+  movementsSummary: (from?: string | null, to?: string | null) => {
+    const conds = [];
+    if (from) conds.push(gte(stockMovements.moveDate, from));
+    if (to) conds.push(lte(stockMovements.moveDate, to));
+    return db.select({
+      skuCode : stockMovements.skuCode,
+      inQty   : sql<number>`coalesce(sum(case when ${stockMovements.moveType} = 'IN'   then ${stockMovements.qty} else 0 end), 0)`,
+      outQty  : sql<number>`coalesce(sum(case when ${stockMovements.moveType} = 'OUT'  then ${stockMovements.qty} else 0 end), 0)`,
+      revPlus : sql<number>`coalesce(sum(case when ${stockMovements.moveType} = 'REV+' then ${stockMovements.qty} else 0 end), 0)`,
+      revMinus: sql<number>`coalesce(sum(case when ${stockMovements.moveType} = 'REV-' then ${stockMovements.qty} else 0 end), 0)`,
+    }).from(stockMovements).where(conds.length ? and(...conds) : undefined).groupBy(stockMovements.skuCode);
   },
 };

@@ -50,7 +50,20 @@ async function doMovement(input: unknown, actor: { id: string; name?: string } |
 
 export const productsService = {
   list: () => productsRepo.listActive(),
-  movements: (limit?: number, type?: string | null) => productsRepo.listMovements(limit, type),
+  movements: (limit?: number, type?: string | null, from?: string | null, to?: string | null) =>
+    productsRepo.listMovements(limit, type, from, to),
+
+  // Сводка Приход/Расход по SKU за период (только чтение) — числа приведены к number.
+  async movementsSummary(from?: string | null, to?: string | null) {
+    const rows = await productsRepo.movementsSummary(from, to);
+    return rows.map(r => ({
+      skuCode: r.skuCode,
+      inQty: Number(r.inQty) || 0,
+      outQty: Number(r.outQty) || 0,
+      revPlus: Number(r.revPlus) || 0,
+      revMinus: Number(r.revMinus) || 0,
+    }));
+  },
 
   // Правка карточки товара (наименование/мин.остаток/цены/тип воды/группа).
   async update(id: string, input: unknown) {

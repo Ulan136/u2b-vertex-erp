@@ -217,6 +217,12 @@
 .cert-meter-opt:hover, .cert-meter-opt.is-active { background: #eff6ff; }
 .cert-meter-grp { padding: 6px 10px 2px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; background: #f9fafb; position: sticky; top: 0; }
 .cert-meter-uses { flex: none; min-width: 22px; text-align: center; padding: 1px 6px; font-size: 11px; font-variant-numeric: tabular-nums; color: #2563eb; background: #eff6ff; border-radius: 999px; }
+
+/* Инлайн-правка «Мин» на складе — карандаш проявляется при наведении */
+.wh-min-edit { cursor: pointer; white-space: nowrap; }
+.wh-min-pen { opacity: 0; font-size: 11px; color: #2563eb; transition: opacity .12s; }
+.wh-min-edit:hover .wh-min-pen { opacity: 1; }
+.erp-table tr:hover .wh-min-pen { opacity: .5; }
 .cert-seal label { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 13px; cursor: pointer; margin: 0; }
 
 /* ── Блоки-заголовки (задачи по статусам, «Готовые») ── */
