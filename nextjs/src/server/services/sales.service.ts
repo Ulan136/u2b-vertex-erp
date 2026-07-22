@@ -3,7 +3,7 @@ import { salesRepo } from '@/server/repositories/sales.repo';
 import { financeRepo } from '@/server/repositories/finance.repo';
 import { productsService } from '@/server/services/products.service';
 import { financeService } from '@/server/services/finance.service';
-import { saleMutateSchema, normalizeItems, aggregateItems, type SaleItem } from '@/server/dto/sales.dto';
+import { saleMutateSchema, normalizeItems, aggregateItems, financePostable, type SaleItem } from '@/server/dto/sales.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
 const m2 = (n: number) => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
@@ -34,7 +34,7 @@ export const salesService = {
     const items = normalizeItems(data);
     if (!items.length) throw badRequest('Добавьте хотя бы одну позицию со складом');
     const agg = aggregateItems(items);
-    const paid = data.payStatus === 'Оплачено';
+    const paid = financePostable(data.payStatus);
     if (paid && !data.accountId) throw badRequest('Для оплаченной продажи выберите счёт зачисления');
 
     return db.transaction(async (tx) => {
@@ -89,9 +89,9 @@ export const salesService = {
       if (!items.length) throw badRequest('Нужна хотя бы одна позиция');
       const agg = aggregateItems(items);
 
-      const oldPaid = old.payStatus === 'Оплачено';
+      const oldPaid = financePostable(old.payStatus);
       const newPay = data.payStatus ?? old.payStatus ?? 'В ожидании';
-      const newPaid = newPay === 'Оплачено';
+      const newPaid = financePostable(newPay);
 
       const ops = await financeRepo.findBySale(id, tx);
       const liveOp = ops.find(o => !o.reversedAt && !o.reverses);

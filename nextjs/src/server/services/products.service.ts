@@ -1,10 +1,9 @@
 import { db, type Executor } from '@/db';
 import { productsRepo } from '@/server/repositories/products.repo';
-import { stockMovementSchema, productUpdateSchema } from '@/server/dto/products.dto';
+import { stockMovementSchema, productUpdateSchema, STOCK_SIGN, canApplyStock } from '@/server/dto/products.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
-// Знак движения для остатка: приход/ревизия+ увеличивают, расход/ревизия− уменьшают.
-export const STOCK_SIGN: Record<string, number> = { 'IN': 1, 'REV+': 1, 'OUT': -1, 'REV-': -1 };
+export { STOCK_SIGN };
 const money = (n: number) => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
 
 // Провести движение склада + сдвинуть остаток товара — атомарно (движение и
@@ -21,7 +20,7 @@ async function doMovement(input: unknown, actor: { id: string; name?: string } |
 
   // Запрет отрицательного остатка: списание не может увести current_stock ниже 0.
   const current = Number(product.currentStock) || 0;
-  if (sign < 0 && current - qty < 0) {
+  if (!canApplyStock(current, data.moveType, qty)) {
     throw badRequest(`Недостаточно товара на складе «${product.name}»: остаток ${current}, требуется ${qty}`);
   }
 

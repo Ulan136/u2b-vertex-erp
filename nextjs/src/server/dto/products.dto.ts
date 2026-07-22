@@ -12,6 +12,18 @@ export const productUpdateSchema = z.object({
   groupId: z.string().nullish(),
 });
 
+// ── Учёт остатка (чистые функции — тестируемые) ──
+// Знак движения: приход/ревизия+ увеличивают, расход/ревизия− уменьшают остаток.
+export const STOCK_SIGN: Record<string, number> = { 'IN': 1, 'REV+': 1, 'OUT': -1, 'REV-': -1 };
+// Остаток после движения (qty берётся по модулю).
+export function stockAfter(current: number, moveType: string, qty: number): number {
+  return (Number(current) || 0) + (STOCK_SIGN[moveType] ?? 0) * Math.abs(Number(qty) || 0);
+}
+// Можно ли провести движение, не уводя остаток ниже нуля (запрет овердрафта).
+export function canApplyStock(current: number, moveType: string, qty: number): boolean {
+  return stockAfter(current, moveType, qty) >= 0;
+}
+
 // POST /products records a stock movement (приход/расход), not a product.
 export const stockMovementSchema = z.object({
   productId: z.string(),

@@ -72,6 +72,20 @@ export function aggregateItems(items: SaleItem[]) {
   };
 }
 
+// ── Учёт продажи (чистые функции — тестируемые) ──
+// Приход в финансы создаётся ТОЛЬКО для оплаченной продажи.
+export function financePostable(payStatus: string | null | undefined): boolean {
+  return payStatus === 'Оплачено';
+}
+// Списания склада при проведении продажи (OUT по каждой позиции).
+export function saleOutMovements(items: SaleItem[]): Array<{ productId: string; qty: number; moveType: 'OUT' }> {
+  return items.map(it => ({ productId: it.productId, qty: it.qty, moveType: 'OUT' as const }));
+}
+// Возвраты склада при отмене/правке продажи (IN по каждой позиции).
+export function saleReturnMovements(items: SaleItem[]): Array<{ productId: string; qty: number; moveType: 'IN' }> {
+  return items.map(it => ({ productId: it.productId, qty: it.qty, moveType: 'IN' as const }));
+}
+
 // Следующий номер продажи ПРД-NNN (чистая функция, продолжает с максимального).
 export function nextSaleNo(existing: Array<string | null | undefined>): string {
   const max = existing.reduce((m, s) => {
