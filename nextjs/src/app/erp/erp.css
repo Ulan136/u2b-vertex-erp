@@ -253,6 +253,21 @@
 .rsh-icon-pal { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; margin: 6px 0; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; }
 .rsh-icon-opt { width: 32px; height: 32px; font-size: 17px; border: 1px solid transparent; border-radius: 7px; background: #fff; cursor: pointer; line-height: 1; }
 .rsh-icon-opt:hover { border-color: #2563eb; background: #eff6ff; }
+
+/* Красивый выпадающий выбор счёта по блокам */
+.rsh-acc-picker { position: relative; }
+.rsh-acc-trigger { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 9px 11px; border: 1px solid #ced4da; border-radius: 8px; background: #fff; cursor: pointer; font-size: 14px; text-align: left; }
+.rsh-acc-trigger:hover:not(:disabled) { border-color: #2563eb; }
+.rsh-acc-trigger:disabled { background: #f3f4f6; color: #6b7280; cursor: not-allowed; }
+.rsh-acc-caret { color: #94a3b8; flex: none; }
+.rsh-acc-tag { display: inline-block; background: #eff6ff; color: #1d4ed8; font-size: 11px; font-weight: 800; border-radius: 6px; padding: 1px 6px; margin-right: 4px; }
+.rsh-acc-backdrop { position: fixed; inset: 0; z-index: 39; }
+.rsh-acc-menu { position: absolute; z-index: 40; left: 0; right: 0; top: calc(100% + 4px); background: #fff; border: 1px solid #d1d5db; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.16); max-height: 340px; overflow-y: auto; padding: 5px; }
+.rsh-acc-grp-h { padding: 8px 10px 4px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: #475569; background: #f8fafc; border-radius: 6px; margin: 3px 0; position: sticky; top: 0; }
+.rsh-acc-opt { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 7px; cursor: pointer; font-size: 13px; }
+.rsh-acc-opt:hover { background: #eff6ff; }
+.rsh-acc-opt.on { background: #dbeafe; font-weight: 700; }
+.rsh-acc-bal { color: #64748b; font-variant-numeric: tabular-nums; font-size: 12px; white-space: nowrap; }
 .sale-client-link { cursor: pointer; border-bottom: 1px dashed #94a3b8; }
 .sale-client-link:hover { color: #2563eb; border-color: #2563eb; }
 

@@ -5,7 +5,7 @@ import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 
 type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; accountId: string; source?: string | null; comment?: string | null; expenseCat?: string | null; subCategory?: string | null; supplier?: string | null; docNo?: string | null; status?: string | null; orderId?: string | null };
-type Acct = { id: string; name: string; icon?: string | null; section?: string | null; sortOrder?: number | null };
+type Acct = { id: string; name: string; icon?: string | null; section?: string | null; sortOrder?: number | null; balance?: string | number | null };
 type Cat = { id: string; name: string; icon?: string | null; base?: boolean; subs?: { id: string; name: string }[] };
 type Emp = { userId: string; name: string; salaryHidden?: boolean };
 type Order = { id: string; orderNo?: string | null; clientName?: string | null };
@@ -74,7 +74,11 @@ export default function ExpensesPage() {
   const [f, setF] = React.useState(emptyF());
   const cat = catList.find(c => c.id === f.catId);
   const isSalary = cat?.name === 'Зарплата';
-  const secAccounts = accounts.filter(a => (a.section || 'other') === f.section).sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0));
+  // Счета, сгруппированные по 4 блокам (для красивого выпадающего списка).
+  const accGroups = SECTIONS.map(s => ({ ...s, accs: accounts.filter(a => (a.section || 'other') === s.key).sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)) }));
+  const selAcc = accounts.find(a => a.id === f.accountId);
+  const selSecNo = SECTIONS.find(s => s.key === (selAcc?.section || 'other'))?.no;
+  const [accOpen, setAccOpen] = React.useState(false);
 
   function open() { setF(emptyF()); setModal(true); }
   function openEdit(o: Op) {
@@ -211,14 +215,33 @@ export default function ExpensesPage() {
         <Field label="Статус"><Select value={f.status} onChange={e => setF({ ...f, status: e.target.value })}>{STATUSES.map(s => <option key={s}>{s}</option>)}</Select></Field>
 
         <div className="cert-sec-lbl">🧾 Привязка</div>
-        {isSalary ? (
-          <Field label="Счёт списания" required><Select value={f.accountId} onChange={e => setF({ ...f, accountId: e.target.value })} disabled={!!f.editId}><option value="">— выберите счёт —</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}</Select></Field>
-        ) : (
-          <div className="erp-form-row">
-            <Field label="Раздел"><Select value={f.section} onChange={e => setF({ ...f, section: e.target.value, accountId: '' })} disabled={!!f.editId}>{SECTIONS.map(s => <option key={s.key} value={s.key}>№{s.no} {s.label}</option>)}</Select></Field>
-            <Field label="Счёт оплаты" required><Select value={f.accountId} onChange={e => setF({ ...f, accountId: e.target.value })} disabled={!!f.editId}><option value="">— выберите —</option>{secAccounts.map((a, i) => <option key={a.id} value={a.id}>№{i + 1} {a.icon} {a.name}</option>)}</Select></Field>
+        <Field label="Счёт списания (из какого блока)" required>
+          <div className="rsh-acc-picker">
+            <button type="button" className="rsh-acc-trigger" disabled={!!f.editId} onClick={() => setAccOpen(o => !o)}>
+              {selAcc
+                ? <span><span className="rsh-acc-tag">№{selSecNo}</span> {selAcc.icon || '💳'} {selAcc.name} <span className="rsh-acc-bal">· {fmt(selAcc.balance ?? 0)}</span></span>
+                : <span className="erp-muted">— выберите счёт из блока —</span>}
+              <span className="rsh-acc-caret">▾</span>
+            </button>
+            {accOpen && !f.editId && (<>
+              <div className="rsh-acc-backdrop" onClick={() => setAccOpen(false)} />
+              <div className="rsh-acc-menu">
+                {accGroups.map(g => g.accs.length === 0 ? null : (
+                  <div key={g.key}>
+                    <div className="rsh-acc-grp-h">№{g.no} · {g.label}</div>
+                    {g.accs.map(a => (
+                      <div key={a.id} className={`rsh-acc-opt${f.accountId === a.id ? ' on' : ''}`} onClick={() => { setF({ ...f, accountId: a.id, section: g.key }); setAccOpen(false); }}>
+                        <span>{a.icon || '💳'} {a.name}</span>
+                        <span className="rsh-acc-bal">{fmt(a.balance ?? 0)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+                {accounts.length === 0 && <div className="erp-muted" style={{ padding: 10, fontSize: 12 }}>Нет счетов. Создайте их в «Финансы».</div>}
+              </div>
+            </>)}
           </div>
-        )}
+        </Field>
         <div className="erp-form-row">
           <Field label="Привязать к заказу">
             <Input placeholder="🔍 Поиск по номеру" value={ordQ} onChange={e => setOrdQ(e.target.value)} style={{ marginBottom: 5 }} />
