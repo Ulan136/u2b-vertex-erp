@@ -41,17 +41,21 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Первичная · AQUA', screenKey: 'poverka_primary', heading: true },
     { label: 'Сертификат', screenKey: 'poverka_primary', href: '/erp/certs?source=Первичная-АК&type=cert' },
     { label: 'Извещение', screenKey: 'poverka_primary', href: '/erp/certs?source=Первичная-АК&type=izv' },
-    { label: 'Астана', screenKey: 'poverka_astana', heading: true },
+  ] },
+  // ФИЛИАЛЫ: Астана → Выездная поверка → Сертификат/Извещение (как в оригинале).
+  { title: 'Филиалы', icon: '🏢', zone: 'income', items: [
+    { label: 'Астана · Выездная поверка', screenKey: 'poverka_astana', heading: true },
     { label: 'Сертификат', screenKey: 'poverka_astana', href: '/erp/certs?source=Астана&type=cert' },
     { label: 'Извещение', screenKey: 'poverka_astana', href: '/erp/certs?source=Астана&type=izv' },
   ] },
   { title: 'Продажа', icon: '💰', zone: 'income', items: [
     { label: 'Журнал продаж', screenKey: 'sales', href: '/erp/sales' },
   ] },
-  { title: 'Счета', icon: '🧾', zone: 'income', items: [
-    { label: 'Поступления', screenKey: 'invoices', href: '/erp/invoices' },
-    { label: 'Филиалы', screenKey: 'invoices', href: '/erp/invoices?section=branch' },
-    { label: 'Прочие операции', screenKey: 'other_ops', href: '/erp/invoices?section=other' },
+  // ПРОЧИЕ ОПЕРАЦИИ: Проект / Тендер / Услуга.
+  { title: 'Прочие операции', icon: '📄', zone: 'income', items: [
+    { label: '📁 Проект', screenKey: 'other_ops', href: '/erp/invoices?section=other&kind=Проект' },
+    { label: '📜 Тендер', screenKey: 'other_ops', href: '/erp/invoices?section=other&kind=Тендер' },
+    { label: '🛠 Услуга', screenKey: 'other_ops', href: '/erp/invoices?section=other&kind=Услуга' },
   ] },
 
   // ── Зона «Операции и учёт» (sky) ──
@@ -64,6 +68,13 @@ export const ERP_NAV: NavSection[] = [
   { title: 'Финансы', icon: '💳', zone: 'ops', items: [
     { label: 'Счета и операции', screenKey: 'finance', href: '/erp/finance' },
     { label: 'Долги', screenKey: 'debts', href: '/erp/debts' },
+  ] },
+  // СЧЕТА (поступления по разделам №1–№4) — зона учёта, как в оригинале.
+  { title: 'Счета', icon: '🧾', zone: 'ops', items: [
+    { label: '№1 📋 Поверка', screenKey: 'invoices', href: '/erp/invoices?section=poverka' },
+    { label: '№2 💰 Продажа', screenKey: 'invoices', href: '/erp/invoices?section=sale' },
+    { label: '№3 🏢 Филиалы', screenKey: 'invoices', href: '/erp/invoices?section=branch' },
+    { label: '№4 📄 Прочие', screenKey: 'invoices', href: '/erp/invoices?section=other' },
   ] },
   { title: 'Задачи', icon: '✅', zone: 'ops', items: [
     { label: 'Задачи сотрудникам', screenKey: 'tasks', href: '/erp/tasks' },

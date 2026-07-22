@@ -17,7 +17,10 @@ const today = () => new Date().toISOString().slice(0, 10);
 function InvoicesInner() {
   const sp = useSearchParams();
   const init = sp.get('section');
+  const kind = sp.get('kind');   // Проект / Тендер / Услуга (для «Прочих операций»)
   const [section, setSection] = React.useState(SECTIONS.some(s => s.key === init) ? init! : 'poverka');
+  // Раздел ведёт меню (?section) — синхронизируем при навигации.
+  React.useEffect(() => { const s = sp.get('section'); if (s && SECTIONS.some(x => x.key === s)) setSection(s); }, [sp]);
   const { data: fin, error, isLoading, mutate } = useApi<{ accounts: Acct[]; operations: Op[] }>('/api/v2/finance');
   const { data: clients } = useApi<Client[]>('/api/v2/clients');
   const accounts = (fin?.accounts || []).filter(a => (a.section || 'other') === section).sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0));
@@ -29,7 +32,7 @@ function InvoicesInner() {
   const [modal, setModal] = React.useState(false);
   const [f, setF] = React.useState({ name: '', accountId: '', amount: '', date: today(), comment: '', err: '', saving: false });
 
-  function open() { setF({ name: '', accountId: accounts[0]?.id || '', amount: '', date: today(), comment: '', err: '', saving: false }); setModal(true); }
+  function open() { setF({ name: kind || '', accountId: accounts[0]?.id || '', amount: '', date: today(), comment: '', err: '', saving: false }); setModal(true); }
   async function save() {
     const amount = Number(f.amount) || 0;
     if (amount <= 0) { setF(s => ({ ...s, err: 'Сумма больше 0' })); return; }
