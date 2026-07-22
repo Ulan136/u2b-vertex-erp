@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ExcelJS from 'exceljs';
 import { withApi, optionsHandler } from '@/server/lib/http';
 import { CORS_HEADERS } from '@/server/lib/cors';
 import { reportsService } from '@/server/services/reports.service';
@@ -26,6 +25,7 @@ export const EXPORT = withApi(async (req: NextRequest) => {
   const sp = new URL(req.url).searchParams;
   const { from, to, employees } = await reportsService.analytics(sp.get('from'), sp.get('to'));
 
+  const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Сотрудники');
   ws.columns = [
