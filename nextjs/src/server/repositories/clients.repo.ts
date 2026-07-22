@@ -1,18 +1,20 @@
 import { db } from '@/db';
 import { clients } from '@/db/schema';
-import { and, or, eq, ilike, isNull, desc, type SQL } from 'drizzle-orm';
+import { and, or, eq, ilike, isNull, desc, sql, type SQL } from 'drizzle-orm';
 
 type ClientInsert = typeof clients.$inferInsert;
 
 export type ClientListFilter = {
   categoryId?: string | null;   // uuid → that category, 'none' → uncategorized, undefined → all
   q?: string | null;            // search over name / phone
+  kind?: string | null;         // 'client' | 'buyer' → tab; undefined → all
 };
 
 // Data access for clients — the only place that talks to Drizzle for this table.
 export const clientsRepo = {
-  list({ categoryId, q }: ClientListFilter) {
+  list({ categoryId, q, kind }: ClientListFilter) {
     const conds: SQL[] = [];
+    if (kind) conds.push(eq(clients.kind, kind));
     if (categoryId === 'none') conds.push(isNull(clients.categoryId));
     else if (categoryId) conds.push(eq(clients.categoryId, categoryId));
     if (q && q.trim()) {
@@ -22,6 +24,10 @@ export const clientsRepo = {
     const query = db.select().from(clients);
     return (conds.length ? query.where(and(...conds)) : query).orderBy(desc(clients.createdAt));
   },
+
+  // Записи с таким же (регистронезависимым) именем — для дедупликации самообучения.
+  matchingName: (nameKey: string) =>
+    db.select().from(clients).where(sql`lower(${clients.name}) = ${nameKey}`),
 
   async findById(id: string) {
     const [row] = await db.select().from(clients).where(eq(clients.id, id)).limit(1);

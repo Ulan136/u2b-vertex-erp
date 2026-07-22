@@ -23,17 +23,39 @@ export function normalizePhone(raw: string | null | undefined): string | null {
   return '+7' + local;
 }
 
+// ── Нормализация имени (для самообучения и дедупликации) ───────
+// Трим + схлопнуть множественные пробелы (регистр сохраняется в имени).
+export function normClientName(s: unknown): string {
+  return String(s ?? '').trim().replace(/\s+/g, ' ');
+}
+// Ключ сравнения имени — регистронезависимо.
+export function clientNameKey(s: unknown): string {
+  return normClientName(s).toLowerCase();
+}
+
+// Дедупликация самообучения: среди записей с тем же именем найти дубль.
+// Телефон не задан → совпадение по имени (первая запись). Телефон задан →
+// нужен точный дубль по имени+телефону, иначе это другой человек (создаём).
+export function pickClientDuplicate<T extends { phone?: string | null }>(sameName: T[], phone: string | null): T | null {
+  if (!sameName.length) return null;
+  if (!phone) return sameName[0];
+  return sameName.find(r => (r.phone ?? null) === phone) ?? null;
+}
+
 // ── Zod schemas ───────────────────────────────────────────────
-// Clients are organization-wide; the only grouping is category.
+// Clients are organization-wide; grouping by category; kind = client|buyer.
+export const CLIENT_KINDS = ['client', 'buyer'] as const;
 export const clientCreateSchema = z.object({
   name: z.string().trim().min(1, 'Имя обязательно'),
   phone: z.string().nullish(),
+  kind: z.enum(CLIENT_KINDS).optional(),
   categoryId: z.string().uuid().nullish(),
 });
 
 export const clientUpdateSchema = z.object({
   name: z.string().trim().min(1).optional(),
   phone: z.string().nullish(),
+  kind: z.enum(CLIENT_KINDS).optional(),
   categoryId: z.string().uuid().nullish(),
 });
 

@@ -10,6 +10,7 @@ export const GET = withApi(async (req: NextRequest) => {
   return clientsService.list({
     categoryId: sp.get('categoryId'),
     q: sp.get('q'),
+    kind: sp.get('kind'),
   });
 });
 export const POST = withApi(async (req: NextRequest) => created(await clientsService.create(await req.json())));

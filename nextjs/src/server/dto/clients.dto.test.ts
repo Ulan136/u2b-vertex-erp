@@ -1,7 +1,30 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizePhone, clientCreateSchema } from './clients.dto';
+import { normalizePhone, clientCreateSchema, normClientName, clientNameKey, pickClientDuplicate } from './clients.dto';
 import { ApiError } from '@/server/lib/errors';
+
+test('normClientName: трим + схлопывание пробелов, регистр сохраняется', () => {
+  assert.equal(normClientName('  Асхат   Юр '), 'Асхат Юр');
+  assert.equal(normClientName('вдк'), 'вдк');
+  assert.equal(clientNameKey('  Сержан  '), 'сержан');
+});
+
+test('pickClientDuplicate: дедуп по имени (без тел) и по имени+телефону', () => {
+  const rows = [{ id: 'a', phone: '+77001112233' }, { id: 'b', phone: null }];
+  // нет записей → создаём (null)
+  assert.equal(pickClientDuplicate([], null), null);
+  // без телефона → совпадение по имени (первая)
+  assert.equal(pickClientDuplicate(rows, null)?.id, 'a');
+  // телефон совпал → дубль
+  assert.equal(pickClientDuplicate(rows, '+77001112233')?.id, 'a');
+  // телефон не совпал → другой человек (создаём)
+  assert.equal(pickClientDuplicate(rows, '+77009998877'), null);
+});
+
+test('clientCreateSchema: kind принимается (client|buyer)', () => {
+  assert.equal(clientCreateSchema.parse({ name: 'X', kind: 'buyer' }).kind, 'buyer');
+  assert.equal(clientCreateSchema.parse({ name: 'Y' }).kind, undefined);   // дефолт проставит сервис
+});
 
 // ── normalizePhone → +7XXXXXXXXXX ────────────────────────────
 test('normalizePhone: bare 10-digit number gets +7 prefix', () => {

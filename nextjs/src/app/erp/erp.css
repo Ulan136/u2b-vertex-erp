@@ -236,6 +236,8 @@
 .sale-pay-h b { font-size: 13.5px; }
 .sale-pay-row { display: grid; grid-template-columns: 1fr 150px 30px; gap: 10px; margin-bottom: 8px; align-items: center; }
 .sale-pay-state { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-top: 8px; }
+.sale-client-link { cursor: pointer; border-bottom: 1px dashed #94a3b8; }
+.sale-client-link:hover { color: #2563eb; border-color: #2563eb; }
 
 /* Отчёты — аналитика по сотрудникам */
 .rep-th { cursor: pointer; user-select: none; white-space: nowrap; }

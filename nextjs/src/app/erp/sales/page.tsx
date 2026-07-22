@@ -8,7 +8,7 @@ import EntityHistory from '@/components/erp/EntityHistory';
 type SaleItem = { productId: string; productName?: string | null; skuCode?: string | null; qty: number; price: number; sum: number };
 type SalePay = { accountId: string; accountName?: string | null; amount: number };
 type Sale = { id: string; saleNo?: string | null; saleDate?: string | null; clientName?: string | null; clientType?: string | null; productName?: string | null; skuCode?: string | null; qty?: number; price?: string | number; totalSum?: string | number; payStatus?: string | null; paidSum?: number; payments?: SalePay[]; invoiceType?: string | null; items?: SaleItem[] | null; comment?: string | null; cancelledAt?: string | null; createdByName?: string | null };
-type Client = { id: string; name: string };
+type Client = { id: string; name: string; phone?: string | null; kind?: string | null };
 type Product = { id: string; skuCode: string; name: string; price: string | number; priceDiscount?: string | number | null; currentStock: number };
 type Acct = { id: string; name: string; section?: string | null; icon?: string | null };
 type FormItem = { productId: string; productName: string; skuCode: string; qty: string; price: string };
@@ -34,7 +34,8 @@ function priceFor(p: Product | undefined, ct: string): number {
 }
 const emptyItem = (): FormItem => ({ productId: '', productName: '', skuCode: '', qty: '1', price: '' });
 const emptyPay = (): FormPay => ({ accountId: '', amount: '' });
-const emptyForm = () => ({ id: '', cloneFrom: '', clientName: '', clientType: 'retail', saleDate: today(), comment: '', items: [emptyItem()], payments: [emptyPay()] });
+const emptyForm = () => ({ id: '', cloneFrom: '', clientName: '', clientType: 'retail', payMode: 'paid', saleDate: today(), comment: '', items: [emptyItem()], payments: [emptyPay()] });
+const PAY_MODES: Array<[string, string]> = [['paid', '💰 Оплачено сейчас'], ['debt', '⏳ В долг (ожидает)'], ['partial', '⚖ Частично']];
 
 export default function SalesPage() {
   const { data: sales, error, isLoading, mutate } = useApi<Sale[]>('/api/v2/sales');
@@ -52,7 +53,7 @@ export default function SalesPage() {
   const [histSale, setHistSale] = React.useState<Sale | null>(null);
   const [topup, setTopup] = React.useState<{ open: boolean; sale: Sale | null; rows: FormPay[]; err: string; saving: boolean }>({ open: false, sale: null, rows: [emptyPay()], err: '', saving: false });
 
-  const list = sales || [];
+  const list = React.useMemo(() => sales || [], [sales]);
   const active = list.filter(x => !x.cancelledAt);
   const total = active.reduce((s, x) => s + num(x.totalSum), 0);
   const paidSum = active.reduce((s, x) => s + num(x.paidSum), 0);
@@ -74,6 +75,25 @@ export default function SalesPage() {
   function setClientType(ct: string) {
     setForm(f => ({ ...f, clientType: ct, items: f.items.map(it => { const p = (products || []).find(x => x.id === it.productId); return p ? { ...it, price: String(priceFor(p, ct)) } : it; }) }));
   }
+  // ── автокомплит покупателей/клиентов (оба списка, 🤝/🛒) ──
+  const [clientOpen, setClientOpen] = React.useState(false);
+  const clientHits = React.useMemo(() => {
+    const qq = form.clientName.trim().toLowerCase();
+    if (!qq) return [] as Client[];
+    return (clients || []).filter(c => c.name.toLowerCase().includes(qq) || (c.phone || '').includes(qq)).slice(0, 8);
+  }, [clients, form.clientName]);
+  function pickClient(c: Client) {
+    const ct = c.kind === 'buyer' ? 'retail' : 'client';
+    setForm(f => ({ ...f, clientName: c.name, clientType: ct, items: f.items.map(it => { const p = (products || []).find(x => x.id === it.productId); return p ? { ...it, price: String(priceFor(p, ct)) } : it; }) }));
+    setClientOpen(false);
+  }
+  // ── режим оплаты (чипы — режим заполнения; статус в БД вычисляется из сумм) ──
+  function setPayMode(m: string) {
+    setForm(f => ({ ...f, payMode: m, payments: m === 'debt' ? [emptyPay()] : (f.payments.length ? f.payments : [emptyPay()]) }));
+  }
+  // ── история продаж клиента ──
+  const [clientHist, setClientHist] = React.useState<string | null>(null);
+  const histSales = React.useMemo(() => clientHist ? list.filter(s => (s.clientName || '').trim().toLowerCase() === clientHist.trim().toLowerCase()) : [], [clientHist, list]);
   // ── строки оплаты ──
   function setPayAccount(i: number, accountId: string) {
     setForm(f => {
@@ -92,11 +112,11 @@ export default function SalesPage() {
 
   function openNew() { setForm(emptyForm()); setErr(''); setModal(true); }
   function openClone(s: Sale) {
-    setForm({ id: '', cloneFrom: `${s.saleNo || ''} · ${s.clientName || ''}`, clientName: s.clientName || '', clientType: s.clientType || 'retail', saleDate: today(), comment: s.comment || '', items: itemsToForm(s), payments: [emptyPay()] });
+    setForm({ id: '', cloneFrom: `${s.saleNo || ''} · ${s.clientName || ''}`, clientName: s.clientName || '', clientType: s.clientType || 'retail', payMode: 'paid', saleDate: today(), comment: s.comment || '', items: itemsToForm(s), payments: [emptyPay()] });
     setErr(''); setModal(true);
   }
   function openEdit(s: Sale) {
-    setForm({ id: s.id, cloneFrom: '', clientName: s.clientName || '', clientType: s.clientType || 'retail', saleDate: iso(s.saleDate) || today(), comment: s.comment || '', items: itemsToForm(s), payments: [emptyPay()] });
+    setForm({ id: s.id, cloneFrom: '', clientName: s.clientName || '', clientType: s.clientType || 'retail', payMode: 'paid', saleDate: iso(s.saleDate) || today(), comment: s.comment || '', items: itemsToForm(s), payments: [emptyPay()] });
     setErr(''); setModal(true);
   }
 
@@ -104,8 +124,14 @@ export default function SalesPage() {
     if (!form.clientName.trim()) { setErr('Укажите клиента'); return; }
     const items = form.items.filter(it => it.productId && num(it.qty) > 0).map(it => ({ productId: it.productId, productName: it.productName, skuCode: it.skuCode, qty: num(it.qty), price: num(it.price) }));
     if (!items.length) { setErr('Добавьте хотя бы одну позицию со складом'); return; }
-    const payments = form.payments.filter(p => p.accountId && num(p.amount) > 0).map(p => ({ accountId: p.accountId, amount: num(p.amount) }));
-    if (allocated - formTotal > 0.005) { setErr('Распределено больше итога — уменьшите оплату'); return; }
+    // Режим оплаты: «В долг» → без оплат; «Оплачено сейчас» с одной строкой без
+    // суммы → авто-сумма = Итого (быстрый путь: выбрал Каспи → провёл).
+    let payments = form.payMode === 'debt' ? [] : form.payments.filter(p => p.accountId && num(p.amount) > 0).map(p => ({ accountId: p.accountId, amount: num(p.amount) }));
+    if (form.payMode === 'paid') {
+      const withAcc = form.payments.filter(p => p.accountId);
+      if (withAcc.length === 1 && num(withAcc[0].amount) <= 0 && formTotal > 0) payments = [{ accountId: withAcc[0].accountId, amount: formTotal }];
+    }
+    if (payments.reduce((s, p) => s + p.amount, 0) - formTotal > 0.005) { setErr('Распределено больше итога — уменьшите оплату'); return; }
     setSaving(true); setErr('');
     const body: Record<string, unknown> = { clientName: form.clientName.trim(), clientType: form.clientType, items, saleDate: form.saleDate || null, comment: form.comment || null };
     if (!form.id) body.payments = payments;   // оплаты задаются только при создании; правка — через «Дооплату»
@@ -205,7 +231,7 @@ export default function SalesPage() {
                     <tr key={s.id} style={cancelled ? { opacity: 0.55 } : undefined}>
                       <td className="erp-muted" style={{ fontSize: 12 }}>{s.saleNo}</td>
                       <td className="erp-muted" style={{ fontSize: 12 }}>{dmy(s.saleDate)}</td>
-                      <td className="erp-td-main">{s.clientName || '—'}</td>
+                      <td className="erp-td-main">{s.clientName ? <span className="sale-client-link" title="История продаж клиента" onClick={() => setClientHist(s.clientName!)}>{s.clientName}</span> : '—'}</td>
                       <td><Badge tone={s.clientType === 'client' ? 'info' : 'neutral'}>{s.clientType === 'client' ? '🤝 Клиент' : '🛒 Покупатель'}</Badge></td>
                       <td style={cancelled ? { textDecoration: 'line-through' } : undefined}>{s.productName || '—'} {s.skuCode && <span className="erp-muted" style={{ fontSize: 11 }}>{s.skuCode}</span>}</td>
                       <td style={{ textAlign: 'right' }}>{fmt(s.qty || 0)}</td>
@@ -233,12 +259,20 @@ export default function SalesPage() {
         title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>{form.id ? '✏️ Продажа' : '➕ Новая продажа'}{form.cloneFrom && <span className="sale-clone-badge">⧉ на основе {form.cloneFrom}</span>}</span>} width={700}
         footer={<><Button onClick={save} disabled={saving}>{saving ? 'Сохранение…' : (form.id ? 'Сохранить' : 'Провести продажу')}</Button><Button variant="outline" onClick={() => setModal(false)}>Отмена</Button></>}>
         {err && <div className="erp-form-err">{err}</div>}
-        <Field label="Клиент" required>
-          <Select value="" onChange={e => { const c = (clients || []).find(x => x.id === e.target.value); if (c) setForm(f => ({ ...f, clientName: c.name })); }}>
-            <option value="">— из клиентов или впишите ниже —</option>
-            {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </Select>
-          <Input value={form.clientName} onChange={e => setForm(f => ({ ...f, clientName: e.target.value }))} placeholder="ФИО / название" style={{ marginTop: 6 }} />
+        <Field label="ФИО / название" required>
+          <div style={{ position: 'relative' }}>
+            <Input value={form.clientName} onChange={e => { setForm(f => ({ ...f, clientName: e.target.value })); setClientOpen(true); }} onFocus={() => setClientOpen(true)} onBlur={() => setTimeout(() => setClientOpen(false), 150)} placeholder="Начните вводить — подскажет из клиентов и покупателей" />
+            {clientOpen && clientHits.length > 0 && (
+              <div className="cert-meter-dd">
+                {clientHits.map(c => (
+                  <div key={c.id} className="cert-meter-opt" onMouseDown={() => pickClient(c)}>
+                    <span>{c.kind === 'buyer' ? '🛒' : '🤝'} {c.name}</span>{c.phone && <span className="cert-meter-uses" style={{ background: '#f1f5f9', color: '#64748b' }}>{c.phone}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="erp-muted" style={{ fontSize: 11, marginTop: 4 }}>Нового имени нет в базе — оно добавится в справочник автоматически при проведении (тип — по чипу ниже).</div>
         </Field>
         <Field label="Тип клиента">
           <div className="erp-chips">{CLIENT_TYPES.map(([v, l]) => <button key={v} type="button" className={`erp-chip${form.clientType === v ? ' on' : ''}`} onClick={() => setClientType(v)}>{l}</button>)}</div>
@@ -273,9 +307,18 @@ export default function SalesPage() {
           <div style={{ textAlign: 'right', marginTop: 8, fontSize: 15 }}>Итого: <b>{fmt(formTotal)} ₸</b></div>
         </Field>
 
-        {/* Смешанная оплата — только при создании/клонировании */}
-        {!form.id && (
-          <div className="sale-pay">
+        {/* Режим оплаты + смешанная оплата — только при создании/клонировании */}
+        {!form.id && (<>
+          <div className="erp-chips" style={{ marginTop: 14 }}>
+            {PAY_MODES.map(([v, l]) => <button key={v} type="button" className={`erp-chip${form.payMode === v ? ' on' : ''}`} onClick={() => setPayMode(v)}>{l}</button>)}
+          </div>
+          {form.payMode === 'debt' ? (
+            <div className="sale-pay" style={{ marginTop: 8 }}>
+              <div className="sale-pay-h"><b>⏳ В долг</b><Badge tone="warn">Ожидает</Badge></div>
+              <div className="erp-muted" style={{ fontSize: 12 }}>Продажа проводится без оплат — статус «Ожидает». Склад спишется. Закрыть долг позже кнопкой «💵 Дооплата» в журнале.</div>
+            </div>
+          ) : (
+          <div className="sale-pay" style={{ marginTop: 8 }}>
             <div className="sale-pay-h">
               <b>💳 Оплата</b>
               {formStatus === 'Оплачено' ? <Badge tone="ok">Оплачено</Badge>
@@ -299,7 +342,8 @@ export default function SalesPage() {
             </div>
             <div className="erp-muted" style={{ fontSize: 11, marginTop: 6 }}>Счёт по умолчанию пуст. Всё одним счётом — одна строка на полную сумму; часть Каспи + часть наличкой — две строки. Недораспределённый остаток = долг (статус «Частично»/«Ожидает»), закрыть можно кнопкой «💵 Дооплата». Каждая строка = свой приход в Финансах (раздел «Продажа»).</div>
           </div>
-        )}
+          )}
+        </>)}
         {form.id && <div className="erp-muted" style={{ fontSize: 12, marginTop: 8 }}>💳 Оплаты правятся отдельно — кнопкой «💵 Дооплата» в журнале.</div>}
 
         <div className="erp-form-row" style={{ marginTop: 12 }}>
@@ -330,6 +374,24 @@ export default function SalesPage() {
       <Modal open={!!histSale} onClose={() => setHistSale(null)} title={`Продажа ${histSale?.saleNo || ''}`}
         footer={<Button variant="outline" onClick={() => setHistSale(null)}>Закрыть</Button>}>
         {histSale && <EntityHistory entityType="sale" entityId={histSale.id} />}
+      </Modal>
+
+      {/* История продаж клиента */}
+      <Modal open={!!clientHist} onClose={() => setClientHist(null)} title={`🧾 Продажи — ${clientHist || ''}`} width={620}
+        footer={<Button variant="outline" onClick={() => setClientHist(null)}>Закрыть</Button>}>
+        <div className="erp-muted" style={{ fontSize: 13, marginBottom: 8 }}>Всего: {histSales.length} · на {fmt(histSales.filter(s => !s.cancelledAt).reduce((a, s) => a + num(s.totalSum), 0))} ₸</div>
+        {histSales.length === 0 ? <EmptyRow>Продаж нет.</EmptyRow> : (
+          <table className="erp-table" style={{ fontSize: 12 }}>
+            <thead><tr><th>№</th><th>Дата</th><th>Товар</th><th style={{ textAlign: 'right' }}>Сумма</th><th>Оплата</th></tr></thead>
+            <tbody>{histSales.map(s => (
+              <tr key={s.id} style={s.cancelledAt ? { opacity: 0.5, textDecoration: 'line-through' } : undefined}>
+                <td className="erp-muted">{s.saleNo}</td><td className="erp-muted">{dmy(s.saleDate)}</td>
+                <td>{s.productName || '—'}</td><td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(s.totalSum || 0)} ₸</td>
+                <td>{s.cancelledAt ? <Badge tone="err">Отменена</Badge> : <Badge tone={s.payStatus === 'Оплачено' ? 'ok' : 'warn'}>{s.payStatus || 'Ожидает'}</Badge>}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        )}
       </Modal>
     </div>
   );

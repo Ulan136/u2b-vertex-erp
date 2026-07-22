@@ -336,6 +336,8 @@ export const clients = pgTable('clients', {
   id         : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
   name       : varchar('name', { length: 150 }).notNull(),
   phone      : varchar('phone', { length: 20 }),            // normalized to +7XXXXXXXXXX
+  // тип записи: client (клиент со скидкой) | buyer (покупатель, розница)
+  kind       : varchar('kind', { length: 10 }).notNull().default('client'),
   categoryId : uuid('category_id').references(() => clientCategories.id, { onDelete: 'set null' }),
   createdAt  : timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt  : timestamp('updated_at', { withTimezone: true }).defaultNow(),

@@ -3,6 +3,7 @@ import { salesRepo } from '@/server/repositories/sales.repo';
 import { financeRepo } from '@/server/repositories/finance.repo';
 import { productsService } from '@/server/services/products.service';
 import { financeService } from '@/server/services/finance.service';
+import { clientsService } from '@/server/services/clients.service';
 import { saleMutateSchema, salePaymentSchema, normalizeItems, aggregateItems, paymentsTotal, payStatusFor, financePostable, type SaleItem, type SalePaymentInput } from '@/server/dto/sales.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 import { z } from 'zod';
@@ -81,7 +82,7 @@ export const salesService = {
     const paid = paymentsTotal(payments);
     if (paid - agg.total > 0.005) throw badRequest('Сумма оплат больше итога продажи');
 
-    return db.transaction(async (tx) => {
+    const sale = await db.transaction(async (tx) => {
       const saleNo = data.saleNo || await salesRepo.nextSaleNo(tx);
       const status = payStatusFor(agg.total, paid);
       const sale = await salesRepo.create({
@@ -111,6 +112,11 @@ export const salesService = {
       if (names[0] && invType(names[0])) await salesRepo.update(sale.id, { invoiceType: invType(names[0]) }, tx);
       return sale;
     });
+    // Самообучение справочника покупателей: имя из продажи → запись (тип по чипу).
+    if (data.clientName && data.clientName.trim()) {
+      await clientsService.touch(data.clientName, null, data.clientType === 'client' ? 'client' : 'buyer');
+    }
+    return sale;
   },
 
   // Правка продажи (клиент/позиции/комментарий). Оплаты правятся отдельно —
