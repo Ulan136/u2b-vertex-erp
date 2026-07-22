@@ -4,7 +4,9 @@
 // Разделы сгруппированы в две цветовые зоны, как в старом интерфейсе:
 //   income — «Доходы» (emerald), ops — «Операции и учёт» (sky).
 export type NavZone = 'income' | 'ops';
-export type NavItem = { label: string; screenKey: string; href: string; legacy?: boolean; external?: boolean };
+// heading: подзаголовок-разделитель внутри секции (напр. источник поверки «САМИ»),
+// не кликается; href для него не нужен.
+export type NavItem = { label: string; screenKey: string; href?: string; legacy?: boolean; external?: boolean; heading?: boolean };
 export type NavSection = { title: string; icon: string; zone?: NavZone; items: NavItem[] };
 
 export const ZONE_LABELS: Record<NavZone, string> = { income: 'Доходы', ops: 'Операции и учёт' };
@@ -16,17 +18,32 @@ export const ERP_NAV: NavSection[] = [
   ] },
 
   // ── Зона «Доходы» (emerald) ──
+  // ПОВЕРКА: под каждым источником отдельные пункты Сертификат/Извещение
+  // (и Заявки у ТЭЦ/Выездной) — как в оригинальном сайдбаре.
   { title: 'Поверка', icon: '📋', zone: 'income', items: [
-    { label: 'САМИ', screenKey: 'poverka_sami', href: '/erp/certs?source=САМИ' },
-    { label: 'ВДК', screenKey: 'poverka_vdk', href: '/erp/certs?source=ВДК' },
-    { label: 'ТЭЦ', screenKey: 'poverka_tec', href: '/erp/certs?source=ТЭЦ' },
-    { label: 'Выездная', screenKey: 'poverka_field', href: '/erp/certs?source=Выездная' },
-    { label: 'Первичная', screenKey: 'poverka_primary', href: '/erp/certs?source=Первичная-КМ' },
-    { label: 'Астана', screenKey: 'poverka_astana', href: '/erp/certs?source=Астана' },
-  ] },
-  { title: 'Заявки', icon: '📥', zone: 'income', items: [
-    { label: 'Выездная поверка', screenKey: 'orders_field', href: '/erp/orders?source=field_check' },
-    { label: 'ТЭЦ', screenKey: 'orders_tec', href: '/erp/orders?source=tec' },
+    { label: 'САМИ', screenKey: 'poverka_sami', heading: true },
+    { label: 'Сертификат', screenKey: 'poverka_sami', href: '/erp/certs?source=САМИ&type=cert' },
+    { label: 'Извещение', screenKey: 'poverka_sami', href: '/erp/certs?source=САМИ&type=izv' },
+    { label: 'ВДК', screenKey: 'poverka_vdk', heading: true },
+    { label: 'Сертификат', screenKey: 'poverka_vdk', href: '/erp/certs?source=ВДК&type=cert' },
+    { label: 'Извещение', screenKey: 'poverka_vdk', href: '/erp/certs?source=ВДК&type=izv' },
+    { label: 'ТЭЦ', screenKey: 'poverka_tec', heading: true },
+    { label: 'Заявки', screenKey: 'orders_tec', href: '/erp/orders?source=tec' },
+    { label: 'Сертификат', screenKey: 'poverka_tec', href: '/erp/certs?source=ТЭЦ&type=cert' },
+    { label: 'Извещение', screenKey: 'poverka_tec', href: '/erp/certs?source=ТЭЦ&type=izv' },
+    { label: '🚗 Выездная поверка', screenKey: 'poverka_field', heading: true },
+    { label: 'Заявки', screenKey: 'orders_field', href: '/erp/orders?source=field_check' },
+    { label: 'Сертификат', screenKey: 'poverka_field', href: '/erp/certs?source=Выездная&type=cert' },
+    { label: 'Извещение', screenKey: 'poverka_field', href: '/erp/certs?source=Выездная&type=izv' },
+    { label: '🆕 Первичная · KAZMETER', screenKey: 'poverka_primary', heading: true },
+    { label: 'Сертификат', screenKey: 'poverka_primary', href: '/erp/certs?source=Первичная-КМ&type=cert' },
+    { label: 'Извещение', screenKey: 'poverka_primary', href: '/erp/certs?source=Первичная-КМ&type=izv' },
+    { label: 'Первичная · AQUA', screenKey: 'poverka_primary', heading: true },
+    { label: 'Сертификат', screenKey: 'poverka_primary', href: '/erp/certs?source=Первичная-АК&type=cert' },
+    { label: 'Извещение', screenKey: 'poverka_primary', href: '/erp/certs?source=Первичная-АК&type=izv' },
+    { label: 'Астана', screenKey: 'poverka_astana', heading: true },
+    { label: 'Сертификат', screenKey: 'poverka_astana', href: '/erp/certs?source=Астана&type=cert' },
+    { label: 'Извещение', screenKey: 'poverka_astana', href: '/erp/certs?source=Астана&type=izv' },
   ] },
   { title: 'Продажа', icon: '💰', zone: 'income', items: [
     { label: 'Журнал продаж', screenKey: 'sales', href: '/erp/sales' },

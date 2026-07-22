@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import type { NavSection } from '@/lib/erp-nav';
 import { ZONE_LABELS } from '@/lib/erp-nav';
 import { useApi } from '@/lib/api';
@@ -70,11 +70,24 @@ type ShellUser = { name: string; role: string; roleLabel: string };
 
 export default function ErpShell({ user, sections, children }: { user: ShellUser; sections: NavSection[]; children: React.ReactNode }) {
   const pathname = usePathname();
+  const search = useSearchParams();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [histOpen, setHistOpen] = React.useState(false);
 
+  // Активен, если совпадает путь и все query-параметры ссылки (source/type/section).
+  const itemActive = React.useCallback((href?: string) => {
+    if (!href) return false;
+    const [p, qs] = href.split('?');
+    if (p !== pathname) return false;
+    if (!qs) return search.toString() === '';
+    const q = new URLSearchParams(qs);
+    let ok = true;
+    q.forEach((v, k) => { if (search.get(k) !== v) ok = false; });
+    return ok;
+  }, [pathname, search]);
+
   // Заголовок страницы = активный пункт навигации (для не-legacy маршрутов).
-  const active = sections.flatMap(s => s.items).find(i => !i.legacy && i.href === pathname);
+  const active = sections.flatMap(s => s.items).find(i => !i.legacy && !i.heading && itemActive(i.href));
 
   return (
     <div className="erp-root">
@@ -100,7 +113,9 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
             <div className={`erp-nav-section${section.zone ? ' erp-zone-' + section.zone : ''}`}>
               <div className="erp-nav-title"><span>{section.icon}</span>{section.title}</div>
               {section.items.map((item, i) => {
-                const isActive = !item.legacy && !item.external && item.href === pathname;
+                if (item.heading) {
+                  return <div key={item.label + i} className="erp-nav-subhead">{item.label}</div>;
+                }
                 if (item.external) {
                   return (
                     <a key={item.label + i} href={item.href} className="erp-nav-item erp-nav-cab" onClick={() => setMobileOpen(false)}>
@@ -109,10 +124,11 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
                     </a>
                   );
                 }
+                const isActive = !item.legacy && itemActive(item.href);
                 return (
                   <Link
                     key={item.label + i}
-                    href={item.href}
+                    href={item.href ?? '#'}
                     className={`erp-nav-item${isActive ? ' active' : ''}`}
                     onClick={() => setMobileOpen(false)}
                   >

@@ -23,6 +23,10 @@
 .erp-nav-item { display: flex; align-items: center; gap: 6px; padding: 7px 16px 7px 34px; font-size: 13px; color: #cbd5e1; text-decoration: none; border-left: 3px solid transparent; }
 .erp-nav-item:hover { background: rgba(14,165,233,.12); color: #7dd3fc; }
 .erp-nav-item.active { color: #7dd3fc; background: rgba(14,165,233,.16); border-left-color: #0ea5e9; font-weight: 600; }
+/* подзаголовок-источник внутри секции (САМИ/ВДК/…) + отступ пунктов под ним */
+.erp-nav-subhead { padding: 8px 16px 2px 20px; font-size: 11px; font-weight: 700; color: #8a97a8; letter-spacing: .02em; }
+.erp-nav-subhead + .erp-nav-item, .erp-nav-subhead ~ .erp-nav-item { }
+.erp-nav-item { padding-left: 34px; }
 .erp-nav-legacy { margin-left: auto; color: #475569; font-size: 12px; }
 .erp-sidebar-foot { border-top: 1px solid rgba(255,255,255,.08); padding: 10px 16px; display: flex; align-items: center; gap: 8px; }
 .erp-user { flex: 1; min-width: 0; }

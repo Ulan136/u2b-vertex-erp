@@ -33,8 +33,13 @@ function CertsInner() {
   const sp = useSearchParams();
   const initial = sp.get('source');
   const [source, setSource] = React.useState(initial && SOURCES.includes(initial) ? initial : 'САМИ');
-  const [docType, setDocType] = React.useState<'cert' | 'izv'>('cert');
+  const [docType, setDocType] = React.useState<'cert' | 'izv'>(sp.get('type') === 'izv' ? 'izv' : 'cert');
   const [q, setQ] = React.useState('');
+  // Источник и тип ведёт меню (отдельные пункты Сертификат/Извещение под источником).
+  React.useEffect(() => {
+    const s = sp.get('source'); if (s && SOURCES.includes(s)) setSource(s);
+    const t = sp.get('type'); if (t === 'cert' || t === 'izv') setDocType(t);
+  }, [sp]);
   const { data: certs, error, isLoading, mutate } = useApi<Cert[]>(`/api/v2/certs?source=${encodeURIComponent(source)}&archived=false&type=${docType}`);
   const { data: products } = useApi<Product[]>('/api/v2/products');
   const { data: clients } = useApi<Client[]>('/api/v2/clients');
@@ -139,11 +144,8 @@ function CertsInner() {
       <PageTitle title={`Поверка — ${isCert ? 'сертификаты' : 'извещения'}`} sub={`Направление: ${source} · записей: ${list.length}`} action={<Button onClick={openNew}>+ {isCert ? 'Сертификат' : 'Извещение'}</Button>} />
 
       <Card className="erp-filters">
-        <div className="erp-chips">
-          <button className={`erp-chip${isCert ? ' on' : ''}`} onClick={() => setDocType('cert')}>📄 Сертификаты</button>
-          <button className={`erp-chip${!isCert ? ' on' : ''}`} onClick={() => setDocType('izv')}>📃 Извещения</button>
-        </div>
-        <div className="erp-chips">{SOURCES.map(s => <button key={s} className={`erp-chip${source === s ? ' on' : ''}`} onClick={() => setSource(s)}>{s}</button>)}</div>
+        <Badge tone="info">{source}</Badge>
+        <Badge tone={isCert ? 'ok' : 'warn'}>{isCert ? '📄 Сертификаты' : '📃 Извещения'}</Badge>
         <Input placeholder="🔍 ФИО, адрес, № счётчика" value={q} onChange={e => setQ(e.target.value)} />
       </Card>
 
