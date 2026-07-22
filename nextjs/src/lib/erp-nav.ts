@@ -7,7 +7,8 @@ export type NavZone = 'income' | 'ops';
 // heading: подзаголовок-разделитель внутри секции (напр. источник поверки «САМИ»),
 // не кликается; href для него не нужен.
 export type NavItem = { label: string; screenKey: string; href?: string; legacy?: boolean; external?: boolean; heading?: boolean };
-export type NavSection = { title: string; icon: string; zone?: NavZone; items: NavItem[] };
+// divider: под-раздел внутри зоны (напр. «Операционные», «Финансы и учёт») — как в оригинале.
+export type NavSection = { title: string; icon: string; zone?: NavZone; divider?: string; items: NavItem[] };
 
 export const ZONE_LABELS: Record<NavZone, string> = { income: 'Доходы', ops: 'Операции и учёт' };
 
@@ -58,23 +59,20 @@ export const ERP_NAV: NavSection[] = [
     { label: '🛠 Услуга', screenKey: 'other_ops', href: '/erp/invoices?section=other&kind=Услуга' },
   ] },
 
-  // ── Зона «Операции и учёт» (sky) ──
-  { title: 'Расходы', icon: '💸', zone: 'ops', items: [
+  // ── Зона «Операции и учёт» (sky) · под-раздел «Операционные» ──
+  { title: 'Расходы', icon: '💸', zone: 'ops', divider: 'Операционные', items: [
     { label: 'Журнал расходов', screenKey: 'expenses', href: '/erp/expenses' },
+    { label: 'Категории', screenKey: 'expenses', href: '/erp/expenses?tab=cats' },
+    { label: 'Аналитика', screenKey: 'expenses', href: '/erp/reports?kind=expenses' },
   ] },
   { title: 'Бухгалтерия', icon: '📒', zone: 'ops', items: [
     { label: 'Документы', screenKey: 'accounting', href: '/erp/documents' },
   ] },
   { title: 'Финансы', icon: '💳', zone: 'ops', items: [
     { label: 'Счета и операции', screenKey: 'finance', href: '/erp/finance' },
-    { label: 'Долги', screenKey: 'debts', href: '/erp/debts' },
   ] },
-  // СЧЕТА (поступления по разделам №1–№4) — зона учёта, как в оригинале.
-  { title: 'Счета', icon: '🧾', zone: 'ops', items: [
-    { label: '№1 📋 Поверка', screenKey: 'invoices', href: '/erp/invoices?section=poverka' },
-    { label: '№2 💰 Продажа', screenKey: 'invoices', href: '/erp/invoices?section=sale' },
-    { label: '№3 🏢 Филиалы', screenKey: 'invoices', href: '/erp/invoices?section=branch' },
-    { label: '№4 📄 Прочие', screenKey: 'invoices', href: '/erp/invoices?section=other' },
+  { title: 'Долги', icon: '💳', zone: 'ops', items: [
+    { label: 'Дебиторка / Кредиторка', screenKey: 'debts', href: '/erp/debts' },
   ] },
   { title: 'Задачи', icon: '✅', zone: 'ops', items: [
     { label: 'Задачи сотрудникам', screenKey: 'tasks', href: '/erp/tasks' },
@@ -87,19 +85,34 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Руководитель', screenKey: 'staff', href: '/erp/staff/directory' },
     { label: 'Зарплата и кадры', screenKey: 'staff', href: '/erp/staff' },
   ] },
-  { title: 'Данные', icon: '🗄', zone: 'ops', items: [
-    { label: 'Уведомления', screenKey: 'dashboard', href: '/erp/notifications' },
-    { label: 'База данных', screenKey: 'database', href: '/erp/database' },
-    { label: 'Отчёты', screenKey: 'reports', href: '/erp/reports' },
-    { label: 'Справочник', screenKey: 'handbook', href: '/erp/handbook' },
-    { label: 'Клиенты', screenKey: 'clients', href: '/erp/clients' },
+
+  // ── под-раздел «Финансы и учёт» ──
+  { title: 'Счета', icon: '🧾', zone: 'ops', divider: 'Финансы и учёт', items: [
+    { label: '№1 📋 Поверка', screenKey: 'invoices', href: '/erp/invoices?section=poverka' },
+    { label: '№2 💰 Продажа', screenKey: 'invoices', href: '/erp/invoices?section=sale' },
+    { label: '№3 🏢 Филиалы', screenKey: 'invoices', href: '/erp/invoices?section=branch' },
+    { label: '№4 📄 Прочие операции', screenKey: 'invoices', href: '/erp/invoices?section=other' },
   ] },
-  { title: 'Настройки', icon: '⚙️', zone: 'ops', items: [
+  { title: 'База данных', icon: '🗄', zone: 'ops', items: [
+    { label: 'База данных', screenKey: 'database', href: '/erp/database' },
+  ] },
+
+  // ── под-раздел «Аналитика» ──
+  { title: 'Отчёт', icon: '📊', zone: 'ops', divider: 'Аналитика', items: [
+    { label: 'Отчёты', screenKey: 'reports', href: '/erp/reports' },
+  ] },
+  { title: 'Справочник', icon: '📖', zone: 'ops', items: [
+    { label: 'Справочники', screenKey: 'handbook', href: '/erp/handbook' },
+  ] },
+
+  // ── под-раздел «Система» ──
+  { title: 'Настройка', icon: '⚙️', zone: 'ops', divider: 'Система', items: [
     { label: 'Настройки', screenKey: 'settings', href: '/erp/settings' },
     { label: 'Доступы', screenKey: 'settings', href: '/erp/access' },
     { label: 'Организация', screenKey: 'settings', href: '/erp/settings/org' },
     { label: 'Филиалы', screenKey: 'settings', href: '/erp/settings/branches' },
     { label: 'Пользователи', screenKey: 'settings', href: '/erp/settings/users' },
+    { label: 'Клиенты', screenKey: 'clients', href: '/erp/clients' },
     { label: '📱 Кабинет мастера', screenKey: 'settings', href: '/master', external: true },
     { label: '📱 Кабинет директора', screenKey: 'settings', href: '/director', external: true },
   ] },

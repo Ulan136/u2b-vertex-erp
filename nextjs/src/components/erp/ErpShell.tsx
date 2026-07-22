@@ -110,6 +110,7 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
                 <span>{ZONE_LABELS[section.zone!]}</span><span className="erp-zh-line" />
               </div>
             )}
+            {section.divider && <div className={`erp-nav-divider${section.zone ? ' erp-zone-' + section.zone : ''}`}>{section.divider}</div>}
             <div className={`erp-nav-section${section.zone ? ' erp-zone-' + section.zone : ''}`}>
               <div className="erp-nav-title"><span>{section.icon}</span>{section.title}</div>
               {section.items.map((item, i) => {
