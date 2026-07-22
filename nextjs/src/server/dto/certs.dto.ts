@@ -22,6 +22,7 @@ export const certUpsertSchema = z.object({
   sealType: z.string().nullish(),
   result: z.string().optional(),
   docType: z.string().optional(),
+  sentStatus: z.string().optional(),   // извещение: статус отправки
   operStatus: z.string().optional(),
   payStatus: z.string().optional(),
   invoiceType: z.string().optional(),

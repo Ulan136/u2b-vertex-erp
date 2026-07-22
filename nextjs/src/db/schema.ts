@@ -75,6 +75,7 @@ export const certificates = pgTable('certificates', {
   sealType      : varchar('seal_type', { length: 40 }),
   result        : varchar('result', { length: 20 }).default('Годен'),
   docType       : varchar('doc_type', { length: 10 }).default('cert'),   // 'cert' | 'izv'
+  sentStatus    : varchar('sent_status', { length: 20 }).default('Не отправлено'),   // извещение: Отправлено | Не отправлено | Запланировано
   operStatus    : operStatusEnum('oper_status').default('В работе'),
   payStatus     : payStatusEnum('pay_status').default('В ожидании'),
   invoiceType   : invoiceTypeEnum('invoice_type').default('Каспи'),
