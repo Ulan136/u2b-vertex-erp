@@ -6,11 +6,13 @@ import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow }
 import EntityHistory from '@/components/erp/EntityHistory';
 
 type SaleItem = { productId: string; productName?: string | null; skuCode?: string | null; qty: number; price: number; sum: number };
-type Sale = { id: string; saleNo?: string | null; saleDate?: string | null; clientName?: string | null; clientType?: string | null; productName?: string | null; skuCode?: string | null; qty?: number; price?: string | number; totalSum?: string | number; payStatus?: string | null; invoiceType?: string | null; items?: SaleItem[] | null; comment?: string | null; cancelledAt?: string | null; createdByName?: string | null };
+type SalePay = { accountId: string; accountName?: string | null; amount: number };
+type Sale = { id: string; saleNo?: string | null; saleDate?: string | null; clientName?: string | null; clientType?: string | null; productName?: string | null; skuCode?: string | null; qty?: number; price?: string | number; totalSum?: string | number; payStatus?: string | null; paidSum?: number; payments?: SalePay[]; invoiceType?: string | null; items?: SaleItem[] | null; comment?: string | null; cancelledAt?: string | null; createdByName?: string | null };
 type Client = { id: string; name: string };
 type Product = { id: string; skuCode: string; name: string; price: string | number; priceDiscount?: string | number | null; currentStock: number };
 type Acct = { id: string; name: string; section?: string | null; icon?: string | null };
 type FormItem = { productId: string; productName: string; skuCode: string; qty: string; price: string };
+type FormPay = { accountId: string; amount: string };
 
 const num = (v: unknown) => Number(v) || 0;
 const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU');
@@ -19,13 +21,20 @@ const iso = (d?: string | null) => (d ? String(d).slice(0, 10) : '');
 const today = () => new Date().toISOString().slice(0, 10);
 const CLIENT_TYPES: Array<[string, string]> = [['retail', '🛒 Покупатель'], ['client', '🤝 Клиент (скидка)']];
 const clientTypeLabel = (t?: string | null) => (t === 'client' ? 'Клиент' : 'Покупатель');
+// Статус оплаты (как на сервере): сумма оплат = итогу → Оплачено; часть → Частично; 0 → Ожидает.
+function payState(total: number, paid: number): 'Оплачено' | 'Частично' | 'Ожидает' {
+  if (paid <= 0.005) return 'Ожидает';
+  if (paid + 0.005 >= total) return 'Оплачено';
+  return 'Частично';
+}
 function priceFor(p: Product | undefined, ct: string): number {
   if (!p) return 0;
   if (ct === 'client') { const d = num(p.priceDiscount); return d > 0 ? d : num(p.price); }
   return num(p.price);
 }
 const emptyItem = (): FormItem => ({ productId: '', productName: '', skuCode: '', qty: '1', price: '' });
-const emptyForm = () => ({ id: '', clientName: '', clientType: 'retail', payStatus: 'Оплачено', accountId: '', saleDate: today(), comment: '', items: [emptyItem()] });
+const emptyPay = (): FormPay => ({ accountId: '', amount: '' });
+const emptyForm = () => ({ id: '', cloneFrom: '', clientName: '', clientType: 'retail', saleDate: today(), comment: '', items: [emptyItem()], payments: [emptyPay()] });
 
 export default function SalesPage() {
   const { data: sales, error, isLoading, mutate } = useApi<Sale[]>('/api/v2/sales');
@@ -35,23 +44,26 @@ export default function SalesPage() {
   const { data: session } = useApi<{ user?: { role?: string } }>('/api/auth/session');
   const canCancel = ['admin', 'accountant'].includes(session?.user?.role || '');
   const saleAccounts = (fin?.accounts || []).filter(a => (a.section || '') === 'sale');
-  const acctName = (id: string) => saleAccounts.find(a => a.id === id)?.name || null;
 
   const [modal, setModal] = React.useState(false);
   const [form, setForm] = React.useState(emptyForm());
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState('');
   const [histSale, setHistSale] = React.useState<Sale | null>(null);
-  const [pay, setPay] = React.useState<{ open: boolean; sale: Sale | null; accountId: string }>({ open: false, sale: null, accountId: '' });
+  const [topup, setTopup] = React.useState<{ open: boolean; sale: Sale | null; rows: FormPay[]; err: string; saving: boolean }>({ open: false, sale: null, rows: [emptyPay()], err: '', saving: false });
 
   const list = sales || [];
   const active = list.filter(x => !x.cancelledAt);
   const total = active.reduce((s, x) => s + num(x.totalSum), 0);
-  const paidSum = active.filter(x => x.payStatus === 'Оплачено').reduce((s, x) => s + num(x.totalSum), 0);
+  const paidSum = active.reduce((s, x) => s + num(x.paidSum), 0);
   const pendingSum = total - paidSum;
 
   // ── форма позиций ──
   const formTotal = form.items.reduce((s, it) => s + num(it.qty) * num(it.price), 0);
+  const allocated = form.payments.reduce((s, p) => s + num(p.amount), 0);
+  const remaining = Math.max(0, Math.round((formTotal - allocated) * 100) / 100);
+  const formStatus = payState(formTotal, allocated);
+
   function setItemProduct(i: number, productId: string) {
     const p = (products || []).find(x => x.id === productId);
     setForm(f => ({ ...f, items: f.items.map((it, j) => j === i ? { ...it, productId, productName: p?.name || '', skuCode: p?.skuCode || '', price: p ? String(priceFor(p, f.clientType)) : it.price } : it) }));
@@ -62,13 +74,29 @@ export default function SalesPage() {
   function setClientType(ct: string) {
     setForm(f => ({ ...f, clientType: ct, items: f.items.map(it => { const p = (products || []).find(x => x.id === it.productId); return p ? { ...it, price: String(priceFor(p, ct)) } : it; }) }));
   }
+  // ── строки оплаты ──
+  function setPayAccount(i: number, accountId: string) {
+    setForm(f => {
+      const others = f.payments.reduce((s, p, j) => s + (j === i ? 0 : num(p.amount)), 0);
+      const rem = Math.max(0, Math.round((f.items.reduce((s, it) => s + num(it.qty) * num(it.price), 0) - others) * 100) / 100);
+      return { ...f, payments: f.payments.map((p, j) => j === i ? { ...p, accountId, amount: p.amount || (rem ? String(rem) : '') } : p) };
+    });
+  }
+  const setPayAmount = (i: number, v: string) => setForm(f => ({ ...f, payments: f.payments.map((p, j) => j === i ? { ...p, amount: v } : p) }));
+  const addPay = () => setForm(f => ({ ...f, payments: [...f.payments, emptyPay()] }));
+  const removePay = (i: number) => setForm(f => ({ ...f, payments: f.payments.length > 1 ? f.payments.filter((_, j) => j !== i) : [emptyPay()] }));
 
-  function openNew() { setForm({ ...emptyForm(), accountId: saleAccounts[0]?.id || '' }); setErr(''); setModal(true); }
+  const itemsToForm = (s: Sale): FormItem[] => (s.items && s.items.length)
+    ? s.items.map(i => ({ productId: i.productId, productName: i.productName || '', skuCode: i.skuCode || '', qty: String(i.qty), price: String(i.price) }))
+    : [emptyItem()];
+
+  function openNew() { setForm(emptyForm()); setErr(''); setModal(true); }
+  function openClone(s: Sale) {
+    setForm({ id: '', cloneFrom: `${s.saleNo || ''} · ${s.clientName || ''}`, clientName: s.clientName || '', clientType: s.clientType || 'retail', saleDate: today(), comment: s.comment || '', items: itemsToForm(s), payments: [emptyPay()] });
+    setErr(''); setModal(true);
+  }
   function openEdit(s: Sale) {
-    const its: FormItem[] = (s.items && s.items.length)
-      ? s.items.map(i => ({ productId: i.productId, productName: i.productName || '', skuCode: i.skuCode || '', qty: String(i.qty), price: String(i.price) }))
-      : [emptyItem()];
-    setForm({ id: s.id, clientName: s.clientName || '', clientType: s.clientType || 'retail', payStatus: s.payStatus || 'В ожидании', accountId: '', saleDate: iso(s.saleDate) || today(), comment: s.comment || '', items: its });
+    setForm({ id: s.id, cloneFrom: '', clientName: s.clientName || '', clientType: s.clientType || 'retail', saleDate: iso(s.saleDate) || today(), comment: s.comment || '', items: itemsToForm(s), payments: [emptyPay()] });
     setErr(''); setModal(true);
   }
 
@@ -76,45 +104,54 @@ export default function SalesPage() {
     if (!form.clientName.trim()) { setErr('Укажите клиента'); return; }
     const items = form.items.filter(it => it.productId && num(it.qty) > 0).map(it => ({ productId: it.productId, productName: it.productName, skuCode: it.skuCode, qty: num(it.qty), price: num(it.price) }));
     if (!items.length) { setErr('Добавьте хотя бы одну позицию со складом'); return; }
-    if (form.payStatus === 'Оплачено' && !form.id && !form.accountId) { setErr('Выберите счёт зачисления'); return; }
+    const payments = form.payments.filter(p => p.accountId && num(p.amount) > 0).map(p => ({ accountId: p.accountId, amount: num(p.amount) }));
+    if (allocated - formTotal > 0.005) { setErr('Распределено больше итога — уменьшите оплату'); return; }
     setSaving(true); setErr('');
-    const body: Record<string, unknown> = { clientName: form.clientName.trim(), clientType: form.clientType, items, payStatus: form.payStatus, saleDate: form.saleDate || null, comment: form.comment || null };
-    if (form.payStatus === 'Оплачено' && form.accountId) { body.accountId = form.accountId; body.invoiceType = acctName(form.accountId); }
+    const body: Record<string, unknown> = { clientName: form.clientName.trim(), clientType: form.clientType, items, saleDate: form.saleDate || null, comment: form.comment || null };
+    if (!form.id) body.payments = payments;   // оплаты задаются только при создании; правка — через «Дооплату»
     try {
       if (form.id) await apiSend(`/api/v2/sales/${form.id}`, 'PATCH', body);
       else await apiSend('/api/v2/sales', 'POST', body);
       setModal(false); await mutate();
-      toast(form.id ? '✅ Продажа обновлена' : (form.payStatus === 'Оплачено' ? '✅ Продажа: приход в финансы + списан склад' : '✅ Продажа записана'));
+      toast(form.id ? '✅ Продажа обновлена' : (payments.length ? '✅ Продажа проведена: приходы в финансы + списан склад' : '✅ Продажа записана (ожидает оплаты)'));
     } catch (e) { setErr((e as Error).message); } finally { setSaving(false); }
   }
 
-  // ── инлайн-переключение оплаты ──
-  function openPay(s: Sale) { setPay({ open: true, sale: s, accountId: saleAccounts[0]?.id || '' }); }
-  async function confirmPay() {
-    if (!pay.sale) return;
-    if (!pay.accountId) { toast('⚠️ Выберите счёт'); return; }
+  // ── дооплата ──
+  function openTopup(s: Sale) {
+    const rem = Math.max(0, num(s.totalSum) - num(s.paidSum));
+    setTopup({ open: true, sale: s, rows: [{ accountId: '', amount: rem ? String(rem) : '' }], err: '', saving: false });
+  }
+  const topupTotal = topup.rows.reduce((s, p) => s + num(p.amount), 0);
+  const topupRemaining = topup.sale ? Math.max(0, num(topup.sale.totalSum) - num(topup.sale.paidSum)) : 0;
+  function setTopupAccount(i: number, accountId: string) {
+    setTopup(t => { const others = t.rows.reduce((s, p, j) => s + (j === i ? 0 : num(p.amount)), 0); const rem = Math.max(0, topupRemaining - others); return { ...t, rows: t.rows.map((p, j) => j === i ? { ...p, accountId, amount: p.amount || (rem ? String(rem) : '') } : p) }; });
+  }
+  async function confirmTopup() {
+    if (!topup.sale) return;
+    const rows = topup.rows.filter(p => p.accountId && num(p.amount) > 0).map(p => ({ accountId: p.accountId, amount: num(p.amount) }));
+    if (!rows.length) { setTopup(t => ({ ...t, err: 'Выберите счёт и сумму' })); return; }
+    if (topupTotal - topupRemaining > 0.005) { setTopup(t => ({ ...t, err: `Больше остатка нельзя: осталось ${fmt(topupRemaining)} ₸` })); return; }
+    setTopup(t => ({ ...t, saving: true, err: '' }));
     try {
-      await apiSend(`/api/v2/sales/${pay.sale.id}`, 'PATCH', { payStatus: 'Оплачено', accountId: pay.accountId, invoiceType: acctName(pay.accountId) });
-      setPay({ open: false, sale: null, accountId: '' }); await mutate(); toast('✓ Отмечено оплачено — приход в финансы');
-    } catch (e) { toast('⚠️ ' + (e as Error).message); }
+      await apiSend(`/api/v2/sales/${topup.sale.id}/payments`, 'POST', { payments: rows });
+      setTopup({ open: false, sale: null, rows: [emptyPay()], err: '', saving: false }); await mutate(); toast('💵 Дооплата проведена: приход(ы) в финансы');
+    } catch (e) { setTopup(t => ({ ...t, err: (e as Error).message, saving: false })); }
   }
-  async function markUnpaid(s: Sale) {
-    if (!confirm(`Снять отметку оплаты с ${s.saleNo}?\nПриход в финансах будет сторнирован.`)) return;
-    try { await apiSend(`/api/v2/sales/${s.id}`, 'PATCH', { payStatus: 'В ожидании' }); await mutate(); toast('↩ Оплата снята: приход сторнирован'); }
-    catch (e) { toast('⚠️ ' + (e as Error).message); }
-  }
+
   async function cancelSale(s: Sale) {
-    if (!confirm(`Отменить продажу ${s.saleNo}?\n\nПриход сторнируется, остаток вернётся на склад. Продажа останется в журнале как «Отменена».`)) return;
-    try { await apiSend(`/api/v2/sales/${s.id}/cancel`, 'POST'); await mutate(); toast('↩️ Продажа отменена: сторно + возврат склада'); }
+    if (!confirm(`Отменить продажу ${s.saleNo}?\n\nВсе её оплаты сторнируются по своим счетам, остаток вернётся на склад. Продажа останется в журнале как «Отменена».`)) return;
+    try { await apiSend(`/api/v2/sales/${s.id}/cancel`, 'POST'); await mutate(); toast('↩️ Продажа отменена: сторно оплат + возврат склада'); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
 
   // ── экспорт ──
+  const accSummary = (s: Sale) => Array.from(new Set((s.payments || []).map(p => p.accountName).filter(Boolean))).join(' + ');
   async function exportWord() {
-    const rows = active.map(s => [s.saleNo || '', dmy(s.saleDate), s.clientName || '', clientTypeLabel(s.clientType), s.productName || '', fmt(s.qty || 0), fmt(s.totalSum || 0), s.payStatus === 'Оплачено' ? 'Оплачено' : 'Ожидает', s.invoiceType || '']);
+    const rows = active.map(s => [s.saleNo || '', dmy(s.saleDate), s.clientName || '', clientTypeLabel(s.clientType), s.productName || '', fmt(s.qty || 0), fmt(s.totalSum || 0), s.payStatus || 'Ожидает', accSummary(s)]);
     const spec = {
       titleLines: ['Журнал продаж'], subtitle: `Продаж: ${active.length} · на ${fmt(total)} ₸`, orientation: 'landscape',
-      columns: [{ header: '№', width: 8 }, { header: 'Дата', width: 10 }, { header: 'Клиент', width: 20, align: 'left' }, { header: 'Тип', width: 10 }, { header: 'Товар', width: 22, align: 'left' }, { header: 'Кол-во', width: 8, align: 'right' }, { header: 'Сумма', width: 12, align: 'right' }, { header: 'Оплата', width: 10 }, { header: 'Счёт', width: 10 }],
+      columns: [{ header: '№', width: 8 }, { header: 'Дата', width: 10 }, { header: 'Клиент', width: 20, align: 'left' }, { header: 'Тип', width: 10 }, { header: 'Товар', width: 22, align: 'left' }, { header: 'Кол-во', width: 8, align: 'right' }, { header: 'Сумма', width: 12, align: 'right' }, { header: 'Оплата', width: 10 }, { header: 'Счёт', width: 12 }],
       rows, totalRow: ['', '', '', '', 'ИТОГО', '', fmt(total), '', ''], filename: 'Журнал_продаж.docx',
     };
     try {
@@ -125,10 +162,18 @@ export default function SalesPage() {
     } catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
   function printJournal() {
-    const rows = active.map(s => `<tr><td>${s.saleNo || ''}</td><td>${dmy(s.saleDate)}</td><td style="text-align:left">${s.clientName || ''}</td><td>${clientTypeLabel(s.clientType)}</td><td style="text-align:left">${s.productName || ''}</td><td>${fmt(s.qty || 0)}</td><td style="text-align:right">${fmt(s.totalSum || 0)} ₸</td><td>${s.payStatus === 'Оплачено' ? 'Оплачено' : 'Ожидает'}</td></tr>`).join('');
+    const rows = active.map(s => `<tr><td>${s.saleNo || ''}</td><td>${dmy(s.saleDate)}</td><td style="text-align:left">${s.clientName || ''}</td><td>${clientTypeLabel(s.clientType)}</td><td style="text-align:left">${s.productName || ''}</td><td>${fmt(s.qty || 0)}</td><td style="text-align:right">${fmt(s.totalSum || 0)} ₸</td><td>${s.payStatus || 'Ожидает'}</td></tr>`).join('');
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Журнал продаж</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:'Times New Roman',serif;font-size:12px}h2{text-align:center;margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:8px}td,th{border:1px solid #000;padding:4px;text-align:center}</style></head><body><h2>Журнал продаж</h2><div style="text-align:center;margin-bottom:6px">Продаж: ${active.length} · на ${fmt(total)} ₸</div><table><thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Тип</th><th>Товар</th><th>Кол-во</th><th>Сумма</th><th>Оплата</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`;
     const b = new Blob([html], { type: 'text/html' }); const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(b), target: '_blank' }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
+
+  const statusBadge = (s: Sale) => {
+    if (s.cancelledAt) return <Badge tone="err">✕ Отменена</Badge>;
+    const st = s.payStatus || 'Ожидает';
+    if (st === 'Оплачено') return <Badge tone="ok">✓ Оплачено</Badge>;
+    if (st === 'Частично') return <span><Badge tone="warn">◐ Частично</Badge> <span className="erp-muted" style={{ fontSize: 11 }}>{fmt(s.paidSum || 0)} из {fmt(s.totalSum || 0)}</span></span>;
+    return <Badge tone="warn">⏳ Ожидает</Badge>;
+  };
 
   return (
     <div>
@@ -154,7 +199,8 @@ export default function SalesPage() {
               <tbody>
                 {list.map(s => {
                   const cancelled = !!s.cancelledAt;
-                  const paidS = s.payStatus === 'Оплачено';
+                  const st = s.payStatus || 'Ожидает';
+                  const canTopup = !cancelled && (st === 'Ожидает' || st === 'Частично');
                   return (
                     <tr key={s.id} style={cancelled ? { opacity: 0.55 } : undefined}>
                       <td className="erp-muted" style={{ fontSize: 12 }}>{s.saleNo}</td>
@@ -164,13 +210,12 @@ export default function SalesPage() {
                       <td style={cancelled ? { textDecoration: 'line-through' } : undefined}>{s.productName || '—'} {s.skuCode && <span className="erp-muted" style={{ fontSize: 11 }}>{s.skuCode}</span>}</td>
                       <td style={{ textAlign: 'right' }}>{fmt(s.qty || 0)}</td>
                       <td style={{ textAlign: 'right', fontWeight: 700, ...(cancelled ? { textDecoration: 'line-through' } : {}) }}>{fmt(s.totalSum || 0)} ₸</td>
-                      <td>{cancelled ? <Badge tone="err">✕ Отменена</Badge> : <Badge tone={paidS ? 'ok' : 'warn'}>{paidS ? '✓ Оплачено' : '⏳ Ожидает'}</Badge>}</td>
-                      <td className="erp-muted" style={{ fontSize: 12 }}>{s.invoiceType || '—'}</td>
+                      <td>{statusBadge(s)}</td>
+                      <td className="erp-muted" style={{ fontSize: 12 }}>{accSummary(s) || '—'}</td>
                       <td className="erp-muted" style={{ fontSize: 12 }}>{s.createdByName || '—'}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        {!cancelled && (paidS
-                          ? <button className="erp-icon-btn" title="Снять оплату (сторно)" onClick={() => markUnpaid(s)}>↩</button>
-                          : <button className="erp-icon-btn" title="Отметить оплаченной" style={{ color: '#16a34a' }} onClick={() => openPay(s)}>✓</button>)}
+                        {canTopup && <button className="erp-icon-btn" title="Дооплата" style={{ color: '#16a34a' }} onClick={() => openTopup(s)}>💵</button>}
+                        <button className="erp-icon-btn" title="Клонировать" onClick={() => openClone(s)}>⧉</button>
                         {!cancelled && <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(s)}>✏️</button>}
                         <button className="erp-icon-btn" title="История" onClick={() => setHistSale(s)}>🕘</button>
                         {!cancelled && canCancel && <button className="erp-icon-btn" title="Отменить продажу" onClick={() => cancelSale(s)}>↩️</button>}
@@ -183,8 +228,9 @@ export default function SalesPage() {
           )}
       </Card>
 
-      {/* ── Модалка продажи (мультипозиция) ── */}
-      <Modal open={modal} onClose={() => setModal(false)} title={form.id ? '✏️ Продажа' : '➕ Новая продажа'} width={680}
+      {/* ── Модалка продажи (мультипозиция + смешанная оплата) ── */}
+      <Modal open={modal} onClose={() => setModal(false)}
+        title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>{form.id ? '✏️ Продажа' : '➕ Новая продажа'}{form.cloneFrom && <span className="sale-clone-badge">⧉ на основе {form.cloneFrom}</span>}</span>} width={700}
         footer={<><Button onClick={save} disabled={saving}>{saving ? 'Сохранение…' : (form.id ? 'Сохранить' : 'Провести продажу')}</Button><Button variant="outline" onClick={() => setModal(false)}>Отмена</Button></>}>
         {err && <div className="erp-form-err">{err}</div>}
         <Field label="Клиент" required>
@@ -227,32 +273,58 @@ export default function SalesPage() {
           <div style={{ textAlign: 'right', marginTop: 8, fontSize: 15 }}>Итого: <b>{fmt(formTotal)} ₸</b></div>
         </Field>
 
-        <div className="erp-form-row">
-          <Field label="Дата"><Input type="date" value={form.saleDate} onChange={e => setForm(f => ({ ...f, saleDate: e.target.value }))} /></Field>
-          <Field label="Оплата"><Select value={form.payStatus} onChange={e => setForm(f => ({ ...f, payStatus: e.target.value }))}><option>Оплачено</option><option>В ожидании</option></Select></Field>
-        </div>
-        {form.payStatus === 'Оплачено' && (
-          <Field label="Счёт зачисления (раздел «Продажа»)">
-            <Select value={form.accountId} onChange={e => setForm(f => ({ ...f, accountId: e.target.value }))}>
-              <option value="">{form.id ? '— оставить прежний счёт —' : '— выберите счёт —'}</option>
-              {saleAccounts.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
-            </Select>
-            <div className="erp-muted" style={{ fontSize: 11, marginTop: 4 }}>При «Оплачено» создаётся приход в Финансах и списывается остаток со склада.</div>
-          </Field>
+        {/* Смешанная оплата — только при создании/клонировании */}
+        {!form.id && (
+          <div className="sale-pay">
+            <div className="sale-pay-h">
+              <b>💳 Оплата</b>
+              {formStatus === 'Оплачено' ? <Badge tone="ok">Оплачено</Badge>
+                : formStatus === 'Частично' ? <Badge tone="warn">Частично · {fmt(allocated)} из {fmt(formTotal)}</Badge>
+                : <Badge tone="warn">Ожидает</Badge>}
+            </div>
+            {form.payments.map((p, i) => (
+              <div className="sale-pay-row" key={i}>
+                <Select value={p.accountId} onChange={e => setPayAccount(i, e.target.value)}>
+                  <option value="">— выберите счёт —</option>
+                  {saleAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
+                </Select>
+                <Input type="number" min={0} value={p.amount} onChange={e => setPayAmount(i, e.target.value)} placeholder="сумма" style={{ textAlign: 'right' }} />
+                <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => removePay(i)} title="Убрать">✕</button>
+              </div>
+            ))}
+            <Button variant="outline" onClick={addPay} style={{ fontSize: 12 }}>+ Добавить счёт</Button>
+            <div className="sale-pay-state">
+              <span>Распределено: <b style={{ color: '#16a34a' }}>{fmt(allocated)}</b></span>
+              <span>Осталось: <b style={{ color: remaining > 0 ? '#b45309' : '#16a34a' }}>{fmt(remaining)} ₸{remaining > 0 ? ` — будет «${formStatus}»` : ''}</b></span>
+            </div>
+            <div className="erp-muted" style={{ fontSize: 11, marginTop: 6 }}>Счёт по умолчанию пуст. Всё одним счётом — одна строка на полную сумму; часть Каспи + часть наличкой — две строки. Недораспределённый остаток = долг (статус «Частично»/«Ожидает»), закрыть можно кнопкой «💵 Дооплата». Каждая строка = свой приход в Финансах (раздел «Продажа»).</div>
+          </div>
         )}
-        <Field label="Комментарий"><Input value={form.comment} onChange={e => setForm(f => ({ ...f, comment: e.target.value }))} /></Field>
+        {form.id && <div className="erp-muted" style={{ fontSize: 12, marginTop: 8 }}>💳 Оплаты правятся отдельно — кнопкой «💵 Дооплата» в журнале.</div>}
+
+        <div className="erp-form-row" style={{ marginTop: 12 }}>
+          <Field label="Дата"><Input type="date" value={form.saleDate} onChange={e => setForm(f => ({ ...f, saleDate: e.target.value }))} /></Field>
+          <Field label="Комментарий"><Input value={form.comment} onChange={e => setForm(f => ({ ...f, comment: e.target.value }))} placeholder="необязательно" /></Field>
+        </div>
       </Modal>
 
-      {/* ── Инлайн-оплата: выбор счёта ── */}
-      <Modal open={pay.open} onClose={() => setPay({ open: false, sale: null, accountId: '' })} title={`✓ Оплата — ${pay.sale?.saleNo || ''}`}
-        footer={<><Button onClick={confirmPay}>Провести приход</Button><Button variant="outline" onClick={() => setPay({ open: false, sale: null, accountId: '' })}>Отмена</Button></>}>
-        <Field label="Счёт зачисления" required>
-          <Select value={pay.accountId} onChange={e => setPay(p => ({ ...p, accountId: e.target.value }))}>
-            <option value="">— выберите счёт —</option>
-            {saleAccounts.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}
-          </Select>
-        </Field>
-        <div className="erp-muted" style={{ fontSize: 12 }}>Сумма {fmt(pay.sale?.totalSum || 0)} ₸ поступит приходом в Финансы (раздел «Продажа»).</div>
+      {/* ── Дооплата ── */}
+      <Modal open={topup.open} onClose={() => setTopup({ open: false, sale: null, rows: [emptyPay()], err: '', saving: false })} title={`💵 Дооплата — ${topup.sale?.saleNo || ''}`} width={520}
+        footer={<><Button onClick={confirmTopup} disabled={topup.saving}>{topup.saving ? 'Проведение…' : 'Провести дооплату'}</Button><Button variant="outline" onClick={() => setTopup({ open: false, sale: null, rows: [emptyPay()], err: '', saving: false })}>Отмена</Button></>}>
+        {topup.err && <div className="erp-form-err">{topup.err}</div>}
+        <div className="erp-muted" style={{ fontSize: 13, marginBottom: 8 }}>Итого {fmt(topup.sale?.totalSum || 0)} ₸ · оплачено {fmt(topup.sale?.paidSum || 0)} ₸ · <b>остаток {fmt(topupRemaining)} ₸</b></div>
+        {topup.rows.map((p, i) => (
+          <div className="sale-pay-row" key={i}>
+            <Select value={p.accountId} onChange={e => setTopupAccount(i, e.target.value)}>
+              <option value="">— выберите счёт —</option>
+              {saleAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
+            </Select>
+            <Input type="number" min={0} value={p.amount} onChange={e => setTopup(t => ({ ...t, rows: t.rows.map((r, j) => j === i ? { ...r, amount: e.target.value } : r) }))} placeholder="сумма" style={{ textAlign: 'right' }} />
+            <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => setTopup(t => ({ ...t, rows: t.rows.length > 1 ? t.rows.filter((_, j) => j !== i) : [emptyPay()] }))} title="Убрать">✕</button>
+          </div>
+        ))}
+        <Button variant="outline" onClick={() => setTopup(t => ({ ...t, rows: [...t.rows, emptyPay()] }))} style={{ fontSize: 12 }}>+ Добавить счёт</Button>
+        <div className="sale-pay-state"><span>К доплате: <b style={{ color: '#16a34a' }}>{fmt(topupTotal)}</b></span><span>Останется: <b>{fmt(Math.max(0, topupRemaining - topupTotal))} ₸</b></span></div>
       </Modal>
 
       <Modal open={!!histSale} onClose={() => setHistSale(null)} title={`Продажа ${histSale?.saleNo || ''}`}

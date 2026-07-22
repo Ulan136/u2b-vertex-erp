@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeItems, aggregateItems, financePostable, saleOutMovements, saleReturnMovements } from './sales.dto';
+import { normalizeItems, aggregateItems, financePostable, saleOutMovements, saleReturnMovements, paymentsTotal, payStatusFor, remainingToPay } from './sales.dto';
 import { stockAfter, canApplyStock, STOCK_SIGN } from './products.dto';
 import { balanceDeltas } from './finance.dto';
 
@@ -86,4 +86,55 @@ test('д) продажа с 2 разными товарами в одной пр
   assert.equal(total, 2 * 10000 + 3 * 6000);   // 38000
   assert.equal(bal[ACC], 38000);
   assert.equal(saleOutMovements(normalizeItems({ items })).length, 2);   // два списания
+});
+
+// ── Смешанная оплата ─────────────────────────────────────────
+const KASPI = 'acc-kaspi', CASH = 'acc-cash';
+// Провести смешанную оплату: каждая строка → свой приход на свой счёт.
+function postPayments(bal: Record<string, number>, payments: Array<{ accountId: string; amount: number }>) {
+  for (const p of payments) applyFinance(bal, 'Приход', p.amount, p.accountId);
+}
+
+test('статус оплаты: полная → Оплачено, часть → Частично, ноль → Ожидает', () => {
+  assert.equal(payStatusFor(53000, 53000), 'Оплачено');
+  assert.equal(payStatusFor(53000, 40000), 'Частично');
+  assert.equal(payStatusFor(53000, 0), 'Ожидает');
+  assert.equal(paymentsTotal([{ amount: 30000 }, { amount: 10000 }]), 40000);
+  assert.equal(remainingToPay(53000, 40000), 13000);
+});
+
+test('смешанная оплата 2 счетами → 2 прихода на свои счета, статус Оплачено', () => {
+  const bal = { [KASPI]: 0, [CASH]: 0 };
+  const total = 53000;
+  const payments = [{ accountId: KASPI, amount: 45000 }, { accountId: CASH, amount: 8000 }];
+  postPayments(bal, payments);
+  assert.equal(bal[KASPI], 45000);          // приход на Каспи
+  assert.equal(bal[CASH], 8000);            // приход на Наличку
+  assert.equal(paymentsTotal(payments), total);
+  assert.equal(payStatusFor(total, paymentsTotal(payments)), 'Оплачено');
+});
+
+test('частичная оплата → «Частично», дооплата закрывает в «Оплачено»', () => {
+  const bal = { [KASPI]: 0, [CASH]: 0 };
+  const total = 53000;
+  const first = [{ accountId: KASPI, amount: 40000 }];
+  postPayments(bal, first);
+  assert.equal(payStatusFor(total, paymentsTotal(first)), 'Частично');
+  assert.equal(remainingToPay(total, paymentsTotal(first)), 13000);
+  // дооплата остатка второй строкой
+  const topup = [{ accountId: CASH, amount: 13000 }];
+  postPayments(bal, topup);
+  const paid = paymentsTotal([...first, ...topup]);
+  assert.equal(paid, total);
+  assert.equal(payStatusFor(total, paid), 'Оплачено');
+  assert.equal(bal[KASPI], 40000); assert.equal(bal[CASH], 13000);
+});
+
+test('отмена продажи со смешанной оплатой → сторно ВСЕХ оплат по своим счетам', () => {
+  const bal = { [KASPI]: 0, [CASH]: 0 };
+  const payments = [{ accountId: KASPI, amount: 45000 }, { accountId: CASH, amount: 8000 }];
+  postPayments(bal, payments);
+  // сторно каждой оплаты обратной операцией на её счёт
+  for (const p of payments) applyFinance(bal, 'Расход', p.amount, p.accountId);
+  assert.equal(bal[KASPI], 0); assert.equal(bal[CASH], 0);   // все счета вернулись к нулю
 });

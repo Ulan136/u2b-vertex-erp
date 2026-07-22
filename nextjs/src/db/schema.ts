@@ -193,6 +193,18 @@ export const financeOperations = pgTable('finance_operations', {
   createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── SALE PAYMENTS (смешанная оплата: строка оплаты → свой приход в финансы) ──
+export const salePayments = pgTable('sale_payments', {
+  id          : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  saleId      : uuid('sale_id').references(() => sales.id, { onDelete: 'cascade' }).notNull(),
+  accountId   : uuid('account_id').references(() => financeAccounts.id).notNull(),
+  accountName : varchar('account_name', { length: 100 }),
+  amount      : numeric('amount', { precision: 14, scale: 2 }).notNull(),
+  // Приход, созданный этой оплатой (сторнируется при отмене продажи).
+  financeOpId : uuid('finance_op_id').references(() => financeOperations.id),
+  createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
 // ── EXPENSES ──────────────────────────────────────────────────
 export const expenseCategories = pgTable('expense_categories', {
   id        : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),

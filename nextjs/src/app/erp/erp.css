@@ -228,6 +228,14 @@
 .erp-table .wh-div { border-left: 2px solid #cbd5e1; }
 .erp-table thead .wh-grp-row th { padding: 7px 10px 3px; font-size: 10px; font-weight: 800; letter-spacing: .05em; color: #475569; text-transform: uppercase; background: #f1f5f9; text-align: center; }
 .erp-table .wh-stock { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* Продажа — бейдж клона + блок смешанной оплаты (по макету) */
+.sale-clone-badge { font-size: 12px; font-weight: 600; color: #2563eb; background: #eef3fe; border-radius: 14px; padding: 3px 10px; }
+.sale-pay { border: 2px solid #dbe7ff; background: #f7faff; border-radius: 12px; padding: 12px 14px; margin-top: 14px; }
+.sale-pay-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.sale-pay-h b { font-size: 13.5px; }
+.sale-pay-row { display: grid; grid-template-columns: 1fr 150px 30px; gap: 10px; margin-bottom: 8px; align-items: center; }
+.sale-pay-state { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-top: 8px; }
 .cert-seal label { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 13px; cursor: pointer; margin: 0; }
 
 /* ── Блоки-заголовки (задачи по статусам, «Готовые») ── */

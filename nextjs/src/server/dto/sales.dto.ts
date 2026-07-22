@@ -10,9 +10,17 @@ export const saleItemSchema = z.object({
 });
 export type SaleItemInput = z.infer<typeof saleItemSchema>;
 
+// Строка смешанной оплаты: счёт (раздел «Продажа») + сумма.
+export const salePaymentSchema = z.object({
+  accountId: z.string().min(1),
+  amount: z.coerce.number().positive(),
+});
+export type SalePaymentInput = z.infer<typeof salePaymentSchema>;
+
 // Создание/правка продажи. items[] — мультипозиция; для обратной совместимости
 // принимаются и одиночные поля (productId/qty/price) — синтезируются в 1 позицию.
 export const saleMutateSchema = z.object({
+  payments: z.array(salePaymentSchema).optional(),   // смешанная оплата (0..N счетов)
   saleNo: z.string().nullish(),
   saleDate: z.string().nullish(),
   clientName: z.string().optional().default(''),
@@ -76,6 +84,26 @@ export function aggregateItems(items: SaleItem[]) {
 // Приход в финансы создаётся ТОЛЬКО для оплаченной продажи.
 export function financePostable(payStatus: string | null | undefined): boolean {
   return payStatus === 'Оплачено';
+}
+
+// Сумма оплат по строкам смешанной оплаты.
+export function paymentsTotal(payments: Array<{ amount: number | string }>): number {
+  return money(payments.reduce((s, p) => s + (Number(p.amount) || 0), 0));
+}
+
+// Статус оплаты продажи: сумма оплат = итогу → «Оплачено»; 0 < оплат < итога →
+// «Частично»; 0 → «Ожидает». (Копейки округляются.)
+export type PayState = 'Оплачено' | 'Частично' | 'Ожидает';
+export function payStatusFor(total: number | string, paid: number | string): PayState {
+  const t = money(Number(total) || 0), p = money(Number(paid) || 0);
+  if (p <= 0.005) return 'Ожидает';
+  if (p + 0.005 >= t) return 'Оплачено';
+  return 'Частично';
+}
+
+// Остаток к доплате (не меньше нуля).
+export function remainingToPay(total: number | string, paid: number | string): number {
+  return Math.max(0, money((Number(total) || 0) - (Number(paid) || 0)));
 }
 // Списания склада при проведении продажи (OUT по каждой позиции).
 export function saleOutMovements(items: SaleItem[]): Array<{ productId: string; qty: number; moveType: 'OUT' }> {

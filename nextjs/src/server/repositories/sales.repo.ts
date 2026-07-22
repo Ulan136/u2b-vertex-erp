@@ -1,8 +1,9 @@
 import { db, type Executor } from '@/db';
-import { sales, users } from '@/db/schema';
+import { sales, salePayments, users } from '@/db/schema';
 import { desc, eq, sql, getTableColumns } from 'drizzle-orm';
 
 type SaleInsert = typeof sales.$inferInsert;
+type SalePaymentInsert = typeof salePayments.$inferInsert;
 
 export const salesRepo = {
   list: () => db.select({ ...getTableColumns(sales), createdByName: users.name }).from(sales)
@@ -33,4 +34,13 @@ export const salesRepo = {
     const [row] = await exec.update(sales).set({ ...(data as Partial<SaleInsert>), updatedAt: new Date() }).where(eq(sales.id, id)).returning();
     return row;
   },
+
+  // ── Оплаты (смешанная оплата) ──
+  async addPayment(data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.insert(salePayments).values(data as unknown as SalePaymentInsert).returning();
+    return row;
+  },
+  paymentsBySale: (saleId: string, exec: Executor = db) =>
+    exec.select().from(salePayments).where(eq(salePayments.saleId, saleId)),
+  allPayments: (exec: Executor = db) => exec.select().from(salePayments),
 };

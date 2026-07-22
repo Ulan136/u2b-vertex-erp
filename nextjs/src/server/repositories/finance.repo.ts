@@ -37,6 +37,11 @@ export const financeRepo = {
     return row ?? null;
   },
 
+  async findAccount(id: string, exec: Executor = db) {
+    const [row] = await exec.select().from(financeAccounts).where(eq(financeAccounts.id, id)).limit(1);
+    return row ?? null;
+  },
+
   // Операции, привязанные к продаже (для отмены продажи — их сторнируем).
   findBySale: (saleId: string, exec: Executor = db) =>
     exec.select().from(financeOperations).where(eq(financeOperations.saleId, saleId)),
