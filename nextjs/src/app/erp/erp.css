@@ -236,6 +236,18 @@
 .sale-pay-h b { font-size: 13.5px; }
 .sale-pay-row { display: grid; grid-template-columns: 1fr 150px 30px; gap: 10px; margin-bottom: 8px; align-items: center; }
 .sale-pay-state { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-top: 8px; }
+/* Расходы — дерево категорий слева + контент справа (как в оригинале) */
+.rsh-split { display: grid; grid-template-columns: 240px 1fr; gap: 12px; margin-top: 12px; align-items: start; }
+@media (max-width: 720px) { .rsh-split { grid-template-columns: 1fr; } }
+.rsh-tree { padding: 6px !important; position: sticky; top: 12px; }
+.rsh-tree-head { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #374151; border-bottom: 1px solid #eee; margin-bottom: 4px; }
+.rsh-tree-item { padding: 7px 9px; font-size: 13px; border-radius: 7px; cursor: pointer; display: flex; justify-content: space-between; gap: 6px; }
+.rsh-tree-item:hover { background: #f3f4f6; }
+.rsh-tree-item.on { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+.rsh-tree-sub { padding: 5px 9px 5px 22px; font-size: 12px; border-radius: 7px; cursor: pointer; color: #6b7280; }
+.rsh-tree-sub:hover { background: #f3f4f6; }
+.rsh-tree-sub.on { background: #eff6ff; color: #1d4ed8; font-weight: 600; }
+.rsh-main { min-width: 0; }
 .sale-client-link { cursor: pointer; border-bottom: 1px dashed #94a3b8; }
 .sale-client-link:hover { color: #2563eb; border-color: #2563eb; }
 

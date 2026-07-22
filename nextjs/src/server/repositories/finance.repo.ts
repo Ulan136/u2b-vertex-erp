@@ -42,6 +42,12 @@ export const financeRepo = {
     return row ?? null;
   },
 
+  // Правка только метаданных операции (без суммы/счёта/типа — балансы не трогаем).
+  async updateOperation(id: string, data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.update(financeOperations).set(data as Partial<OpInsert>).where(eq(financeOperations.id, id)).returning();
+    return row ?? null;
+  },
+
   // Операции, привязанные к продаже (для отмены продажи — их сторнируем).
   findBySale: (saleId: string, exec: Executor = db) =>
     exec.select().from(financeOperations).where(eq(financeOperations.saleId, saleId)),

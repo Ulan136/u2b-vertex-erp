@@ -186,6 +186,13 @@ export const financeOperations = pgTable('finance_operations', {
   certId      : uuid('cert_id').references(() => certificates.id),
   saleId      : uuid('sale_id').references(() => sales.id),
   comment     : text('comment'),
+  // Поля расхода (экран «Расходы») — все nullable, пишутся только модалкой расхода.
+  expenseCat  : varchar('expense_cat', { length: 100 }),
+  subCategory : varchar('sub_category', { length: 100 }),
+  supplier    : varchar('supplier', { length: 200 }),
+  docNo       : varchar('doc_no', { length: 50 }),
+  status      : varchar('status', { length: 20 }),
+  orderId     : uuid('order_id'),
   // Аудит сторно: reverses = id операции, которую отменяет эта запись;
   // reversedAt проставляется на ИСХОДНОЙ операции, когда её сторнировали.
   reverses    : uuid('reverses'),

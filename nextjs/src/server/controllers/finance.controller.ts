@@ -13,6 +13,14 @@ export const GET = withApi(async (req: NextRequest) => {
 export const POST = withApi(async (req: NextRequest, ctx) =>
   created(await financeService.createOperation(await req.json(), ctx.user?.id ?? null)));
 
+// PATCH /api/v2/finance/[id] — правка МЕТАДАННЫХ операции (описание/поставщик/№док/
+// статус/категория/дата/коммент) БЕЗ суммы/счёта — балансы не трогаются.
+export const OP_PATCH = withApi(async (req: NextRequest, ctx) =>
+  financeService.updateOperationMeta(ctx.params!.id, await req.json()));
+// POST /api/v2/finance/[id]/reverse — отмена операции сторно (удаление расхода)
+export const OP_REVERSE = withApi(async (_req: NextRequest, ctx) =>
+  financeService.reverseOperation(ctx.params!.id, ctx.user?.id ?? null));
+
 // POST /api/v2/finance/accounts — создать счёт (начальный остаток → операция)
 export const ACCOUNTS_POST = withApi(async (req: NextRequest, ctx) =>
   created(await financeService.createAccount(await req.json(), ctx.user?.id ?? null)));

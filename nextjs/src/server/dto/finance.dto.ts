@@ -12,6 +12,26 @@ export const financeOperationSchema = z.object({
   certId: z.string().nullish(),
   saleId: z.string().nullish(),
   comment: z.string().nullish(),
+  // Поля расхода (модалка «Расход»).
+  expenseCat: z.string().nullish(),
+  subCategory: z.string().nullish(),
+  supplier: z.string().nullish(),
+  docNo: z.string().nullish(),
+  status: z.string().nullish(),
+  orderId: z.string().uuid().nullish(),
+});
+
+// Правка МЕТАДАННЫХ операции (без суммы/счёта/типа — балансы не трогаем).
+export const financeOpMetaSchema = z.object({
+  name: z.string().optional(),
+  opDate: z.string().nullish(),
+  comment: z.string().nullish(),
+  expenseCat: z.string().nullish(),
+  subCategory: z.string().nullish(),
+  supplier: z.string().nullish(),
+  docNo: z.string().nullish(),
+  status: z.string().nullish(),
+  orderId: z.string().uuid().nullish(),
 });
 
 export const ACCOUNT_CATEGORIES = ['kaspi', 'bck', 'nalichka', 'other'] as const;

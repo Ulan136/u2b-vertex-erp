@@ -14,7 +14,7 @@ export function isCabinetPublicApi(method: string, pathname: string): boolean {
 export const FINANCE_WRITE_ROLES = ['admin', 'accountant'];
 export function isFinanceWrite(method: string, pathname: string): boolean {
   if (method === 'GET' || method === 'OPTIONS') return false;
-  return pathname === '/api/v2/finance' || pathname.startsWith('/api/v2/finance/accounts');
+  return pathname.startsWith('/api/v2/finance');   // операции, счета, правка/сторно — только Админ/Бухгалтер
 }
 export function financeWriteAllowed(method: string, pathname: string, role?: string | null): boolean {
   if (!isFinanceWrite(method, pathname)) return true;               // не запись финансов → не ограничиваем

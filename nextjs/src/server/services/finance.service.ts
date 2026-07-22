@@ -1,8 +1,9 @@
 import { db, type Executor } from '@/db';
 import { financeRepo } from '@/server/repositories/finance.repo';
 import {
-  financeOperationSchema, accountCreateSchema, accountUpdateSchema, balanceDeltas,
+  financeOperationSchema, financeOpMetaSchema, accountCreateSchema, accountUpdateSchema, balanceDeltas,
 } from '@/server/dto/finance.dto';
+import { badRequest, notFound } from '@/server/lib/errors';
 
 // Вставить операцию + сдвинуть балансы задействованных счетов (в рамках exec).
 async function insertOperation(
@@ -35,6 +36,12 @@ async function createOperation(input: unknown, actorId?: string | null, exec?: E
   if (data.certId) insert.certId = data.certId;
   if (data.saleId) insert.saleId = data.saleId;
   if (data.comment) insert.comment = data.comment;
+  if (data.expenseCat) insert.expenseCat = data.expenseCat;
+  if (data.subCategory) insert.subCategory = data.subCategory;
+  if (data.supplier) insert.supplier = data.supplier;
+  if (data.docNo) insert.docNo = data.docNo;
+  if (data.status) insert.status = data.status;
+  if (data.orderId) insert.orderId = data.orderId;
 
   const run = (e: Executor) => insertOperation(insert, data.opType, data.amount, data.accountId, data.toAccountId, e);
   return exec ? run(exec) : db.transaction(run);
@@ -96,10 +103,25 @@ async function updateAccount(id: string, input: unknown) {
   return financeRepo.updateAccount(id, patch);
 }
 
+// Правка МЕТАДАННЫХ операции (описание/поставщик/№док/статус/категория/дата/
+// комментарий/заказ) — БЕЗ суммы, счёта и типа: балансы не затрагиваются.
+async function updateOperationMeta(id: string, input: unknown) {
+  if (!id) throw badRequest('id обязателен');
+  const d = financeOpMetaSchema.parse(input);
+  const patch: Record<string, unknown> = {};
+  for (const k of ['name', 'opDate', 'comment', 'expenseCat', 'subCategory', 'supplier', 'docNo', 'status', 'orderId'] as const) {
+    if (d[k] !== undefined) patch[k] = d[k] === '' ? null : d[k];
+  }
+  const row = await financeRepo.updateOperation(id, patch);
+  if (!row) throw notFound('Операция не найдена');
+  return row;
+}
+
 export const financeService = {
   overview: (from?: string | null, to?: string | null) => financeRepo.overview(from, to),
   createOperation,
   reverseOperation,
+  updateOperationMeta,
   createAccount,
   updateAccount,
 };
