@@ -12,12 +12,14 @@ export const certsService = {
     });
   },
 
-  async create(input: unknown) {
+  async create(input: unknown, actor?: { id: string } | null) {
     const data = certUpsertSchema.parse(input);
     const fields = cleanCertFields(data);
     // fio/address — NOT NULL в БД без дефолта: гарантируем непустую строку (иначе 500).
     fields.fio ??= '';
     fields.address ??= '';
+    // Автор сертификата — для аналитики по сотрудникам (раньше не сохранялся).
+    if (actor?.id) fields.createdBy = actor.id;
     const row = await certsRepo.create(fields);
     // Самообучение справочника типов приборов (best-effort, не роняет сохранение).
     if (fields.meterType) await deviceTypesService.touch(fields.meterType);

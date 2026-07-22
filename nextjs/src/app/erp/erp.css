@@ -236,6 +236,31 @@
 .sale-pay-h b { font-size: 13.5px; }
 .sale-pay-row { display: grid; grid-template-columns: 1fr 150px 30px; gap: 10px; margin-bottom: 8px; align-items: center; }
 .sale-pay-state { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-top: 8px; }
+
+/* Отчёты — аналитика по сотрудникам */
+.rep-th { cursor: pointer; user-select: none; white-space: nowrap; }
+.rep-th:hover { color: #2563eb; }
+.rep-sort { font-size: 10px; color: #2563eb; }
+.rep-emp-row { cursor: pointer; }
+.rep-emp-row:hover { background: #f8fafc; }
+.rep-detail { background: #f8fafc; }
+.rep-feed { display: flex; flex-direction: column; gap: 2px; padding: 6px 4px; max-height: 320px; overflow-y: auto; }
+.rep-feed-day { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: #64748b; margin: 8px 0 2px; }
+.rep-feed-item { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; padding: 2px 0; }
+.rep-feed-time { color: #94a3b8; font-variant-numeric: tabular-nums; min-width: 42px; }
+.rep-barlist { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.rep-bar-row { display: grid; grid-template-columns: 130px 1fr auto; gap: 10px; align-items: center; font-size: 12.5px; }
+.rep-bar-track { background: #eef2f7; border-radius: 6px; height: 18px; overflow: hidden; display: flex; }
+.rep-bar-fill { height: 100%; border-radius: 6px 0 0 6px; min-width: 2px; }
+.rep-bar-seg { height: 100%; }
+.rep-bar-val { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rep-day-chart { display: flex; align-items: flex-end; gap: 6px; height: 160px; padding: 8px 4px 0; overflow-x: auto; }
+.rep-day-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; min-width: 34px; }
+.rep-day-bar { width: 22px; background: #16a34a; border-radius: 4px 4px 0 0; min-height: 2px; }
+.rep-day-cert { font-size: 11px; color: #2563eb; font-weight: 700; }
+.rep-day-lbl { font-size: 10px; color: #94a3b8; white-space: nowrap; }
+.rep-legend { display: flex; gap: 14px; font-size: 12px; color: #64748b; margin-top: 6px; }
+.rep-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
 .cert-seal label { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 13px; cursor: pointer; margin: 0; }
 
 /* ── Блоки-заголовки (задачи по статусам, «Готовые») ── */
