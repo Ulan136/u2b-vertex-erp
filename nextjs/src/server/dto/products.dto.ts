@@ -7,6 +7,7 @@ export const productUpdateSchema = z.object({
   minStock: z.coerce.number().int().nonnegative().optional(),
   price: z.union([z.string(), z.number()]).optional(),
   priceDiscount: z.union([z.string(), z.number()]).optional(),
+  costPrice: z.union([z.string(), z.number()]).optional(),
   waterType: z.string().nullish(),
   groupId: z.string().nullish(),
 });

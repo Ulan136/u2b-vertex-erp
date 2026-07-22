@@ -48,13 +48,16 @@ function CertsInner() {
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState('');
 
-  // Тип прибора — список со склада (товары) + дефолтные типы + текущее значение
-  const meterOptions = React.useMemo(() => {
-    const set = new Set<string>();
-    if (form.meterType) set.add(form.meterType);
-    (products || []).forEach(p => set.add(p.name));
-    DEFAULT_METERS.forEach(t => set.add(t));
-    return Array.from(set);
+  // Тип прибора — умный поиск по складу (typeahead), не выпадающий список.
+  const [meterOpen, setMeterOpen] = React.useState(false);
+  const meterHits = React.useMemo(() => {
+    const pool = [
+      ...(products || []).map(p => ({ label: `${p.skuCode} · ${p.name}`, value: p.name })),
+      ...DEFAULT_METERS.map(t => ({ label: t, value: t })),
+    ];
+    const qq = form.meterType.trim().toLowerCase();
+    const seen = new Set<string>();
+    return pool.filter(x => (!qq || x.label.toLowerCase().includes(qq)) && !seen.has(x.value) && seen.add(x.value)).slice(0, 8);
   }, [products, form.meterType]);
 
   // ── Голосовой ввод (Web Speech API, ru-RU) ──
@@ -192,7 +195,16 @@ function CertsInner() {
           <Field label="Адрес"><div className="cert-vf"><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Адрес" /><Mic k="address" h="Адрес" /></div></Field>
         </div>
         <div className="erp-form-row">
-          <Field label="Тип прибора (со склада)"><Select value={form.meterType} onChange={e => setForm({ ...form, meterType: e.target.value })}><option value="">— выберите —</option>{meterOptions.map(t => <option key={t} value={t}>{t}</option>)}</Select></Field>
+          <Field label="Тип прибора (поиск по складу)">
+            <div style={{ position: 'relative' }}>
+              <Input value={form.meterType} onChange={e => { setForm({ ...form, meterType: e.target.value }); setMeterOpen(true); }} onFocus={() => setMeterOpen(true)} onBlur={() => setTimeout(() => setMeterOpen(false), 150)} placeholder="Начните вводить — поиск по складу" />
+              {meterOpen && meterHits.length > 0 && (
+                <div className="cert-meter-dd">
+                  {meterHits.map(h => <div key={h.label} className="cert-meter-opt" onMouseDown={() => { setForm(f => ({ ...f, meterType: h.value })); setMeterOpen(false); }}>{h.label}</div>)}
+                </div>
+              )}
+            </div>
+          </Field>
           <Field label="Заводской номер"><div className="cert-vf"><Input value={form.serialNo} onChange={e => setForm({ ...form, serialNo: e.target.value })} placeholder="Серийный номер" style={{ fontFamily: 'monospace' }} /><Mic k="serialNo" h="Номер счётчика" /></div></Field>
         </div>
         <div className="erp-form-row">

@@ -26,8 +26,8 @@ export const productsRepo = {
       .where(eq(products.id, id)),
 
   // Правка карточки товара (наименование/мин/цены/тип воды/группа).
-  async update(id: string, data: Record<string, unknown>) {
-    const [row] = await db.update(products).set({ ...(data as Partial<typeof products.$inferInsert>), updatedAt: new Date() }).where(eq(products.id, id)).returning();
+  async update(id: string, data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.update(products).set({ ...(data as Partial<typeof products.$inferInsert>), updatedAt: new Date() }).where(eq(products.id, id)).returning();
     return row ?? null;
   },
 

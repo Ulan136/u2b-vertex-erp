@@ -212,6 +212,9 @@
 .cert-voice-tr { min-height: 40px; font-size: 16px; font-weight: 600; color: #111; margin: 8px 0 14px; }
 .cert-sec-lbl { font-size: 12px; font-weight: 700; color: #475569; margin: 14px 0 8px; display: flex; align-items: center; }
 .cert-seal { display: flex; flex-direction: column; gap: 5px; padding-top: 4px; }
+.cert-meter-dd { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 2px); background: #fff; border: 1px solid #d1d5db; border-radius: 8px; box-shadow: 0 6px 22px rgba(0,0,0,.14); max-height: 240px; overflow-y: auto; }
+.cert-meter-opt { padding: 8px 10px; font-size: 13px; cursor: pointer; }
+.cert-meter-opt:hover { background: #eff6ff; }
 .cert-seal label { display: flex; align-items: center; gap: 6px; font-weight: 400; font-size: 13px; cursor: pointer; margin: 0; }
 
 /* ── Блоки-заголовки (задачи по статусам, «Готовые») ── */

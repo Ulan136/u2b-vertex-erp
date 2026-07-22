@@ -5,7 +5,7 @@ import { toast } from '@/lib/toast';
 import { Card, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 
 type Movement = { id: string; skuCode?: string | null; productName?: string | null; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; author?: string | null; moveDate?: string | null };
-type Product = { id: string; skuCode: string; name: string; price: string | number; currentStock: number };
+type Product = { id: string; skuCode: string; name: string; price: string | number; costPrice?: string | number | null; currentStock: number };
 
 const num = (v: unknown) => Number(v) || 0;
 const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU');
@@ -72,7 +72,7 @@ export default function PurchasesPage() {
         footer={<><Button onClick={save} disabled={f.saving}>{f.saving ? 'Сохранение…' : 'Провести закупку'}</Button><Button variant="outline" onClick={() => setF(s => ({ ...s, open: false }))}>Отмена</Button></>}>
         {f.err && <div className="erp-form-err">{f.err}</div>}
         <Field label="Товар" required>
-          <Select value={f.productId} onChange={e => { const p = (products || []).find(x => x.id === e.target.value); setF(s => ({ ...s, productId: e.target.value, price: p ? String(p.price) : s.price })); }}>
+          <Select value={f.productId} onChange={e => { const p = (products || []).find(x => x.id === e.target.value); const c = num(p?.costPrice); setF(s => ({ ...s, productId: e.target.value, price: p ? String(c > 0 ? c : num(p.price)) : s.price })); }}>
             <option value="">— выберите —</option>
             {(products || []).map(p => <option key={p.id} value={p.id}>{p.skuCode} · {p.name} (ост. {p.currentStock})</option>)}
           </Select>

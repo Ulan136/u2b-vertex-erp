@@ -4,7 +4,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 
-type Product = { id: string; skuCode: string; name: string; fullName?: string | null; groupId?: string | null; waterType?: string | null; minStock: number; currentStock: number; reserved?: number | null; price: string | number; priceDiscount?: string | number | null };
+type Product = { id: string; skuCode: string; name: string; fullName?: string | null; groupId?: string | null; waterType?: string | null; minStock: number; currentStock: number; reserved?: number | null; price: string | number; priceDiscount?: string | number | null; costPrice?: string | number | null };
 type Movement = { id: string; skuCode?: string | null; productName?: string | null; moveType: string; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; comment?: string | null; author?: string | null; moveDate?: string | null };
 
 const num = (v: unknown) => Number(v) || 0;
@@ -44,13 +44,15 @@ export default function WarehousePage() {
 
   const [move, setMove] = React.useState({ open: false, mode: 'IN' as 'IN' | 'OUT', productId: '', qty: '1', price: '', supplier: '', docNo: '', date: today(), reason: REASONS[0], comment: '', err: '', saving: false });
   const [rev, setRev] = React.useState({ open: false, reason: 'плановая инвентаризация', resp: '', date: today(), vals: {} as Record<string, string>, saving: false });
-  const [set, setSet] = React.useState({ open: false, id: '', name: '', fullName: '', minStock: '', price: '', priceDiscount: '', waterType: '', actual: '', err: '', saving: false });
+  const [set, setSet] = React.useState({ open: false, id: '', name: '', fullName: '', minStock: '', price: '', priceDiscount: '', cost: '', waterType: '', actual: '', err: '', saving: false });
 
   const prod = (id: string) => all.find(x => x.id === id);
 
+  // Приход — цена по себестоимости (последняя закупка); если не задана — по цене продажи.
+  const inPrice = (p?: Product) => { const c = num(p?.costPrice); return c > 0 ? c : num(p?.price); };
   function openMove(mode: 'IN' | 'OUT', productId = '') {
     const p = prod(productId);
-    setMove({ open: true, mode, productId, qty: '1', price: mode === 'IN' && p ? String(p.price) : '', supplier: '', docNo: '', date: today(), reason: REASONS[0], comment: '', err: '', saving: false });
+    setMove({ open: true, mode, productId, qty: '1', price: mode === 'IN' && p ? String(inPrice(p)) : '', supplier: '', docNo: '', date: today(), reason: REASONS[0], comment: '', err: '', saving: false });
   }
   async function saveMove() {
     const p = prod(move.productId);
@@ -87,14 +89,14 @@ export default function WarehousePage() {
   }
 
   function openSet(p: Product) {
-    setSet({ open: true, id: p.id, name: p.name, fullName: p.fullName || '', minStock: String(p.minStock ?? ''), price: String(p.price ?? ''), priceDiscount: String(p.priceDiscount ?? ''), waterType: p.waterType || '', actual: String(p.currentStock), err: '', saving: false });
+    setSet({ open: true, id: p.id, name: p.name, fullName: p.fullName || '', minStock: String(p.minStock ?? ''), price: String(p.price ?? ''), priceDiscount: String(p.priceDiscount ?? ''), cost: String(p.costPrice ?? ''), waterType: p.waterType || '', actual: String(p.currentStock), err: '', saving: false });
   }
   async function saveSet() {
     if (!set.name.trim()) { setSet(s => ({ ...s, err: 'Наименование обязательно' })); return; }
     setSet(s => ({ ...s, saving: true, err: '' }));
     const p = prod(set.id);
     try {
-      await apiSend(`/api/v2/products/${set.id}`, 'PATCH', { name: set.name.trim(), fullName: set.fullName || null, minStock: num(set.minStock), price: num(set.price), priceDiscount: num(set.priceDiscount), waterType: set.waterType || null });
+      await apiSend(`/api/v2/products/${set.id}`, 'PATCH', { name: set.name.trim(), fullName: set.fullName || null, minStock: num(set.minStock), price: num(set.price), priceDiscount: num(set.priceDiscount), costPrice: num(set.cost), waterType: set.waterType || null });
       // ревизия по одному товару — если фактический остаток изменён
       const actual = num(set.actual);
       if (p && Number.isFinite(actual) && actual !== num(p.currentStock)) {
@@ -155,11 +157,11 @@ export default function WarehousePage() {
             : all.length === 0 ? <EmptyRow>💡 Склад пустой. Нажмите «📥 Приход».</EmptyRow>
             : (
               <table className="erp-table">
-                <thead><tr><th>SKU</th><th>Наименование</th><th>Вода</th><th style={{ textAlign: 'right' }}>Остаток</th><th style={{ textAlign: 'right' }}>Резерв</th><th style={{ textAlign: 'right' }}>Свободно</th><th style={{ textAlign: 'right' }}>Мин</th><th style={{ textAlign: 'right' }}>Цена</th><th style={{ textAlign: 'right' }}>Со скидкой</th><th>Статус</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
+                <thead><tr><th>SKU</th><th>Наименование</th><th>Вода</th><th style={{ textAlign: 'right' }}>Остаток</th><th style={{ textAlign: 'right' }}>Резерв</th><th style={{ textAlign: 'right' }}>Свободно</th><th style={{ textAlign: 'right' }}>Мин</th><th style={{ textAlign: 'right' }}>Себест.</th><th style={{ textAlign: 'right' }}>Цена</th><th style={{ textAlign: 'right' }}>Со скидкой</th><th>Статус</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
                 <tbody>
                   {Object.entries(groups).map(([gid, items]) => (
                     <React.Fragment key={gid}>
-                      <tr><td colSpan={11} className="erp-group-sub">{groupLabel(gid)} <span className="erp-block-count">· {items.length}</span></td></tr>
+                      <tr><td colSpan={12} className="erp-group-sub">{groupLabel(gid)} <span className="erp-block-count">· {items.length}</span></td></tr>
                       {items.map(p => {
                         const f = free(p); const low = f < num(p.minStock);
                         return (
@@ -171,6 +173,7 @@ export default function WarehousePage() {
                             <td style={{ textAlign: 'right' }} className="erp-muted">{fmt(p.reserved || 0)}</td>
                             <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(f)}</td>
                             <td style={{ textAlign: 'right' }} className="erp-muted">{fmt(p.minStock)}</td>
+                            <td style={{ textAlign: 'right' }} className="erp-muted">{num(p.costPrice) ? fmt(p.costPrice!) : '—'}</td>
                             <td style={{ textAlign: 'right' }}>{fmt(p.price)}</td>
                             <td style={{ textAlign: 'right' }} className="erp-muted">{num(p.priceDiscount) ? fmt(p.priceDiscount!) : '—'}</td>
                             <td>{statusBadge(p)}</td>
@@ -219,7 +222,7 @@ export default function WarehousePage() {
         footer={<><Button onClick={saveMove} disabled={move.saving}>{move.saving ? 'Сохранение…' : 'Провести'}</Button><Button variant="outline" onClick={() => setMove(m => ({ ...m, open: false }))}>Отмена</Button></>}>
         {move.err && <div className="erp-form-err">{move.err}</div>}
         <Field label="Товар" required>
-          <Select value={move.productId} onChange={e => { const p = prod(e.target.value); setMove(m => ({ ...m, productId: e.target.value, price: m.mode === 'IN' && p ? String(p.price) : m.price })); }}>
+          <Select value={move.productId} onChange={e => { const p = prod(e.target.value); setMove(m => ({ ...m, productId: e.target.value, price: m.mode === 'IN' && p ? String(inPrice(p)) : m.price })); }}>
             <option value="">— выберите —</option>
             {all.map(p => <option key={p.id} value={p.id}>{p.skuCode} · {p.name} (своб. {free(p)})</option>)}
           </Select>
@@ -238,7 +241,7 @@ export default function WarehousePage() {
           <Field label={move.mode === 'IN' ? 'Дата прихода' : 'Дата'}><Input type="date" value={move.date} onChange={e => setMove(m => ({ ...m, date: e.target.value }))} /></Field>
           <Field label="Комментарий"><Input value={move.comment} onChange={e => setMove(m => ({ ...m, comment: e.target.value }))} /></Field>
         </div>
-        {move.mode === 'IN' && <div className="erp-muted" style={{ fontSize: 11 }}>Остаток увеличится автоматически.</div>}
+        {move.mode === 'IN' && <div className="erp-muted" style={{ fontSize: 11 }}>Остаток увеличится, а цена запишется в себестоимость товара.</div>}
       </Modal>
 
       {/* Настройки товара */}
@@ -252,9 +255,10 @@ export default function WarehousePage() {
           <Field label="Тип воды"><Select value={set.waterType} onChange={e => setSet(s => ({ ...s, waterType: e.target.value }))}><option value="">—</option><option>х/в</option><option>г/в</option></Select></Field>
         </div>
         <div className="erp-form-row">
-          <Field label="Цена (₸)"><Input type="number" min={0} value={set.price} onChange={e => setSet(s => ({ ...s, price: e.target.value }))} /></Field>
+          <Field label="Цена продажи (₸)"><Input type="number" min={0} value={set.price} onChange={e => setSet(s => ({ ...s, price: e.target.value }))} /></Field>
           <Field label="Цена со скидкой (₸)"><Input type="number" min={0} value={set.priceDiscount} onChange={e => setSet(s => ({ ...s, priceDiscount: e.target.value }))} /></Field>
         </div>
+        <Field label="Себестоимость (₸)"><Input type="number" min={0} value={set.cost} onChange={e => setSet(s => ({ ...s, cost: e.target.value }))} /><div className="erp-muted" style={{ fontSize: 11, marginTop: 4 }}>Обновляется автоматически при приходе (последняя цена закупки).</div></Field>
         <Field label="Фактический остаток (ревизия по товару)"><Input type="number" value={set.actual} onChange={e => setSet(s => ({ ...s, actual: e.target.value }))} /></Field>
         <div className="erp-muted" style={{ fontSize: 11 }}>Остаток нельзя менять напрямую — изменение проведётся ревизией (REV±).</div>
       </Modal>

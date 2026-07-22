@@ -41,6 +41,10 @@ async function doMovement(input: unknown, actor: { id: string; name?: string } |
     createdBy: actor?.id ?? null,
   }, exec);
   await productsRepo.adjustStock(product.id, sign * qty, exec);
+  // Приход обновляет себестоимость товара (последняя цена закупки).
+  if (data.moveType === 'IN' && price > 0) {
+    await productsRepo.update(product.id, { costPrice: money(price) }, exec);
+  }
   return movement;
 }
 
@@ -57,6 +61,7 @@ export const productsService = {
     if (d.minStock !== undefined) patch.minStock = d.minStock;
     if (d.price !== undefined) patch.price = money(Number(d.price) || 0);
     if (d.priceDiscount !== undefined) patch.priceDiscount = money(Number(d.priceDiscount) || 0);
+    if (d.costPrice !== undefined) patch.costPrice = money(Number(d.costPrice) || 0);
     if (d.waterType !== undefined) patch.waterType = d.waterType || null;
     if (d.groupId !== undefined) patch.groupId = d.groupId || null;
     const row = await productsRepo.update(id, patch);
