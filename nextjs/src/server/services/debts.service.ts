@@ -17,19 +17,50 @@ function counterpartyLabel(debt: { counterpartyName?: string | null; clientName?
 export const debtsService = {
   list: (filter: DebtListFilter) => debtsRepo.list(filter),
 
-  async create(input: unknown) {
+  async create(input: unknown, actorId?: string | null) {
     const data = debtCreateSchema.parse(input);
-    return debtsRepo.create({
-      type: data.type,
-      counterpartyClientId: data.counterpartyClientId ?? null,
-      counterpartyName: data.counterpartyName ?? null,
-      amount: money(data.amount),
-      paidAmount: '0',
-      accountId: data.accountId ?? null,
-      dueDate: data.dueDate ?? null,
-      comment: data.comment ?? null,
-      status: computeStatus(data.amount, 0),
+    const initialPaid = round2(data.paidAmount ?? 0);
+    // Долг + (если внесено «уже погашено») запись «Начальное сальдо» БЕЗ финоперации.
+    return db.transaction(async (tx) => {
+      const debt = await debtsRepo.create({
+        type: data.type,
+        counterpartyClientId: data.counterpartyClientId ?? null,
+        counterpartyName: data.counterpartyName ?? null,
+        amount: money(data.amount),
+        paidAmount: money(initialPaid),
+        accountId: data.accountId ?? null,
+        dueDate: data.dueDate ?? null,
+        comment: data.comment ?? null,
+        status: computeStatus(data.amount, initialPaid),
+      }, tx);
+      if (initialPaid > 0) {
+        await debtsRepo.createPayment({
+          debtId: debt.id, amount: money(initialPaid), accountId: null, financeOpId: null,
+          payDate: data.dueDate ?? null, comment: 'Начальное сальдо (оплата до внесения в систему)', createdBy: actorId ?? null,
+        }, tx);
+      }
+      return debt;
     });
+  },
+
+  // Журнал всех оплат по долгам: остаток долга ПОСЛЕ каждого платежа считается
+  // накопительно (по хронологии в рамках долга), свежие сверху.
+  async paymentsJournal(filter: { from?: string | null; to?: string | null; q?: string | null }) {
+    const rows = await debtsRepo.paymentsJournal(filter);
+    // накопительный остаток по каждому долгу (в порядке возрастания даты создания)
+    const asc = [...rows].sort((a, b) => new Date(a.createdAt as unknown as string).getTime() - new Date(b.createdAt as unknown as string).getTime());
+    const cum: Record<string, number> = {};
+    const afterById: Record<string, number> = {};
+    for (const p of asc) {
+      cum[p.debtId] = round2((cum[p.debtId] ?? 0) + num(p.amount));
+      afterById[p.id] = remainingOf(num(p.debtAmount), cum[p.debtId]);
+    }
+    return rows.map(p => ({
+      id: p.id, payDate: p.payDate, amount: num(p.amount), accountName: p.accountName,
+      author: p.authorName, comment: p.comment,
+      counterparty: p.clientName || p.counterpartyName || '—',
+      debtType: p.debtType, debtAmount: num(p.debtAmount), remainingAfter: afterById[p.id],
+    }));
   },
 
   async update(id: string, input: unknown) {
@@ -112,6 +143,7 @@ export const debtsService = {
         financeOpId,
         payDate: data.payDate ?? null,
         comment: data.comment ?? null,
+        createdBy: actorId ?? null,
       }, tx);
 
       const newPaid = round2(paid + data.amount);

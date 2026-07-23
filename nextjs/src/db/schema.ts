@@ -383,6 +383,7 @@ export const debtPayments = pgTable('debt_payments', {
   financeOpId : uuid('finance_op_id').references(() => financeOperations.id, { onDelete: 'set null' }),
   payDate     : date('pay_date').default(sql`CURRENT_DATE`),
   comment     : text('comment'),
+  createdBy   : uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 

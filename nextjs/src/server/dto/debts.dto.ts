@@ -67,16 +67,19 @@ const debtBase = z.object({
   counterpartyClientId: z.string().uuid().nullish(),
   counterpartyName: z.string().trim().min(1).nullish(),
   amount: z.coerce.number().positive('Сумма должна быть больше 0'),
+  // Стартовое «уже погашено» на момент внесения (исторический факт, без финоперации).
+  paidAmount: z.coerce.number().nonnegative().optional(),
   accountId: z.string().uuid().nullish(),
   dueDate: z.string().nullish(),
   comment: z.string().nullish(),
 });
 
-// create: exactly one counterparty source is required
-export const debtCreateSchema = debtBase.refine(
-  d => Boolean(d.counterpartyClientId) || Boolean(d.counterpartyName && d.counterpartyName.trim()),
-  { message: 'Укажите клиента или название контрагента', path: ['counterpartyName'] },
-);
+// create: нужен контрагент; стартовое погашено не больше суммы.
+export const debtCreateSchema = debtBase
+  .refine(d => Boolean(d.counterpartyClientId) || Boolean(d.counterpartyName && d.counterpartyName.trim()),
+    { message: 'Укажите клиента или название контрагента', path: ['counterpartyName'] })
+  .refine(d => (d.paidAmount ?? 0) <= d.amount,
+    { message: 'Погашено не может быть больше суммы долга', path: ['paidAmount'] });
 
 export const debtUpdateSchema = debtBase.partial();
 

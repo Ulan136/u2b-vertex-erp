@@ -14,7 +14,33 @@ export const GET = withApi(async (req: NextRequest) => {
     q: sp.get('q'),
   });
 });
-export const POST = withApi(async (req: NextRequest) => created(await debtsService.create(await req.json())));
+export const POST = withApi(async (req: NextRequest, ctx) => created(await debtsService.create(await req.json(), ctx.user?.id ?? null)));
+
+// journal: /api/v2/debts/payments?from=&to=&q=  — все оплаты подряд
+export const PAYMENTS_JOURNAL = withApi(async (req: NextRequest) => {
+  const sp = new URL(req.url).searchParams;
+  return debtsService.paymentsJournal({ from: sp.get('from'), to: sp.get('to'), q: sp.get('q') });
+});
+// journal export: /api/v2/debts/payments/export?from=&to=&q= — Excel
+export const PAYMENTS_EXPORT = withApi(async (req: NextRequest) => {
+  const sp = new URL(req.url).searchParams;
+  const rows = await debtsService.paymentsJournal({ from: sp.get('from'), to: sp.get('to'), q: sp.get('q') });
+  const ExcelJS = (await import('exceljs')).default;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Оплаты по долгам');
+  ws.columns = [
+    { header: 'Дата', key: 'd', width: 12 }, { header: 'Контрагент', key: 'c', width: 26 },
+    { header: 'Тип', key: 't', width: 12 }, { header: 'Сумма долга', key: 'da', width: 14 },
+    { header: 'Платёж', key: 'a', width: 14 }, { header: 'Счёт', key: 'ac', width: 14 },
+    { header: 'Остаток после', key: 'r', width: 14 }, { header: 'Автор', key: 'au', width: 20 },
+  ];
+  ws.getRow(1).font = { bold: true };
+  for (const p of rows) ws.addRow({ d: String(p.payDate || '').slice(0, 10), c: p.counterparty, t: p.debtType === 'credit' ? 'Мы должны' : 'Нам должны', da: p.debtAmount, a: p.amount, ac: p.accountName || '', r: p.remainingAfter, au: p.author || '' });
+  const buf = await wb.xlsx.writeBuffer();
+  const { NextResponse } = await import('next/server');
+  const { CORS_HEADERS } = await import('@/server/lib/cors');
+  return new NextResponse(Buffer.from(buf), { status: 200, headers: { ...CORS_HEADERS, 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Content-Disposition': "attachment; filename=\"debt-payments.xlsx\"" } });
+});
 
 // item: /api/v2/debts/[id]
 export const PATCH = withApi(async (req: NextRequest, ctx) => debtsService.update(ctx.params!.id, await req.json()));

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  computeStatus, remainingOf, financeOpTypeForDebt, buildPaymentFinanceOp,
+  computeStatus, remainingOf, round2, financeOpTypeForDebt, buildPaymentFinanceOp,
   debtCreateSchema,
 } from './debts.dto';
 
@@ -95,4 +95,21 @@ test('debtCreateSchema: accepts client-based counterparty', () => {
 });
 test('debtCreateSchema: rejects non-positive amount', () => {
   assert.throws(() => debtCreateSchema.parse({ type: 'debit', counterpartyName: 'X', amount: 0 }));
+});
+
+// ── стартовое «уже погашено» + учёт кредита ──────────────────
+test('стартовое погашено: долг 500 000 / погашено 100 000 → остаток 400 000, статус partial', () => {
+  assert.equal(computeStatus(500000, 100000), 'partial');
+  assert.equal(remainingOf(500000, 100000), 400000);
+});
+
+test('погашение 50 000 после старта 100 000 → остаток 350 000', () => {
+  const paid = round2(100000 + 50000);
+  assert.equal(paid, 150000);
+  assert.equal(remainingOf(500000, paid), 350000);
+});
+
+test('debtCreateSchema: стартовое погашено не больше суммы', () => {
+  assert.doesNotThrow(() => debtCreateSchema.parse({ type: 'credit', counterpartyName: 'X', amount: 500000, paidAmount: 100000 }));
+  assert.throws(() => debtCreateSchema.parse({ type: 'credit', counterpartyName: 'X', amount: 100000, paidAmount: 200000 }));
 });

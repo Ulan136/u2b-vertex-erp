@@ -6,7 +6,7 @@ import { Card, PageTitle, Badge } from '@/components/ui';
 
 type Acct = { id: string; name: string; section?: string | null; balance?: string | number | null; icon?: string | null };
 type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; source?: string | null };
-type Debt = { type: string; amount: string | number; paidAmount: string | number; status: string };
+type Debt = { type: string; amount: string | number; paidAmount: string | number; status: string; dueDate?: string | null };
 type Task = { id: string; title: string; status?: string | null; completedAt?: string | null; assigneeName?: string | null; dueDate?: string | null };
 type Order = { status?: string | null };
 type Cert = { id: string; source?: string | null; docType?: string | null; operStatus?: string | null; payStatus?: string | null; fio?: string | null; meterType?: string | null; serialNo?: string | null; createdAt?: string | null };
@@ -56,6 +56,8 @@ export default function Dashboard() {
 
   const debtList = debts.data || [];
   const receivable = debtList.filter(d => d.type === 'debit' && d.status !== 'closed').reduce((s, d) => s + Math.max(0, num(d.amount) - num(d.paidAmount)), 0);
+  const payable = debtList.filter(d => d.type === 'credit' && d.status !== 'closed').reduce((s, d) => s + Math.max(0, num(d.amount) - num(d.paidAmount)), 0);
+  const payableOverdue = debtList.some(d => d.type === 'credit' && d.status !== 'closed' && d.dueDate && String(d.dueDate).slice(0, 10) < today);
 
   const taskList = tasks.data || [];
   const openTasks = taskList.filter(t => t.status !== 'done' && !t.completedAt);
@@ -105,6 +107,7 @@ export default function Dashboard() {
       <PageTitle title="Рабочий стол" sub="Оперативная сводка по реальным данным · нажмите на карточку, чтобы перейти" />
 
       <div className="erp-kpi-grid">
+        <Kpi icon="📤" label="Кредиторка (мы должны)" value={debts.error ? '—' : money(payable)} sub={payableOverdue ? '⚠ есть просрочка' : 'остаток'} tone={payableOverdue ? '#dc2626' : undefined} href="/erp/debts" />
         <Kpi icon="📋" label="Поверок всего" value={certs.error ? '—' : String(totalCerts)} sub={`${ktrmPct}% внесено в КТРМ`} href="/erp/certs" />
         <Kpi icon="✅" label="Внесено в КТРМ" value={certs.error ? '—' : String(ktrmDone)} tone="#16a34a" sub={`из ${totalCerts}`} href="/erp/certs" />
         <Kpi icon="🤖" label="В очереди КТРМ" value={certs.error ? '—' : String(inQueue)} tone="#b45309" sub={inQueue ? 'ждут робота' : 'очередь пуста ✓'} href="/erp/certs" />

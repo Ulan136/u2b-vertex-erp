@@ -107,10 +107,10 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
 
       <div class="sec">💰 Продажи и долги</div>
       <div class="stat-grid">
+        <div class="stat-card" style="cursor:pointer;" onclick="openDebts()" title="Список долгов"><div class="sc-top"><div class="sc-icon" style="background:#fef2f2;">📤</div><span id="s-credit-od" style="display:none;background:#fee2e2;color:#b91c1c;font-size:10px;font-weight:800;border-radius:10px;padding:2px 7px;">просрочено 0</span></div><div class="sc-val" style="color:var(--red);" id="s-credit">0 ₸</div><div class="sc-lbl">Мы должны</div></div>
         <div class="stat-card"><div class="sc-top"><div class="sc-icon" style="background:#f0fdf4;">💵</div></div><div class="sc-val" style="color:var(--green);" id="s-sales-today">0 ₸</div><div class="sc-lbl">Продажи сегодня</div></div>
         <div class="stat-card"><div class="sc-top"><div class="sc-icon" style="background:#eff6ff;">📈</div></div><div class="sc-val" style="color:var(--blue);" id="s-sales-week">0 ₸</div><div class="sc-lbl">Продажи за неделю</div></div>
-        <div class="stat-card"><div class="sc-top"><div class="sc-icon" style="background:#f0fdf4;">📥</div></div><div class="sc-val" style="color:var(--green);" id="s-debit">0 ₸</div><div class="sc-lbl">Нам должны</div></div>
-        <div class="stat-card"><div class="sc-top"><div class="sc-icon" style="background:#fef2f2;">📤</div></div><div class="sc-val" style="color:var(--red);" id="s-credit">0 ₸</div><div class="sc-lbl">Мы должны</div></div>
+        <div class="stat-card" style="cursor:pointer;" onclick="openDebts()" title="Список долгов"><div class="sc-top"><div class="sc-icon" style="background:#f0fdf4;">📥</div></div><div class="sc-val" style="color:var(--green);" id="s-debit">0 ₸</div><div class="sc-lbl">Нам должны</div></div>
       </div>
 
       <div class="sec">🟢 Кто онлайн (<span id="online-inline">0</span>)</div>
@@ -149,6 +149,16 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
       <span class="cc-bell-mount"></span>
     </div>
     <div class="content"><div id="fin-root"></div></div>
+  </div>
+
+  <!-- ДОЛГИ (только просмотр) -->
+  <div class="scr" id="scr-debts">
+    <div style="background:linear-gradient(135deg,#dc2626,#ef4444);padding:calc(16px + env(safe-area-inset-top,0px)) 16px 16px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+      <div><div style="font-size:16px;font-weight:800;color:#fff;">Долги</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.8);margin-top:2px;">Только просмотр · остатки и сроки</div></div>
+      <span onclick="goScr('dash',document.getElementById('nav-dash'))" style="color:#fff;font-size:22px;cursor:pointer;padding:4px 8px;">✕</span>
+    </div>
+    <div class="content"><div id="d-debts-list"></div><div style="height:16px;"></div></div>
   </div>
 
   <!-- ПРОФИЛЬ -->
@@ -235,6 +245,11 @@ async function loadDash(){
   const credit=open.filter(d=>d.type==='credit').reduce((a,d)=>a+Math.max(0,num(d.amount)-num(d.paidAmount)),0);
   document.getElementById('s-debit').textContent=fmt(debit)+' ₸';
   document.getElementById('s-credit').textContent=fmt(credit)+' ₸';
+  window.__debts=debts;
+  const _t=new Date().toISOString().slice(0,10);
+  const _od=open.filter(d=>d.type==='credit'&&d.dueDate&&String(d.dueDate).slice(0,10)<_t).length;
+  const _b=document.getElementById('s-credit-od'); if(_b){_b.style.display=_od?'inline-block':'none'; _b.textContent='просрочено '+_od;}
+  if(document.getElementById('scr-debts').classList.contains('on')) renderDebts();
 
   // Касса + сохраняем данные для экрана «История»
   finAccts=fin.accounts||[]; finOps=fin.operations||[];
@@ -287,6 +302,20 @@ function renderUsers(users){
   document.getElementById('online-full').innerHTML=html;
 }
 
+function openDebts(){ document.querySelectorAll('.scr.on').forEach(s=>s.classList.remove('on')); document.getElementById('scr-debts').classList.add('on'); renderDebts(); }
+function renderDebts(){
+  const el=document.getElementById('d-debts-list'); if(!el) return;
+  const ds=(window.__debts||[]).filter(d=>d.status!=='closed');
+  const rem=d=>Math.max(0,num(d.amount)-num(d.paidAmount)); const t=new Date().toISOString().slice(0,10);
+  const cp=d=>d.clientName||d.counterpartyName||'—';
+  const cr=ds.filter(d=>d.type==='credit'), db=ds.filter(d=>d.type==='debit');
+  const card=d=>{ const od=d.dueDate&&String(d.dueDate).slice(0,10)<t; return '<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:12px 14px;margin-bottom:8px;">'
+    +'<div style="display:flex;justify-content:space-between;align-items:baseline;"><b style="font-size:14px;">'+(d.type==='credit'?'📤':'📥')+' '+cp(d)+'</b><b style="color:'+(d.type==='credit'?'#dc2626':'#16a34a')+';font-size:15px;">'+fmt(rem(d))+' ₸</b></div>'
+    +'<div style="font-size:11px;color:#6b7280;margin-top:4px;">Взято '+fmt(num(d.amount))+' · Погашено '+fmt(num(d.paidAmount))+(d.dueDate?' · срок '+String(d.dueDate).slice(0,10).split('-').reverse().join('.'):'')+(od?' <span style="color:#dc2626;font-weight:700;">просрочен</span>':'')+'</div></div>'; };
+  el.innerHTML=(cr.length?'<div class="sec">📤 Мы должны</div>'+cr.map(card).join(''):'')
+    +(db.length?'<div class="sec">📥 Нам должны</div>'+db.map(card).join(''):'')
+    +(!ds.length?'<div class="empty">Открытых долгов нет</div>':'');
+}
 function goScr(id,el){
   document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));

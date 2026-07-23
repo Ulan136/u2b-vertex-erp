@@ -40,6 +40,9 @@ export default function ReportsPage() {
   const { data: debts } = useApi<Debt[]>('/api/v2/debts');
   const { data: certs } = useApi<Cert[]>('/api/v2/certs?type=cert&archived=false');
   const { data: analytics, error: aErr, isLoading: aLoading } = useApi<Analytics>(`/api/v2/reports/analytics?${qs}`);
+  const { data: debtPays } = useApi<Array<{ amount: number; debtType: string }>>(`/api/v2/debts/payments?${qs}`);
+  const repayCredit = (debtPays || []).filter(p => p.debtType === 'credit').reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const repayDebit = (debtPays || []).filter(p => p.debtType === 'debit').reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
   const accs = fin?.accounts || [], ops = fin?.operations || [];
   const cash = accs.reduce((s, a) => s + (Number(a.balance) || 0), 0);
@@ -117,9 +120,17 @@ export default function ReportsPage() {
         <Kpi i="📥" l="Приход (период)" v={fmtT(inc)} c="#16a34a" />
         <Kpi i="📤" l="Расход (период)" v={fmtT(exp)} c="#dc2626" />
         <Kpi i="💰" l="Продажи (оплач./всего)" v={`${fmt(salesPaid)} / ${fmt(salesSum)}`} />
-        <Kpi i="🧾" l="Дебиторка" v={fmtT(recv)} />
-        <Kpi i="💸" l="Кредиторка" v={fmtT(payable)} c="#dc2626" />
+        <Kpi i="💸" l="Мы должны (остаток)" v={fmtT(payable)} c="#dc2626" />
+        <Kpi i="🧾" l="Нам должны (остаток)" v={fmtT(recv)} />
       </div>
+
+      <Card style={{ marginTop: 12 }}>
+        <h3>💵 Погашения долгов за период</h3>
+        <div className="erp-sections">
+          <div className="erp-sec-row"><span className="erp-sec-label">📤 Мы выплатили (по кредиторке)</span><span className="erp-sec-val" style={{ color: '#dc2626' }}>{fmtT(repayCredit)}</span></div>
+          <div className="erp-sec-row"><span className="erp-sec-label">📥 Нам вернули (по дебиторке)</span><span className="erp-sec-val" style={{ color: '#16a34a' }}>{fmtT(repayDebit)}</span></div>
+        </div>
+      </Card>
 
       {/* БЛОК 2 — Работа сотрудников за период */}
       <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>

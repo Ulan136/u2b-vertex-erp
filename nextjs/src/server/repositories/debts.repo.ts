@@ -1,6 +1,6 @@
 import { db, type Executor } from '@/db';
-import { debts, debtPayments, clients, financeAccounts } from '@/db/schema';
-import { and, or, eq, ilike, desc, asc, type SQL } from 'drizzle-orm';
+import { debts, debtPayments, clients, financeAccounts, users } from '@/db/schema';
+import { and, or, eq, ilike, gte, lte, desc, asc, type SQL } from 'drizzle-orm';
 
 type DebtInsert = typeof debts.$inferInsert;
 type PaymentInsert = typeof debtPayments.$inferInsert;
@@ -54,9 +54,28 @@ export const debtsRepo = {
     return row ?? null;
   },
 
-  async create(data: Record<string, unknown>) {
-    const [row] = await db.insert(debts).values(data as unknown as DebtInsert).returning();
+  async create(data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.insert(debts).values(data as unknown as DebtInsert).returning();
     return row;
+  },
+
+  // Все погашения (для «Журнала оплат») с контрагентом/счётом/суммой долга.
+  paymentsJournal({ from, to, q }: { from?: string | null; to?: string | null; q?: string | null }) {
+    const conds: SQL[] = [];
+    if (from) conds.push(gte(debtPayments.payDate, from));
+    if (to) conds.push(lte(debtPayments.payDate, to));
+    if (q && q.trim()) { const like = `%${q.trim()}%`; conds.push(or(ilike(debts.counterpartyName, like), ilike(clients.name, like))!); }
+    const base = db.select({
+      id: debtPayments.id, debtId: debtPayments.debtId, amount: debtPayments.amount, payDate: debtPayments.payDate,
+      comment: debtPayments.comment, financeOpId: debtPayments.financeOpId, createdAt: debtPayments.createdAt,
+      accountName: financeAccounts.name, authorName: users.name,
+      debtType: debts.type, debtAmount: debts.amount, counterpartyName: debts.counterpartyName, clientName: clients.name,
+    }).from(debtPayments)
+      .leftJoin(debts, eq(debtPayments.debtId, debts.id))
+      .leftJoin(clients, eq(debts.counterpartyClientId, clients.id))
+      .leftJoin(financeAccounts, eq(debtPayments.accountId, financeAccounts.id))
+      .leftJoin(users, eq(debtPayments.createdBy, users.id));
+    return (conds.length ? base.where(and(...conds)) : base).orderBy(desc(debtPayments.createdAt));
   },
 
   async update(id: string, data: Record<string, unknown>, exec: Executor = db) {
