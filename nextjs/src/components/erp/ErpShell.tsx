@@ -119,7 +119,7 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
         <div className="erp-brand">
           <span className="erp-brand-logo">V</span>
           <div>
-            <div className="erp-brand-name">VERTEX ERP</div>
+            <div className="erp-brand-name">U2B ERP</div>
             <div className="erp-brand-sub">VERTEX METROLOGY</div>
           </div>
         </div>
