@@ -87,27 +87,36 @@ export const productsService = {
     return exec ? doMovement(input, actor, exec) : db.transaction((tx) => doMovement(input, actor, tx));
   },
 
-  // Автосписание клейма-расходника при создании ПОВЕРКИ: OUT 1 шт. выбранного
-  // клейма (СЛ→лейбл, ПЛ→пломбо). Backorder разрешён — поверка НЕ падает из-за
-  // нуля на складе, остаток просто уходит вниз (на складе это подсветится ⚠).
-  // Если расходник не заведён — молча пропускаем. Вызывается внутри tx поверки.
-  async consumeSeal(marker: string, cert: { id: string; serialNo?: string | null }, actor: { id: string; name?: string } | null | undefined, exec: Executor) {
-    const product = await productsRepo.findConsumableByMarker(marker, exec);
-    if (!product) return null;
-    const price = Number(product.costPrice ?? product.price ?? 0);
-    const mv = await productsRepo.createMovement({
-      productId: product.id, skuCode: product.skuCode, productName: product.name,
-      moveType: 'OUT', qty: 1, price: money(price), totalSum: money(price),
-      certId: cert.id,
-      comment: `Поверка${cert.serialNo ? ' №' + cert.serialNo : ''} — клеймо ${marker}`,
-      author: actor?.name ?? null, createdBy: actor?.id ?? null,
-    }, exec);
-    await productsRepo.adjustStock(product.id, -1, exec);
-    return mv;
+  // Приводит списание клейма поверки к нужному состоянию (идемпотентно):
+  //   marker='СЛ'|'ПЛ' → должно быть ровно одно OUT-движение на этот расходник;
+  //   marker=null       → списаний быть не должно (не оплачено / не поверка).
+  // Так корректно отрабатывают переходы статуса оплаты (В ожидании↔Оплачено) и
+  // смена типа клейма. Backorder разрешён — поверка не падает из-за нуля на складе;
+  // если расходник не заведён — молча пропускаем.
+  async syncCertSeal(cert: { id: string; serialNo?: string | null }, marker: string | null, actor: { id: string; name?: string } | null | undefined, exec: Executor) {
+    const existing = await productsRepo.movementsByCert(cert.id, exec);
+    const target = marker ? await productsRepo.findConsumableByMarker(marker, exec) : null;
+    // Уже правильно: ровно одно движение и оно на нужный расходник.
+    if (target && existing.length === 1 && existing[0].productId === target.id) return;
+    if (!target && existing.length === 0) return;
+    // Иначе приводим к нужному состоянию: сначала откат всего лишнего, потом списание.
+    if (existing.length) await this.releaseCertConsumables(cert.id, exec);
+    if (target) {
+      const price = Number(target.costPrice ?? target.price ?? 0);
+      await productsRepo.createMovement({
+        productId: target.id, skuCode: target.skuCode, productName: target.name,
+        moveType: 'OUT', qty: 1, price: money(price), totalSum: money(price),
+        certId: cert.id,
+        comment: `Поверка${cert.serialNo ? ' №' + cert.serialNo : ''} — клеймо ${marker}`,
+        author: actor?.name ?? null, createdBy: actor?.id ?? null,
+      }, exec);
+      await productsRepo.adjustStock(target.id, -1, exec);
+    }
   },
 
-  // Возврат расходников при удалении поверки: откатываем влияние каждого движения
-  // на остаток и удаляем строку (иначе FK cert_id не даст удалить сертификат).
+  // Возврат расходников при удалении поверки (или перед пересписанием): откатываем
+  // влияние каждого движения на остаток и удаляем строку (иначе FK cert_id не даст
+  // удалить сертификат).
   async releaseCertConsumables(certId: string, exec: Executor) {
     const mvs = await productsRepo.movementsByCert(certId, exec);
     for (const m of mvs) {

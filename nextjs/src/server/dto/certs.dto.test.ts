@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanCertFields } from './certs.dto';
+import { cleanCertFields, isCertPaid } from './certs.dto';
+import { sealMarker } from './products.dto';
 
 test('cleanCertFields: undefined убирается (→ дефолт БД), не ломает вставку', () => {
   const out = cleanCertFields({ source: 'САМИ', fio: 'Иванов', checkDate: undefined, branchId: undefined, meterType: undefined });
@@ -21,4 +22,27 @@ test('cleanCertFields: null и обычные значения проходят 
   assert.equal(out.checkDate, '2026-07-22');
   assert.equal(out.meterType, null);
   assert.equal(out.operStatus, 'В работе');
+});
+
+// ── списание клейма только у ОПЛАЧЕННОЙ поверки ──────────────
+test('isCertPaid: только «Оплачено» — расход', () => {
+  assert.equal(isCertPaid('Оплачено'), true);
+  assert.equal(isCertPaid('В ожидании'), false);
+  assert.equal(isCertPaid(null), false);
+  assert.equal(isCertPaid(undefined), false);
+});
+
+// итоговый маркер = (оплачено ? клеймо : ничего) — как certs.service.sealFor
+const sealFor = (c: { docType?: string | null; sealType?: string | null; payStatus?: string | null }) =>
+  isCertPaid(c.payStatus) ? sealMarker(c.docType, c.sealType) : null;
+
+test('sealFor: оплаченная поверка СЛ → списываем СЛ, ПЛ → ПЛ', () => {
+  assert.equal(sealFor({ docType: 'cert', sealType: 'СЛ', payStatus: 'Оплачено' }), 'СЛ');
+  assert.equal(sealFor({ docType: 'cert', sealType: 'ПЛ', payStatus: 'Оплачено' }), 'ПЛ');
+});
+test('sealFor: поверка «В ожидании» → НЕ списываем', () => {
+  assert.equal(sealFor({ docType: 'cert', sealType: 'СЛ', payStatus: 'В ожидании' }), null);
+});
+test('sealFor: оплаченное извещение → НЕ списываем (не поверка)', () => {
+  assert.equal(sealFor({ docType: 'izv', sealType: 'СЛ', payStatus: 'Оплачено' }), null);
 });

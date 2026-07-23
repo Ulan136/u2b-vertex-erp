@@ -16,5 +16,5 @@ export const GET = withApi(async (req: NextRequest) => {
 export const POST = withApi(async (req: NextRequest, ctx) => created(await certsService.create(await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null)));
 
 // item: /api/v2/certs/[id]
-export const PATCH = withApi(async (req: NextRequest, ctx) => certsService.update(ctx.params!.id, await req.json()));
+export const PATCH = withApi(async (req: NextRequest, ctx) => certsService.update(ctx.params!.id, await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
 export const DELETE = withApi(async (req: NextRequest, ctx) => certsService.remove(ctx.params!.id));

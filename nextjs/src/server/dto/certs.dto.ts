@@ -31,6 +31,13 @@ export const certUpsertSchema = z.object({
 
 export const certUpdateSchema = certUpsertSchema.partial();
 
+// Клеймо-расходник списывается только у ОПЛАЧЕННОЙ поверки. «В ожидании» —
+// ещё не расход; когда статус станет «Оплачено», списание проведётся (и наоборот
+// — при откате в «В ожидании» расходник возвращается).
+export function isCertPaid(payStatus?: string | null): boolean {
+  return payStatus === 'Оплачено';
+}
+
 export type CertQuery = { source?: string | null; archived?: boolean; type?: string | null };
 
 // Подготовка полей к вставке/апдейту: undefined убираем (→ дефолт БД / без изменения),

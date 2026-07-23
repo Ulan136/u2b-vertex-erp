@@ -20,8 +20,8 @@ export const certsRepo = {
     return row;
   },
 
-  async update(id: string, data: Record<string, unknown>) {
-    const [row] = await db
+  async update(id: string, data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec
       .update(certificates)
       .set({ ...(data as Partial<CertInsert>), updatedAt: new Date() })
       .where(eq(certificates.id, id))
