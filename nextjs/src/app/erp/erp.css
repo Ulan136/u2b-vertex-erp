@@ -16,6 +16,15 @@
 .erp-brand-logo { width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg,#0ea5e9,#0284c7); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 18px; }
 .erp-brand-name { font-weight: 800; font-size: 14px; letter-spacing: .02em; color: #f1f5f9; }
 .erp-brand-sub { font-size: 10px; color: #64748b; }
+/* Поиск по меню (под логотипом) */
+.erp-nav-search { display: flex; align-items: center; gap: 6px; padding: 10px 12px; background: #0b111c; border-bottom: 1px solid rgba(255,255,255,.06); }
+.erp-nav-search input { flex: 1; min-width: 0; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); border-radius: 8px; padding: 7px 10px; font-size: 12.5px; color: #e5edf7; outline: none; }
+.erp-nav-search input::placeholder { color: #64748b; }
+.erp-nav-search input:focus { border-color: rgba(56,189,248,.5); background: rgba(255,255,255,.07); }
+.erp-nav-search button { flex: none; background: none; border: none; color: #64748b; cursor: pointer; font-size: 12px; padding: 4px 6px; border-radius: 6px; }
+.erp-nav-search button:hover { color: #cbd5e1; background: rgba(255,255,255,.06); }
+.erp-nav-empty { padding: 24px 16px; color: #64748b; font-size: 13px; text-align: center; }
+.erp-avatar { flex: none; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg,#334155,#1e293b); color: #e2e8f0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
 .erp-nav { flex: 1; overflow-y: auto; padding: 6px 0; }
 .erp-nav::-webkit-scrollbar { width: 6px; }
 .erp-nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.14); border-radius: 3px; }

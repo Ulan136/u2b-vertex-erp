@@ -73,6 +73,7 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
   const search = useSearchParams();
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [histOpen, setHistOpen] = React.useState(false);
+  const [navQ, setNavQ] = React.useState('');
 
   // Активен, если совпадает путь и все query-параметры ссылки (source/type/section).
   const itemActive = React.useCallback((href?: string) => {
@@ -89,6 +90,29 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
   // Заголовок страницы = активный пункт навигации (для не-legacy маршрутов).
   const active = sections.flatMap(s => s.items).find(i => !i.legacy && !i.heading && itemActive(i.href));
 
+  // Рендер одного пункта (используется и в полном списке, и в поиске).
+  const renderItem = (item: NavSection['items'][number], i: number) => {
+    if (item.external) {
+      return (
+        <a key={item.label + i} href={item.href} className="erp-nav-item erp-nav-cab" onClick={() => setMobileOpen(false)}>
+          {item.label}<span className="erp-nav-legacy" title="Мобильный кабинет">↗</span>
+        </a>
+      );
+    }
+    const isActive = !item.legacy && itemActive(item.href);
+    return (
+      <Link key={item.label + i} href={item.href ?? '#'} className={`erp-nav-item${isActive ? ' active' : ''}`} onClick={() => setMobileOpen(false)}>
+        {item.label}{item.legacy && <span className="erp-nav-legacy" title="Пока в старом интерфейсе">↗</span>}
+      </Link>
+    );
+  };
+
+  // Поиск по меню: фильтр пунктов (без заголовков-источников), только секции с совпадениями.
+  const q = navQ.trim().toLowerCase();
+  const filtered = q
+    ? sections.map(s => ({ s, items: s.items.filter(i => !i.heading && i.label.toLowerCase().includes(q)) })).filter(x => x.items.length > 0)
+    : null;
+
   return (
     <div className="erp-root">
       <aside className={`erp-sidebar${mobileOpen ? ' open' : ''}`}>
@@ -99,8 +123,21 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
             <div className="erp-brand-sub">VERTEX METROLOGY</div>
           </div>
         </div>
+        <div className="erp-nav-search">
+          <input value={navQ} onChange={e => setNavQ(e.target.value)} placeholder="🔍 Поиск по меню…" />
+          {navQ && <button onClick={() => setNavQ('')} aria-label="Очистить">✕</button>}
+        </div>
         <nav className="erp-nav">
-          {sections.map((section, si) => {
+          {filtered ? (
+            filtered.length === 0
+              ? <div className="erp-nav-empty">Ничего не найдено</div>
+              : filtered.map(({ s, items }) => (
+                <div key={s.title} className={`erp-nav-section${s.zone ? ' erp-zone-' + s.zone : ''}`}>
+                  <div className="erp-nav-title"><span>{s.icon}</span>{s.title}</div>
+                  {items.map((item, i) => renderItem(item, i))}
+                </div>
+              ))
+          ) : sections.map((section, si) => {
           const prevZone = si > 0 ? sections[si - 1].zone : undefined;
           const showZoneHead = section.zone && section.zone !== prevZone;
           return (
@@ -113,37 +150,16 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
             {section.divider && <div className={`erp-nav-divider${section.zone ? ' erp-zone-' + section.zone : ''}`}>{section.divider}</div>}
             <div className={`erp-nav-section${section.zone ? ' erp-zone-' + section.zone : ''}`}>
               <div className="erp-nav-title"><span>{section.icon}</span>{section.title}</div>
-              {section.items.map((item, i) => {
-                if (item.heading) {
-                  return <div key={item.label + i} className="erp-nav-subhead">{item.label}</div>;
-                }
-                if (item.external) {
-                  return (
-                    <a key={item.label + i} href={item.href} className="erp-nav-item erp-nav-cab" onClick={() => setMobileOpen(false)}>
-                      {item.label}
-                      <span className="erp-nav-legacy" title="Мобильный кабинет">↗</span>
-                    </a>
-                  );
-                }
-                const isActive = !item.legacy && itemActive(item.href);
-                return (
-                  <Link
-                    key={item.label + i}
-                    href={item.href ?? '#'}
-                    className={`erp-nav-item${isActive ? ' active' : ''}`}
-                    onClick={() => setMobileOpen(false)}
-                  >
-                    {item.label}
-                    {item.legacy && <span className="erp-nav-legacy" title="Пока в старом интерфейсе">↗</span>}
-                  </Link>
-                );
-              })}
+              {section.items.map((item, i) => item.heading
+                ? <div key={item.label + i} className="erp-nav-subhead">{item.label}</div>
+                : renderItem(item, i))}
             </div>
             </React.Fragment>
           );
           })}
         </nav>
         <div className="erp-sidebar-foot">
+          <span className="erp-avatar">{(user.name || '?').trim().charAt(0).toUpperCase() || '?'}</span>
           <div className="erp-user">
             <div className="erp-user-name">{user.name || '—'}</div>
             <div className="erp-user-role">{user.roleLabel}</div>
