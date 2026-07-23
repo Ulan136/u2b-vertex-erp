@@ -19,7 +19,40 @@ export const financeOperationSchema = z.object({
   docNo: z.string().nullish(),
   status: z.string().nullish(),
   orderId: z.string().uuid().nullish(),
+  expenseGroupId: z.string().uuid().nullish(),
 });
+
+// Строка смешанной оплаты расхода: счёт + сумма.
+export const expensePaymentSchema = z.object({
+  accountId: z.string().uuid(),
+  amount: z.coerce.number().positive(),
+});
+// Расход с нескольких счетов: общие поля + строки оплат.
+export const expenseCreateSchema = z.object({
+  name: z.string().optional(),
+  opDate: z.string().nullish(),
+  comment: z.string().nullish(),
+  expenseCat: z.string().nullish(),
+  subCategory: z.string().nullish(),
+  supplier: z.string().nullish(),
+  docNo: z.string().nullish(),
+  status: z.string().nullish(),
+  orderId: z.string().uuid().nullish(),
+  payments: z.array(expensePaymentSchema).min(1, 'Добавьте счёт и сумму'),
+});
+
+// ── Учёт расхода (чистые функции — тестируемые) ──
+const rmoney = (n: number) => Math.round((Number(n) || 0) * 100) / 100;
+export function expensePaymentsTotal(payments: Array<{ amount: number | string }>): number {
+  return rmoney(payments.reduce((s, p) => s + (Number(p.amount) || 0), 0));
+}
+// Полностью ли распределена сумма расхода по счетам (Σ строк == Итого).
+export function expenseFullyAllocated(total: number | string, payments: Array<{ amount: number | string }>): boolean {
+  return Math.abs(expensePaymentsTotal(payments) - rmoney(Number(total) || 0)) < 0.005;
+}
+export function expenseRemaining(total: number | string, payments: Array<{ amount: number | string }>): number {
+  return rmoney((Number(total) || 0) - expensePaymentsTotal(payments));
+}
 
 // Правка МЕТАДАННЫХ операции (без суммы/счёта/типа — балансы не трогаем).
 export const financeOpMetaSchema = z.object({

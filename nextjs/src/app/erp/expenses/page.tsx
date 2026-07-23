@@ -70,44 +70,61 @@ export default function ExpensesPage() {
   const [newCatIcon, setNewCatIcon] = React.useState('');   // '' → авто по названию
   const [iconEdit, setIconEdit] = React.useState<string | null>(null);   // catId, у которого открыта палитра
   const [ordQ, setOrdQ] = React.useState('');
-  const emptyF = () => ({ editId: '', catId: catList[0]?.id || '', subName: '', section: 'other', accountId: '', amount: '', desc: '', supplier: '', docNo: '', status: 'Оплачен', orderId: '', comment: '', employeeId: '', date: today(), err: '', saving: false });
+  const emptyF = () => ({ editId: '', catId: catList[0]?.id || '', subName: '', amount: '', payments: [{ accountId: '', amount: '' }], desc: '', supplier: '', docNo: '', status: 'Оплачен', orderId: '', comment: '', employeeId: '', date: today(), err: '', saving: false });
   const [f, setF] = React.useState(emptyF());
   const cat = catList.find(c => c.id === f.catId);
   const isSalary = cat?.name === 'Зарплата';
-  // Счета, сгруппированные по 4 блокам (для красивого выпадающего списка).
+  // Счета по 4 блокам — для выпадающего списка в строках оплаты (optgroup).
   const accGroups = SECTIONS.map(s => ({ ...s, accs: accounts.filter(a => (a.section || 'other') === s.key).sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)) }));
-  const selAcc = accounts.find(a => a.id === f.accountId);
-  const selSecNo = SECTIONS.find(s => s.key === (selAcc?.section || 'other'))?.no;
-  const [accOpen, setAccOpen] = React.useState(false);
+  // Смешанная оплата: строки [счёт | сумма], Σ должна равняться Сумме расхода.
+  const totalAmt = num(f.amount);
+  const allocated = f.payments.reduce((s, p) => s + num(p.amount), 0);
+  const remaining = Math.round((totalAmt - allocated) * 100) / 100;
+  function setPayAccount(i: number, accountId: string) {
+    setF(s => { const others = s.payments.reduce((a, p, j) => a + (j === i ? 0 : num(p.amount)), 0); const rem = Math.max(0, Math.round((num(s.amount) - others) * 100) / 100); return { ...s, payments: s.payments.map((p, j) => j === i ? { ...p, accountId, amount: p.amount || (rem ? String(rem) : '') } : p) }; });
+  }
+  const setPayAmount = (i: number, v: string) => setF(s => ({ ...s, payments: s.payments.map((p, j) => j === i ? { ...p, amount: v } : p) }));
+  const addPay = () => setF(s => ({ ...s, payments: [...s.payments, { accountId: '', amount: '' }] }));
+  const removePay = (i: number) => setF(s => ({ ...s, payments: s.payments.length > 1 ? s.payments.filter((_, j) => j !== i) : [{ accountId: '', amount: '' }] }));
 
   function open() { setF(emptyF()); setModal(true); }
   function openEdit(o: Op) {
     const c = catList.find(x => x.name === catOf(o));
-    setF({ editId: o.id, catId: c?.id || catList[0]?.id || '', subName: subOf(o), section: accounts.find(a => a.id === o.accountId)?.section || 'other', accountId: o.accountId, amount: String(num(o.amount)), desc: (o.name || '').replace(/^[^:]*:\s*/, ''), supplier: o.supplier || '', docNo: o.docNo || '', status: statusOf(o), orderId: o.orderId || '', comment: o.comment || '', employeeId: '', date: (o.opDate || '').slice(0, 10) || today(), err: '', saving: false });
+    setF({ editId: o.id, catId: c?.id || catList[0]?.id || '', subName: subOf(o), amount: String(num(o.amount)), payments: [{ accountId: o.accountId, amount: String(num(o.amount)) }], desc: (o.name || '').replace(/^[^:]*:\s*/, ''), supplier: o.supplier || '', docNo: o.docNo || '', status: statusOf(o), orderId: o.orderId || '', comment: o.comment || '', employeeId: '', date: (o.opDate || '').slice(0, 10) || today(), err: '', saving: false });
     setModal(true);
   }
 
   async function save() {
-    const amount = Number(f.amount) || 0;
-    if (!f.editId && amount <= 0) { setF(s => ({ ...s, err: 'Сумма больше 0' })); return; }
-    if (!f.editId && !isSalary && !f.accountId) { setF(s => ({ ...s, err: 'Выберите счёт оплаты' })); return; }
-    if (!f.editId && isSalary && (!f.accountId || !f.employeeId)) { setF(s => ({ ...s, err: 'Выберите сотрудника и счёт' })); return; }
-    setF(s => ({ ...s, saving: true, err: '' }));
+    const amount = num(f.amount);
+    const meta = { expenseCat: cat?.name || null, subCategory: f.subName || null, supplier: f.supplier || null, docNo: f.docNo || null, status: f.status, orderId: f.orderId || null };
     const name = (f.desc || cat?.name || 'Расход');
+    // ── правка: только метаданные (сумма/счета не трогаем — балансы защищены) ──
+    if (f.editId) {
+      setF(s => ({ ...s, saving: true, err: '' }));
+      try { await apiSend(`/api/v2/finance/${f.editId}`, 'PATCH', { name, opDate: f.date, comment: f.comment || null, ...meta }); setModal(false); await mutate(); toast('✅ Расход обновлён'); }
+      catch (e) { setF(s => ({ ...s, err: (e as Error).message, saving: false })); }
+      return;
+    }
+    if (amount <= 0) { setF(s => ({ ...s, err: 'Укажите сумму больше 0' })); return; }
+    if (isSalary && !f.employeeId) { setF(s => ({ ...s, err: 'Выберите сотрудника' })); return; }
+    // строки оплаты (авто-сумма при одной строке = вся Сумма)
+    let pays = f.payments.filter(p => p.accountId).map(p => ({ accountId: p.accountId, amount: num(p.amount) }));
+    if (pays.length === 1 && pays[0].amount <= 0) pays = [{ accountId: pays[0].accountId, amount }];
+    if (!pays.length) { setF(s => ({ ...s, err: 'Выберите счёт списания' })); return; }
+    const alloc = pays.reduce((s, p) => s + p.amount, 0);
+    if (Math.abs(alloc - amount) > 0.005) { setF(s => ({ ...s, err: `Распределите всю сумму: итог ${fmt(amount)}, распределено ${fmt(alloc)}` })); return; }
+    setF(s => ({ ...s, saving: true, err: '' }));
     try {
-      if (f.editId) {
-        // правка метаданных (сумма/счёт не меняем — балансы защищены)
-        await apiSend(`/api/v2/finance/${f.editId}`, 'PATCH', { name, opDate: f.date, comment: f.comment || null, expenseCat: cat?.name || null, subCategory: f.subName || null, supplier: f.supplier || null, docNo: f.docNo || null, status: f.status, orderId: f.orderId || null });
-      } else if (isSalary) {
+      if (isSalary) {
         const url = `/api/v2/employees/${f.employeeId}/payments`;
-        const body: Record<string, unknown> = { amount, accountId: f.accountId, kind: 'salary', comment: f.desc || null, confirmOverpay: false };
+        const body: Record<string, unknown> = { amount, payments: pays, kind: 'salary', comment: f.desc || null, confirmOverpay: false };
         let r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if (r.status === 409) { const e = await r.json().catch(() => ({})); if (!confirm((e.error || 'Оклад выплачен.') + '\n\nПровести как аванс?')) { setF(s => ({ ...s, saving: false })); return; } body.confirmOverpay = true; r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || ('HTTP ' + r.status)); }
       } else {
-        await apiSend('/api/v2/finance', 'POST', { opType: 'Расход', accountId: f.accountId, amount, name, source: 'Расходы', opDate: f.date, comment: f.comment || null, expenseCat: cat?.name || null, subCategory: f.subName || null, supplier: f.supplier || null, docNo: f.docNo || null, status: f.status, orderId: f.orderId || null });
+        await apiSend('/api/v2/finance', 'POST', { payments: pays, name, source: 'Расходы', opDate: f.date, comment: f.comment || null, ...meta });
       }
-      setModal(false); await mutate(); toast(f.editId ? '✅ Расход обновлён' : '✅ Расход проведён');
+      setModal(false); await mutate(); toast(pays.length > 1 ? '✅ Расход проведён с нескольких счетов' : '✅ Расход проведён');
     } catch (e) { setF(s => ({ ...s, err: (e as Error).message, saving: false })); }
   }
   async function del(o: Op) {
@@ -214,34 +231,29 @@ export default function ExpensesPage() {
           : <Field label="Поставщик / Получатель"><Input value={f.supplier} onChange={e => setF({ ...f, supplier: e.target.value })} placeholder="Название или ФИО" /></Field>}
         <Field label="Статус"><Select value={f.status} onChange={e => setF({ ...f, status: e.target.value })}>{STATUSES.map(s => <option key={s}>{s}</option>)}</Select></Field>
 
-        <div className="cert-sec-lbl">🧾 Привязка</div>
-        <Field label="Счёт списания (из какого блока)" required>
-          <div className="rsh-acc-picker">
-            <button type="button" className="rsh-acc-trigger" disabled={!!f.editId} onClick={() => setAccOpen(o => !o)}>
-              {selAcc
-                ? <span><span className="rsh-acc-tag">№{selSecNo}</span> {selAcc.icon || '💳'} {selAcc.name} <span className="rsh-acc-bal">· {fmt(selAcc.balance ?? 0)}</span></span>
-                : <span className="erp-muted">— выберите счёт из блока —</span>}
-              <span className="rsh-acc-caret">▾</span>
-            </button>
-            {accOpen && !f.editId && (<>
-              <div className="rsh-acc-backdrop" onClick={() => setAccOpen(false)} />
-              <div className="rsh-acc-menu">
+        <div className="cert-sec-lbl">🧾 Оплата — с каких счетов списать</div>
+        <div className="sale-pay" style={{ marginTop: 0 }}>
+          {f.payments.map((p, i) => (
+            <div className="sale-pay-row" key={i}>
+              <Select value={p.accountId} onChange={e => setPayAccount(i, e.target.value)} disabled={!!f.editId}>
+                <option value="">— выберите счёт —</option>
                 {accGroups.map(g => g.accs.length === 0 ? null : (
-                  <div key={g.key}>
-                    <div className="rsh-acc-grp-h">№{g.no} · {g.label}</div>
-                    {g.accs.map(a => (
-                      <div key={a.id} className={`rsh-acc-opt${f.accountId === a.id ? ' on' : ''}`} onClick={() => { setF({ ...f, accountId: a.id, section: g.key }); setAccOpen(false); }}>
-                        <span>{a.icon || '💳'} {a.name}</span>
-                        <span className="rsh-acc-bal">{fmt(a.balance ?? 0)}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <optgroup key={g.key} label={`№${g.no} ${g.label}`}>
+                    {g.accs.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name} · {fmt(a.balance ?? 0)}</option>)}
+                  </optgroup>
                 ))}
-                {accounts.length === 0 && <div className="erp-muted" style={{ padding: 10, fontSize: 12 }}>Нет счетов. Создайте их в «Финансы».</div>}
-              </div>
-            </>)}
+              </Select>
+              <Input type="number" min={0} value={p.amount} onChange={e => setPayAmount(i, e.target.value)} placeholder="сумма" style={{ textAlign: 'right' }} disabled={!!f.editId} />
+              <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => removePay(i)} title="Убрать" disabled={!!f.editId}>✕</button>
+            </div>
+          ))}
+          {!f.editId && <Button variant="outline" onClick={addPay} style={{ fontSize: 12 }}>+ Добавить счёт</Button>}
+          <div className="sale-pay-state">
+            <span>Распределено: <b style={{ color: '#16a34a' }}>{fmt(allocated)}</b></span>
+            <span>Осталось: <b style={{ color: remaining !== 0 ? '#b45309' : '#16a34a' }}>{fmt(remaining)}</b></span>
           </div>
-        </Field>
+          <div className="erp-muted" style={{ fontSize: 11 }}>Одна строка — вся сумма спишется с одного счёта (подставится автоматически). Часть с одного + часть с другого — две строки. Каждая строка = свой расход в Финансах на своём счёте, всё одной транзакцией.</div>
+        </div>
         <div className="erp-form-row">
           <Field label="Привязать к заказу">
             <Input placeholder="🔍 Поиск по номеру" value={ordQ} onChange={e => setOrdQ(e.target.value)} style={{ marginBottom: 5 }} />

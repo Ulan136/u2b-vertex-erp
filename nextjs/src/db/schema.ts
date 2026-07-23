@@ -193,6 +193,8 @@ export const financeOperations = pgTable('finance_operations', {
   docNo       : varchar('doc_no', { length: 50 }),
   status      : varchar('status', { length: 20 }),
   orderId     : uuid('order_id'),
+  // Смешанная оплата расхода: строки одного расхода делят expense_group_id.
+  expenseGroupId : uuid('expense_group_id'),
   // Аудит сторно: reverses = id операции, которую отменяет эта запись;
   // reversedAt проставляется на ИСХОДНОЙ операции, когда её сторнировали.
   reverses    : uuid('reverses'),

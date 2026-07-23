@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { db } from '@/db';
 import { employeesRepo } from '@/server/repositories/employees.repo';
 import { financeService } from '@/server/services/finance.service';
@@ -115,25 +116,30 @@ export const employeesService = {
       throw conflict(`Оклад за месяц уже выплачен. Превышение ${over.excess.toLocaleString('ru-RU')} ₸ — это деньги следующего месяца. Подтвердите переплату.`);
     }
 
-    // Расход в финансах + запись выплаты — в ОДНОЙ транзакции: не бывает
-    // «из кассы списано, а выплаты нет» (и наоборот).
-    const opSpec = buildSalaryFinanceOp(user, data);
-    const { payment } = await db.transaction(async (tx) => {
-      const op = await financeService.createOperation({
-        opDate: opSpec.opDate,
-        name: opSpec.name,
-        accountId: opSpec.accountId,
-        opType: opSpec.opType,
-        amount: money(opSpec.amount),
-        source: opSpec.source,
-        comment: opSpec.comment,
-      }, actor?.id ?? null, tx);
+    // Строки выплаты: смешанная оплата (payments[]) или один счёт (accountId).
+    const rows = (data.payments && data.payments.length)
+      ? data.payments.map((p) => ({ accountId: p.accountId, amount: Number(p.amount) || 0 }))
+      : (data.accountId ? [{ accountId: data.accountId, amount: Number(data.amount) || 0 }] : []);
+    if (!rows.length) throw badRequest('Выберите счёт списания');
 
+    // Расходы в финансах (по каждому счёту, общая группа) + ОДНА запись выплаты
+    // в кадрах (Σ = amount) — всё в одной транзакции.
+    const groupId = randomUUID();
+    const { payment } = await db.transaction(async (tx) => {
+      let firstOpId: string | null = null;
+      for (const r of rows) {
+        const opSpec = buildSalaryFinanceOp(user, { ...data, accountId: r.accountId, amount: r.amount });
+        const op = await financeService.createOperation({
+          opDate: opSpec.opDate, name: opSpec.name, accountId: opSpec.accountId, opType: opSpec.opType,
+          amount: money(opSpec.amount), source: opSpec.source, comment: opSpec.comment, expenseGroupId: groupId,
+        }, actor?.id ?? null, tx);
+        if (!firstOpId) firstOpId = op?.id ?? null;
+      }
       const payment = await employeesRepo.createPayment({
         userId,
         amount: money(data.amount),
-        accountId: data.accountId,
-        financeOpId: op?.id ?? null,
+        accountId: rows[0].accountId,
+        financeOpId: firstOpId,
         payDate: data.payDate ?? undefined,
         kind: data.kind,
         comment: data.comment ?? null,

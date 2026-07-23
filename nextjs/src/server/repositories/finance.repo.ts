@@ -52,6 +52,10 @@ export const financeRepo = {
   findBySale: (saleId: string, exec: Executor = db) =>
     exec.select().from(financeOperations).where(eq(financeOperations.saleId, saleId)),
 
+  // Операции одной группы расхода (смешанная оплата — для отмены всей группы).
+  findByGroup: (groupId: string, exec: Executor = db) =>
+    exec.select().from(financeOperations).where(eq(financeOperations.expenseGroupId, groupId)),
+
   // Пометить исходную операцию как сторнированную (защита от двойной отмены + аудит).
   markReversed: (id: string, exec: Executor = db) =>
     exec.update(financeOperations).set({ reversedAt: new Date() }).where(eq(financeOperations.id, id)),

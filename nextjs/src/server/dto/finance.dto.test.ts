@@ -1,6 +1,42 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { balanceDeltas, accountCreateSchema, financeOperationSchema, scopeFinance, movementAmount, inPeriod, FINANCE_SECTIONS, FINANCE_SECTION_META, sectionNo, sectionTitle, numberAccounts } from './finance.dto';
+import { balanceDeltas, accountCreateSchema, financeOperationSchema, scopeFinance, movementAmount, inPeriod, FINANCE_SECTIONS, FINANCE_SECTION_META, sectionNo, sectionTitle, numberAccounts, expensePaymentsTotal, expenseFullyAllocated, expenseRemaining } from './finance.dto';
+
+// ── Смешанная оплата расхода (несколько счетов одной транзакцией) ──
+// Мини-симуляция балансов из тех же производственных хелперов, что и в сервисе.
+function applyExpense(bal: Record<string, number>, payments: Array<{ accountId: string; amount: number }>) {
+  for (const p of payments) for (const { id, delta } of balanceDeltas('Расход', p.amount, p.accountId)) bal[id] = (bal[id] ?? 0) + delta;
+}
+function reverseExpense(bal: Record<string, number>, payments: Array<{ accountId: string; amount: number }>) {
+  // сторно = обратная операция (Приход) по каждому счёту группы
+  for (const p of payments) for (const { id, delta } of balanceDeltas('Приход', p.amount, p.accountId)) bal[id] = (bal[id] ?? 0) + delta;
+}
+
+test('распределение расхода: сумма строк и полнота', () => {
+  const pays = [{ amount: 30000 }, { amount: 15000 }];
+  assert.equal(expensePaymentsTotal(pays), 45000);
+  assert.ok(expenseFullyAllocated(45000, pays));
+  assert.ok(!expenseFullyAllocated(50000, pays));
+  assert.equal(expenseRemaining(50000, pays), 5000);
+});
+
+test('расход 45 000 с двух счетов → списание с каждого; отмена → возврат', () => {
+  const BCK = 'acc-bck', CASH = 'acc-cash';
+  const bal = { [BCK]: 100000, [CASH]: 50000 };
+  const pays = [{ accountId: BCK, amount: 30000 }, { accountId: CASH, amount: 15000 }];
+  applyExpense(bal, pays);
+  assert.equal(bal[BCK], 70000);   // 100000 − 30000
+  assert.equal(bal[CASH], 35000);  // 50000 − 15000
+  reverseExpense(bal, pays);
+  assert.equal(bal[BCK], 100000);  // вернулось
+  assert.equal(bal[CASH], 50000);
+});
+
+test('зарплата с двух счетов = одна выплата суммой Σ (для «Выплачено за месяц»)', () => {
+  const pays = [{ amount: 30000 }, { amount: 15000 }];
+  const totalPaid = expensePaymentsTotal(pays);
+  assert.equal(totalPaid, 45000);   // в кадрах одна запись на 45 000, контроль оклада от общей суммы
+});
 
 // ── нумерация и порядок разделов (категорий) ─────────────────
 test('FINANCE_SECTIONS: порядок №1 Поверка · №2 Продажа · №3 Филиалы · №4 Прочие', () => {

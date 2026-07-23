@@ -12,7 +12,10 @@ export const salaryUpdateSchema = z.object({
 
 export const salaryPaymentSchema = z.object({
   amount: z.coerce.number().positive('Сумма должна быть больше 0'),
-  accountId: z.string().uuid('Выберите счёт списания'),
+  accountId: z.string().uuid('Выберите счёт списания').optional(),
+  // Смешанная оплата: выплата с нескольких счетов (Σ = amount). Одна запись
+  // выплаты в кадрах, но несколько расход-операций в финансах (общая группа).
+  payments: z.array(z.object({ accountId: z.string().uuid(), amount: z.coerce.number().positive() })).optional(),
   payDate: z.string().nullish(),
   kind: z.enum(['salary', 'advance']).default('salary'),
   comment: z.string().nullish(),

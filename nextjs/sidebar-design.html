@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VERTEX ERP — сайдбар (макет для дизайна)</title>
+<style>
+/* ============================================================
+   ⚙️  МЕНЯЙ ТОЛЬКО ЭТОТ БЛОК — цвета и размеры сайдбара.
+   Здесь все переменные. Правь значения, сохраняй, присылай обратно.
+   ============================================================ */
+:root {
+  /* ── РАЗМЕРЫ ── */
+  --sb-width: 244px;              /* ширина сайдбара */
+  --sb-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --item-font-size: 13px;         /* размер пункта меню */
+  --item-pad-y: 7px;              /* высота пункта (вертикальный отступ) */
+  --item-pad-left: 34px;          /* отступ пункта слева */
+  --title-font-size: 12px;        /* размер заголовка раздела */
+  --subhead-font-size: 11px;      /* размер под-заголовка (САМИ/ВДК…) */
+  --divider-font-size: 9.5px;     /* размер разделителя (ОПЕРАЦИОННЫЕ…) */
+  --zone-font-size: 11px;         /* размер названия зоны (ДОХОДЫ…) */
+  --brand-pad: 14px 16px;         /* отступы шапки-логотипа */
+  --logo-size: 34px;              /* размер квадрата логотипа V */
+  --radius: 9px;                  /* скругление логотипа */
+
+  /* ── ФОН ── */
+  --sb-bg: #0f172a;               /* фон всего сайдбара */
+  --brand-bg: #0b1220;            /* фон шапки-логотипа */
+  --logo-grad-a: #0ea5e9;         /* логотип: градиент от */
+  --logo-grad-b: #0284c7;         /* логотип: градиент до */
+  --foot-bg: transparent;         /* фон нижнего блока (пользователь) */
+
+  /* ── ТЕКСТ ── */
+  --brand-name: #f1f5f9;          /* «VERTEX ERP» */
+  --brand-sub: #64748b;           /* «VERTEX METROLOGY» */
+  --title-color: #e5edf7;         /* заголовки разделов (Главная, Поверка…) */
+  --item-color: #cbd5e1;          /* пункты меню */
+  --subhead-color: #8a97a8;       /* под-заголовки (САМИ/ВДК/ТЭЦ…) */
+  --divider-color: #5b7089;       /* разделители (ОПЕРАЦИОННЫЕ…) */
+  --user-name: #e5edf7;           /* имя пользователя внизу */
+  --user-role: #64748b;           /* роль пользователя внизу */
+
+  /* ── ЗОНА «ДОХОДЫ» (зелёная) ── */
+  --income: #34d399;                       /* заголовок зоны ДОХОДЫ */
+  --income-title: #6ee7b7;                 /* заголовки разделов в зоне */
+  --income-hover-bg: rgba(52,211,153,.12); /* фон пункта при наведении */
+  --income-hover-color: #6ee7b7;           /* цвет пункта при наведении */
+  --income-active-bg: rgba(52,211,153,.16);/* фон активного пункта */
+  --income-active-color: #a7f3d0;          /* цвет активного пункта */
+  --income-active-bar: #10b981;            /* полоска слева у активного */
+  --income-line: rgba(52,211,153,.32);     /* левая линия-акцент зоны */
+
+  /* ── ЗОНА «ОПЕРАЦИИ И УЧЁТ» (голубая) ── */
+  --ops: #38bdf8;                          /* заголовок зоны ОПЕРАЦИИ */
+  --ops-title: #93c5fd;                    /* заголовки разделов в зоне */
+  --ops-hover-bg: rgba(56,189,248,.12);    /* фон пункта при наведении */
+  --ops-hover-color: #7dd3fc;              /* цвет пункта при наведении */
+  --ops-active-bg: rgba(56,189,248,.16);   /* фон активного пункта */
+  --ops-active-color: #bae6fd;             /* цвет активного пункта */
+  --ops-active-bar: #0ea5e9;               /* полоска слева у активного */
+  --ops-line: rgba(56,189,248,.28);        /* левая линия-акцент зоны */
+}
+/* ============================================================
+   Ниже — вёрстка. Обычно её менять не нужно (только если хочешь
+   поменять расположение). Всё оформление берётся из переменных выше.
+   ============================================================ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { display: flex; min-height: 100vh; background: #f8fafc; font-family: var(--sb-font); }
+
+.sidebar { width: var(--sb-width); flex-shrink: 0; background: var(--sb-bg); display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; border-right: 1px solid rgba(255,255,255,.06); }
+
+.brand { display: flex; align-items: center; gap: 10px; padding: var(--brand-pad); background: var(--brand-bg); border-bottom: 1px solid rgba(255,255,255,.08); }
+.brand-logo { width: var(--logo-size); height: var(--logo-size); border-radius: var(--radius); background: linear-gradient(135deg, var(--logo-grad-a), var(--logo-grad-b)); color: #fff; font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.brand-name { font-weight: 800; font-size: 14px; letter-spacing: .02em; color: var(--brand-name); }
+.brand-sub { font-size: 10px; color: var(--brand-sub); }
+
+.nav { flex: 1; overflow-y: auto; padding: 6px 0; }
+.nav::-webkit-scrollbar { width: 6px; }
+.nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 3px; }
+
+.zone-head { display: flex; align-items: center; gap: 10px; padding: 15px 14px 6px; font-size: var(--zone-font-size); font-weight: 800; letter-spacing: .16em; text-transform: uppercase; }
+.zone-head .zh-line { flex: 1; height: 1px; }
+.zone-head.income { color: var(--income); border-left: 2px solid var(--income-line); }
+.zone-head.income .zh-line { background: linear-gradient(90deg, var(--income), transparent); opacity: .6; }
+.zone-head.ops { color: var(--ops); border-left: 2px solid var(--ops-line); }
+.zone-head.ops .zh-line { background: linear-gradient(90deg, var(--ops), transparent); opacity: .55; }
+
+.divider { margin: 10px 0 2px; padding: 8px 14px 3px; font-size: var(--divider-font-size); font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--divider-color); border-top: 1px solid rgba(255,255,255,.06); }
+
+.section { margin-bottom: 2px; }
+.section.income { border-left: 2px solid var(--income-line); }
+.section.ops { border-left: 2px solid var(--ops-line); }
+.nav-title { display: flex; align-items: center; gap: 7px; padding: 9px 16px 4px; font-size: var(--title-font-size); font-weight: 700; color: var(--title-color); }
+.section.income .nav-title { color: var(--income-title); }
+.section.ops .nav-title { color: var(--ops-title); }
+
+.subhead { padding: 8px 16px 2px 20px; font-size: var(--subhead-font-size); font-weight: 700; color: var(--subhead-color); letter-spacing: .02em; }
+
+.item { display: flex; align-items: center; gap: 6px; padding: var(--item-pad-y) 16px var(--item-pad-y) var(--item-pad-left); font-size: var(--item-font-size); color: var(--item-color); text-decoration: none; border-left: 3px solid transparent; cursor: pointer; }
+.item .arrow { margin-left: auto; color: #475569; font-size: 12px; }
+.section.income .item:hover { background: var(--income-hover-bg); color: var(--income-hover-color); }
+.section.income .item.active { background: var(--income-active-bg); color: var(--income-active-color); border-left-color: var(--income-active-bar); font-weight: 600; }
+.section.ops .item:hover { background: var(--ops-hover-bg); color: var(--ops-hover-color); }
+.section.ops .item.active { background: var(--ops-active-bg); color: var(--ops-active-color); border-left-color: var(--ops-active-bar); font-weight: 600; }
+/* верхний раздел «Главная» (вне зон) — нейтральный */
+.section.plain .item:hover { background: rgba(14,165,233,.12); color: #7dd3fc; }
+.section.plain .item.active { background: rgba(14,165,233,.16); color: #7dd3fc; border-left-color: #0ea5e9; font-weight: 600; }
+
+.foot { border-top: 1px solid rgba(255,255,255,.08); padding: 10px 16px; display: flex; align-items: center; gap: 8px; background: var(--foot-bg); }
+.user { flex: 1; min-width: 0; }
+.user-name { font-size: 13px; font-weight: 600; color: var(--user-name); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-role { font-size: 11px; color: var(--user-role); }
+.logout { text-decoration: none; color: #94a3b8; font-size: 18px; padding: 4px 8px; border-radius: 6px; }
+.logout:hover { background: rgba(220,38,38,.15); color: #fca5a5; }
+
+/* правая заглушка-контент (не сайдбар) */
+.stage { flex: 1; padding: 28px; color: #334155; }
+.stage h1 { font-size: 18px; margin-bottom: 8px; }
+.stage p { font-size: 14px; color: #64748b; max-width: 620px; line-height: 1.5; }
+.stage code { background: #eef2f7; padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand">
+    <span class="brand-logo">V</span>
+    <div>
+      <div class="brand-name">VERTEX ERP</div>
+      <div class="brand-sub">VERTEX METROLOGY</div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <!-- Верх (вне зон) -->
+    <div class="section plain">
+      <div class="nav-title"><span>🏠</span>Главная</div>
+      <a class="item active">Рабочий стол</a>
+    </div>
+
+    <!-- ══ ЗОНА ДОХОДЫ ══ -->
+    <div class="zone-head income"><span>Доходы</span><span class="zh-line"></span></div>
+
+    <div class="section income">
+      <div class="nav-title"><span>📋</span>Поверка</div>
+      <div class="subhead">САМИ</div>
+      <a class="item">Сертификат</a>
+      <a class="item">Извещение</a>
+      <div class="subhead">ВДК</div>
+      <a class="item">Сертификат</a>
+      <a class="item">Извещение</a>
+      <div class="subhead">ТЭЦ</div>
+      <a class="item">Заявки</a>
+      <a class="item">Сертификат</a>
+      <a class="item">Извещение</a>
+      <div class="subhead">🚗 Выездная поверка</div>
+      <a class="item">Заявки</a>
+      <a class="item">Сертификат</a>
+      <a class="item">Извещение</a>
+      <div class="subhead">🆕 Первичная · KAZMETER</div>
+      <a class="item">Сертификат</a>
+      <a class="item">Извещение</a>
+      <div class="subhead">Первичная · AQUA</div>
+      <a class="item">Сертификат</a>
+      <a class="item">Извещение</a>
+    </div>
+
+    <div class="section income">
+      <div class="nav-title"><span>🏢</span>Филиалы</div>
+      <div class="subhead">Астана · Выездная поверка</div>
+      <a class="item">Сертификат</a>
+      <a class="item">Извещение</a>
+    </div>
+
+    <div class="section income">
+      <div class="nav-title"><span>💰</span>Продажа</div>
+      <a class="item">Журнал продаж</a>
+    </div>
+
+    <div class="section income">
+      <div class="nav-title"><span>📄</span>Прочие операции</div>
+      <a class="item">📁 Проект</a>
+      <a class="item">📜 Тендер</a>
+      <a class="item">🛠 Услуга</a>
+    </div>
+
+    <!-- ══ ЗОНА ОПЕРАЦИИ И УЧЁТ ══ -->
+    <div class="zone-head ops"><span>Операции и учёт</span><span class="zh-line"></span></div>
+
+    <div class="divider">Операционные</div>
+    <div class="section ops">
+      <div class="nav-title"><span>💸</span>Расходы</div>
+      <a class="item">Журнал расходов</a>
+      <a class="item">Категории</a>
+      <a class="item">Аналитика</a>
+    </div>
+
+    <div class="section ops">
+      <div class="nav-title"><span>📒</span>Бухгалтерия</div>
+      <a class="item">Документы</a>
+    </div>
+
+    <div class="section ops">
+      <div class="nav-title"><span>💳</span>Финансы</div>
+      <a class="item">Счета и операции</a>
+      <a class="item">Привязка счетов</a>
+    </div>
+
+    <div class="section ops">
+      <div class="nav-title"><span>💳</span>Долги</div>
+      <a class="item">Дебиторка / Кредиторка</a>
+    </div>
+
+    <div class="section ops">
+      <div class="nav-title"><span>✅</span>Задачи</div>
+      <a class="item">Задачи сотрудникам</a>
+    </div>
+
+    <div class="section ops">
+      <div class="nav-title"><span>🏭</span>Склад</div>
+      <a class="item">Журнал склада</a>
+      <a class="item">🛒 Закупки</a>
+    </div>
+
+    <div class="section ops">
+      <div class="nav-title"><span>👥</span>Сотрудники</div>
+      <a class="item">Руководитель</a>
+      <a class="item">Зарплата и кадры</a>
+    </div>
+
+    <div class="divider">Финансы и учёт</div>
+    <div class="section ops">
+      <div class="nav-title"><span>🧾</span>Счета</div>
+      <a class="item">№1 📋 Поверка</a>
+      <a class="item">№2 💰 Продажа</a>
+      <a class="item">№3 🏢 Филиалы</a>
+      <a class="item">№4 📄 Прочие операции</a>
+    </div>
+
+    <div class="section ops">
+      <div class="nav-title"><span>🗄</span>База данных</div>
+      <a class="item">⏰ Сроки счётчиков</a>
+      <a class="item">🗂 Архив сертификатов</a>
+      <a class="item">📭 Архив извещений</a>
+      <a class="item">📋 Авто-заказы</a>
+    </div>
+
+    <div class="divider">Аналитика</div>
+    <div class="section ops">
+      <div class="nav-title"><span>📊</span>Отчёт</div>
+      <a class="item">Отчёты</a>
+    </div>
+
+    <div class="section ops">
+      <div class="nav-title"><span>📖</span>Справочник</div>
+      <a class="item">Справочники</a>
+      <a class="item">Типы приборов</a>
+    </div>
+
+    <div class="divider">Система</div>
+    <div class="section ops">
+      <div class="nav-title"><span>⚙️</span>Настройка</div>
+      <a class="item">Настройки</a>
+      <a class="item">Доступы</a>
+      <a class="item">Организация</a>
+      <a class="item">Филиалы</a>
+      <a class="item">Пользователи</a>
+      <a class="item">Клиенты</a>
+      <a class="item">📱 Кабинет мастера<span class="arrow">↗</span></a>
+      <a class="item">📱 Кабинет директора<span class="arrow">↗</span></a>
+    </div>
+  </nav>
+
+  <div class="foot">
+    <div class="user">
+      <div class="user-name">Администратор</div>
+      <div class="user-role">Админ</div>
+    </div>
+    <a class="logout" title="Выйти">⎋</a>
+  </div>
+</aside>
+
+<div class="stage">
+  <h1>Макет левого сайдбара — для дизайна</h1>
+  <p>Это точная копия бокового меню программы. Меняй <b>цвета и размеры</b> только
+  в блоке <code>:root { … }</code> в самом верху файла (внутри тега <code>&lt;style&gt;</code>) —
+  там каждая переменная подписана по-русски. Сохрани файл и пришли мне обратно —
+  я перенесу твои значения в программу.</p>
+  <p style="margin-top:12px">Активный пункт для примера — «Рабочий стол». Наведи мышкой
+  на пункты, чтобы увидеть цвета наведения в зелёной (Доходы) и голубой (Операции) зонах.</p>
+</div>
+
+</body>
+</html>

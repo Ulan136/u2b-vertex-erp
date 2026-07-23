@@ -1,7 +1,9 @@
 import { db, type Executor } from '@/db';
 import { financeRepo } from '@/server/repositories/finance.repo';
+import { randomUUID } from 'crypto';
 import {
-  financeOperationSchema, financeOpMetaSchema, accountCreateSchema, accountUpdateSchema, balanceDeltas,
+  financeOperationSchema, financeOpMetaSchema, expenseCreateSchema, expensePaymentsTotal,
+  accountCreateSchema, accountUpdateSchema, balanceDeltas,
 } from '@/server/dto/finance.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
@@ -42,6 +44,7 @@ async function createOperation(input: unknown, actorId?: string | null, exec?: E
   if (data.docNo) insert.docNo = data.docNo;
   if (data.status) insert.status = data.status;
   if (data.orderId) insert.orderId = data.orderId;
+  if (data.expenseGroupId) insert.expenseGroupId = data.expenseGroupId;
 
   const run = (e: Executor) => insertOperation(insert, data.opType, data.amount, data.accountId, data.toAccountId, e);
   return exec ? run(exec) : db.transaction(run);
@@ -117,10 +120,43 @@ async function updateOperationMeta(id: string, input: unknown) {
   return row;
 }
 
+// Расход с НЕСКОЛЬКИХ счетов: каждая строка → свой Расход в финансах на своём
+// счёте, все делят expense_group_id — всё в ОДНОЙ транзакции.
+async function createExpense(input: unknown, actorId?: string | null) {
+  const d = expenseCreateSchema.parse(input);
+  const groupId = randomUUID();
+  const meta = { name: d.name || 'Расход', source: 'Расходы', opDate: d.opDate || undefined, comment: d.comment || undefined, expenseCat: d.expenseCat || undefined, subCategory: d.subCategory || undefined, supplier: d.supplier || undefined, docNo: d.docNo || undefined, status: d.status || undefined, orderId: d.orderId || undefined };
+  return db.transaction(async (tx) => {
+    const ops = [];
+    for (const p of d.payments) {
+      ops.push(await createOperation({ ...meta, opType: 'Расход', accountId: p.accountId, amount: p.amount, expenseGroupId: groupId }, actorId, tx));
+    }
+    return { groupId, count: ops.length, total: expensePaymentsTotal(d.payments), ops };
+  });
+}
+
+// Отмена расхода: если у операции есть группа — сторнируем ВСЕ её действующие
+// операции по своим счетам; иначе — только одну. Всё в одной транзакции.
+async function reverseExpense(id: string, actorId?: string | null) {
+  if (!id) throw badRequest('id обязателен');
+  return db.transaction(async (tx) => {
+    const op = await financeRepo.findOperation(id, tx);
+    if (!op) throw notFound('Операция не найдена');
+    const targets = op.expenseGroupId
+      ? (await financeRepo.findByGroup(op.expenseGroupId, tx)).filter(o => !o.reversedAt && !o.reverses)
+      : [op];
+    const done = [];
+    for (const t of targets) done.push(await reverseOperation(t.id, actorId ?? null, tx));
+    return { ok: true, reversed: done.filter(Boolean).length };
+  });
+}
+
 export const financeService = {
   overview: (from?: string | null, to?: string | null) => financeRepo.overview(from, to),
   createOperation,
+  createExpense,
   reverseOperation,
+  reverseExpense,
   updateOperationMeta,
   createAccount,
   updateAccount,
