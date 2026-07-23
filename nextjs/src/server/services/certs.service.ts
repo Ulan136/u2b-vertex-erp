@@ -1,6 +1,9 @@
+import { db } from '@/db';
 import { certsRepo } from '@/server/repositories/certs.repo';
 import { certUpsertSchema, certUpdateSchema, cleanCertFields, type CertQuery } from '@/server/dto/certs.dto';
 import { deviceTypesService } from '@/server/services/deviceTypes.service';
+import { productsService } from '@/server/services/products.service';
+import { sealMarker } from '@/server/dto/products.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
 export const certsService = {
@@ -12,7 +15,7 @@ export const certsService = {
     });
   },
 
-  async create(input: unknown, actor?: { id: string } | null) {
+  async create(input: unknown, actor?: { id: string; name?: string } | null) {
     const data = certUpsertSchema.parse(input);
     const fields = cleanCertFields(data);
     // fio/address — NOT NULL в БД без дефолта: гарантируем непустую строку (иначе 500).
@@ -20,7 +23,14 @@ export const certsService = {
     fields.address ??= '';
     // Автор сертификата — для аналитики по сотрудникам (раньше не сохранялся).
     if (actor?.id) fields.createdBy = actor.id;
-    const row = await certsRepo.create(fields);
+    // Клеймо-расходник (СЛ/ПЛ) списывается только при создании ПОВЕРКИ.
+    const marker = sealMarker(fields.docType as string | null, fields.sealType as string | null);
+    // Сертификат + автосписание клейма — одной транзакцией (либо оба, либо ничего).
+    const row = await db.transaction(async (tx) => {
+      const created = await certsRepo.create(fields, tx);
+      if (marker) await productsService.consumeSeal(marker, { id: created.id, serialNo: fields.serialNo as string | null }, actor, tx);
+      return created;
+    });
     // Самообучение справочника типов приборов (best-effort, не роняет сохранение).
     if (fields.meterType) await deviceTypesService.touch(fields.meterType);
     return row;
@@ -41,7 +51,12 @@ export const certsService = {
 
   async remove(id: string) {
     if (!id) throw badRequest('id is required');
-    await certsRepo.remove(id);
+    // Возвращаем списанные клейма на склад и удаляем поверку — одной транзакцией
+    // (заодно снимаем ссылку cert_id с движений, иначе FK не даст удалить).
+    await db.transaction(async (tx) => {
+      await productsService.releaseCertConsumables(id, tx);
+      await certsRepo.remove(id, tx);
+    });
     return { ok: true };
   },
 };

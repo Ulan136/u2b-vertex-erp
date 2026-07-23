@@ -1,4 +1,4 @@
-import { db } from '@/db';
+import { db, type Executor } from '@/db';
 import { certificates, users } from '@/db/schema';
 import { and, desc, eq, getTableColumns } from 'drizzle-orm';
 
@@ -15,8 +15,8 @@ export const certsRepo = {
       .where(and(...conds)).orderBy(desc(certificates.createdAt));
   },
 
-  async create(data: Record<string, unknown>) {
-    const [row] = await db.insert(certificates).values(data as unknown as CertInsert).returning();
+  async create(data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.insert(certificates).values(data as unknown as CertInsert).returning();
     return row;
   },
 
@@ -29,5 +29,5 @@ export const certsRepo = {
     return row;
   },
 
-  remove: (id: string) => db.delete(certificates).where(eq(certificates.id, id)),
+  remove: (id: string, exec: Executor = db) => exec.delete(certificates).where(eq(certificates.id, id)),
 };

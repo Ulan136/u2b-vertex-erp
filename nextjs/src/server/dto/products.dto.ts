@@ -24,6 +24,14 @@ export function canApplyStock(current: number, moveType: string, qty: number): b
   return stockAfter(current, moveType, qty) >= 0;
 }
 
+// Клеймо-расходник, который списывается при создании ПОВЕРКИ (docType='cert'):
+// СЛ → «Самоклеющийся лейбл (СЛ)», ПЛ → «Пластиковое пломбо (ПЛ)». Извещение
+// (docType='izv') клеймо не тратит. Дефолт — СЛ (как радио в форме поверки).
+export function sealMarker(docType?: string | null, sealType?: string | null): 'СЛ' | 'ПЛ' | null {
+  if ((docType || 'cert') !== 'cert') return null;
+  return sealType === 'ПЛ' ? 'ПЛ' : 'СЛ';
+}
+
 // POST /products records a stock movement (приход/расход), not a product.
 export const stockMovementSchema = z.object({
   productId: z.string(),

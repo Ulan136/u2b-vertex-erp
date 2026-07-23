@@ -18,6 +18,23 @@ export const productsRepo = {
     return row;
   },
 
+  // Расходник клейма по маркеру (СЛ/ПЛ): активный товар-расходник, в названии
+  // которого есть «(СЛ)»/«(ПЛ)». Используется автосписанием при поверке.
+  async findConsumableByMarker(marker: string, exec: Executor = db) {
+    const [row] = await exec.select().from(products)
+      .where(and(eq(products.isConsumable, true), eq(products.isActive, true),
+        sql`${products.name} ilike ${'%(' + marker + ')%'}`))
+      .limit(1);
+    return row ?? null;
+  },
+
+  // Движения склада, привязанные к сертификату (для возврата при удалении поверки).
+  movementsByCert: (certId: string, exec: Executor = db) =>
+    exec.select().from(stockMovements).where(eq(stockMovements.certId, certId)),
+
+  deleteMovement: (id: string, exec: Executor = db) =>
+    exec.delete(stockMovements).where(eq(stockMovements.id, id)),
+
   // Сдвиг остатка (delta может быть отрицательным). Остаток = products.current_stock,
   // ведётся движениями (как баланс счёта в финансах).
   adjustStock: (id: string, delta: number, exec: Executor = db) =>
