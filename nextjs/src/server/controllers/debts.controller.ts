@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { withApi, created, optionsHandler } from '@/server/lib/http';
 import { debtsService } from '@/server/services/debts.service';
+import { formatDate } from '@/lib/format';
 
 export const OPTIONS = optionsHandler;
 
@@ -35,7 +36,7 @@ export const PAYMENTS_EXPORT = withApi(async (req: NextRequest) => {
     { header: 'Остаток после', key: 'r', width: 14 }, { header: 'Автор', key: 'au', width: 20 },
   ];
   ws.getRow(1).font = { bold: true };
-  for (const p of rows) ws.addRow({ d: String(p.payDate || '').slice(0, 10), c: p.counterparty, t: p.debtType === 'credit' ? 'Мы должны' : 'Нам должны', da: p.debtAmount, a: p.amount, ac: p.accountName || '', r: p.remainingAfter, au: p.author || '' });
+  for (const p of rows) ws.addRow({ d: formatDate(p.payDate), c: p.counterparty, t: p.debtType === 'credit' ? 'Мы должны' : 'Нам должны', da: p.debtAmount, a: p.amount, ac: p.accountName || '', r: p.remainingAfter, au: p.author || '' });
   const buf = await wb.xlsx.writeBuffer();
   const { NextResponse } = await import('next/server');
   const { CORS_HEADERS } = await import('@/server/lib/cors');

@@ -1,11 +1,13 @@
 'use client';
 import * as React from 'react';
+import { formatDate } from '@/lib/format';
 import Link from 'next/link';
 import { useApi } from '@/lib/api';
 import { Card, PageTitle, Badge } from '@/components/ui';
+import { isRealIncome, isRealExpense } from '@/server/dto/finance.dto';
 
 type Acct = { id: string; name: string; section?: string | null; balance?: string | number | null; icon?: string | null };
-type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; source?: string | null };
+type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null };
 type Debt = { type: string; amount: string | number; paidAmount: string | number; status: string; dueDate?: string | null };
 type Task = { id: string; title: string; status?: string | null; completedAt?: string | null; assigneeName?: string | null; dueDate?: string | null };
 type Order = { status?: string | null };
@@ -15,7 +17,7 @@ type Sale = { id: string; saleNo?: string | null; clientName?: string | null; pr
 
 const num = (v: unknown) => Number(v) || 0;
 const money = (n: number | string) => Math.round(num(n)).toLocaleString('ru-RU') + ' ₸';
-const dmy = (d?: string | null) => (d ? String(d).slice(0, 10).split('-').reverse().join('.') : '');
+const dmy = (d?: string | null) => formatDate(d);
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const SECTIONS = [{ key: 'poverka', label: '№1 Поверка', color: '#2563eb' }, { key: 'sale', label: '№2 Продажа', color: '#d97706' }, { key: 'branch', label: '№3 Филиалы', color: '#0d9488' }, { key: 'other', label: '№4 Прочие', color: '#6f42c1' }];
@@ -49,8 +51,8 @@ export default function Dashboard() {
   const ops = fin.data?.operations || [];
   const m = thisMonth(); const today = todayStr();
   const cash = accounts.reduce((s, a) => s + num(a.balance), 0);
-  const income = ops.filter(o => o.opType === 'Приход' && String(o.opDate || '').startsWith(m)).reduce((s, o) => s + num(o.amount), 0);
-  const expense = ops.filter(o => o.opType !== 'Приход' && String(o.opDate || '').startsWith(m)).reduce((s, o) => s + num(o.amount), 0);
+  const income = ops.filter(o => isRealIncome(o) && String(o.opDate || '').startsWith(m)).reduce((s, o) => s + num(o.amount), 0);
+  const expense = ops.filter(o => isRealExpense(o) && String(o.opDate || '').startsWith(m)).reduce((s, o) => s + num(o.amount), 0);
   const bySection = SECTIONS.map(s => ({ ...s, total: accounts.filter(a => (a.section || 'other') === s.key).reduce((x, a) => x + num(a.balance), 0) }));
   const recentOps = ops.slice(0, 6);
 
@@ -90,7 +92,7 @@ export default function Dashboard() {
 
   // ── расходы месяца по источникам ──
   const expBy: Record<string, number> = {};
-  ops.filter(o => o.opType !== 'Приход' && String(o.opDate || '').startsWith(m)).forEach(o => { const k = o.source || 'Прочее'; expBy[k] = (expBy[k] || 0) + num(o.amount); });
+  ops.filter(o => isRealExpense(o) && String(o.opDate || '').startsWith(m)).forEach(o => { const k = o.source || 'Прочее'; expBy[k] = (expBy[k] || 0) + num(o.amount); });
   const expTop = Object.entries(expBy).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const expMax = Math.max(1, ...expTop.map(x => x[1]));
 

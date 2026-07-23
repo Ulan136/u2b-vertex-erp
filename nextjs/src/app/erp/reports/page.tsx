@@ -1,12 +1,14 @@
 'use client';
 import * as React from 'react';
+import { formatDate } from '@/lib/format';
 import { useApi } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Input } from '@/components/ui';
 import { periodRange } from '@/server/dto/reports.dto';
+import { isRealIncome, isRealExpense } from '@/server/dto/finance.dto';
 import { ROLE_LABELS_RU, type Role } from '@/server/dto/permissions.dto';
 
-type Op = { opType: string; amount: string | number; opDate?: string | null };
+type Op = { opType: string; amount: string | number; opDate?: string | null; reverses?: string | null; reversedAt?: string | null };
 type Acct = { section?: string | null; balance?: string | number | null };
 type SaleLite = { totalSum?: string | number; payStatus?: string | null };
 type Debt = { type: string; amount: string | number; paidAmount: string | number; status: string };
@@ -18,7 +20,7 @@ type Activity = { action: string; entityType: string | null; entityLabel: string
 
 const fmt = (n: number) => Math.round(Number(n) || 0).toLocaleString('ru-RU');
 const fmtT = (n: number) => fmt(n) + ' ₸';
-const dmy = (d?: string | null) => (d ? String(d).slice(0, 10).split('-').reverse().join('.') : '');
+const dmy = (d?: string | null) => formatDate(d);
 const hm = (d?: string | null) => (d ? new Date(d).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '');
 const roleRu = (r: string) => ROLE_LABELS_RU[r as Role] || r;
 const SECTIONS = [{ k: 'poverka', l: '№1 Поверка' }, { k: 'sale', l: '№2 Продажа' }, { k: 'branch', l: '№3 Филиалы' }, { k: 'other', l: '№4 Прочие' }];
@@ -46,8 +48,8 @@ export default function ReportsPage() {
 
   const accs = fin?.accounts || [], ops = fin?.operations || [];
   const cash = accs.reduce((s, a) => s + (Number(a.balance) || 0), 0);
-  const inc = ops.filter(o => o.opType === 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0);
-  const exp = ops.filter(o => o.opType !== 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  const inc = ops.filter(isRealIncome).reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  const exp = ops.filter(isRealExpense).reduce((s, o) => s + (Number(o.amount) || 0), 0);
   const salesSum = (sales || []).reduce((s, x) => s + (Number(x.totalSum) || 0), 0);
   const salesPaid = (sales || []).filter(s => s.payStatus === 'Оплачено').reduce((s, x) => s + (Number(x.totalSum) || 0), 0);
   const recv = (debts || []).filter(d => d.type === 'debit' && d.status !== 'closed').reduce((s, d) => s + Math.max(0, (Number(d.amount) || 0) - (Number(d.paidAmount) || 0)), 0);

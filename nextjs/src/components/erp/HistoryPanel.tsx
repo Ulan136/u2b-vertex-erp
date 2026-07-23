@@ -3,12 +3,13 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch, useApi } from '@/lib/api';
 import { entityMeta, actionRu, AUDIT_ALL_ROLES, AUDIT_LOGIN_ROLES } from '@/server/dto/audit.dto';
+import { formatDate } from '@/lib/format';
 
 type Row = { id: string; userName?: string | null; action: string; entityType?: string | null; entityId?: string | null; entityLabel?: string | null; ip?: string | null; createdAt: string };
 
 const two = (n: number) => String(n).padStart(2, '0');
 const hm = (d: Date) => `${two(d.getHours())}:${two(d.getMinutes())}`;
-function dayKey(s: string) { const d = new Date(s); const t = new Date(); const y = new Date(t); y.setDate(t.getDate() - 1); const same = (a: Date, b: Date) => a.toDateString() === b.toDateString(); if (same(d, t)) return 'Сегодня'; if (same(d, y)) return 'Вчера'; return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }); }
+function dayKey(s: string) { const d = new Date(s); const t = new Date(); const y = new Date(t); y.setDate(t.getDate() - 1); const same = (a: Date, b: Date) => a.toDateString() === b.toDateString(); if (same(d, t)) return 'Сегодня'; if (same(d, y)) return 'Вчера'; return formatDate(s); }
 
 export default function HistoryPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data: session } = useApi<{ user?: { role?: string } }>('/api/auth/session');

@@ -38,7 +38,7 @@ export const reportsRepo = {
   expensesByUser: async (from: string, to: string) =>
     rowsOf<{ uid: string; sum: string }>(await db.execute(sql`
       select created_by as "uid", coalesce(sum(amount),0)::numeric as "sum"
-      from finance_operations where op_type='Расход' and reverses is null and created_by is not null and op_date between ${from} and ${to}
+      from finance_operations where op_type='Расход' and reverses is null and reversed_at is null and created_by is not null and op_date between ${from} and ${to}
       group by created_by`)),
 
   // Заявки — из audit_log (у orders нет автора): действия по заявкам за период.

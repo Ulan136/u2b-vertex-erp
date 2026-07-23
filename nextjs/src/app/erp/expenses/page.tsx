@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
@@ -25,7 +26,7 @@ const ICON_PALETTE = ['🏢', '⚡', '🧾', '🗂️', '👤', '👥', '🚗', 
 const STATUSES = ['Оплачен', 'Ожидает', 'Отменён'];
 const num = (v: unknown) => Number(v) || 0;
 const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU') + ' ₸';
-const dmy = (d?: string | null) => (d ? String(d).slice(0, 10).split('-').reverse().join('.') : '—');
+const dmy = (d?: string | null) => formatDate(d) || '—';
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function ExpensesPage() {

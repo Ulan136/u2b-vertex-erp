@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
@@ -7,7 +8,7 @@ import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow }
 type DeviceType = { id: string; name: string; usageCount: number; lastUsedAt?: string | null; createdAt?: string | null };
 
 const MANAGE_ROLES = ['admin', 'manager'];
-const dmy = (d?: string | null) => (d ? String(d).slice(0, 10).split('-').reverse().join('.') : '—');
+const dmy = (d?: string | null) => formatDate(d) || '—';
 // нормализация для клиентского поиска (совпадает с сервером: кириллица к/в/с → k/b/c)
 const normKey = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase().replace(/с/g, 'c').replace(/в/g, 'b').replace(/к/g, 'k');
 

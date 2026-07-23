@@ -197,6 +197,8 @@ let me=null, orders=[], filter='today', commentCounts={}, activeOrderId=null;
 const ROLE_LABEL={admin:'Администратор',director:'Директор',accountant:'Бухгалтер',manager:'Менеджер',master:'Мастер'};
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2500);}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function fmtDate(s){if(!s)return '';const p=String(s).slice(0,10).split('-');return p.length===3&&p[0].length===4?p[2]+'.'+p[1]+'.'+p[0]:'';}
+function fmtDateTime(s){if(!s)return '';const d=new Date(s);if(isNaN(d.getTime()))return fmtDate(s);const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes());}
 
 function todayStr(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
 function orderDay(o){
@@ -347,7 +349,7 @@ async function loadComments(){
   try{const r=await fetch(COMMENTS_API+'?entityType=order&entityId='+activeOrderId,{cache:'no-store'});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const items=await r.json();
-    document.getElementById('cmtBody').innerHTML=items.length?items.map(c=>`<div class="cmt"><div class="cmt-head"><span>${esc(c.authorName||'—')}</span><span>${new Date(c.createdAt).toLocaleString('ru-KZ',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span></div><div class="cmt-text">${esc(c.text)}</div></div>`).join(''):'<div class="empty">Комментариев пока нет</div>';
+    document.getElementById('cmtBody').innerHTML=items.length?items.map(c=>`<div class="cmt"><div class="cmt-head"><span>${esc(c.authorName||'—')}</span><span>${esc(fmtDateTime(c.createdAt))}</span></div><div class="cmt-text">${esc(c.text)}</div></div>`).join(''):'<div class="empty">Комментариев пока нет</div>';
     document.getElementById('cmtBody').scrollTop=document.getElementById('cmtBody').scrollHeight;
   }catch(e){document.getElementById('cmtBody').innerHTML='<div class="empty">⚠️ '+esc(e.message)+'</div>';}
 }
@@ -375,7 +377,7 @@ function goScreen(id){
 // ── INIT ──────────────────────────────────────────────────────
 (async function(){
   await loadMe();
-  document.getElementById('hdr-sub').textContent=(me&&me.name?me.name:'Мастер')+' · '+new Date().toLocaleDateString('ru-KZ');
+  document.getElementById('hdr-sub').textContent=(me&&me.name?me.name:'Мастер')+' · '+(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+d.getFullYear();})();
   await loadOrders();
   setInterval(loadOrders,60000);
   // Общий модуль: колокольчик + экран «Задачи» + комментарии + обновление

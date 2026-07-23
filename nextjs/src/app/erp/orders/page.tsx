@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+import { formatDate } from '@/lib/format';
 import { useSearchParams } from 'next/navigation';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
@@ -11,7 +12,7 @@ type Branch = { id: string; name: string };
 
 const SOURCES = [{ key: 'field_check', label: '🚗 Выездная' }, { key: 'tec', label: '⚡ ТЭЦ' }];
 const STATUSES = ['В работе', 'Готова', 'Отменён'];
-const dmy = (d?: string | null) => (d ? String(d).slice(0, 10).split('-').reverse().join('.') : '—');
+const dmy = (d?: string | null) => formatDate(d) || '—';
 const statusTone = (s?: string | null): 'ok' | 'warn' | 'err' | 'neutral' => s === 'Готова' ? 'ok' : s === 'Отменён' ? 'err' : 'warn';
 const EMPTY = { id: '', clientName: '', phone: '', address: '', qty: '1', waterType: 'х/в', branchId: '', status: 'В работе', comment: '' };
 

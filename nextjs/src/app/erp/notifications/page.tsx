@@ -2,9 +2,10 @@
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Button, PageTitle, EmptyRow } from '@/components/ui';
+import { formatDateTime } from '@/lib/format';
 
 type Notif = { id: string; type: string; title: string; link?: string | null; isRead: boolean; createdAt?: string | null };
-const dt = (d?: string | null) => (d ? new Date(d).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '');
+const dt = (d?: string | null) => formatDateTime(d);
 
 export default function NotificationsPage() {
   const { data, error, isLoading, mutate } = useApi<{ unread: number; items: Notif[] }>('/api/v2/notifications');

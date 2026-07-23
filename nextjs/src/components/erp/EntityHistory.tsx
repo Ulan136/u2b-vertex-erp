@@ -2,9 +2,10 @@
 import * as React from 'react';
 import { useApi } from '@/lib/api';
 import { actionRu } from '@/server/dto/audit.dto';
+import { formatDateTime } from '@/lib/format';
 
 type Row = { id: string; userName?: string | null; action: string; details?: Record<string, unknown> | null; createdAt: string };
-const dt = (s: string) => { const d = new Date(s); return d.toLocaleDateString('ru-RU') + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }); };
+const dt = (s: string) => formatDateTime(s);
 
 // Блок «История изменений» для карточек/модалок документов. На печатные формы
 // НЕ выводится (используется только в UI-модалках).

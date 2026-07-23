@@ -4,6 +4,7 @@ import {
   AlignmentType, WidthType, BorderStyle, VerticalAlign, TableLayoutType, ImageRun,
 } from 'docx';
 import { intToWords } from '@/server/dto/documents.dto';
+import { formatDate } from '@/lib/format';
 
 // Общие типы/хелперы для Накладной З-2, Акта Р-1 и КП. Формы собраны в коде,
 // печать/подпись/логотип берутся из org_settings (base64).
@@ -21,7 +22,7 @@ type Org = {
 
 const F = 'Times New Roman';
 const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dmy = (d?: string | null) => (d ? String(d).slice(0, 10).split('-').reverse().join('.') : '');
+const dmy = (d?: string | null) => formatDate(d);
 const stripB64 = (s?: string | null) => (s ? s.replace(/^data:image\/\w+;base64,/, '') : '');
 const qtyTotal = (doc: Doc) => (doc.items || []).reduce((s, i) => s + (Number(i.qty) || 0), 0);
 

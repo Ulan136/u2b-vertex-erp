@@ -3,6 +3,7 @@ import {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   AlignmentType, WidthType, BorderStyle, VerticalAlign, TableLayoutType, ImageRun,
 } from 'docx';
+import { formatDate } from '@/lib/format';
 
 // Модель данных документа (из таблицы documents) + реквизиты организации (org_settings).
 type Item = { name: string; sku?: string | null; qty: number; unit: string; price: number; sum: number };
@@ -19,7 +20,7 @@ type Org = {
 };
 
 const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const dmy = (d?: string | null) => (d ? String(d).slice(0, 10).split('-').reverse().join('.') : '');
+const dmy = (d?: string | null) => formatDate(d);
 const stripB64 = (s?: string | null) => (s ? s.replace(/^data:image\/\w+;base64,/, '') : '');
 const bankOf = (org: Org, key?: string | null): Bank | null => (org.banks || []).find(b => b.key === (key || 'kaspi')) || (org.banks || [])[0] || null;
 

@@ -153,6 +153,20 @@ export function movementAmount(opType: string, amount: string | number): number 
   return opType === 'Приход' ? amt : -amt;
 }
 
+// Тип операции определяет приход/расход. СТОРНО (reverses) и ОТМЕНЁННЫЕ
+// (reversedAt) в суммы приходов/расходов НЕ входят: сторно возврата дохода —
+// это НЕ расход, а обнуление дохода. Категория/раздел счёта роли не играет.
+type OpLike = { opType?: string | null; reverses?: string | null; reversedAt?: unknown };
+export function isLiveOp(op: OpLike): boolean {
+  return !op.reverses && !op.reversedAt;
+}
+export function isRealIncome(op: OpLike): boolean {
+  return op.opType === 'Приход' && isLiveOp(op);
+}
+export function isRealExpense(op: OpLike): boolean {
+  return op.opType === 'Расход' && isLiveOp(op);
+}
+
 export function inPeriod(opDate: string | null | undefined, from?: string | null, to?: string | null): boolean {
   const d = String(opDate || '').slice(0, 10);
   return (!from || d >= from) && (!to || d <= to);
@@ -173,6 +187,8 @@ export function scopeFinance<A extends AcctLite, O extends OpLite>(
   const visAccts = accounts.filter(a => cats.includes(a.section || 'other'));
   const movs = ops.filter(o => cats.includes(secOf[o.accountId]) && inPeriod(o.opDate, opts.from, opts.to));
   const total = visAccts.reduce((s, a) => s + (Number(a.balance) || 0), 0);
+  // Внимание: здесь «expense» = отток из раздела (Расход + Перевод), это иная
+  // семантика, чем «Расходы» в виджетах (там только op_type='Расход', см. isRealExpense).
   const income = movs.filter(o => o.opType === 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0);
   const expense = movs.filter(o => o.opType !== 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0);
   return { cats, visAccts, movs, total, income, expense };

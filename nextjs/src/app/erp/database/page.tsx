@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+import { formatDate } from '@/lib/format';
 import { useSearchParams } from 'next/navigation';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
@@ -7,7 +8,7 @@ import { Card, Badge, Button, PageTitle, EmptyRow } from '@/components/ui';
 
 type Cert = { id: string; source: string; fio?: string | null; address?: string | null; phone?: string | null; serialNo?: string | null; meterType?: string | null; checkDate?: string | null; nextCheckDate?: string | null };
 type View = 'deadlines' | 'archive-cert' | 'archive-izv' | 'orders';
-const dmy = (d?: string | null) => (d ? String(d).slice(0, 10).split('-').reverse().join('.') : '—');
+const dmy = (d?: string | null) => formatDate(d) || '—';
 const today = () => new Date().toISOString().slice(0, 10);
 const plus = (days: number) => new Date(Date.now() + days * 864e5).toISOString().slice(0, 10);
 const TITLES: Record<View, { t: string; sub: string }> = {

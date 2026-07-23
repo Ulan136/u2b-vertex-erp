@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+import { formatDate } from '@/lib/format';
 import { useSearchParams } from 'next/navigation';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
@@ -21,7 +22,7 @@ const OPER = ['В работе', 'Готова к КТРМ', 'Внести в К
 const PAY = ['В ожидании', 'Оплачено'];
 const INV = ['Каспи', 'БЦК', 'Наличка', 'Каспи Голд'];
 const SENT = ['Не отправлено', 'Запланировано', 'Отправлено'];
-const dmy = (d?: string | null) => (d ? String(d).slice(0, 10).split('-').reverse().join('.') : '—');
+const dmy = (d?: string | null) => formatDate(d) || '—';
 const iso = (d?: string | null) => (d ? String(d).slice(0, 10) : '');
 const num = (v: unknown) => Number(v) || 0;
 const operTone = (s?: string | null): 'ok' | 'warn' | 'info' | 'neutral' => s === 'Внесён в КТРМ' ? 'ok' : s === 'В работе' ? 'neutral' : 'warn';

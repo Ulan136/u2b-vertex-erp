@@ -148,3 +148,23 @@ test('scopeFinance: период отсекает старые движения'
   const narrow = scopeFinance(ACC, OPS, { section: 'all', from: '2026-07-15', to: '2026-07-18' });
   assert.equal(narrow.movs.length, 2);           // только 17.07 и 16.07
 });
+
+// ── реальный приход/расход: сторно и приходы НЕ считаются расходом ──
+import { isRealIncome, isRealExpense } from './finance.dto';
+test('isRealExpense: приход (в т.ч. по счёту «Продажа») НЕ расход', () => {
+  assert.ok(!isRealExpense({ opType: 'Приход' }));                          // доход не расход
+  assert.ok(!isRealExpense({ opType: 'Приход', reverses: null }));          // источник/раздел роли не играют
+  assert.ok(!isRealExpense({ opType: 'Перевод' }));                         // перевод не расход
+  assert.ok(isRealExpense({ opType: 'Расход' }));                           // живой расход — да
+});
+test('isRealExpense: сторно продажи (Расход с reverses) НЕ расход', () => {
+  // «Сторно: Продажа ПРД-003» — Расход, отменяющий приход дохода
+  assert.ok(!isRealExpense({ opType: 'Расход', reverses: 'op-приход-id' }));
+  assert.ok(!isRealExpense({ opType: 'Расход', reversedAt: '2026-07-01' })); // сама отменённая — тоже нет
+});
+test('isRealIncome: приход живой — да; сторнированный/сторно — нет', () => {
+  assert.ok(isRealIncome({ opType: 'Приход' }));
+  assert.ok(!isRealIncome({ opType: 'Приход', reversedAt: '2026-07-01' }));  // отменённый приход не доход
+  assert.ok(!isRealIncome({ opType: 'Приход', reverses: 'x' }));            // сторно расхода (Приход) не доход
+  assert.ok(!isRealIncome({ opType: 'Расход' }));
+});

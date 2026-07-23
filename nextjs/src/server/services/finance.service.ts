@@ -6,6 +6,7 @@ import {
   accountCreateSchema, accountUpdateSchema, balanceDeltas,
 } from '@/server/dto/finance.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
+import { formatDate } from '@/lib/format';
 
 // Вставить операцию + сдвинуть балансы задействованных счетов (в рамках exec).
 async function insertOperation(
@@ -65,7 +66,7 @@ async function reverseOperation(id: string, actorId?: string | null, exec?: Exec
       opType: invType,
       amount: String(orig.amount),
       reverses: orig.id,
-      comment: `Отмена операции от ${String(orig.opDate ?? '').slice(0, 10)}`,
+      comment: `Отмена операции от ${formatDate(orig.opDate)}`,
       createdBy: actorId ?? null,
     };
     if (orig.accountName) insert.accountName = orig.accountName;

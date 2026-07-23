@@ -197,6 +197,8 @@ function num(v){const n=Number(v);return isNaN(n)?0:n;}
 function fmt(n){return Math.round(Math.abs(n||0)).toLocaleString('ru-KZ');}
 function fmtK(n){const v=Math.abs(n||0);return v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'K':String(Math.round(v));}
 function dayStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function fmtDate(s){if(!s)return '';const p=String(s).slice(0,10).split('-');return p.length===3&&p[0].length===4?p[2]+'.'+p[1]+'.'+p[0]:'';}
+function fmtDateTime(s){if(!s)return '';const d=new Date(s);if(isNaN(d.getTime()))return fmtDate(s);const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes());}
 function todayStr(){return dayStr(new Date());}
 function weekAgoStr(){const d=new Date();d.setDate(d.getDate()-6);return dayStr(d);}
 function rowDay(r,fields){for(const f of fields){if(r[f])return String(r[f]).slice(0,10);}return '';}
@@ -273,7 +275,7 @@ async function loadDash(){
 function opRow(o){
   const inc=o.opType==='Приход',trf=o.opType==='Перевод';
   const cls=trf?'op-trf':inc?'op-inc':'op-exp',ico=trf?'🔄':inc?'💚':'🔴',ac=trf?'amt-trf':inc?'amt-inc':'amt-exp',sign=inc?'+':trf?'⇄':'−';
-  return `<div class="op-item"><div class="op-ico ${cls}">${ico}</div><div class="op-info"><div class="op-name">${esc(o.name)}</div><div class="op-meta">${esc(o.accountName||'')} · ${esc((o.opDate||'').slice(0,10))}</div></div><div class="op-amt ${ac}">${sign}${fmt(num(o.amount))}</div></div>`;
+  return `<div class="op-item"><div class="op-ico ${cls}">${ico}</div><div class="op-info"><div class="op-name">${esc(o.name)}</div><div class="op-meta">${esc(o.accountName||'')} · ${esc(fmtDate(o.opDate))}</div></div><div class="op-amt ${ac}">${sign}${fmt(num(o.amount))}</div></div>`;
 }
 
 // экран «Финансы» — только просмотр через переиспользуемый компонент FinanceView
@@ -311,7 +313,7 @@ function renderDebts(){
   const cr=ds.filter(d=>d.type==='credit'), db=ds.filter(d=>d.type==='debit');
   const card=d=>{ const od=d.dueDate&&String(d.dueDate).slice(0,10)<t; return '<div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:12px 14px;margin-bottom:8px;">'
     +'<div style="display:flex;justify-content:space-between;align-items:baseline;"><b style="font-size:14px;">'+(d.type==='credit'?'📤':'📥')+' '+cp(d)+'</b><b style="color:'+(d.type==='credit'?'#dc2626':'#16a34a')+';font-size:15px;">'+fmt(rem(d))+' ₸</b></div>'
-    +'<div style="font-size:11px;color:#6b7280;margin-top:4px;">Взято '+fmt(num(d.amount))+' · Погашено '+fmt(num(d.paidAmount))+(d.dueDate?' · срок '+String(d.dueDate).slice(0,10).split('-').reverse().join('.'):'')+(od?' <span style="color:#dc2626;font-weight:700;">просрочен</span>':'')+'</div></div>'; };
+    +'<div style="font-size:11px;color:#6b7280;margin-top:4px;">Взято '+fmt(num(d.amount))+' · Погашено '+fmt(num(d.paidAmount))+(d.dueDate?' · срок '+fmtDate(d.dueDate):'')+(od?' <span style="color:#dc2626;font-weight:700;">просрочен</span>':'')+'</div></div>'; };
   el.innerHTML=(cr.length?'<div class="sec">📤 Мы должны</div>'+cr.map(card).join(''):'')
     +(db.length?'<div class="sec">📥 Нам должны</div>'+db.map(card).join(''):'')
     +(!ds.length?'<div class="empty">Открытых долгов нет</div>':'');

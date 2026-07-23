@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Textarea, Select, EmptyRow } from '@/components/ui';
@@ -18,7 +19,7 @@ const BLOCKS = [{ key: 'new', label: '🆕 Новые' }, { key: 'accepted', lab
 const NEXT: Record<string, { to: string; label: string }> = {
   new: { to: 'accepted', label: 'Принять' }, accepted: { to: 'in_progress', label: 'В работу' }, in_progress: { to: 'done', label: 'Завершить' },
 };
-const dmy = (d?: string | null) => (d ? String(d).slice(0, 10).split('-').reverse().join('.') : '');
+const dmy = (d?: string | null) => formatDate(d);
 const today = () => new Date().toISOString().slice(0, 10);
 const isOverdue = (t: Task) => t.status !== 'done' && t.dueDate && String(t.dueDate).slice(0, 10) < today();
 

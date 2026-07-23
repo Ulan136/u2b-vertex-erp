@@ -1,11 +1,13 @@
 'use client';
 import * as React from 'react';
+import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import { isRealIncome, isRealExpense } from '@/server/dto/finance.dto';
 
 type Acct = { id: string; name: string; category?: string | null; section?: string | null; icon?: string | null; balance?: string | number | null; sortOrder?: number | null };
-type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null };
+type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; reverses?: string | null; reversedAt?: string | null };
 
 const SECTIONS = [
   { key: 'poverka', no: 1, label: 'Поверка', icon: '📋', color: '#2563eb' },
@@ -14,7 +16,7 @@ const SECTIONS = [
   { key: 'other', no: 4, label: 'Прочие операции', icon: '📄', color: '#6f42c1' },
 ];
 const fmt = (n: number | string) => Math.round(Number(n) || 0).toLocaleString('ru-RU') + ' ₸';
-const dmy = (d?: string | null) => (d ? String(d).slice(0, 10).split('-').reverse().join('.') : '');
+const dmy = (d?: string | null) => formatDate(d);
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function FinancePage() {
@@ -38,8 +40,8 @@ export default function FinancePage() {
   const visAccs = accounts.filter(a => cats.includes(a.section || 'other'));
   const visOps = ops.filter(o => cats.includes(secOf(o.accountId)));
   const cash = visAccs.reduce((s, a) => s + (Number(a.balance) || 0), 0);
-  const income = visOps.filter(o => o.opType === 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0);
-  const expense = visOps.filter(o => o.opType !== 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  const income = visOps.filter(isRealIncome).reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  const expense = visOps.filter(isRealExpense).reduce((s, o) => s + (Number(o.amount) || 0), 0);
 
   async function saveOp() {
     const amt = Number(op.amount) || 0;
