@@ -5,7 +5,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 
-type Debt = { id: string; type: string; amount: string | number; paidAmount: string | number; status: string; clientName?: string | null; counterpartyName?: string | null; accountId?: string | null; accountName?: string | null; dueDate?: string | null; comment?: string | null };
+type Debt = { id: string; type: string; amount: string | number; paidAmount: string | number; status: string; clientName?: string | null; counterpartyName?: string | null; accountId?: string | null; accountName?: string | null; dueDate?: string | null; comment?: string | null; createdByName?: string | null };
 type Payment = { id: string; amount: string | number; payDate?: string | null; accountId?: string | null; comment?: string | null; financeOpId?: string | null };
 type Journal = { id: string; payDate?: string | null; amount: number; accountName?: string | null; author?: string | null; comment?: string | null; counterparty: string; debtType: string; debtAmount: number; remainingAfter: number };
 type Acct = { id: string; name: string; icon?: string | null };
@@ -153,7 +153,7 @@ export default function DebtsPage() {
             : list.length === 0 ? <EmptyRow>Долгов нет. Нажмите «+ Долг».</EmptyRow>
             : (
               <table className="erp-table">
-                <thead><tr><th>Контрагент</th><th style={{ textAlign: 'right' }}>Взято</th><th style={{ textAlign: 'right' }}>Погашено</th><th style={{ textAlign: 'right' }}>Остаток</th><th>Счёт</th><th>Срок</th><th>Статус</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
+                <thead><tr><th>Контрагент</th><th style={{ textAlign: 'right' }}>Взято</th><th style={{ textAlign: 'right' }}>Погашено</th><th style={{ textAlign: 'right' }}>Остаток</th><th>Счёт</th><th>Срок</th><th>Статус</th><th>Автор</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
                 <tbody>
                   {list.map(d => {
                     const rem = remaining(d); const pct = num(d.amount) > 0 ? Math.min(100, Math.round(num(d.paidAmount) / num(d.amount) * 100)) : 0;
@@ -167,13 +167,14 @@ export default function DebtsPage() {
                           <td className="erp-muted" style={{ fontSize: 12 }}>{d.accountName || '—'}</td>
                           <td style={overdue(d) ? { color: '#dc2626', fontWeight: 600 } : undefined}>{dmy(d.dueDate)}</td>
                           <td><Badge tone={d.status === 'closed' ? 'ok' : d.status === 'partial' ? 'warn' : 'info'}>{d.status === 'closed' ? '✅ Закрыт' : d.status === 'partial' ? '◐ Частично' : '● Открыт'}</Badge></td>
+                          <td className="erp-muted" style={{ fontSize: 12 }}>{d.createdByName || '—'}</td>
                           <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
                             {d.status !== 'closed' && <Button variant="outline" onClick={() => openPay(d)} style={{ fontSize: 12, padding: '4px 8px' }}>Погасить</Button>}
                             <button className="erp-icon-btn" title="Удалить" style={{ color: '#dc2626' }} onClick={() => removeDebt(d)}>🗑️</button>
                           </td>
                         </tr>
                         {openId === d.id && (
-                          <tr className="debt-card"><td colSpan={8}>
+                          <tr className="debt-card"><td colSpan={9}>
                             <div className="debt-nums">
                               <div><div className="debt-num-lbl">ВЗЯТО</div><div className="debt-num-val">{fmt(d.amount)}</div></div>
                               <div><div className="debt-num-lbl">ПОГАШЕНО</div><div className="debt-num-val" style={{ color: '#16a34a' }}>{fmt(d.paidAmount)}</div></div>

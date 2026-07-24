@@ -28,6 +28,7 @@ const debtSelection = {
   updatedAt: debts.updatedAt,
   clientName: clients.name,
   accountName: financeAccounts.name,
+  createdByName: users.name,
 };
 
 export const debtsRepo = {
@@ -42,7 +43,8 @@ export const debtsRepo = {
     }
     const base = db.select(debtSelection).from(debts)
       .leftJoin(clients, eq(debts.counterpartyClientId, clients.id))
-      .leftJoin(financeAccounts, eq(debts.accountId, financeAccounts.id));
+      .leftJoin(financeAccounts, eq(debts.accountId, financeAccounts.id))
+      .leftJoin(users, eq(debts.createdBy, users.id));
     return (conds.length ? base.where(and(...conds)) : base).orderBy(desc(debts.createdAt));
   },
 
@@ -50,6 +52,7 @@ export const debtsRepo = {
     const [row] = await exec.select(debtSelection).from(debts)
       .leftJoin(clients, eq(debts.counterpartyClientId, clients.id))
       .leftJoin(financeAccounts, eq(debts.accountId, financeAccounts.id))
+      .leftJoin(users, eq(debts.createdBy, users.id))
       .where(eq(debts.id, id)).limit(1);
     return row ?? null;
   },

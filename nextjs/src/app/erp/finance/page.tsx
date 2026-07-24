@@ -7,7 +7,7 @@ import { Card, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '
 import { isRealIncome, isRealExpense } from '@/server/dto/finance.dto';
 
 type Acct = { id: string; name: string; category?: string | null; section?: string | null; icon?: string | null; balance?: string | number | null; sortOrder?: number | null };
-type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; reverses?: string | null; reversedAt?: string | null };
+type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; reverses?: string | null; reversedAt?: string | null; createdByName?: string | null };
 
 const SECTIONS = [
   { key: 'poverka', no: 1, label: 'Поверка', icon: '📋', color: '#2563eb' },
@@ -104,7 +104,7 @@ export default function FinancePage() {
                   {movs.length === 0 ? <div className="erp-muted" style={{ fontSize: 12 }}>Нет движений</div> : movs.slice(0, 30).map(o => (
                     <div className="erp-fin-mov" key={o.id}>
                       <span className="erp-fin-movd">{dmy(o.opDate)}</span>
-                      <span className="erp-fin-movt">{o.name}</span>
+                      <span className="erp-fin-movt">{o.name}{o.createdByName ? <span className="erp-muted" style={{ marginLeft: 6, fontSize: 10 }}>· {o.createdByName}</span> : null}</span>
                       <span style={{ color: o.opType === 'Приход' ? '#16a34a' : '#dc2626', fontWeight: 700, whiteSpace: 'nowrap' }}>{o.opType === 'Приход' ? '+' : '−'}{fmt(o.amount)}</span>
                     </div>
                   ))}

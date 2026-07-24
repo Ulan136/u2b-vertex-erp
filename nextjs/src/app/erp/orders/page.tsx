@@ -7,7 +7,7 @@ import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
 
-type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null };
+type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null; createdByName?: string | null };
 type Branch = { id: string; name: string };
 
 const SOURCES = [{ key: 'field_check', label: '🚗 Выездная' }, { key: 'tec', label: '⚡ ТЭЦ' }];
@@ -72,7 +72,7 @@ function OrdersInner() {
           : list.length === 0 ? <EmptyRow>Заявок нет. Нажмите «+ Заявка».</EmptyRow>
           : (
             <table className="erp-table">
-              <thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Адрес</th><th>Тел.</th><th style={{ textAlign: 'right' }}>Кол-во</th><th>Филиал</th><th>Статус</th><th style={{ textAlign: 'right' }}></th></tr></thead>
+              <thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Адрес</th><th>Тел.</th><th style={{ textAlign: 'right' }}>Кол-во</th><th>Филиал</th><th>Статус</th><th>Автор</th><th style={{ textAlign: 'right' }}></th></tr></thead>
               <tbody>
                 {list.map(o => (
                   <tr key={o.id}>
@@ -84,6 +84,7 @@ function OrdersInner() {
                     <td style={{ textAlign: 'right' }}>{o.qty ?? '—'}</td>
                     <td style={{ fontSize: 12 }}>{branchName(o.branchId) || '—'}</td>
                     <td><Badge tone={statusTone(o.status)}>{o.status}</Badge></td>
+                    <td className="erp-muted" style={{ fontSize: 12 }}>{o.createdByName || '—'}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {o.status === 'В работе' && <Button variant="outline" onClick={() => setStatus(o, 'Готова')} style={{ fontSize: 12, padding: '4px 8px' }}>Готова</Button>}
                       <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(o)}>✏️</button>

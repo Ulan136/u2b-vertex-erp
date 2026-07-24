@@ -5,7 +5,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 
-type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; accountId: string; source?: string | null; comment?: string | null; expenseCat?: string | null; subCategory?: string | null; supplier?: string | null; docNo?: string | null; status?: string | null; orderId?: string | null };
+type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; accountId: string; source?: string | null; comment?: string | null; expenseCat?: string | null; subCategory?: string | null; supplier?: string | null; docNo?: string | null; status?: string | null; orderId?: string | null; createdByName?: string | null };
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; sortOrder?: number | null; balance?: string | number | null };
 type Cat = { id: string; name: string; icon?: string | null; base?: boolean; subs?: { id: string; name: string }[] };
 type Emp = { userId: string; name: string; salaryHidden?: boolean };
@@ -177,7 +177,7 @@ export default function ExpensesPage() {
                 <table className="erp-table" style={{ fontSize: 12 }}>
                   <thead><tr>
                     <th>№</th><th>Дата</th><th>Категория</th><th>Подкатегория</th><th>Описание</th><th>Поставщик</th>
-                    <th style={{ textAlign: 'right' }}>Сумма</th><th>🧾 Счёт</th><th>Привязка</th><th>Статус</th><th style={{ textAlign: 'center' }}>Действия</th>
+                    <th style={{ textAlign: 'right' }}>Сумма</th><th>🧾 Счёт</th><th>Привязка</th><th>Статус</th><th>Автор</th><th style={{ textAlign: 'center' }}>Действия</th>
                   </tr></thead>
                   <tbody>
                     {list.map((o, i) => {
@@ -195,6 +195,7 @@ export default function ExpensesPage() {
                           <td>{accName(o)}</td>
                           <td className="erp-muted">{orderNo(o.orderId) || '—'}</td>
                           <td><Badge tone={st === 'Оплачен' ? 'ok' : st === 'Отменён' ? 'err' : 'warn'}>{st}</Badge></td>
+                          <td className="erp-muted">{o.createdByName || '—'}</td>
                           <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
                             {!salary && <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(o)}>✏️</button>}
                             {!salary && <button className="erp-icon-btn" title="Удалить (сторно)" style={{ color: '#dc2626' }} onClick={() => del(o)}>🗑️</button>}

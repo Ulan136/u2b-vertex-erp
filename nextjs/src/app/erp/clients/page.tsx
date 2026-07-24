@@ -5,7 +5,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 
-type Client = { id: string; name: string; phone?: string | null; kind?: string | null; categoryId?: string | null };
+type Client = { id: string; name: string; phone?: string | null; kind?: string | null; categoryId?: string | null; createdByName?: string | null };
 type Cat = { id: string; name: string };
 type Sale = { id: string; saleNo?: string | null; saleDate?: string | null; clientName?: string | null; productName?: string | null; totalSum?: string | number; payStatus?: string | null; cancelledAt?: string | null };
 
@@ -119,13 +119,14 @@ export default function ClientsPage() {
           : list.length === 0 ? <EmptyRow>{isBuyer ? 'Покупателей нет. Появятся сами при продажах или нажмите «+ Покупатель».' : 'Клиентов нет. Нажмите «+ Клиент».'}</EmptyRow>
           : (
             <table className="erp-table">
-              <thead><tr><th>Имя</th><th>Телефон</th>{!isBuyer && <th>Категория</th>}<th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
+              <thead><tr><th>Имя</th><th>Телефон</th>{!isBuyer && <th>Категория</th>}<th>Кто завёл</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
               <tbody>
                 {list.map(c => (
                   <tr key={c.id}>
                     <td className="erp-td-main">{isBuyer ? '🛒' : '🤝'} {c.name}</td>
                     <td style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 13 }}>{c.phone || '—'}</td>
                     {!isBuyer && <td>{catName(c.categoryId) ? <Badge tone="info">{catName(c.categoryId)}</Badge> : <span className="erp-muted">—</span>}</td>}
+                    <td className="erp-muted" style={{ fontSize: 12 }}>{c.createdByName || '—'}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <button className="erp-icon-btn" title="История продаж" onClick={() => setSalesHist(c.name)}>🧾</button>
                       <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(c)}>✏️</button>

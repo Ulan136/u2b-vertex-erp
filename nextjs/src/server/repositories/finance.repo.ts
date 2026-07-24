@@ -1,6 +1,6 @@
 import { db, type Executor } from '@/db';
-import { financeAccounts, financeOperations } from '@/db/schema';
-import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { financeAccounts, financeOperations, users } from '@/db/schema';
+import { and, asc, desc, eq, gte, lte, sql, getTableColumns } from 'drizzle-orm';
 
 type OpInsert = typeof financeOperations.$inferInsert;
 type AccInsert = typeof financeAccounts.$inferInsert;
@@ -12,16 +12,20 @@ export const financeRepo = {
     const accounts = await db.select().from(financeAccounts)
       .orderBy(asc(financeAccounts.sortOrder), asc(financeAccounts.name));
 
+    // операции + имя автора (created_by → users.name)
+    const opCols = { ...getTableColumns(financeOperations), createdByName: users.name };
     let operations;
     if (from || to) {
       const conds = [];
       if (from) conds.push(gte(financeOperations.opDate, from));
       if (to) conds.push(lte(financeOperations.opDate, to));
-      operations = await db.select().from(financeOperations)
+      operations = await db.select(opCols).from(financeOperations)
+        .leftJoin(users, eq(financeOperations.createdBy, users.id))
         .where(and(...conds))
         .orderBy(desc(financeOperations.opDate), desc(financeOperations.createdAt));
     } else {
-      operations = await db.select().from(financeOperations)
+      operations = await db.select(opCols).from(financeOperations)
+        .leftJoin(users, eq(financeOperations.createdBy, users.id))
         .orderBy(desc(financeOperations.createdAt)).limit(50);
     }
     return { accounts, operations };

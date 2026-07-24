@@ -265,6 +265,7 @@ function orderCardHtml(o){
     <div class="oc-phone">📞 ${esc(o.phone||'—')}</div>
     ${pos}
     ${o.comment?`<div class="oc-comment">💬 ${esc(o.comment)}</div>`:''}
+    ${o.createdByName?`<div class="oc-comment">👤 Автор: ${esc(o.createdByName)}</div>`:''}
     ${thumbs}
     <div class="oc-actions">
       ${o.status!=='Готова'?`<button class="oc-btn b-done" onclick="setStatus('${o.id}','Готова')">✅ Готова</button>`:`<button class="oc-btn b-work" onclick="setStatus('${o.id}','В работе')">↩ В работу</button>`}

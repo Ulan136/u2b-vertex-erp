@@ -1,6 +1,6 @@
 import { db } from '@/db';
-import { clients } from '@/db/schema';
-import { and, or, eq, ilike, isNull, desc, sql, type SQL } from 'drizzle-orm';
+import { clients, users } from '@/db/schema';
+import { and, or, eq, ilike, isNull, desc, sql, getTableColumns, type SQL } from 'drizzle-orm';
 
 type ClientInsert = typeof clients.$inferInsert;
 
@@ -21,7 +21,8 @@ export const clientsRepo = {
       const like = `%${q.trim()}%`;
       conds.push(or(ilike(clients.name, like), ilike(clients.phone, like))!);
     }
-    const query = db.select().from(clients);
+    const query = db.select({ ...getTableColumns(clients), createdByName: users.name })
+      .from(clients).leftJoin(users, eq(clients.createdBy, users.id));
     return (conds.length ? query.where(and(...conds)) : query).orderBy(desc(clients.createdAt));
   },
 

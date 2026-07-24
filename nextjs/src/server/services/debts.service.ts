@@ -32,6 +32,7 @@ export const debtsService = {
         dueDate: data.dueDate ?? null,
         comment: data.comment ?? null,
         status: computeStatus(data.amount, initialPaid),
+        createdBy: actorId ?? null,
       }, tx);
       if (initialPaid > 0) {
         await debtsRepo.createPayment({

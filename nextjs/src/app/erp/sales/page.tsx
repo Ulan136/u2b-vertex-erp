@@ -5,6 +5,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
+import { getRecent, pushRecent, removeRecent, type RecentItem } from '@/lib/recent';
 
 type SaleItem = { productId: string; productName?: string | null; skuCode?: string | null; qty: number; price: number; sum: number };
 type SalePay = { accountId: string; accountName?: string | null; amount: number };
@@ -43,8 +44,9 @@ export default function SalesPage() {
   const { data: clients } = useApi<Client[]>('/api/v2/clients');
   const { data: products } = useApi<Product[]>('/api/v2/products');
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
-  const { data: session } = useApi<{ user?: { role?: string } }>('/api/auth/session');
+  const { data: session } = useApi<{ user?: { id?: string; role?: string } }>('/api/auth/session');
   const canCancel = ['admin', 'accountant'].includes(session?.user?.role || '');
+  const uid = session?.user?.id || null;
   const saleAccounts = (fin?.accounts || []).filter(a => (a.section || '') === 'sale');
 
   const [modal, setModal] = React.useState(false);
@@ -76,17 +78,36 @@ export default function SalesPage() {
   function setClientType(ct: string) {
     setForm(f => ({ ...f, clientType: ct, items: f.items.map(it => { const p = (products || []).find(x => x.id === it.productId); return p ? { ...it, price: String(priceFor(p, ct)) } : it; }) }));
   }
-  // ── автокомплит покупателей/клиентов (оба списка, 🤝/🛒) ──
+  // ── автокомплит покупателей/клиентов: 🕘 недавние (пустое поле) + оба списка (🤝/🛒) ──
   const [clientOpen, setClientOpen] = React.useState(false);
+  const [clientIdx, setClientIdx] = React.useState(-1);
+  const [recentClients, setRecentClients] = React.useState<RecentItem[]>([]);
+  React.useEffect(() => { if (modal) setRecentClients(getRecent('saleClient', uid)); }, [modal, uid]);
   const clientHits = React.useMemo(() => {
     const qq = form.clientName.trim().toLowerCase();
     if (!qq) return [] as Client[];
     return (clients || []).filter(c => c.name.toLowerCase().includes(qq) || (c.phone || '').includes(qq)).slice(0, 8);
   }, [clients, form.clientName]);
-  function pickClient(c: Client) {
-    const ct = c.kind === 'buyer' ? 'retail' : 'client';
-    setForm(f => ({ ...f, clientName: c.name, clientType: ct, items: f.items.map(it => { const p = (products || []).find(x => x.id === it.productId); return p ? { ...it, price: String(priceFor(p, ct)) } : it; }) }));
-    setClientOpen(false);
+  const showRecentClients = clientOpen && !form.clientName.trim() && recentClients.length > 0;
+  // Подставляет имя И тип (чип Покупатель/Клиент), пересчитывает цены позиций.
+  const applyClient = (name: string, ct: string) => {
+    setForm(f => ({ ...f, clientName: name, clientType: ct, items: f.items.map(it => { const p = (products || []).find(x => x.id === it.productId); return p ? { ...it, price: String(priceFor(p, ct)) } : it; }) }));
+    setClientOpen(false); setClientIdx(-1);
+  };
+  const pickClient = (c: Client) => applyClient(c.name, c.kind === 'buyer' ? 'retail' : 'client');
+  const dropRecentClient = (v: string) => setRecentClients(removeRecent('saleClient', uid, v));
+  // Плоский список для клавиатуры = то, что показано: пустое поле → недавние, иначе → подсказки.
+  const clientFlat = React.useMemo(() => showRecentClients
+    ? recentClients.map(r => ({ name: r.v, ct: r.m || 'retail' }))
+    : clientHits.map(c => ({ name: c.name, ct: c.kind === 'buyer' ? 'retail' : 'client' })),
+    [showRecentClients, recentClients, clientHits]);
+  React.useEffect(() => { setClientIdx(-1); }, [form.clientName]);
+  function clientKey(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') { setClientOpen(false); setClientIdx(-1); return; }
+    if (!clientOpen || clientFlat.length === 0) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setClientIdx(i => Math.min(i + 1, clientFlat.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setClientIdx(i => Math.max(i - 1, 0)); }
+    else if (e.key === 'Enter' && clientIdx >= 0) { e.preventDefault(); const c = clientFlat[clientIdx]; applyClient(c.name, c.ct); }
   }
   // ── режим оплаты (чипы — режим заполнения; статус в БД вычисляется из сумм) ──
   function setPayMode(m: string) {
@@ -139,6 +160,8 @@ export default function SalesPage() {
     try {
       if (form.id) await apiSend(`/api/v2/sales/${form.id}`, 'PATCH', body);
       else await apiSend('/api/v2/sales', 'POST', body);
+      // «Недавние» покупатели — только при успешном проведении (имя + тип для чипа).
+      if (form.clientName.trim()) setRecentClients(pushRecent('saleClient', uid, { v: form.clientName.trim(), m: form.clientType }));
       setModal(false); await mutate();
       toast(form.id ? '✅ Продажа обновлена' : (payments.length ? '✅ Продажа проведена: приходы в финансы + списан склад' : '✅ Продажа записана (ожидает оплаты)'));
     } catch (e) { setErr((e as Error).message); } finally { setSaving(false); }
@@ -175,11 +198,11 @@ export default function SalesPage() {
   // ── экспорт ──
   const accSummary = (s: Sale) => Array.from(new Set((s.payments || []).map(p => p.accountName).filter(Boolean))).join(' + ');
   async function exportWord() {
-    const rows = active.map(s => [s.saleNo || '', dmy(s.saleDate), s.clientName || '', clientTypeLabel(s.clientType), s.productName || '', fmt(s.qty || 0), fmt(s.totalSum || 0), s.payStatus || 'Ожидает', accSummary(s)]);
+    const rows = active.map(s => [s.saleNo || '', dmy(s.saleDate), s.clientName || '', clientTypeLabel(s.clientType), s.productName || '', fmt(s.qty || 0), fmt(s.totalSum || 0), s.payStatus || 'Ожидает', accSummary(s), s.createdByName || '']);
     const spec = {
       titleLines: ['Журнал продаж'], subtitle: `Продаж: ${active.length} · на ${fmt(total)} ₸`, orientation: 'landscape',
-      columns: [{ header: '№', width: 8 }, { header: 'Дата', width: 10 }, { header: 'Клиент', width: 20, align: 'left' }, { header: 'Тип', width: 10 }, { header: 'Товар', width: 22, align: 'left' }, { header: 'Кол-во', width: 8, align: 'right' }, { header: 'Сумма', width: 12, align: 'right' }, { header: 'Оплата', width: 10 }, { header: 'Счёт', width: 12 }],
-      rows, totalRow: ['', '', '', '', 'ИТОГО', '', fmt(total), '', ''], filename: 'Журнал_продаж.docx',
+      columns: [{ header: '№', width: 8 }, { header: 'Дата', width: 10 }, { header: 'Клиент', width: 20, align: 'left' }, { header: 'Тип', width: 10 }, { header: 'Товар', width: 22, align: 'left' }, { header: 'Кол-во', width: 8, align: 'right' }, { header: 'Сумма', width: 12, align: 'right' }, { header: 'Оплата', width: 10 }, { header: 'Счёт', width: 12 }, { header: 'Автор', width: 14, align: 'left' }],
+      rows, totalRow: ['', '', '', '', 'ИТОГО', '', fmt(total), '', '', ''], filename: 'Журнал_продаж.docx',
     };
     try {
       const r = await fetch('/api/v2/docx', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(spec) });
@@ -189,8 +212,8 @@ export default function SalesPage() {
     } catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
   function printJournal() {
-    const rows = active.map(s => `<tr><td>${s.saleNo || ''}</td><td>${dmy(s.saleDate)}</td><td style="text-align:left">${s.clientName || ''}</td><td>${clientTypeLabel(s.clientType)}</td><td style="text-align:left">${s.productName || ''}</td><td>${fmt(s.qty || 0)}</td><td style="text-align:right">${fmt(s.totalSum || 0)} ₸</td><td>${s.payStatus || 'Ожидает'}</td></tr>`).join('');
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Журнал продаж</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:'Times New Roman',serif;font-size:12px}h2{text-align:center;margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:8px}td,th{border:1px solid #000;padding:4px;text-align:center}</style></head><body><h2>Журнал продаж</h2><div style="text-align:center;margin-bottom:6px">Продаж: ${active.length} · на ${fmt(total)} ₸</div><table><thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Тип</th><th>Товар</th><th>Кол-во</th><th>Сумма</th><th>Оплата</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`;
+    const rows = active.map(s => `<tr><td>${s.saleNo || ''}</td><td>${dmy(s.saleDate)}</td><td style="text-align:left">${s.clientName || ''}</td><td>${clientTypeLabel(s.clientType)}</td><td style="text-align:left">${s.productName || ''}</td><td>${fmt(s.qty || 0)}</td><td style="text-align:right">${fmt(s.totalSum || 0)} ₸</td><td>${s.payStatus || 'Ожидает'}</td><td style="text-align:left">${s.createdByName || ''}</td></tr>`).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Журнал продаж</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:'Times New Roman',serif;font-size:12px}h2{text-align:center;margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:8px}td,th{border:1px solid #000;padding:4px;text-align:center}</style></head><body><h2>Журнал продаж</h2><div style="text-align:center;margin-bottom:6px">Продаж: ${active.length} · на ${fmt(total)} ₸</div><table><thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Тип</th><th>Товар</th><th>Кол-во</th><th>Сумма</th><th>Оплата</th><th>Автор</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`;
     const b = new Blob([html], { type: 'text/html' }); const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(b), target: '_blank' }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
 
@@ -262,11 +285,18 @@ export default function SalesPage() {
         {err && <div className="erp-form-err">{err}</div>}
         <Field label="ФИО / название" required>
           <div style={{ position: 'relative' }}>
-            <Input value={form.clientName} onChange={e => { setForm(f => ({ ...f, clientName: e.target.value })); setClientOpen(true); }} onFocus={() => setClientOpen(true)} onBlur={() => setTimeout(() => setClientOpen(false), 150)} placeholder="Начните вводить — подскажет из клиентов и покупателей" />
-            {clientOpen && clientHits.length > 0 && (
+            <Input value={form.clientName} onChange={e => { setForm(f => ({ ...f, clientName: e.target.value })); setClientOpen(true); }} onFocus={() => setClientOpen(true)} onBlur={() => setTimeout(() => setClientOpen(false), 150)} onKeyDown={clientKey} placeholder="Начните вводить — подскажет из клиентов и покупателей" />
+            {clientOpen && (showRecentClients || clientHits.length > 0) && (
               <div className="cert-meter-dd">
-                {clientHits.map(c => (
-                  <div key={c.id} className="cert-meter-opt" onMouseDown={() => pickClient(c)}>
+                {showRecentClients && <div className="cert-meter-grp">🕘 Недавние</div>}
+                {showRecentClients && recentClients.map((r, i) => (
+                  <div key={`r-${r.v}`} className={`cert-meter-opt${clientIdx === i ? ' is-active' : ''}`} onMouseEnter={() => setClientIdx(i)} onMouseDown={() => applyClient(r.v, r.m || 'retail')}>
+                    <span>{(r.m === 'client' ? '🤝' : '🛒')} {r.v}</span>
+                    <span role="button" title="Убрать из недавних" onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dropRecentClient(r.v); }} style={{ color: '#94a3b8', cursor: 'pointer', padding: '0 4px', fontSize: 12 }}>✕</span>
+                  </div>
+                ))}
+                {clientHits.length > 0 && !showRecentClients && clientHits.map((c, i) => (
+                  <div key={c.id} className={`cert-meter-opt${clientIdx === i ? ' is-active' : ''}`} onMouseEnter={() => setClientIdx(i)} onMouseDown={() => pickClient(c)}>
                     <span>{c.kind === 'buyer' ? '🛒' : '🤝'} {c.name}</span>{c.phone && <span className="cert-meter-uses" style={{ background: '#f1f5f9', color: '#64748b' }}>{c.phone}</span>}
                   </div>
                 ))}

@@ -275,7 +275,7 @@ async function loadDash(){
 function opRow(o){
   const inc=o.opType==='Приход',trf=o.opType==='Перевод';
   const cls=trf?'op-trf':inc?'op-inc':'op-exp',ico=trf?'🔄':inc?'💚':'🔴',ac=trf?'amt-trf':inc?'amt-inc':'amt-exp',sign=inc?'+':trf?'⇄':'−';
-  return `<div class="op-item"><div class="op-ico ${cls}">${ico}</div><div class="op-info"><div class="op-name">${esc(o.name)}</div><div class="op-meta">${esc(o.accountName||'')} · ${esc(fmtDate(o.opDate))}</div></div><div class="op-amt ${ac}">${sign}${fmt(num(o.amount))}</div></div>`;
+  return `<div class="op-item"><div class="op-ico ${cls}">${ico}</div><div class="op-info"><div class="op-name">${esc(o.name)}</div><div class="op-meta">${esc(o.accountName||'')} · ${esc(fmtDate(o.opDate))}${o.createdByName?' · 👤 '+esc(o.createdByName):''}</div></div><div class="op-amt ${ac}">${sign}${fmt(num(o.amount))}</div></div>`;
 }
 
 // экран «Финансы» — только просмотр через переиспользуемый компонент FinanceView

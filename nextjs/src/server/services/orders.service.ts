@@ -45,7 +45,8 @@ export const ordersService = {
       const fromUser = actor ? await usersRepo.branchOf(actor.id) : null;
       data.branchId = fromUser ?? await branchesRepo.headId();
     }
-    const order = await ordersRepo.create(data);
+    // Автор = пользователь сессии (из ERP). Внешний кабинет без сессии → null.
+    const order = await ordersRepo.create({ ...data, createdBy: actor?.id ?? null });
     // notify managers + admins about the new cabinet order (best-effort)
     try {
       const users = await usersRepo.listActiveLite();

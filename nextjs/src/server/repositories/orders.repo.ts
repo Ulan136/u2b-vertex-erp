@@ -1,6 +1,6 @@
 import { db, type Executor } from '@/db';
-import { orders } from '@/db/schema';
-import { desc, eq, sql } from 'drizzle-orm';
+import { orders, users } from '@/db/schema';
+import { desc, eq, sql, getTableColumns } from 'drizzle-orm';
 import type { OrderSource } from '@/server/dto/orders.dto';
 import { ORDER_NO_PREFIX } from '@/server/dto/orders.dto';
 
@@ -14,7 +14,8 @@ const ORDER_SEQ: Record<OrderSource, string> = {
 
 // Data access for orders — the only place that talks to Drizzle for this table.
 export const ordersRepo = {
-  list: () => db.select().from(orders).orderBy(desc(orders.createdAt)),
+  list: () => db.select({ ...getTableColumns(orders), createdByName: users.name })
+    .from(orders).leftJoin(users, eq(orders.createdBy, users.id)).orderBy(desc(orders.createdAt)),
 
   // Следующий номер заявки из секвенса: префикс источника + NNN.
   async nextOrderNo(source: OrderSource, exec: Executor = db): Promise<string> {

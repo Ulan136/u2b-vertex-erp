@@ -326,6 +326,8 @@ export const orders = pgTable('orders', {
   status    : varchar('status', { length: 20 }).default('В работе'),   // 'В работе' | 'Готова' | 'Отменён'
   // origin channel: 'field_check' (Выездная поверка) | 'tec' (ТЭЦ). Separate order streams + numbering.
   source    : orderSourceEnum('source').notNull().default('field_check'),
+  // автор = пользователь сессии на момент создания (null для заявок из внешнего кабинета)
+  createdBy : uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
@@ -348,6 +350,8 @@ export const clients = pgTable('clients', {
   // тип записи: client (клиент со скидкой) | buyer (покупатель, розница)
   kind       : varchar('kind', { length: 10 }).notNull().default('client'),
   categoryId : uuid('category_id').references(() => clientCategories.id, { onDelete: 'set null' }),
+  // кто завёл запись (автор). null — заведено самообучением без сессии / до колонки
+  createdBy  : uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt  : timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt  : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
@@ -367,6 +371,8 @@ export const debts = pgTable('debts', {
   dueDate              : date('due_date'),
   comment              : text('comment'),
   status               : debtStatusEnum('status').notNull().default('open'),
+  // автор = пользователь сессии на момент создания долга
+  createdBy            : uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt            : timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt            : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

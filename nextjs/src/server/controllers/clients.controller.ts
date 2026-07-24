@@ -13,7 +13,7 @@ export const GET = withApi(async (req: NextRequest) => {
     kind: sp.get('kind'),
   });
 });
-export const POST = withApi(async (req: NextRequest) => created(await clientsService.create(await req.json())));
+export const POST = withApi(async (req: NextRequest, ctx) => created(await clientsService.create(await req.json(), ctx.user?.id ?? null)));
 
 // item: /api/v2/clients/[id]
 export const PATCH = withApi(async (req: NextRequest, ctx) => clientsService.update(ctx.params!.id, await req.json()));

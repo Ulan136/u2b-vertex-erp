@@ -114,7 +114,7 @@ export const salesService = {
     });
     // Самообучение справочника покупателей: имя из продажи → запись (тип по чипу).
     if (data.clientName && data.clientName.trim()) {
-      await clientsService.touch(data.clientName, null, data.clientType === 'client' ? 'client' : 'buyer');
+      await clientsService.touch(data.clientName, null, data.clientType === 'client' ? 'client' : 'buyer', actor?.id || null);
     }
     return sale;
   },

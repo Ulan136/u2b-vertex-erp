@@ -6,6 +6,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
+import { getRecent, pushRecent, removeRecent, type RecentItem } from '@/lib/recent';
 
 type Cert = {
   id: string; source: string; docType?: string | null; fio?: string | null; address?: string | null; phone?: string | null; client?: string | null;
@@ -88,10 +89,15 @@ function CertsInner() {
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState('');
 
-  // Тип прибора — автоподсказка: справочник типов + склад.
+  // Тип прибора — автоподсказка: 🕘 недавние (пустое поле) + справочник + склад.
+  const { data: session } = useApi<{ user?: { id?: string } }>('/api/auth/session');
+  const uid = session?.user?.id || null;
   const [meterOpen, setMeterOpen] = React.useState(false);
   const [meterIdx, setMeterIdx] = React.useState(-1);
+  const [recentMeters, setRecentMeters] = React.useState<RecentItem[]>([]);
+  React.useEffect(() => { if (modal) setRecentMeters(getRecent('meterType', uid)); }, [modal, uid]);
   const meterQuery = form.meterType.trim();
+  const showRecentMeters = meterOpen && !meterQuery && recentMeters.length > 0;
   const { data: deviceHits } = useApi<DeviceTypeHit[]>(meterQuery ? `/api/v2/device-types?q=${encodeURIComponent(meterQuery)}` : null);
   const skuHits = React.useMemo(() => {
     const qq = meterQuery.toLowerCase();
@@ -101,9 +107,11 @@ function CertsInner() {
       .filter(p => `${p.skuCode} ${p.name}`.toLowerCase().includes(qq) && !seen.has(p.name) && seen.add(p.name))
       .map(p => ({ label: `${p.skuCode} · ${p.name}`, value: p.name })).slice(0, 6);
   }, [products, meterQuery]);
-  const meterFlat = React.useMemo(() => [...(deviceHits || []).map(d => d.name), ...skuHits.map(s => s.value)], [deviceHits, skuHits]);
+  // Плоский список для клавиатуры = то, что реально показано: пустое поле → недавние, иначе → подсказки.
+  const meterFlat = React.useMemo(() => (!meterQuery ? recentMeters.map(r => r.v) : [...(deviceHits || []).map(d => d.name), ...skuHits.map(s => s.value)]), [meterQuery, recentMeters, deviceHits, skuHits]);
   React.useEffect(() => { setMeterIdx(-1); }, [meterQuery]);
   const pickMeter = (value: string) => { setForm(f => ({ ...f, meterType: value })); setMeterOpen(false); setMeterIdx(-1); };
+  const dropRecentMeter = (v: string) => setRecentMeters(removeRecent('meterType', uid, v));
   function meterKey(e: React.KeyboardEvent) {
     if (e.key === 'Escape') { setMeterOpen(false); setMeterIdx(-1); return; }
     if (!meterOpen || meterFlat.length === 0) return;
@@ -217,6 +225,8 @@ function CertsInner() {
     try {
       if (form.id) await apiSend(`/api/v2/certs/${form.id}`, 'PATCH', buildBody());
       else await apiSend('/api/v2/certs', 'POST', buildBody());
+      // «Недавние» пишем только при УСПЕШНОМ сохранении (не при наборе).
+      if (form.meterType.trim()) setRecentMeters(pushRecent('meterType', uid, { v: form.meterType.trim() }));
       setModal(false); await mutate(); toast(form.id ? '✅ Сохранено' : (isCert ? '✅ Сертификат добавлен' : '✅ Извещение добавлено'));
     } catch (e) { setErr((e as Error).message); } finally { setSaving(false); }
   }
@@ -237,8 +247,8 @@ function CertsInner() {
   }
 
   // ── Экспорт CSV / Word ──
-  const exportRows = (arr: Cert[]) => arr.map((c, i) => [String(i + 1), c.fio || '', c.address || '', c.meterType || '', c.serialNo || '', dmy(c.checkDate), isCert ? dmy(c.nextCheckDate) : '', c.stampNo || '', c.readings != null ? String(c.readings) : '', c.waterType || '', c.yearMade ? String(c.yearMade) : '', c.result || '', c.payStatus || '', c.invoiceType || '']);
-  const EXP_HEAD = ['№', 'ФИО/объект', 'Адрес', 'Тип', 'Зав.№', 'Поверка', 'Очередная', 'Клеймо', 'Показания', 'Вода', 'Год', 'Результат', 'Оплата', 'Счёт'];
+  const exportRows = (arr: Cert[]) => arr.map((c, i) => [String(i + 1), c.fio || '', c.address || '', c.meterType || '', c.serialNo || '', dmy(c.checkDate), isCert ? dmy(c.nextCheckDate) : '', c.stampNo || '', c.readings != null ? String(c.readings) : '', c.waterType || '', c.yearMade ? String(c.yearMade) : '', c.result || '', c.payStatus || '', c.invoiceType || '', c.createdByName || '']);
+  const EXP_HEAD = ['№', 'ФИО/объект', 'Адрес', 'Тип', 'Зав.№', 'Поверка', 'Очередная', 'Клеймо', 'Показания', 'Вода', 'Год', 'Результат', 'Оплата', 'Счёт', 'Автор'];
   function exportCsv(arr: Cert[], name: string) {
     const rows = [EXP_HEAD, ...exportRows(arr)];
     const csv = '﻿' + rows.map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(';')).join('\n');
@@ -246,7 +256,7 @@ function CertsInner() {
     a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   async function exportWord(arr: Cert[], title: string, name: string) {
-    const spec = { titleLines: [title], subtitle: `Направление: ${source} · записей: ${arr.length}`, orientation: 'landscape', columns: EXP_HEAD.map((h, i) => ({ header: h, width: i === 1 || i === 2 ? 22 : 10, align: i >= 8 ? 'right' : 'left' })), rows: exportRows(arr), filename: name };
+    const spec = { titleLines: [title], subtitle: `Направление: ${source} · записей: ${arr.length}`, orientation: 'landscape', columns: EXP_HEAD.map((h, i) => ({ header: h, width: i === 1 || i === 2 ? 22 : 10, align: i >= 8 && i < 14 ? 'right' : 'left' })), rows: exportRows(arr), filename: name };
     try {
       const r = await fetch('/api/v2/docx', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(spec) });
       if (!r.ok) throw new Error('Ошибка выгрузки');
@@ -302,7 +312,7 @@ function CertsInner() {
                 <th>№</th><th>ФИО абонента</th><th>Адрес абонента</th><th>Тип прибора</th><th>Заводской номер</th>
                 <th>Дата поверки</th><th>Очередная поверка</th><th>Номер клейма</th><th style={{ textAlign: 'right' }}>Показания м³</th>
                 <th>Вода</th><th>Год</th><th>Прим.</th><th>Телефон</th><th>Клиент</th>
-                <th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th><th style={{ textAlign: 'center' }}>Действия</th>
+                <th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th><th>Автор</th><th style={{ textAlign: 'center' }}>Действия</th>
               </tr></thead>
               <tbody>
                 {list.map((c, i) => (
@@ -324,6 +334,7 @@ function CertsInner() {
                     <td><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
                     <td><SSel c={c} field="payStatus" opts={PAY} tone={c.payStatus === 'Оплачено' ? 'ok' : 'warn'} /></td>
                     <td><SSel c={c} field="invoiceType" opts={INV} tone="neutral" /></td>
+                    <td className="erp-muted" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>
                     <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
                       <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(c)}>✏️</button>
                       <button className="erp-icon-btn" title="Клонировать" onClick={() => openClone(c)}>⧉</button>
@@ -338,7 +349,7 @@ function CertsInner() {
             <table className="erp-table">
               <thead><tr>
                 <th>№</th><th>ФИО / Объект</th><th>Адрес</th><th>№ счётчика</th><th>Дата поверки</th><th>Плановая след.</th>
-                <th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th><th>📨 Отправлено</th><th style={{ textAlign: 'center' }}>Действия</th>
+                <th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th><th>📨 Отправлено</th><th>Автор</th><th style={{ textAlign: 'center' }}>Действия</th>
               </tr></thead>
               <tbody>
                 {list.map((c, i) => (
@@ -353,6 +364,7 @@ function CertsInner() {
                     <td><SSel c={c} field="payStatus" opts={PAY} tone={c.payStatus === 'Оплачено' ? 'ok' : 'warn'} /></td>
                     <td><SSel c={c} field="invoiceType" opts={INV} tone="neutral" /></td>
                     <td><SSel c={c} field="sentStatus" opts={SENT} tone={sentTone(c.sentStatus)} /></td>
+                    <td className="erp-muted" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>
                     <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
                       <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(c)}>✏️</button>
                       <button className="erp-icon-btn" title="Клонировать" onClick={() => openClone(c)}>⧉</button>
@@ -407,6 +419,13 @@ function CertsInner() {
               <Input value={form.meterType} onChange={e => { setForm({ ...form, meterType: e.target.value }); setMeterOpen(true); }} onFocus={() => setMeterOpen(true)} onBlur={() => setTimeout(() => setMeterOpen(false), 150)} onKeyDown={meterKey} placeholder="Начните вводить — справочник и склад" />
               {meterOpen && meterFlat.length > 0 && (
                 <div className="cert-meter-dd">
+                  {showRecentMeters && <div className="cert-meter-grp">🕘 Недавние</div>}
+                  {showRecentMeters && recentMeters.map((r, i) => (
+                    <div key={`r-${r.v}`} className={`cert-meter-opt${meterIdx === i ? ' is-active' : ''}`} onMouseEnter={() => setMeterIdx(i)} onMouseDown={() => pickMeter(r.v)}>
+                      <span>{r.v}</span>
+                      <span role="button" title="Убрать из недавних" onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dropRecentMeter(r.v); }} style={{ color: '#94a3b8', cursor: 'pointer', padding: '0 4px', fontSize: 12 }}>✕</span>
+                    </div>
+                  ))}
                   {(deviceHits || []).length > 0 && <div className="cert-meter-grp">Справочник типов</div>}
                   {(deviceHits || []).map((d, i) => (
                     <div key={`d-${d.id}`} className={`cert-meter-opt${meterIdx === i ? ' is-active' : ''}`} onMouseEnter={() => setMeterIdx(i)} onMouseDown={() => pickMeter(d.name)}>

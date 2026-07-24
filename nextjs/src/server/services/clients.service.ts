@@ -15,7 +15,7 @@ export const clientsService = {
     return clientsRepo.list(filter);
   },
 
-  async create(input: unknown) {
+  async create(input: unknown, actorId?: string | null) {
     const data = clientCreateSchema.parse(input);
     await checkCategory(data.categoryId);
     return clientsRepo.create({
@@ -23,13 +23,14 @@ export const clientsService = {
       phone: normalizePhone(data.phone),
       kind: data.kind ?? 'client',
       categoryId: data.categoryId ?? null,
+      createdBy: actorId ?? null,
     });
   },
 
   // САМООБУЧЕНИЕ: имя из продажи. Нет записи (по имени+телефону) → создаём
   // (тип по чипу продажи). Дедуп: если телефон не задан — совпадение по имени;
   // если задан — по имени+телефону. Best-effort (не роняет продажу).
-  async touch(rawName: unknown, rawPhone: unknown, kind: 'client' | 'buyer') {
+  async touch(rawName: unknown, rawPhone: unknown, kind: 'client' | 'buyer', actorId?: string | null) {
     try {
       const name = normClientName(rawName);
       const key = clientNameKey(name);
@@ -39,7 +40,7 @@ export const clientsService = {
       const same = await clientsRepo.matchingName(key);
       const dup = pickClientDuplicate(same, phone);
       if (dup) return dup;
-      return clientsRepo.create({ name, phone, kind, categoryId: null });
+      return clientsRepo.create({ name, phone, kind, categoryId: null, createdBy: actorId ?? null });
     } catch (e) {
       console.warn('[clients.touch]', (e as Error).message);
       return null;
