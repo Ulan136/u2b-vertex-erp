@@ -4,6 +4,9 @@ import { desc, eq, sql, getTableColumns } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 
 const editor = alias(users, 'editor');
+// edit_token — секрет правки из кабинета; в общий список (ERP/мастер) не отдаём.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const { editToken: _editToken, ...orderCols } = getTableColumns(orders);
 import type { OrderSource } from '@/server/dto/orders.dto';
 import { ORDER_NO_PREFIX } from '@/server/dto/orders.dto';
 
@@ -17,7 +20,7 @@ const ORDER_SEQ: Record<OrderSource, string> = {
 
 // Data access for orders — the only place that talks to Drizzle for this table.
 export const ordersRepo = {
-  list: () => db.select({ ...getTableColumns(orders), createdByName: users.name, editedByName: editor.name })
+  list: () => db.select({ ...orderCols, createdByName: users.name, editedByName: editor.name })
     .from(orders)
     .leftJoin(users, eq(orders.createdBy, users.id))
     .leftJoin(editor, eq(orders.editedBy, editor.id))

@@ -40,6 +40,15 @@ export const orderCreateSchema = z.object({
 
 export const orderUpdateSchema = orderCreateSchema.partial();
 
+// Правка заявки из внешнего кабинета (клиент, без входа): только содержимое —
+// имя/телефон/комментарий и позиции (адрес·кол-во·тип). Проверка прав — по токену.
+export const orderCabinetEditSchema = z.object({
+  clientName: z.string().nullish(),
+  phone: z.string().nullish(),
+  comment: z.string().nullish(),
+  positions: z.array(positionSchema).min(1, 'Нужна хотя бы одна позиция'),
+});
+
 // Поля СОДЕРЖИМОГО заявки. Правка любого из них = «изменение» (метится для
 // логиста). Смена только status/photos изменением НЕ считается (это работа
 // мастера, а не правка карточки создателем).
@@ -53,6 +62,13 @@ export function hasUnseenEdit(o: { editedAt?: Date | string | null; editedSeenAt
   if (!o.editedAt) return false;
   if (!o.editedSeenAt) return true;
   return new Date(o.editedSeenAt).getTime() < new Date(o.editedAt).getTime();
+}
+
+// Может ли клиент из кабинета править эту заявку: верный секрет-токен И заявка
+// ещё не выполнена/не отменена. Без токена или с чужим токеном — нет.
+export function canCabinetEdit(o: { editToken?: string | null; status?: string | null }, token: string | null | undefined): boolean {
+  if (!token || !o.editToken || o.editToken !== token) return false;
+  return o.status !== 'Готова' && o.status !== 'Отменён';
 }
 
 export type OrderCreate = z.infer<typeof orderCreateSchema>;

@@ -5,6 +5,9 @@
 export function isCabinetPublicApi(method: string, pathname: string): boolean {
   if (method === 'POST' && pathname === '/api/v2/orders') return true;                 // cabinet submits an order
   if (method === 'GET' && pathname === '/api/v2/orders/external-url') return true;      // cabinet URL lookup
+  // Правка/просмотр СВОЕЙ заявки из кабинета — доступ по секрету edit_token (в
+  // query/теле), сам путь публичный. Токен проверяется в сервисе.
+  if ((method === 'GET' || method === 'PATCH') && /^\/api\/v2\/orders\/[^/]+\/cabinet$/.test(pathname)) return true;
   if (method === 'OPTIONS') return true;                                                // preflight (same-origin has none)
   return false;
 }
