@@ -21,8 +21,11 @@ export const POST = withApi(async (req: NextRequest, ctx) => {
 });
 
 // item: /api/v2/orders/[id]
-export const PATCH = withApi(async (req: NextRequest, ctx) => ordersService.update(ctx.params!.id, await req.json()));
+export const PATCH = withApi(async (req: NextRequest, ctx) => ordersService.update(ctx.params!.id, await req.json(), ctx.user));
 export const DELETE = withApi(async (req: NextRequest, ctx) => ordersService.remove(ctx.params!.id));
+
+// POST /api/v2/orders/[id]/seen — логист открыл изменённую заявку (снять отметку).
+export const SEEN = withApi(async (req: NextRequest, ctx) => ordersService.markEditedSeen(ctx.params!.id));
 
 // static: /api/v2/orders/external-url?source=field_check|tec
 export const EXTERNAL_URL = withApi(async (req: NextRequest) => {

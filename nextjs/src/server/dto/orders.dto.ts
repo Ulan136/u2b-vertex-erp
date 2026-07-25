@@ -40,6 +40,21 @@ export const orderCreateSchema = z.object({
 
 export const orderUpdateSchema = orderCreateSchema.partial();
 
+// Поля СОДЕРЖИМОГО заявки. Правка любого из них = «изменение» (метится для
+// логиста). Смена только status/photos изменением НЕ считается (это работа
+// мастера, а не правка карточки создателем).
+export const ORDER_CONTENT_FIELDS = ['clientName', 'address', 'phone', 'qty', 'waterType', 'positions', 'comment', 'branchId', 'orderDate'] as const;
+export function isOrderContentEdit(patch: Record<string, unknown>): boolean {
+  return ORDER_CONTENT_FIELDS.some(f => f in patch && patch[f] !== undefined);
+}
+// Есть ли непросмотренная правка (для подсветки/вкладки «Изменения» у мастера):
+// правка была и мастер её ещё не открывал (edited_seen_at < edited_at).
+export function hasUnseenEdit(o: { editedAt?: Date | string | null; editedSeenAt?: Date | string | null }): boolean {
+  if (!o.editedAt) return false;
+  if (!o.editedSeenAt) return true;
+  return new Date(o.editedSeenAt).getTime() < new Date(o.editedAt).getTime();
+}
+
 export type OrderCreate = z.infer<typeof orderCreateSchema>;
 export type OrderUpdate = z.infer<typeof orderUpdateSchema>;
 

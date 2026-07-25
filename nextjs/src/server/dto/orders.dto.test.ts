@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   orderCreateSchema, nextOrderNoFor, filterOrdersBySource, externalCabinetUrl,
-  orderInBranch, scopeOrdersByBranch,
+  orderInBranch, scopeOrdersByBranch, isOrderContentEdit, hasUnseenEdit,
 } from './orders.dto';
 
 const HEAD = 'head-almaty', AST = 'astana';
@@ -111,4 +111,23 @@ test('externalCabinetUrl: tec lives under /tec, field_check stays at base', () =
   assert.equal(externalCabinetUrl('https://u2b-vertex-erp.vercel.app/cabinet', 'field_check'), 'https://u2b-vertex-erp.vercel.app/cabinet');
   assert.equal(externalCabinetUrl('https://u2b-vertex-erp.vercel.app/cabinet', 'tec'), 'https://u2b-vertex-erp.vercel.app/cabinet/tec');
   assert.equal(externalCabinetUrl('https://u2b-vertex-erp.vercel.app/cabinet/', 'tec'), 'https://u2b-vertex-erp.vercel.app/cabinet/tec');
+});
+
+// ── правка содержимого заявки (метка для логиста) ──────────────
+test('isOrderContentEdit: правка адреса/кол-ва/телефона = изменение', () => {
+  assert.equal(isOrderContentEdit({ address: 'ул. Абая 1' }), true);
+  assert.equal(isOrderContentEdit({ qty: 3 }), true);
+  assert.equal(isOrderContentEdit({ comment: 'позвонить' }), true);
+});
+test('isOrderContentEdit: смена только статуса/фото — НЕ изменение', () => {
+  assert.equal(isOrderContentEdit({ status: 'Готова' }), false);
+  assert.equal(isOrderContentEdit({ photos: ['data:...'] }), false);
+  assert.equal(isOrderContentEdit({}), false);
+});
+test('hasUnseenEdit: есть правка и логист её не открывал', () => {
+  const t1 = '2026-07-25T10:00:00Z', t2 = '2026-07-25T11:00:00Z';
+  assert.equal(hasUnseenEdit({ editedAt: null }), false);            // не правили
+  assert.equal(hasUnseenEdit({ editedAt: t2, editedSeenAt: null }), true);  // правка, не смотрел
+  assert.equal(hasUnseenEdit({ editedAt: t1, editedSeenAt: t2 }), false);   // открыл после правки
+  assert.equal(hasUnseenEdit({ editedAt: t2, editedSeenAt: t1 }), true);    // правка новее просмотра
 });
