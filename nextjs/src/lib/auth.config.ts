@@ -8,6 +8,11 @@ const SESSION_HOURS = 12;      // без «Запомнить меня» → к�
 
 export const authConfig: NextAuthConfig = {
   trustHost: true,
+  // Auth.js v5 читает секрет из AUTH_SECRET. Раньше он был задан как NEXTAUTH_SECRET
+  // (имя из v4) и не подхватывался → каждый инстанс подписывал JWT своим случайным
+  // ключом, и токен переставал проверяться на следующем запросе (постоянные вылеты).
+  // Задаём секрет явно из любого из двух имён — одинаково в middleware (edge) и auth (node).
+  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
   pages: { signIn: '/login' },
   session: { strategy: 'jwt', maxAge: REMEMBER_DAYS * 24 * 60 * 60 },
   providers: [],
