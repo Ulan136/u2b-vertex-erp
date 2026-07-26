@@ -333,9 +333,6 @@ export const orders = pgTable('orders', {
   editedAt    : timestamp('edited_at', { withTimezone: true }),
   editedBy    : uuid('edited_by').references(() => users.id, { onDelete: 'set null' }),
   editedSeenAt: timestamp('edited_seen_at', { withTimezone: true }),
-  // секрет правки из внешнего кабинета: возвращается создателю (на устройство),
-  // без входа менять заявку можно только предъявив этот токен, пока она не «Готова».
-  editToken   : uuid('edit_token'),
   createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

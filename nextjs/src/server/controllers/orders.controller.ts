@@ -27,16 +27,6 @@ export const DELETE = withApi(async (req: NextRequest, ctx) => ordersService.rem
 // POST /api/v2/orders/[id]/seen — логист открыл изменённую заявку (снять отметку).
 export const SEEN = withApi(async (req: NextRequest, ctx) => ordersService.markEditedSeen(ctx.params!.id));
 
-// GET /api/v2/orders/[id]/cabinet?token= — заявка для клиентского кабинета (по токену).
-export const CABINET_GET = withApi(async (req: NextRequest, ctx) =>
-  ordersService.cabinetGet(ctx.params!.id, new URL(req.url).searchParams.get('token')));
-// PATCH /api/v2/orders/[id]/cabinet — правка заявки из кабинета (токен в теле).
-export const CABINET_PATCH = withApi(async (req: NextRequest, ctx) => {
-  const body = await req.json().catch(() => ({}));
-  const token = (body as { token?: string }).token ?? new URL(req.url).searchParams.get('token');
-  return ordersService.cabinetUpdate(ctx.params!.id, token, body);
-});
-
 // static: /api/v2/orders/external-url?source=field_check|tec
 export const EXTERNAL_URL = withApi(async (req: NextRequest) => {
   const url = new URL(req.url);

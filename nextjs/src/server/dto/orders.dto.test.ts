@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   orderCreateSchema, nextOrderNoFor, filterOrdersBySource, externalCabinetUrl,
-  orderInBranch, scopeOrdersByBranch, isOrderContentEdit, hasUnseenEdit, canCabinetEdit,
+  orderInBranch, scopeOrdersByBranch, isOrderContentEdit, hasUnseenEdit,
 } from './orders.dto';
 
 const HEAD = 'head-almaty', AST = 'astana';
@@ -130,18 +130,4 @@ test('hasUnseenEdit: есть правка и логист её не откры�
   assert.equal(hasUnseenEdit({ editedAt: t2, editedSeenAt: null }), true);  // правка, не смотрел
   assert.equal(hasUnseenEdit({ editedAt: t1, editedSeenAt: t2 }), false);   // открыл после правки
   assert.equal(hasUnseenEdit({ editedAt: t2, editedSeenAt: t1 }), true);    // правка новее просмотра
-});
-
-// ── правка заявки из кабинета по секрет-токену ─────────────────
-test('canCabinetEdit: верный токен + не выполнена → можно', () => {
-  assert.equal(canCabinetEdit({ editToken: 'T', status: 'В работе' }, 'T'), true);
-});
-test('canCabinetEdit: чужой/пустой токен → нельзя (защита)', () => {
-  assert.equal(canCabinetEdit({ editToken: 'T', status: 'В работе' }, 'X'), false);
-  assert.equal(canCabinetEdit({ editToken: 'T', status: 'В работе' }, null), false);
-  assert.equal(canCabinetEdit({ editToken: null, status: 'В работе' }, 'T'), false);
-});
-test('canCabinetEdit: выполненную/отменённую править нельзя', () => {
-  assert.equal(canCabinetEdit({ editToken: 'T', status: 'Готова' }, 'T'), false);
-  assert.equal(canCabinetEdit({ editToken: 'T', status: 'Отменён' }, 'T'), false);
 });
