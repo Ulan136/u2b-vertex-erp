@@ -328,11 +328,6 @@ export const orders = pgTable('orders', {
   source    : orderSourceEnum('source').notNull().default('field_check'),
   // автор = пользователь сессии на момент создания (null для заявок из внешнего кабинета)
   createdBy : uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
-  // правка СОДЕРЖИМОГО заявки после отправки (создатель меняет, пока «не доставлено»).
-  // edited_seen_at ≥ edited_at → мастер уже открыл изменение (снял отметку).
-  editedAt    : timestamp('edited_at', { withTimezone: true }),
-  editedBy    : uuid('edited_by').references(() => users.id, { onDelete: 'set null' }),
-  editedSeenAt: timestamp('edited_seen_at', { withTimezone: true }),
   createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

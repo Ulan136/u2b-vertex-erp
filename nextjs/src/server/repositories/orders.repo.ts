@@ -1,9 +1,6 @@
 import { db, type Executor } from '@/db';
 import { orders, users } from '@/db/schema';
 import { desc, eq, sql, getTableColumns } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/pg-core';
-
-const editor = alias(users, 'editor');
 import type { OrderSource } from '@/server/dto/orders.dto';
 import { ORDER_NO_PREFIX } from '@/server/dto/orders.dto';
 
@@ -17,11 +14,8 @@ const ORDER_SEQ: Record<OrderSource, string> = {
 
 // Data access for orders — the only place that talks to Drizzle for this table.
 export const ordersRepo = {
-  list: () => db.select({ ...getTableColumns(orders), createdByName: users.name, editedByName: editor.name })
-    .from(orders)
-    .leftJoin(users, eq(orders.createdBy, users.id))
-    .leftJoin(editor, eq(orders.editedBy, editor.id))
-    .orderBy(desc(orders.createdAt)),
+  list: () => db.select({ ...getTableColumns(orders), createdByName: users.name })
+    .from(orders).leftJoin(users, eq(orders.createdBy, users.id)).orderBy(desc(orders.createdAt)),
 
   // Следующий номер заявки из секвенса: префикс источника + NNN.
   async nextOrderNo(source: OrderSource, exec: Executor = db): Promise<string> {

@@ -3,7 +3,7 @@ import { usersRepo } from '@/server/repositories/users.repo';
 import { branchesRepo } from '@/server/repositories/branches.repo';
 import { notificationsService } from '@/server/services/notifications.service';
 import {
-  orderCreateSchema, orderUpdateSchema, isOrderContentEdit,
+  orderCreateSchema, orderUpdateSchema,
   filterOrdersBySource, externalCabinetUrl, scopeOrdersByBranch,
   type OrderSource,
 } from '@/server/dto/orders.dto';
@@ -60,35 +60,10 @@ export const ordersService = {
     return order;
   },
 
-  // Правку СОДЕРЖИМОГО (адрес/кол-во/телефон/позиции/комментарий) метим для
-  // логиста: создатель может менять заявку, пока она «не доставлена» (не «Готова»).
-  // Смена только статуса/фото изменением не считается.
-  async update(id: string, input: unknown, actor?: SessionUser | null) {
+  async update(id: string, input: unknown) {
     if (!id) throw badRequest('id is required');
     const data = orderUpdateSchema.parse(input);
-    const patch: Record<string, unknown> = { ...data };
-    if (isOrderContentEdit(data)) {
-      const existing = await ordersRepo.findById(id);
-      if (!existing) throw notFound('Order not found');
-      const privileged = actor?.role === 'admin' || actor?.role === 'director';
-      if (existing.status === 'Готова' && !privileged) {
-        throw badRequest('Заявка уже выполнена логистом — правка недоступна');
-      }
-      // Отметить изменение и сбросить «просмотрено» — логист увидит другим фоном.
-      patch.editedAt = new Date();
-      patch.editedBy = actor?.id ?? null;
-      patch.editedSeenAt = null;
-    }
-    const row = await ordersRepo.update(id, patch);
-    if (!row) throw notFound('Order not found');
-    return row;
-  },
-
-  // Логист открыл изменённую заявку → отметка «изменено» снимается (не «принять»,
-  // просто «увидел»). Ставим edited_seen_at = сейчас (≥ edited_at).
-  async markEditedSeen(id: string) {
-    if (!id) throw badRequest('id is required');
-    const row = await ordersRepo.update(id, { editedSeenAt: new Date() });
+    const row = await ordersRepo.update(id, data);
     if (!row) throw notFound('Order not found');
     return row;
   },

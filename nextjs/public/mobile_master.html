@@ -56,9 +56,6 @@ html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:
 .order-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;margin:8px 14px;padding:13px 14px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
 .order-card.done{border-color:#a7f3d0;background:#f0fdf4;}
 .order-card.cancelled{border-color:#fca5a5;background:#fff5f5;opacity:.85;}
-.order-card.changed{border-color:#f59e0b;background:#fffbeb;box-shadow:0 0 0 2px rgba(245,158,11,.18);}
-.oc-changed{background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;border-radius:8px;padding:6px 9px;margin:2px 0 8px;cursor:pointer;}
-.oc-body{cursor:default;}
 .oc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;}
 .oc-no{font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b7280;}
 .oc-st{font-size:11px;font-weight:700;white-space:nowrap;}
@@ -118,7 +115,6 @@ html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:
     <div class="filter-row">
       <div class="fchip on" id="f-today" onclick="setFilter('today')">Сегодня</div>
       <div class="fchip" id="f-all" onclick="setFilter('all')">Все</div>
-      <div class="fchip" id="f-changed" onclick="setFilter('changed')">✏️ Изменения<span id="chg-count" style="display:none;margin-left:5px;background:#f59e0b;color:#fff;border-radius:8px;padding:0 6px;font-size:11px;"></span></div>
     </div>
     <div class="stats-row" id="stats"></div>
     <div id="orders-list" style="flex:1;"></div>
@@ -245,46 +241,26 @@ async function loadOrders(){
 
 function visibleOrders(){
   const t=todayStr();
-  if(filter==='changed') return orders.filter(isUnseenChange);
   return filter==='today' ? orders.filter(o=>orderDay(o)===t) : orders;
-}
-// Непросмотренная правка активной заявки: содержимое поменяли после отправки, а
-// логист ещё не открыл (edited_seen_at < edited_at). Готовые/отменённые не метим.
-function isActive(o){return o.status!=='Готова'&&o.status!=='Отменён';}
-function isUnseenChange(o){
-  if(!isActive(o)||!o.editedAt) return false;
-  if(!o.editedSeenAt) return true;
-  return new Date(o.editedSeenAt).getTime() < new Date(o.editedAt).getTime();
 }
 function setFilter(f){filter=f;
   document.getElementById('f-today').classList.toggle('on',f==='today');
   document.getElementById('f-all').classList.toggle('on',f==='all');
-  document.getElementById('f-changed').classList.toggle('on',f==='changed');
   render();
-}
-// Логист открыл изменённую карточку → снять отметку (edited_seen_at=сейчас).
-async function markSeen(id){
-  const o=orders.find(x=>x.id===id); if(!o||!isUnseenChange(o)) return;
-  o.editedSeenAt=new Date().toISOString();   // оптимистично
-  render();
-  try{ await fetch(ORDERS_API+'/'+id+'/seen',{method:'POST'}); }catch(e){}
 }
 
 function stTag(s){return s==='Готова'?{c:'#059669',t:'✅ Готова'}:s==='Отменён'?{c:'#dc2626',t:'❌ Отменён'}:{c:'#1d4ed8',t:'🔄 В работе'};}
 
 function orderCardHtml(o){
   const st=stTag(o.status);
-  const changed=isUnseenChange(o);
-  const cls=(o.status==='Готова'?'done':o.status==='Отменён'?'cancelled':'')+(changed?' changed':'');
+  const cls=o.status==='Готова'?'done':o.status==='Отменён'?'cancelled':'';
   const positions=(Array.isArray(o.positions)&&o.positions.length)?o.positions:[{address:o.address,qty:o.qty,water:o.waterType}];
   const pos=positions.map(p=>`<div class="oc-pos">📍 ${esc(p.address)} — <b>${esc(p.qty||0)} шт.</b>${p.water?' · '+esc(p.water):''}</div>`).join('');
   const photos=Array.isArray(o.photos)?o.photos:[];
   const thumbs=photos.length?`<div class="thumbs">${photos.slice(0,4).map(p=>`<img class="thumb" src="${p}">`).join('')}${photos.length>4?`<div class="thumb" style="display:flex;align-items:center;justify-content:center;background:#f3f4f6;color:#6b7280;font-weight:700;">+${photos.length-4}</div>`:''}</div>`:'';
   const cc=commentCounts[o.id]||0;
-  const changedBar=changed?`<div class="oc-changed" onclick="markSeen('${o.id}')">✏️ Изменено ${esc(fmtDateTime(o.editedAt))}${o.editedByName?' · '+esc(o.editedByName):''} — нажмите, чтобы отметить просмотренным</div>`:'';
   return `<div class="order-card ${cls}">
     <div class="oc-top"><span class="oc-no">${esc(o.orderNo||'—')}</span><span class="oc-st" style="color:${st.c};">${st.t}</span></div>
-    ${changedBar}
     ${o.clientName?`<div class="oc-client">${esc(o.clientName)}</div>`:''}
     <div class="oc-phone">📞 ${esc(o.phone||'—')}</div>
     ${pos}
@@ -310,12 +286,7 @@ function render(){
     <div class="stat-chip sc-new"><div class="sc-num">${active.length}</div><div class="sc-lbl">В работе</div></div>
     <div class="stat-chip sc-done"><div class="sc-num">${done}</div><div class="sc-lbl">Готово</div></div>
     <div class="stat-chip"><div class="sc-num">${vis.length}</div><div class="sc-lbl">Всего</div></div>`;
-  const emptyMsg=filter==='changed'?'Изменённых заявок нет':filter==='today'?'На сегодня заявок нет':'Заявок нет';
-  list.innerHTML=vis.length?vis.map(orderCardHtml).join(''):`<div class="empty">${emptyMsg}</div>`;
-  // счётчик изменений на чипе «✏️ Изменения»
-  const chg=orders.filter(isUnseenChange).length;
-  const chgEl=document.getElementById('chg-count');
-  if(chgEl){chgEl.style.display=chg?'inline-block':'none';chgEl.textContent=chg;}
+  list.innerHTML=vis.length?vis.map(orderCardHtml).join(''):`<div class="empty">${filter==='today'?'На сегодня заявок нет':'Заявок нет'}</div>`;
   // nav badge = активные заявки сегодня
   const t=todayStr();
   const todayActive=orders.filter(o=>orderDay(o)===t&&o.status!=='Готова'&&o.status!=='Отменён').length;
