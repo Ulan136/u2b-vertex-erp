@@ -116,9 +116,20 @@ async function fillNakladnayaTemplate(doc: Doc, org: Org): Promise<Buffer> {
       ws.getCell(`AE${r}`).value = amountInWordsKzt(total);
     }
   }
-  // печать/подпись из assets по чекбоксам; зоны эталона сдвинуты на k строк
-  if (doc.withStamp && org.stampB64) { const id = wb.addImage({ base64: strip(org.stampB64), extension: 'png' }); ws.addImage(id, { tl: { col: 2, row: 30 + k } as ExcelJS.Anchor, ext: { width: 200, height: 215 } }); }
-  if (doc.withSign && org.signB64) { const id = wb.addImage({ base64: strip(org.signB64), extension: 'png' }); ws.addImage(id, { tl: { col: 11, row: 26 + k } as ExcelJS.Anchor, ext: { width: 150, height: 102 } }); }
+  // Печать/подпись — по МЕТКАМ шаблона (не по координатам): подпись ставим НАД
+  // словом «подпись» (над линией), штамп — на «М.П.». Метки ищем ПОСЛЕ вставки
+  // строк — значит они уже сдвинуты, отдельная поправка на k не нужна.
+  const colNum = (addr: string) => { let n = 0; for (const ch of addr.replace(/\d+/g, '')) n = n * 26 + (ch.charCodeAt(0) - 64); return n; };
+  let mp: { c: number; r: number } | null = null, sg: { c: number; r: number } | null = null;
+  for (let r = START; r <= ws.rowCount && !(mp && sg); r++) {
+    ws.getRow(r).eachCell(c => {
+      const t = txt(c).trim();
+      if (!mp && /^М\.?\s*П\.?$/.test(t)) mp = { c: colNum(c.address), r };
+      if (!sg && t === 'подпись') sg = { c: colNum(c.address), r };
+    });
+  }
+  if (doc.withSign && org.signB64 && sg) { const s = sg as { c: number; r: number }; const id = wb.addImage({ base64: strip(org.signB64), extension: 'png' }); ws.addImage(id, { tl: { col: s.c - 1, row: s.r - 3 } as ExcelJS.Anchor, ext: { width: 150, height: 102 } }); }
+  if (doc.withStamp && org.stampB64 && mp) { const m = mp as { c: number; r: number }; const id = wb.addImage({ base64: strip(org.stampB64), extension: 'png' }); ws.addImage(id, { tl: { col: m.c + 1, row: m.r - 4 } as ExcelJS.Anchor, ext: { width: 200, height: 215 } }); }
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
