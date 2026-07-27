@@ -3,7 +3,7 @@ import {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   AlignmentType, WidthType, BorderStyle, VerticalAlign, TableLayoutType, ImageRun,
 } from 'docx';
-import { intToWords } from '@/server/dto/documents.dto';
+import { intToWords, amountInWordsKzt } from '@/server/dto/documents.dto';
 import { formatDate } from '@/lib/format';
 
 // Общие типы/хелперы для Накладной З-2, Акта Р-1 и КП. Формы собраны в коде,
@@ -18,6 +18,7 @@ type Doc = {
 type Org = {
   companyName?: string | null; companyFull?: string | null; bin?: string | null; address?: string | null;
   phone?: string | null; directorName?: string | null; logoB64?: string | null; stampB64?: string | null; signB64?: string | null;
+  naklTemplateB64?: string | null; aktTemplateB64?: string | null; kpTemplateB64?: string | null;
 };
 
 const F = 'Times New Roman';
@@ -58,7 +59,70 @@ function stampSign(wb: ExcelJS.Workbook, ws: ExcelJS.Worksheet, doc: Doc, org: O
 }
 
 // ── НАКЛАДНАЯ З-2 ────────────────────────────────────────────────────────────
+// Накладная = ЗАПОЛНЕНИЕ ГОСТ-шаблона З-2 (org.naklTemplateB64) 1-в-1; печать/подпись
+// вставляются из assets по чекбоксам. Нет шаблона — старая сборка кодом (fallback).
 export async function buildNakladnayaExcel(doc: Doc, org: Org): Promise<Buffer> {
+  if (org.naklTemplateB64) {
+    try { return await fillNakladnayaTemplate(doc, org); }
+    catch (e) { console.warn('[nakladnaya template] fallback:', (e as Error).message); }
+  }
+  return buildNakladnayaExcelLegacy(doc, org);
+}
+
+// Карта ячеек шаблона З-2: AP12 №, AT12 дата, L17 получатель; товары с 22-й
+// (A №, C наим, T ед, W подлежит, AB отпущено, AF цена, AL=SUM(AB*AF)); Итого по
+// метке; N26 кол-во прописью, AE26 сумма прописью; печать C31(200x215), подпись L27(150x102).
+async function fillNakladnayaTemplate(doc: Doc, org: Org): Promise<Buffer> {
+  const strip = (s?: string | null) => (s ? s.replace(/^data:image\/\w+;base64,/, '') : '');
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(Buffer.from(strip(org.naklTemplateB64), 'base64') as never);
+  const ws = wb.worksheets[0];
+  const txt = (c: ExcelJS.Cell): string => {
+    const v = c.value as unknown;
+    if (v && typeof v === 'object' && 'richText' in (v as object)) return (v as { richText: { text: string }[] }).richText.map(t => t.text).join('');
+    return typeof v === 'string' ? v : '';
+  };
+  ws.getCell('AP12').value = doc.number;
+  ws.getCell('AT12').value = `${dmy(doc.docDate)} г.`;
+  ws.getCell('L17').value = `БИН / ИИН: ${doc.buyerBin || ''}\n${doc.buyerName || ''}`;
+
+  const items = (doc.items || []).filter(it => (it.name || '').trim());
+  const START = 22, BASE = 2, need = Math.max(items.length, 1);
+  const k = need - BASE;                               // сколько строк добавили (для сдвига зон ниже)
+  if (k > 0) ws.duplicateRow(START, k, true);
+  else if (k < 0) ws.spliceRows(START + need, -k);
+
+  const rowM = (r: number) => [`A${r}:B${r}`, `C${r}:N${r}`, `T${r}:V${r}`, `W${r}:AA${r}`, `AB${r}:AE${r}`, `AF${r}:AK${r}`, `AL${r}:AQ${r}`];
+  let total = 0;
+  items.forEach((it, i) => {
+    const r = START + i;
+    rowM(r).forEach(m => { try { ws.unMergeCells(m); } catch { /* not merged */ } try { ws.mergeCells(m); } catch { /* already */ } });
+    const qty = Number(it.qty) || 0, price = Number(it.price) || 0; total += qty * price;
+    ws.getCell(`A${r}`).value = i + 1;
+    ws.getCell(`C${r}`).value = it.name || '';
+    ws.getCell(`T${r}`).value = it.unit || 'шт';
+    ws.getCell(`W${r}`).value = qty;
+    ws.getCell(`AB${r}`).value = qty;
+    ws.getCell(`AF${r}`).value = price;
+    // формула суммы строки — живая, но с верными ссылками (после вставки строк
+    // копия не сдвигает ссылки сама): AL = отпущено × цена.
+    ws.getCell(`AL${r}`).value = { formula: `SUM(AB${r}*AF${r})` } as ExcelJS.CellFormulaValue;
+  });
+  const lastItem = START + need - 1;
+  for (let r = START; r <= START + need + 12; r++) {
+    if (txt(ws.getCell(`V${r}`)).startsWith('Итого')) ws.getCell(`AL${r}`).value = { formula: `SUM(AL${START}:AL${lastItem})` } as ExcelJS.CellFormulaValue;
+    if (txt(ws.getCell(`A${r}`)).startsWith('Всего отпущено')) {
+      ws.getCell(`N${r}`).value = intToWords(items.length);
+      ws.getCell(`AE${r}`).value = amountInWordsKzt(total);
+    }
+  }
+  // печать/подпись из assets по чекбоксам; зоны эталона сдвинуты на k строк
+  if (doc.withStamp && org.stampB64) { const id = wb.addImage({ base64: strip(org.stampB64), extension: 'png' }); ws.addImage(id, { tl: { col: 2, row: 30 + k } as ExcelJS.Anchor, ext: { width: 200, height: 215 } }); }
+  if (doc.withSign && org.signB64) { const id = wb.addImage({ base64: strip(org.signB64), extension: 'png' }); ws.addImage(id, { tl: { col: 11, row: 26 + k } as ExcelJS.Anchor, ext: { width: 150, height: 102 } }); }
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+async function buildNakladnayaExcelLegacy(doc: Doc, org: Org): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Накладная', { views: [{ showGridLines: false }], pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0, footer: 0 } } });
   ws.columns = [5, 34, 12, 9, 11, 11, 13, 15].map(w => ({ width: w }));
