@@ -17,6 +17,7 @@ type Bank = { key: string; name: string; iik: string; bik: string; kbe?: string 
 type Org = {
   companyName?: string | null; bin?: string | null; address?: string | null; phone?: string | null;
   directorName?: string | null; banks?: Bank[] | null; logoB64?: string | null; stampB64?: string | null; signB64?: string | null;
+  invoiceTemplateB64?: string | null;
 };
 
 const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -25,7 +26,68 @@ const stripB64 = (s?: string | null) => (s ? s.replace(/^data:image\/\w+;base64,
 const bankOf = (org: Org, key?: string | null): Bank | null => (org.banks || []).find(b => b.key === (key || 'kaspi')) || (org.banks || [])[0] || null;
 
 // ── EXCEL (.xlsx) ────────────────────────────────────────────────────────────
+// Счёт печатается ЗАПОЛНЕНИЕМ ГОСТ-шаблона (org.invoiceTemplateB64) 1-в-1: вёрстка,
+// логотип, печать и подпись берутся из самого шаблона. Если шаблона нет — сборка кодом.
 export async function buildInvoiceExcel(doc: Doc, org: Org): Promise<Buffer> {
+  if (org.invoiceTemplateB64) {
+    try { return await fillInvoiceTemplate(doc, org); }
+    catch (e) { console.warn('[invoice template] fallback to code build:', (e as Error).message); }
+  }
+  return buildInvoiceExcelLegacy(doc, org);
+}
+
+// Заполнение готового ГОСТ-шаблона счёта. Слоты товаров начинаются со строки 27
+// (в шаблоне их 2); при необходимости строки добавляются/убираются с сохранением
+// стиля и объединений. Итоги проставляются числами, «Итого»/«Всего» ищутся по метке.
+async function fillInvoiceTemplate(doc: Doc, org: Org): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(Buffer.from(stripB64(org.invoiceTemplateB64), 'base64') as never);
+  // лист под выбранный банк (Каспи/БЦК); прочие листы убираем — печатаем один
+  const wantBck = doc.bank === 'bck' || doc.bank === 'БЦК';
+  const ws = wb.getWorksheet(wantBck ? 'БЦК' : 'Каспи') || wb.worksheets[0];
+  wb.worksheets.filter(w => w.id !== ws.id).forEach(w => wb.removeWorksheet(w.id));
+
+  const txt = (c: ExcelJS.Cell): string => {
+    const v = c.value as unknown;
+    if (v && typeof v === 'object' && 'richText' in (v as object)) return (v as { richText: { text: string }[] }).richText.map(t => t.text).join('');
+    return typeof v === 'string' ? v : '';
+  };
+
+  // Заголовок (№ + дата) и Покупатель
+  ws.getCell('B16').value = `Счет на оплату № ${doc.number} от ${dmy(doc.docDate)} г.`;
+  ws.getCell('F22').value = [doc.buyerBin ? 'БИН / ИИН: ' + doc.buyerBin : '', doc.buyerName || '', doc.buyerAddress || ''].filter(Boolean).join('\n');
+
+  // Товары
+  const items = (doc.items || []).filter(it => (it.name || '').trim());
+  const START = 27, BASE = 2, need = Math.max(items.length, 1);
+  if (need > BASE) ws.duplicateRow(START, need - BASE, true);
+  else if (need < BASE) ws.spliceRows(START + need, BASE - need);
+
+  const rowMerges = (r: number) => [`D${r}:E${r}`, `F${r}:S${r}`, `T${r}:W${r}`, `X${r}:Z${r}`, `AA${r}:AF${r}`, `AG${r}:AL${r}`];
+  let total = 0;
+  items.forEach((it, i) => {
+    const r = START + i;
+    rowMerges(r).forEach(m => { try { ws.unMergeCells(m); } catch { /* not merged */ } try { ws.mergeCells(m); } catch { /* already */ } });
+    const sum = (Number(it.qty) || 0) * (Number(it.price) || 0); total += sum;
+    ws.getCell(`B${r}`).value = i + 1;
+    ws.getCell(`D${r}`).value = it.sku || '';
+    ws.getCell(`F${r}`).value = it.name || '';
+    ws.getCell(`T${r}`).value = Number(it.qty) || 0;
+    ws.getCell(`X${r}`).value = it.unit || 'шт';
+    ws.getCell(`AA${r}`).value = Number(it.price) || 0;
+    ws.getCell(`AG${r}`).value = sum;
+  });
+
+  // «Итого:» (число) и «Всего к оплате: <прописью>» — по метке (строки сместились)
+  for (let r = START; r <= START + need + 10; r++) {
+    if (txt(ws.getCell(`AF${r}`)).startsWith('Итого')) ws.getCell(`AG${r}`).value = total;
+    if (txt(ws.getCell(`B${r}`)).startsWith('Всего к оплате')) ws.getCell(`B${r}`).value = `Всего к оплате:   ${doc.amountWords || ''}`;
+  }
+
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+async function buildInvoiceExcelLegacy(doc: Doc, org: Org): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Счет', {
     views: [{ showGridLines: false }],

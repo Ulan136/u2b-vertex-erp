@@ -254,6 +254,9 @@ export const orgSettings = pgTable('org_settings', {
   logoB64      : text('logo_b64'),
   stampB64     : text('stamp_b64'),
   signB64      : text('sign_b64'),
+  // ГОСТ-шаблон «Счёт на оплату» (base64 xlsx): счёт печатается заполнением этого
+  // файла 1-в-1 (логотип/печать/подпись уже внутри шаблона).
+  invoiceTemplateB64: text('invoice_template_b64'),
   updatedAt    : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
