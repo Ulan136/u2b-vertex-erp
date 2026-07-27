@@ -49,10 +49,10 @@ export async function buildInvoiceExcel(doc: Doc, org: Org): Promise<Buffer> {
     return cell;
   };
 
-  // Логотип справа сверху
+  // Логотип VERTEX SERVICE справа сверху (широкий, ~3.5:1 — без искажения)
   if (org.logoB64) {
     const id = wb.addImage({ base64: stripB64(org.logoB64), extension: 'png' });
-    ws.addImage(id, { tl: { col: 6.0, row: 0.1 } as ExcelJS.Anchor, ext: { width: 96, height: 96 } });
+    ws.addImage(id, { tl: { col: 5.05, row: 0.1 } as ExcelJS.Anchor, ext: { width: 190, height: 54 } });
   }
 
   // Реквизиты банка (бордер-блок)
@@ -114,11 +114,11 @@ export async function buildInvoiceExcel(doc: Doc, org: Org): Promise<Buffer> {
   merge(signRow, 'D', 'G', `/ ${org.directorName || ''} /`, { align: 'left' });
   if (doc.withSign && org.signB64) {
     const sid = wb.addImage({ base64: stripB64(org.signB64), extension: 'png' });
-    ws.addImage(sid, { tl: { col: 2.1, row: signRow - 1.4 } as ExcelJS.Anchor, ext: { width: 120, height: 60 } });
+    ws.addImage(sid, { tl: { col: 2.1, row: signRow - 1.4 } as ExcelJS.Anchor, ext: { width: 120, height: 75 } });
   }
   if (doc.withStamp && org.stampB64) {
     const pid = wb.addImage({ base64: stripB64(org.stampB64), extension: 'png' });
-    ws.addImage(pid, { tl: { col: 3.4, row: signRow - 1.9 } as ExcelJS.Anchor, ext: { width: 120, height: 128 } });
+    ws.addImage(pid, { tl: { col: 3.4, row: signRow - 1.9 } as ExcelJS.Anchor, ext: { width: 124, height: 124 } });
   }
 
   const buf = await wb.xlsx.writeBuffer();
@@ -152,11 +152,13 @@ export async function buildInvoiceWord(doc: Doc, org: Org): Promise<Buffer> {
 
   // печать/подпись у строки «Исполнитель»
   const signChildren: (TextRun | ImageRun)[] = [new TextRun({ text: 'Исполнитель  __________________  ', font: F, size: 20, bold: true })];
-  if (doc.withSign && org.signB64) signChildren.push(new ImageRun({ type: 'png', data: Buffer.from(stripB64(org.signB64), 'base64'), transformation: { width: 110, height: 55 } }));
-  if (doc.withStamp && org.stampB64) signChildren.push(new ImageRun({ type: 'png', data: Buffer.from(stripB64(org.stampB64), 'base64'), transformation: { width: 110, height: 118 } }));
+  if (doc.withSign && org.signB64) signChildren.push(new ImageRun({ type: 'png', data: Buffer.from(stripB64(org.signB64), 'base64'), transformation: { width: 110, height: 69 } }));
+  if (doc.withStamp && org.stampB64) signChildren.push(new ImageRun({ type: 'png', data: Buffer.from(stripB64(org.stampB64), 'base64'), transformation: { width: 118, height: 118 } }));
   signChildren.push(new TextRun({ text: `  / ${org.directorName || ''} /`, font: F, size: 20, bold: true }));
 
   const bodyChildren = [
+    // Логотип VERTEX SERVICE — только на счёте на оплату (широкий, справа сверху)
+    ...(org.logoB64 ? [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new ImageRun({ type: 'png', data: Buffer.from(stripB64(org.logoB64), 'base64'), transformation: { width: 210, height: 60 } })] })] : []),
     P('Внимание! Оплата данного счета означает согласие с условиями поставки товара.', { size: 16 }),
     P(`Бенефициар: ${org.companyName || ''}   БИН ${org.bin || ''}`, { bold: true, before: 120 }),
     P(`ИИК: ${bank?.iik || ''}    Кбе ${bank?.kbe || ''}`),

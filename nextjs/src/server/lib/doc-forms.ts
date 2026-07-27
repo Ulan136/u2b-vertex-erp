@@ -49,11 +49,11 @@ function mergeRow(ws: ExcelJS.Worksheet, row: number, c1: string, c2: string, va
 function stampSign(wb: ExcelJS.Workbook, ws: ExcelJS.Worksheet, doc: Doc, org: Org, col: number, row: number) {
   if (doc.withSign && org.signB64) {
     const id = wb.addImage({ base64: stripB64(org.signB64), extension: 'png' });
-    ws.addImage(id, { tl: { col, row } as ExcelJS.Anchor, ext: { width: 110, height: 55 } });
+    ws.addImage(id, { tl: { col, row } as ExcelJS.Anchor, ext: { width: 110, height: 69 } });
   }
   if (doc.withStamp && org.stampB64) {
     const id = wb.addImage({ base64: stripB64(org.stampB64), extension: 'png' });
-    ws.addImage(id, { tl: { col: col + 1.2, row: row - 0.5 } as ExcelJS.Anchor, ext: { width: 120, height: 128 } });
+    ws.addImage(id, { tl: { col: col + 1.2, row: row - 0.5 } as ExcelJS.Anchor, ext: { width: 124, height: 124 } });
   }
 }
 
@@ -159,7 +159,7 @@ export async function buildKpExcel(doc: Doc, org: Org): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('КП', { views: [{ showGridLines: false }], pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, margins: { left: 0.5, right: 0.5, top: 0.5, bottom: 0.5, header: 0, footer: 0 } } });
   ws.columns = [5, 46, 9, 6, 14, 16].map(w => ({ width: w }));
-  if (org.logoB64) { const id = wb.addImage({ base64: stripB64(org.logoB64), extension: 'png' }); ws.addImage(id, { tl: { col: 0.1, row: 0.1 } as ExcelJS.Anchor, ext: { width: 90, height: 90 } }); }
+  // Логотип в КП НЕ выводим — по требованию логотип только на «Счёте на оплату».
   let r = 1;
   mergeRow(ws, r++, 'C', 'F', org.companyName || '', { bold: true, size: 12, align: 'right' });
   mergeRow(ws, r++, 'C', 'F', `БИН ${org.bin || ''} · ${org.address || ''}`, { size: 9, align: 'right' });
@@ -201,8 +201,8 @@ const WP = (text: string, o: { bold?: boolean; size?: number; align?: keyof type
 
 function signParagraph(doc: Doc, org: Org, prefix: string) {
   const kids: (TextRun | ImageRun)[] = [new TextRun({ text: prefix + '  ', font: F, size: 20, bold: true })];
-  if (doc.withSign && org.signB64) kids.push(new ImageRun({ type: 'png', data: Buffer.from(stripB64(org.signB64), 'base64'), transformation: { width: 100, height: 50 } }));
-  if (doc.withStamp && org.stampB64) kids.push(new ImageRun({ type: 'png', data: Buffer.from(stripB64(org.stampB64), 'base64'), transformation: { width: 105, height: 112 } }));
+  if (doc.withSign && org.signB64) kids.push(new ImageRun({ type: 'png', data: Buffer.from(stripB64(org.signB64), 'base64'), transformation: { width: 100, height: 62 } }));
+  if (doc.withStamp && org.stampB64) kids.push(new ImageRun({ type: 'png', data: Buffer.from(stripB64(org.stampB64), 'base64'), transformation: { width: 112, height: 112 } }));
   kids.push(new TextRun({ text: `  / ${org.directorName || ''} /`, font: F, size: 20, bold: true }));
   return new Paragraph({ spacing: { before: 300 }, children: kids });
 }
@@ -262,7 +262,7 @@ export async function buildKpWord(doc: Doc, org: Org): Promise<Buffer> {
   const tot = wtr([{ text: 'Итого:', bold: true, align: 'RIGHT', w: cols[0] + cols[1] + cols[2] + cols[3] + cols[4] }, { text: fmt(doc.total || 0), bold: true, align: 'RIGHT', w: cols[5] }]);
   const table = new Table({ layout: TableLayoutType.FIXED, width: { size: 100, type: WidthType.PERCENTAGE }, rows: [head, ...rows, tot] });
   const header: (Paragraph | Table)[] = [];
-  if (org.logoB64) header.push(new Paragraph({ children: [new ImageRun({ type: 'png', data: Buffer.from(stripB64(org.logoB64), 'base64'), transformation: { width: 80, height: 80 } })] }));
+  // Логотип в КП НЕ выводим — по требованию логотип только на «Счёте на оплату».
   return pack([
     ...header,
     WP(`${org.companyName || ''} · БИН ${org.bin || ''}`, { bold: true, align: 'RIGHT' }),
