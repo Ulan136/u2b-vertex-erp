@@ -9,7 +9,6 @@ type Debt = { id: string; type: string; amount: string | number; paidAmount: str
 type Payment = { id: string; amount: string | number; payDate?: string | null; accountId?: string | null; comment?: string | null; financeOpId?: string | null };
 type Journal = { id: string; payDate?: string | null; amount: number; accountName?: string | null; author?: string | null; comment?: string | null; counterparty: string; debtType: string; debtAmount: number; remainingAfter: number };
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; sortOrder?: number | null; balance?: string | number | null };
-type Client = { id: string; name: string; phone?: string | null };
 type Cat = { id: string; name: string; icon?: string | null };
 type PayRow = { accountId: string; amount: string };
 
@@ -36,7 +35,6 @@ export default function DebtsPage() {
   const { data: debts, error, isLoading, mutate } = useApi<Debt[]>(!isJournal ? '/api/v2/debts' + (qs.toString() ? '?' + qs : '') : null);
   const { data: all } = useApi<Debt[]>('/api/v2/debts');
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
-  const { data: clients } = useApi<Client[]>('/api/v2/clients');
   const { data: cats, mutate: mutateCats } = useApi<Cat[]>('/api/v2/debt-categories');
   const accounts = React.useMemo(() => (fin?.accounts || []).slice().sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)), [fin]);
   const catList = cats || [];
@@ -266,21 +264,14 @@ export default function DebtsPage() {
         <div className="erp-chips" style={{ marginBottom: 12 }}>
           {[['credit', '📤 Мы должны'], ['debit', '📥 Нам должны']].map(([k, l]) => <button key={k} className={`erp-chip${form.type === k ? ' on' : ''}`} onClick={() => setForm(f => ({ ...f, type: k }))}>{l}</button>)}
         </div>
-        <Field label="Контрагент" required>
-          <Select value="" onChange={e => { const c = (clients || []).find(x => x.id === e.target.value); if (c) setForm(f => ({ ...f, name: c.name })); }}><option value="">— из клиентов или впишите —</option>{(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>
-          <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="название / ФИО" style={{ marginTop: 6 }} />
+        <Field label="Название / ФИО" required>
+          <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="название / ФИО" />
         </Field>
         <div className="erp-form-row">
           <Field label="Сумма долга (₸)" required><Input type="number" min={0} value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></Field>
           <Field label="Уже погашено на момент внесения"><Input type="number" min={0} value={form.paidNow} onChange={e => setForm(f => ({ ...f, paidNow: e.target.value }))} /></Field>
         </div>
-        <div className="erp-muted" style={{ fontSize: 11, marginTop: -4, marginBottom: 6 }}>Стартовое «погашено» — исторический факт (деньги уходили до системы): в Финансах операция НЕ создаётся, в истории долга — «начальное сальдо».{num(form.amount) > 0 && ` Остаток: ${fmt(Math.max(0, num(form.amount) - num(form.paidNow)))}.`}</div>
-        <div className="erp-form-row">
-          <Field label="Категория"><Select value={form.categoryId} onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}><option value="">— без категории —</option>{catList.map(c => <option key={c.id} value={c.id}>{c.icon || '📁'} {c.name}</option>)}</Select></Field>
-          <Field label="Срок"><Input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} /></Field>
-        </div>
-        <Field label="Счёт (для будущих погашений)"><Select value={form.accountId} onChange={e => setForm(f => ({ ...f, accountId: e.target.value }))}><option value="">— без счёта —</option>{accounts.map(a => <option key={a.id} value={a.id}>{accLabel(a)}</option>)}</Select></Field>
-        <Field label="Комментарий"><Input value={form.comment} onChange={e => setForm(f => ({ ...f, comment: e.target.value }))} /></Field>
+        <div className="erp-muted" style={{ fontSize: 11, marginTop: -4 }}>Стартовое «погашено» — исторический факт (деньги уходили до системы): операция в Финансах НЕ создаётся.{num(form.amount) > 0 && ` Остаток: ${fmt(Math.max(0, num(form.amount) - num(form.paidNow)))}.`}{catFilter ? ' Категория подставится из выбранного фильтра.' : ''}</div>
       </Modal>
 
       {/* Погашение — с нескольких счетов, как в расходах */}
