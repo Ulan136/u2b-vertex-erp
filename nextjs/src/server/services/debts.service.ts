@@ -2,7 +2,7 @@ import { db } from '@/db';
 import { debtsRepo, type DebtListFilter } from '@/server/repositories/debts.repo';
 import { financeService } from '@/server/services/finance.service';
 import {
-  debtCreateSchema, debtUpdateSchema, debtPaymentSchema,
+  debtCreateSchema, debtUpdateSchema, debtPaymentSchema, debtPaymentMultiSchema,
   computeStatus, remainingOf, round2, buildPaymentFinanceOp,
 } from '@/server/dto/debts.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
@@ -29,6 +29,7 @@ export const debtsService = {
         amount: money(data.amount),
         paidAmount: money(initialPaid),
         accountId: data.accountId ?? null,
+        categoryId: data.categoryId ?? null,
         dueDate: data.dueDate ?? null,
         comment: data.comment ?? null,
         status: computeStatus(data.amount, initialPaid),
@@ -75,6 +76,7 @@ export const debtsService = {
     if (data.counterpartyClientId !== undefined) patch.counterpartyClientId = data.counterpartyClientId ?? null;
     if (data.counterpartyName !== undefined) patch.counterpartyName = data.counterpartyName ?? null;
     if (data.accountId !== undefined) patch.accountId = data.accountId ?? null;
+    if (data.categoryId !== undefined) patch.categoryId = data.categoryId ?? null;
     if (data.dueDate !== undefined) patch.dueDate = data.dueDate ?? null;
     if (data.comment !== undefined) patch.comment = data.comment ?? null;
     // amount change → keep paid, recompute status
@@ -109,51 +111,41 @@ export const debtsService = {
   // and recompute status.
   async addPayment(debtId: string, input: unknown, actorId?: string | null) {
     if (!debtId) throw badRequest('debtId обязателен');
-    const data = debtPaymentSchema.parse(input);
+    // Принимаем и новый формат {payments:[{accountId,amount}]}, и старый {amount,accountId}.
+    const body = (input ?? {}) as { payments?: unknown; amount?: unknown; accountId?: string | null; payDate?: string | null; comment?: string | null };
+    const parsed = Array.isArray(body.payments)
+      ? debtPaymentMultiSchema.parse(body)
+      : (() => { const s = debtPaymentSchema.parse(body); return { payments: [{ accountId: s.accountId ?? null, amount: s.amount }], payDate: s.payDate ?? null, comment: s.comment ?? null }; })();
+    const lines = parsed.payments.map(p => ({ accountId: p.accountId ?? null, amount: round2(Number(p.amount) || 0) })).filter(p => p.amount > 0);
+    if (!lines.length) throw badRequest('Укажите сумму погашения');
+
     const debt = await debtsRepo.findById(debtId);
     if (!debt) throw notFound('Долг не найден');
+    const amount = num(debt.amount), paid = num(debt.paidAmount), remaining = remainingOf(amount, paid);
+    const totalPay = round2(lines.reduce((s, p) => s + p.amount, 0));
+    if (totalPay > remaining + 0.005) throw badRequest(`Сумма погашения больше остатка (${remaining})`);
+    const payDate = parsed.payDate ?? null, comment = parsed.comment ?? null;
 
-    const amount = num(debt.amount);
-    const paid = num(debt.paidAmount);
-    const remaining = remainingOf(amount, paid);
-    if (data.amount > remaining) {
-      throw badRequest(`Сумма погашения больше остатка (${remaining})`);
-    }
-
-    // Финоперация + запись погашения + пересчёт долга — в одной транзакции.
-    const opSpec = buildPaymentFinanceOp(debt, data, counterpartyLabel(debt));
+    // Каждая строка → своя финоперация + запись погашения; всё в одной транзакции.
     return db.transaction(async (tx) => {
-      let financeOpId: string | null = null;
-      if (opSpec) {
-        const op = await financeService.createOperation({
-          opDate: opSpec.opDate,
-          name: opSpec.name,
-          accountId: opSpec.accountId,
-          opType: opSpec.opType,
-          amount: money(opSpec.amount),
-          source: opSpec.source,
-          comment: opSpec.comment,
-        }, actorId, tx);
-        financeOpId = op?.id ?? null;
+      for (const p of lines) {
+        const opSpec = buildPaymentFinanceOp(debt, { amount: p.amount, accountId: p.accountId, payDate, comment }, counterpartyLabel(debt));
+        let financeOpId: string | null = null;
+        if (opSpec) {
+          const op = await financeService.createOperation({
+            opDate: opSpec.opDate, name: opSpec.name, accountId: opSpec.accountId,
+            opType: opSpec.opType, amount: money(opSpec.amount), source: opSpec.source, comment: opSpec.comment,
+          }, actorId, tx);
+          financeOpId = op?.id ?? null;
+        }
+        await debtsRepo.createPayment({
+          debtId, amount: money(p.amount), accountId: p.accountId ?? debt.accountId ?? null,
+          financeOpId, payDate, comment, createdBy: actorId ?? null,
+        }, tx);
       }
-
-      const payment = await debtsRepo.createPayment({
-        debtId,
-        amount: money(data.amount),
-        accountId: data.accountId ?? debt.accountId ?? null,
-        financeOpId,
-        payDate: data.payDate ?? null,
-        comment: data.comment ?? null,
-        createdBy: actorId ?? null,
-      }, tx);
-
-      const newPaid = round2(paid + data.amount);
-      const updated = await debtsRepo.update(debtId, {
-        paidAmount: money(newPaid),
-        status: computeStatus(amount, newPaid),
-      }, tx);
-
-      return { debt: updated, payment };
+      const newPaid = round2(paid + totalPay);
+      const updated = await debtsRepo.update(debtId, { paidAmount: money(newPaid), status: computeStatus(amount, newPaid) }, tx);
+      return { debt: updated };
     });
   },
 

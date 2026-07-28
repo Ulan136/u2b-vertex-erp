@@ -70,7 +70,16 @@ const debtBase = z.object({
   // Стартовое «уже погашено» на момент внесения (исторический факт, без финоперации).
   paidAmount: z.coerce.number().nonnegative().optional(),
   accountId: z.string().uuid().nullish(),
+  categoryId: z.string().uuid().nullish(),
   dueDate: z.string().nullish(),
+  comment: z.string().nullish(),
+});
+
+// Погашение с НЕСКОЛЬКИХ счетов за раз: список {счёт, сумма}. Каждая строка →
+// своя финоперация; paid_amount растёт на сумму всех строк.
+export const debtPaymentMultiSchema = z.object({
+  payments: z.array(z.object({ accountId: z.string().uuid().nullish(), amount: z.coerce.number().positive() })).min(1),
+  payDate: z.string().nullish(),
   comment: z.string().nullish(),
 });
 

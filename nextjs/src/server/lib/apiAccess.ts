@@ -32,7 +32,7 @@ export function apiScreenFor(method: string, pathname: string, searchParams: URL
   if (pathname === '/api/v2/org' || pathname.startsWith('/api/v2/org/')) {    // реквизиты: чтение всем, правка — «Настройки»
     return method === 'GET' ? null : 'settings';
   }
-  if (pathname.startsWith('/api/v2/debts') || pathname.startsWith('/api/v2/debt-payments')) return 'debts';
+  if (pathname.startsWith('/api/v2/debts') || pathname.startsWith('/api/v2/debt-payments') || pathname.startsWith('/api/v2/debt-categories')) return 'debts';
   if (pathname.startsWith('/api/v2/tasks')) return 'tasks';
   if (pathname.startsWith('/api/v2/clients') || pathname.startsWith('/api/v2/client-categories')) return 'clients';
   if (pathname.startsWith('/api/v2/sales')) return 'sales';

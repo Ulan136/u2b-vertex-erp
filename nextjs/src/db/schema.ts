@@ -365,9 +365,20 @@ export const clients = pgTable('clients', {
 // ── DEBTS (дебиторка / кредиторка) ────────────────────────────
 // A debt owed to us (debit) or by us (credit). status is derived from
 // paid_amount (see computeStatus in the debts service/DTO).
+// Категории долгов (в основном для кредиторки: Поставщики, Банковский кредит,
+// Аренда…). Плоские, ведёт пользователь сам. Иконка как у категорий расходов.
+export const debtCategories = pgTable('debt_categories', {
+  id        : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  name      : varchar('name', { length: 100 }).notNull(),
+  icon      : varchar('icon', { length: 10 }).default('📁'),
+  sortOrder : integer('sort_order').default(0),
+});
+
 export const debts = pgTable('debts', {
   id                   : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
   type                 : debtTypeEnum('type').notNull(),
+  // категория долга (для кредиторки: поставщики/кредит/аренда…). null — без категории.
+  categoryId           : uuid('category_id').references(() => debtCategories.id, { onDelete: 'set null' }),
   // counterparty: either a client from the directory OR a free-text name (one required)
   counterpartyClientId : uuid('counterparty_client_id').references(() => clients.id, { onDelete: 'set null' }),
   counterpartyName     : varchar('counterparty_name', { length: 200 }),

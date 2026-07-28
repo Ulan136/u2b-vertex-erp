@@ -1,5 +1,5 @@
 import { db, type Executor } from '@/db';
-import { debts, debtPayments, clients, financeAccounts, users } from '@/db/schema';
+import { debts, debtPayments, clients, financeAccounts, users, debtCategories } from '@/db/schema';
 import { and, or, eq, ilike, gte, lte, desc, asc, type SQL } from 'drizzle-orm';
 
 type DebtInsert = typeof debts.$inferInsert;
@@ -29,6 +29,9 @@ const debtSelection = {
   clientName: clients.name,
   accountName: financeAccounts.name,
   createdByName: users.name,
+  categoryId: debts.categoryId,
+  categoryName: debtCategories.name,
+  categoryIcon: debtCategories.icon,
 };
 
 export const debtsRepo = {
@@ -44,7 +47,8 @@ export const debtsRepo = {
     const base = db.select(debtSelection).from(debts)
       .leftJoin(clients, eq(debts.counterpartyClientId, clients.id))
       .leftJoin(financeAccounts, eq(debts.accountId, financeAccounts.id))
-      .leftJoin(users, eq(debts.createdBy, users.id));
+      .leftJoin(users, eq(debts.createdBy, users.id))
+      .leftJoin(debtCategories, eq(debts.categoryId, debtCategories.id));
     return (conds.length ? base.where(and(...conds)) : base).orderBy(desc(debts.createdAt));
   },
 
@@ -53,6 +57,7 @@ export const debtsRepo = {
       .leftJoin(clients, eq(debts.counterpartyClientId, clients.id))
       .leftJoin(financeAccounts, eq(debts.accountId, financeAccounts.id))
       .leftJoin(users, eq(debts.createdBy, users.id))
+      .leftJoin(debtCategories, eq(debts.categoryId, debtCategories.id))
       .where(eq(debts.id, id)).limit(1);
     return row ?? null;
   },
