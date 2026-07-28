@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useApi } from '@/lib/api';
 import { Card, PageTitle, Badge } from '@/components/ui';
 import { isRealIncome, isRealExpense } from '@/server/dto/finance.dto';
+import { opIcon, opName, opSign, opAmountColor, isReversed } from '@/lib/opDisplay';
 
 type Acct = { id: string; name: string; section?: string | null; balance?: string | number | null; icon?: string | null };
 type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null };
@@ -198,9 +199,9 @@ export default function Dashboard() {
             <div className="erp-list">
               {recentOps.map(o => (
                 <div className="erp-list-row" key={o.id}>
-                  <span className="erp-list-ico">{o.opType === 'Приход' ? '💚' : '🔴'}</span>
-                  <span className="erp-list-main">{o.name || o.opType}<span className="erp-list-sub">{o.accountName || ''} · {dmy(o.opDate)}</span></span>
-                  <span className="erp-list-val" style={{ color: o.opType === 'Приход' ? '#16a34a' : '#dc2626' }}>{o.opType === 'Приход' ? '+' : '−'}{money(o.amount)}</span>
+                  <span className="erp-list-ico">{opIcon(o)}</span>
+                  <span className="erp-list-main" style={isReversed(o) ? { textDecoration: 'line-through', opacity: .6 } : undefined}>{opName(o)}<span className="erp-list-sub">{o.accountName || ''} · {dmy(o.opDate)}</span></span>
+                  <span className="erp-list-val" style={{ color: opAmountColor(o) }}>{opSign(o)}{money(o.amount)}</span>
                 </div>
               ))}
             </div>

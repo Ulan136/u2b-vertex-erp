@@ -190,8 +190,8 @@ export default function SalesPage() {
   }
 
   async function cancelSale(s: Sale) {
-    if (!confirm(`Отменить продажу ${s.saleNo}?\n\nВсе её оплаты сторнируются по своим счетам, остаток вернётся на склад. Продажа останется в журнале как «Отменена».`)) return;
-    try { await apiSend(`/api/v2/sales/${s.id}/cancel`, 'POST'); await mutate(); toast('↩️ Продажа отменена: сторно оплат + возврат склада'); }
+    if (!confirm(`Отменить продажу ${s.saleNo}?\n\nВсе её оплаты отменятся по своим счетам, остаток вернётся на склад. Продажа останется в журнале как «Отменена».`)) return;
+    try { await apiSend(`/api/v2/sales/${s.id}/cancel`, 'POST'); await mutate(); toast('↩️ Продажа отменена: отмена оплат + возврат склада'); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
 

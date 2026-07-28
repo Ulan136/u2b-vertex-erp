@@ -5,9 +5,10 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 import { isRealIncome, isRealExpense } from '@/server/dto/finance.dto';
+import { opIcon, opName, opSign, opAmountColor, isReversed, isReversal } from '@/lib/opDisplay';
 
 type Acct = { id: string; name: string; category?: string | null; section?: string | null; icon?: string | null; balance?: string | number | null; sortOrder?: number | null };
-type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; reverses?: string | null; reversedAt?: string | null; createdByName?: string | null };
+type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; createdByName?: string | null };
 
 const SECTIONS = [
   { key: 'poverka', no: 1, label: 'Поверка', icon: '📋', color: '#2563eb' },
@@ -91,6 +92,10 @@ export default function FinancePage() {
             const accs = sortAccs(accounts.filter(a => (a.section || 'other') === c));
             const total = accs.reduce((s, a) => s + (Number(a.balance) || 0), 0);
             const movs = ops.filter(o => secOf(o.accountId) === c).sort((a, b) => String(b.opDate).localeCompare(String(a.opDate)));
+            // связь отменённой пары: исходная ↔ её сторно (для подсказки «связана с …»)
+            const revByOrig = new Map(ops.filter(o => o.reverses).map(o => [o.reverses as string, o]));
+            const opById = new Map(ops.map(o => [o.id, o]));
+            const pairTitle = (o: Op) => { const c2 = isReversal(o) ? opById.get(o.reverses as string) : isReversed(o) ? revByOrig.get(o.id) : null; return c2 ? `связана с: ${opName(c2)} (${dmy(c2.opDate)})` : undefined; };
             return (
               <div className="erp-fin-col" key={c}>
                 <div className="erp-fin-head" style={{ background: sec.color }}><span>№{sec.no} {sec.icon} {sec.label}</span><span>{fmt(total)}</span></div>
@@ -102,10 +107,11 @@ export default function FinancePage() {
                 <div className="erp-fin-movs">
                   <div className="erp-fin-movh">Движения · {movs.length}</div>
                   {movs.length === 0 ? <div className="erp-muted" style={{ fontSize: 12 }}>Нет движений</div> : movs.slice(0, 30).map(o => (
-                    <div className="erp-fin-mov" key={o.id}>
+                    <div className="erp-fin-mov" key={o.id} title={pairTitle(o)}>
+                      <span style={{ flexShrink: 0 }}>{opIcon(o)}</span>
                       <span className="erp-fin-movd">{dmy(o.opDate)}</span>
-                      <span className="erp-fin-movt">{o.name}{o.createdByName ? <span className="erp-muted" style={{ marginLeft: 6, fontSize: 10 }}>· {o.createdByName}</span> : null}</span>
-                      <span style={{ color: o.opType === 'Приход' ? '#16a34a' : '#dc2626', fontWeight: 700, whiteSpace: 'nowrap' }}>{o.opType === 'Приход' ? '+' : '−'}{fmt(o.amount)}</span>
+                      <span className="erp-fin-movt" style={isReversed(o) ? { textDecoration: 'line-through', opacity: .55 } : undefined}>{opName(o)}{o.createdByName ? <span className="erp-muted" style={{ marginLeft: 6, fontSize: 10 }}>· {o.createdByName}</span> : null}</span>
+                      <span style={{ color: opAmountColor(o), fontWeight: 700, whiteSpace: 'nowrap' }}>{opSign(o)}{fmt(o.amount)}</span>
                     </div>
                   ))}
                 </div>

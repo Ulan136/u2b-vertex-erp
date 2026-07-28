@@ -111,7 +111,7 @@ export default function DebtsPage() {
     } catch (e) { setPay(p => ({ ...p, err: (e as Error).message, saving: false })); }
   }
   async function removePayment(pid: string) {
-    if (!confirm('Отменить платёж? Финоперация будет сторнирована, остаток вернётся.')) return;
+    if (!confirm('Отменить платёж? Операция будет отменена, остаток вернётся.')) return;
     try { await apiSend(`/api/v2/debt-payments/${pid}`, 'DELETE'); await mutate(); toast('↩️ Платёж отменён'); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }

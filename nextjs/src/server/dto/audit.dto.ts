@@ -6,7 +6,7 @@ export const ACTION_RU: Record<string, string> = {
   updated: 'изменён',
   deleted: 'удалён',
   cancelled: 'отменён',
-  reversed: 'сторнирован',
+  reversed: 'отменён',
   payment: 'проведён платёж',
   status_changed: 'смена статуса',
   login: 'вход в систему',

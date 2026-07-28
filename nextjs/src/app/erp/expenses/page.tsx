@@ -129,8 +129,8 @@ export default function ExpensesPage() {
     } catch (e) { setF(s => ({ ...s, err: (e as Error).message, saving: false })); }
   }
   async function del(o: Op) {
-    if (!confirm(`Удалить расход «${o.name}»?\nБудет сторно — сумма вернётся на счёт.`)) return;
-    try { await apiSend(`/api/v2/finance/${o.id}/reverse`, 'POST'); await mutate(); toast('↩️ Расход сторнирован'); }
+    if (!confirm(`Удалить расход «${o.name}»?\nБудет отмена — сумма вернётся на счёт.`)) return;
+    try { await apiSend(`/api/v2/finance/${o.id}/reverse`, 'POST'); await mutate(); toast('↩️ Операция отменена'); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
   async function addCat() { if (!newCat.trim()) return; const icon = newCatIcon || suggestIcon(newCat); try { await apiSend('/api/v2/expense-categories', 'POST', { name: newCat.trim(), icon }); setNewCat(''); setNewCatIcon(''); await mutateCats(); toast('✅ Категория добавлена'); } catch (e) { toast('⚠️ ' + (e as Error).message); } }
@@ -198,7 +198,7 @@ export default function ExpensesPage() {
                           <td className="erp-muted">{o.createdByName || '—'}</td>
                           <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
                             {!salary && <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(o)}>✏️</button>}
-                            {!salary && <button className="erp-icon-btn" title="Удалить (сторно)" style={{ color: '#dc2626' }} onClick={() => del(o)}>🗑️</button>}
+                            {!salary && <button className="erp-icon-btn" title="Удалить (отмена)" style={{ color: '#dc2626' }} onClick={() => del(o)}>🗑️</button>}
                             {salary && <span className="erp-muted" style={{ fontSize: 11 }}>кадры</span>}
                           </td>
                         </tr>

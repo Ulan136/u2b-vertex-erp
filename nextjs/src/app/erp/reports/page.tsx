@@ -27,7 +27,7 @@ const SECTIONS = [{ k: 'poverka', l: '№1 Поверка' }, { k: 'sale', l: '�
 const PRESETS: Array<{ k: string; l: string }> = [{ k: 'today', l: 'Сегодня' }, { k: '7d', l: '7 дней' }, { k: 'month', l: 'Месяц' }, { k: 'quarter', l: 'Квартал' }, { k: 'custom', l: 'Период…' }];
 const CERT_SRC = ['САМИ', 'ВДК', 'ТЭЦ'];
 const SRC_COLOR: Record<string, string> = { 'САМИ': '#2563eb', 'ВДК': '#16a34a', 'ТЭЦ': '#b45309' };
-const ACT: Record<string, string> = { created: '➕ создал', updated: '✏️ изменил', deleted: '🗑 удалил', cancelled: '↩️ отменил', reversed: '↩️ сторно', payment: '💵 оплата', status_changed: '🔁 статус', login: '🔑 вход' };
+const ACT: Record<string, string> = { created: '➕ создал', updated: '✏️ изменил', deleted: '🗑 удалил', cancelled: '↩️ отменил', reversed: '↩️ отмена', payment: '💵 оплата', status_changed: '🔁 статус', login: '🔑 вход' };
 const ENT: Record<string, string> = { sale: 'продажа', order: 'заявка', certificate: 'сертификат', operation: 'финоперация', debt: 'долг', debt_payment: 'платёж по долгу', task: 'задача', client: 'клиент', user: 'пользователь', document: 'документ', stock: 'склад', permissions: 'доступы', org: 'реквизиты', branch: 'филиал' };
 
 type SortKey = 'name' | 'role' | 'salesSum' | 'certCount' | 'ordersClosed' | 'tasksDone' | 'expenseSum' | 'totalActions';
