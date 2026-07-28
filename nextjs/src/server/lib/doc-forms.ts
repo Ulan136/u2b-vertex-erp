@@ -219,11 +219,10 @@ async function fillAktTemplate(doc: Doc, org: Org): Promise<Buffer> {
   if (need > BASE) ws.duplicateRow(START, need - BASE, true);
   else if (need < BASE) ws.spliceRows(START + need, BASE - need);
   const rowM = (r: number) => [`A${r}:B${r}`, `C${r}:M${r}`, `N${r}:U${r}`, `V${r}:X${r}`, `Y${r}:AC${r}`, `AD${r}:AI${r}`, `AJ${r}:AP${r}`];
-  let total = 0;
   items.forEach((it, i) => {
     const r = START + i;
     rowM(r).forEach(m => { try { ws.unMergeCells(m); } catch { /* not merged */ } try { ws.mergeCells(m); } catch { /* already */ } });
-    const qty = Number(it.qty) || 0, price = Number(it.price) || 0; total += qty * price;
+    const qty = Number(it.qty) || 0, price = Number(it.price) || 0;
     ws.getCell(`A${r}`).value = i + 1;
     ws.getCell(`C${r}`).value = it.name || '';
     ws.getCell(`V${r}`).value = it.unit || 'усл.';
