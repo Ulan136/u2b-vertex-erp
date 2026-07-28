@@ -187,7 +187,64 @@ async function buildNakladnayaExcelLegacy(doc: Doc, org: Org): Promise<Buffer> {
 }
 
 // ── АКТ Р-1 ──────────────────────────────────────────────────────────────────
+// Акт (Р-1 / АВР) = заполнение ГОСТ-шаблона (org.aktTemplateB64) 1-в-1.
 export async function buildAktExcel(doc: Doc, org: Org): Promise<Buffer> {
+  if (org.aktTemplateB64) {
+    try { return await fillAktTemplate(doc, org); }
+    catch (e) { console.warn('[akt template] fallback:', (e as Error).message); }
+  }
+  return buildAktExcelLegacy(doc, org);
+}
+
+// Карта шаблона Р-1: AI15 №, AM15 дата; заказчик E8 (наим+адрес), AJ8 БИН; товары
+// с 20-й (A №, C наим, V ед, Y кол, AD цена, AJ=SUM(Y*AD)); Итого по метке «х»;
+// подпись над «подпись», печать на «М.П.».
+async function fillAktTemplate(doc: Doc, org: Org): Promise<Buffer> {
+  const strip = (s?: string | null) => (s ? s.replace(/^data:image\/\w+;base64,/, '') : '');
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(Buffer.from(strip(org.aktTemplateB64), 'base64') as never);
+  const ws = wb.worksheets[0];
+  const txt = (c: ExcelJS.Cell): string => {
+    const v = c.value as unknown;
+    if (v && typeof v === 'object' && 'richText' in (v as object)) return (v as { richText: { text: string }[] }).richText.map(t => t.text).join('');
+    return typeof v === 'string' ? v : '';
+  };
+  ws.getCell('AI15').value = doc.number;
+  ws.getCell('AM15').value = `${dmy(doc.docDate)} г.`;
+  ws.getCell('E8').value = `${doc.buyerName || ''}${doc.buyerAddress ? '\n' + doc.buyerAddress : ''}`;
+  ws.getCell('AJ8').value = doc.buyerBin || '';
+
+  const items = (doc.items || []).filter(it => (it.name || '').trim());
+  const START = 20, BASE = 1, need = Math.max(items.length, 1);
+  if (need > BASE) ws.duplicateRow(START, need - BASE, true);
+  else if (need < BASE) ws.spliceRows(START + need, BASE - need);
+  const rowM = (r: number) => [`A${r}:B${r}`, `C${r}:M${r}`, `N${r}:U${r}`, `V${r}:X${r}`, `Y${r}:AC${r}`, `AD${r}:AI${r}`, `AJ${r}:AP${r}`];
+  let total = 0;
+  items.forEach((it, i) => {
+    const r = START + i;
+    rowM(r).forEach(m => { try { ws.unMergeCells(m); } catch { /* not merged */ } try { ws.mergeCells(m); } catch { /* already */ } });
+    const qty = Number(it.qty) || 0, price = Number(it.price) || 0; total += qty * price;
+    ws.getCell(`A${r}`).value = i + 1;
+    ws.getCell(`C${r}`).value = it.name || '';
+    ws.getCell(`V${r}`).value = it.unit || 'усл.';
+    ws.getCell(`Y${r}`).value = qty;
+    ws.getCell(`AD${r}`).value = price;
+    ws.getCell(`AJ${r}`).value = { formula: `SUM(Y${r}*AD${r})` } as ExcelJS.CellFormulaValue;
+  });
+  const lastItem = START + need - 1;
+  for (let r = START; r <= START + need + 8; r++) {
+    if (txt(ws.getCell(`AD${r}`)).trim() === 'х') ws.getCell(`AJ${r}`).value = { formula: `SUM(AJ${START}:AJ${lastItem})` } as ExcelJS.CellFormulaValue;
+  }
+  // подпись над «подпись», печать на «М.П.» (по меткам)
+  const colNum = (addr: string) => { let n = 0; for (const ch of addr.replace(/\d+/g, '')) n = n * 26 + (ch.charCodeAt(0) - 64); return n; };
+  let mp: { c: number; r: number } | null = null, sg: { c: number; r: number } | null = null;
+  for (let r = START; r <= ws.rowCount && !(mp && sg); r++) ws.getRow(r).eachCell(c => { const t = txt(c).trim(); if (!mp && /^М\.?\s*П\.?$/.test(t)) mp = { c: colNum(c.address), r }; if (!sg && t === 'подпись') sg = { c: colNum(c.address), r }; });
+  if (doc.withSign && org.signB64 && sg) { const s = sg as { c: number; r: number }; const id = wb.addImage({ base64: strip(org.signB64), extension: 'png' }); ws.addImage(id, { tl: { col: s.c - 1, row: s.r - 3 } as ExcelJS.Anchor, ext: { width: 150, height: 102 } }); }
+  if (doc.withStamp && org.stampB64 && mp) { const m = mp as { c: number; r: number }; const id = wb.addImage({ base64: strip(org.stampB64), extension: 'png' }); ws.addImage(id, { tl: { col: m.c + 1, row: m.r - 4 } as ExcelJS.Anchor, ext: { width: 190, height: 200 } }); }
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}
+
+async function buildAktExcelLegacy(doc: Doc, org: Org): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Акт', { views: [{ showGridLines: false }], pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1, margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0, footer: 0 } } });
   ws.columns = [5, 40, 20, 10, 10, 13, 15].map(w => ({ width: w }));
