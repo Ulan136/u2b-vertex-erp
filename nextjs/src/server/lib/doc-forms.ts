@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 import {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   AlignmentType, WidthType, BorderStyle, VerticalAlign, TableLayoutType, ImageRun,
@@ -386,7 +387,54 @@ export async function buildAktWord(doc: Doc, org: Org): Promise<Buffer> {
   ]);
 }
 
+// КП = заполнение .docx-шаблона (org.kpTemplateB64): таблица позиций + Итого +
+// замена вшитых печати/подписи на новые (по чекбоксам). Нет шаблона — сборка кодом.
 export async function buildKpWord(doc: Doc, org: Org): Promise<Buffer> {
+  if (org.kpTemplateB64) {
+    try { return await fillKpTemplate(doc, org); }
+    catch (e) { console.warn('[kp template] fallback:', (e as Error).message); }
+  }
+  return buildKpWordLegacy(doc, org);
+}
+
+const TRANSPARENT_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+
+async function fillKpTemplate(doc: Doc, org: Org): Promise<Buffer> {
+  const strip = (s?: string | null) => Buffer.from((s || '').replace(/^data:image\/\w+;base64,/, ''), 'base64');
+  const esc = (s: unknown) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const money = (n: unknown) => (Number(n) || 0).toLocaleString('ru-RU');
+  const zip = await JSZip.loadAsync(strip(org.kpTemplateB64));
+  const docFile = zip.file('word/document.xml');
+  if (!docFile) throw new Error('нет word/document.xml');
+  let xml = await docFile.async('string');
+  const tblM = xml.match(/<w:tbl>[\s\S]*?<\/w:tbl>/);
+  if (!tblM) throw new Error('нет таблицы позиций');
+  const tbl = tblM[0];
+  const rows = tbl.match(/<w:tr\b[\s\S]*?<\/w:tr>/g) || [];
+  if (rows.length < 3) throw new Error('мало строк в таблице КП');
+  const sample = rows[1];               // строка-образец позиции
+  const itogo = rows[rows.length - 1];  // строка «Итого»
+  // Заполнить строку: в каждой ячейке первый <w:t> = значение, остальные пусто.
+  const fillRow = (rowXml: string, vals: (string | number)[]) => {
+    let ci = 0;
+    return rowXml.replace(/<w:tc>[\s\S]*?<\/w:tc>/g, tc => {
+      const v = vals[ci++] ?? ''; let first = true;
+      return tc.replace(/(<w:t\b[^>]*>)([\s\S]*?)(<\/w:t>)/g, (_m, a, _t, b) => first ? (first = false, a + esc(v) + b) : (a + b));
+    });
+  };
+  const items = (doc.items || []).filter(it => (it.name || '').trim());
+  const total = items.reduce((s, it) => s + (Number(it.qty) || 0) * (Number(it.price) || 0), 0);
+  const dataRows = items.map((it, i) => fillRow(sample, [i + 1, it.name || '', it.unit || 'шт', Number(it.qty) || 0, money(it.price), money((Number(it.qty) || 0) * (Number(it.price) || 0))])).join('');
+  const itogoRow = fillRow(itogo, ['Итого:', '', '', '', '', money(total)]);
+  xml = xml.replace(tbl, tbl.replace(rows.slice(1).join(''), dataRows + itogoRow));
+  zip.file('word/document.xml', xml);
+  // Вшитые печать(image1)/подпись(image2) → новые (или прозрачный 1×1, если чекбокс снят).
+  if (zip.file('word/media/image1.png')) zip.file('word/media/image1.png', doc.withStamp && org.stampB64 ? strip(org.stampB64) : TRANSPARENT_PNG);
+  if (zip.file('word/media/image2.png')) zip.file('word/media/image2.png', doc.withSign && org.signB64 ? strip(org.signB64) : TRANSPARENT_PNG);
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
+async function buildKpWordLegacy(doc: Doc, org: Org): Promise<Buffer> {
   const cols = [6, 48, 10, 8, 14, 14];
   const head = wtr(['№', 'Наименование', 'Кол-во', 'Ед.', 'Цена', 'Сумма'].map((h, i) => ({ text: h, bold: true, w: cols[i] })));
   const rows = (doc.items || []).map((it, i) => wtr([{ text: String(i + 1), w: cols[0] }, { text: it.name || '', align: 'LEFT', w: cols[1] }, { text: String(it.qty), w: cols[2] }, { text: it.unit || 'шт', w: cols[3] }, { text: fmt(it.price), align: 'RIGHT', w: cols[4] }, { text: fmt(it.sum), align: 'RIGHT', w: cols[5] }]));
