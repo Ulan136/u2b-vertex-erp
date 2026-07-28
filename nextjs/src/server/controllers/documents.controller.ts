@@ -5,7 +5,6 @@ import { buildInvoiceExcel, buildInvoiceWord } from '@/server/lib/doc-invoice';
 import {
   buildNakladnayaExcel, buildNakladnayaWord, buildAktExcel, buildAktWord, buildKpExcel, buildKpWord,
 } from '@/server/lib/doc-forms';
-import { officeToPdf } from '@/server/lib/pdf';
 import { CORS_HEADERS } from '@/server/lib/cors';
 import { badRequest } from '@/server/lib/errors';
 
@@ -41,31 +40,6 @@ export const FILE = withApi(async (req: NextRequest, ctx) => {
   const { doc, org } = await documentsService.withOrg(ctx.params!.id);
   const gen = GENERATORS[doc.type];
   if (!gen) throw badRequest('Неизвестный тип документа');
-
-  // PDF = заполненный файл-шаблон, сконвертированный LibreOffice (вёрстка 1-в-1).
-  // Базовый формат: КП — из Word (.docx), остальные — из Excel (.xlsx).
-  if (fmt === 'pdf') {
-    const useWord = doc.type === 'kp';
-    const base = useWord ? await gen.word(doc as never, (org || {}) as never) : await gen.excel(doc as never, (org || {}) as never);
-    try {
-      const pdf = await officeToPdf(base, useWord ? 'docx' : 'xlsx');
-      const pname = `${doc.docNo || 'Документ'}.pdf`;
-      return new NextResponse(new Uint8Array(pdf), {
-        status: 200,
-        headers: {
-          ...CORS_HEADERS,
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="document.pdf"; filename*=UTF-8''${encodeURIComponent(pname)}`,
-        },
-      });
-    } catch (e) {
-      // На сервере без LibreOffice (напр. Vercel) PDF собрать нельзя — понятное сообщение.
-      return NextResponse.json(
-        { error: 'PDF собирается только там, где установлен LibreOffice. Запустите программу на терминале (где LibreOffice), либо скачайте Excel/Word (⬇xls/⬇doc) и сохраните в PDF из них. ' + ((e as Error).message || '') },
-        { status: 503, headers: CORS_HEADERS },
-      );
-    }
-  }
 
   const isWord = fmt === 'word';
   const buffer = isWord ? await gen.word(doc as never, (org || {}) as never) : await gen.excel(doc as never, (org || {}) as never);

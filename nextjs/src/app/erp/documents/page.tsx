@@ -63,8 +63,6 @@ export default function DocumentsPage() {
   }
   function download(id: string, fmtType: string) { const a = Object.assign(document.createElement('a'), { href: `/api/v2/documents/${id}/file?fmt=${fmtType}` }); document.body.appendChild(a); a.click(); a.remove(); }
   async function del(d: Doc) { if (!confirm('Удалить документ?')) return; try { await apiSend(`/api/v2/documents/${d.id}`, 'DELETE'); await mutate(); toast('🗑️ Удалено'); } catch (e) { toast('⚠️ ' + (e as Error).message); } }
-  // Печать/PDF = скачивание ГОСТ-PDF (заполненный шаблон, конвертация LibreOffice).
-  const printPdf = (id: string) => download(id, 'pdf');
 
   return (
     <div>
@@ -85,9 +83,8 @@ export default function DocumentsPage() {
                   <td className="erp-muted" style={{ fontSize: 12 }}>{d.createdByName || '—'}</td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                     <button className="erp-icon-btn" title="История" onClick={() => setHistDoc(d)}>🕘</button>
-                    <button className="erp-icon-btn" title="Excel" onClick={() => download(d.id, 'excel')}>⬇xls</button>
-                    <button className="erp-icon-btn" title="Word" onClick={() => download(d.id, 'word')}>⬇doc</button>
-                    <button className="erp-icon-btn" title="Скачать PDF (ГОСТ)" onClick={() => printPdf(d.id)}>🖨 PDF</button>
+                    <button className="erp-icon-btn" title="Скачать Excel (в Excel: Файл → Сохранить как → PDF)" onClick={() => download(d.id, 'excel')}>⬇ Excel</button>
+                    <button className="erp-icon-btn" title="Скачать Word" onClick={() => download(d.id, 'word')}>⬇ Word</button>
                     <button className="erp-icon-btn" title="Удалить" style={{ color: '#dc2626' }} onClick={() => del(d)}>🗑️</button>
                   </td>
                 </tr>
