@@ -20,6 +20,8 @@ export const certUpsertSchema = z.object({
   phone: z.string().nullish(),
   client: z.string().nullish(),
   sealType: z.string().nullish(),
+  photos: z.array(z.string()).optional(),   // base64 data-URL[]; хранятся на сертификате
+  orderId: z.string().nullish(),            // связь с заявкой (field_check order)
   result: z.string().optional(),
   docType: z.string().optional(),
   sentStatus: z.string().optional(),   // извещение: статус отправки
@@ -38,11 +40,11 @@ export function isCertPaid(payStatus?: string | null): boolean {
   return payStatus === 'Оплачено';
 }
 
-export type CertQuery = { source?: string | null; archived?: boolean; type?: string | null };
+export type CertQuery = { source?: string | null; archived?: boolean; type?: string | null; orderId?: string | null };
 
 // Подготовка полей к вставке/апдейту: undefined убираем (→ дефолт БД / без изменения),
 // пустую строку в date/uuid-колонках приводим к null (иначе Postgres 500 на '').
-const CERT_DATE_OR_UUID = new Set(['checkDate', 'nextCheckDate', 'branchId']);
+const CERT_DATE_OR_UUID = new Set(['checkDate', 'nextCheckDate', 'branchId', 'orderId']);
 export function cleanCertFields(data: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   Object.entries(data).forEach(([k, v]) => {

@@ -6,7 +6,8 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, EmptyRow } from '@/components/ui';
 
-type Cert = { id: string; source: string; fio?: string | null; address?: string | null; phone?: string | null; serialNo?: string | null; meterType?: string | null; checkDate?: string | null; nextCheckDate?: string | null };
+type Cert = { id: string; source: string; fio?: string | null; address?: string | null; phone?: string | null; serialNo?: string | null; meterType?: string | null; checkDate?: string | null; nextCheckDate?: string | null; photoCount?: number; orderId?: string | null };
+type PhotoRow = { key: string; client: string; address: string; meta: string; date: string; photos: string[] };
 type Position = { address?: string | null; qty?: number | null; water?: string | null };
 type FieldOrder = { id: string; orderNo?: string | null; clientName?: string | null; phone?: string | null; address?: string | null; positions?: Position[]; photos?: string[]; status?: string | null; orderDate?: string | null; createdAt?: string | null; createdByName?: string | null };
 type View = 'deadlines' | 'archive-cert' | 'archive-izv' | 'orders' | 'field-photos';
@@ -30,8 +31,11 @@ function DatabaseInner() {
   const { data: activeCert, isLoading: l1, error, mutate: mCert } = useApi<Cert[]>('/api/v2/certs?archived=false&type=cert');
   const { data: arcCert, mutate: mArcCert } = useApi<Cert[]>('/api/v2/certs?archived=true&type=cert');
   const { data: arcIzv, mutate: mArcIzv } = useApi<Cert[]>('/api/v2/certs?archived=true&type=izv');
-  // Заявки с фото грузим лениво — только на вкладке фотоотчётов (base64 тяжёлый).
-  const { data: fieldOrders, isLoading: lPhotos } = useApi<FieldOrder[]>(view === 'field-photos' ? '/api/v2/orders?source=field_check' : null);
+  // Фотоотчёты грузим лениво — только на своей вкладке. Фото теперь на
+  // сертификатах (по ссылке /api/v2/certs/{id}/photo/{n}); заявки с order.photos —
+  // легаси со старого потока, показываем тоже, чтобы ничего не потерять.
+  const { data: fieldCerts, isLoading: lCerts } = useApi<Cert[]>(view === 'field-photos' ? '/api/v2/certs?source=Выездная' : null);
+  const { data: fieldOrders, isLoading: lOrders } = useApi<FieldOrder[]>(view === 'field-photos' ? '/api/v2/orders?source=field_check' : null);
 
   // Полноэкранный просмотрщик фото одной заявки.
   const [viewer, setViewer] = React.useState<{ photos: string[]; idx: number; title: string } | null>(null);
@@ -51,10 +55,21 @@ function DatabaseInner() {
   const expiring = deadlines.filter(c => String(c.nextCheckDate).slice(0, 10) <= soonBound);
   const dtOf = (o: FieldOrder) => o.orderDate || o.createdAt || '';
   const addrOf = (o: FieldOrder) => (Array.isArray(o.positions) && o.positions[0]?.address) || o.address || '—';
-  const photoOrders = (fieldOrders || []).filter(o => Array.isArray(o.photos) && o.photos.length > 0)
-    .sort((a, b) => String(dtOf(b)).localeCompare(String(dtOf(a))));
-  const openViewer = (o: FieldOrder, idx: number) => setViewer({ photos: o.photos || [], idx, title: `${o.orderNo || ''} · ${o.clientName || ''}`.trim() });
-  const statusBadge = (s?: string | null) => s === 'Готова' ? <Badge tone="ok">Готова</Badge> : s === 'Отменён' ? <Badge tone="err">Отменён</Badge> : <Badge tone="info">В работе</Badge>;
+  const lPhotos = lCerts || lOrders;
+  // Единый список фотоотчётов: строки из сертификатов (фото по ссылке) + легаси
+  // из order.photos. Новые сверху.
+  const photoRows: PhotoRow[] = [
+    ...(fieldCerts || []).filter(c => (c.photoCount || 0) > 0).map(c => ({
+      key: 'c' + c.id, client: c.fio || '—', address: c.address || '—',
+      meta: `${c.meterType || 'Прибор'}${c.serialNo ? ' №' + c.serialNo : ''}`,
+      date: c.checkDate || '', photos: Array.from({ length: c.photoCount || 0 }, (_, i) => `/api/v2/certs/${c.id}/photo/${i}`),
+    })),
+    ...(fieldOrders || []).filter(o => Array.isArray(o.photos) && o.photos.length > 0).map(o => ({
+      key: 'o' + o.id, client: o.clientName || '—', address: addrOf(o),
+      meta: `заявка ${o.orderNo || ''}`.trim(), date: dtOf(o), photos: o.photos as string[],
+    })),
+  ].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const openViewer = (row: PhotoRow, idx: number) => setViewer({ photos: row.photos, idx, title: `${row.client} · ${row.meta}` });
   const meta = TITLES[view];
 
   async function archive(c: Cert, flag: boolean) {
@@ -77,7 +92,7 @@ function DatabaseInner() {
       <Card className="erp-filters"><div className="erp-chips">
         {(['deadlines', 'archive-cert', 'archive-izv', 'orders', 'field-photos'] as View[]).map(v => (
           <button key={v} className={`erp-chip${view === v ? ' on' : ''}`} onClick={() => setView(v)}>
-            {TITLES[v].t}{v === 'archive-cert' ? ` (${(arcCert || []).length})` : v === 'archive-izv' ? ` (${(arcIzv || []).length})` : v === 'orders' ? ` (${expiring.length})` : v === 'field-photos' && fieldOrders ? ` (${photoOrders.length})` : ''}
+            {TITLES[v].t}{v === 'archive-cert' ? ` (${(arcCert || []).length})` : v === 'archive-izv' ? ` (${(arcIzv || []).length})` : v === 'orders' ? ` (${expiring.length})` : v === 'field-photos' && (fieldCerts || fieldOrders) ? ` (${photoRows.length})` : ''}
           </button>
         ))}
       </div></Card>
@@ -131,22 +146,21 @@ function DatabaseInner() {
               </table>
             ))}
 
-            {view === 'field-photos' && (lPhotos ? <EmptyRow>Загрузка…</EmptyRow> : photoOrders.length === 0 ? <EmptyRow>Пока нет заявок с фото. Мастер прикрепляет фото в мобильном кабинете.</EmptyRow> : (
+            {view === 'field-photos' && (lPhotos && photoRows.length === 0 ? <EmptyRow>Загрузка…</EmptyRow> : photoRows.length === 0 ? <EmptyRow>Пока нет фото. Мастер прикрепляет их к позициям заявки в мобильном кабинете.</EmptyRow> : (
               <table className="erp-table">
-                <thead><tr><th>№ заявки</th><th>Клиент</th><th>Адрес</th><th>Дата</th><th>Статус</th><th>Фото</th></tr></thead>
-                <tbody>{photoOrders.map(o => (
-                  <tr key={o.id}>
-                    <td style={{ fontSize: 12, fontFamily: 'monospace' }}>{o.orderNo || '—'}</td>
-                    <td className="erp-td-main">{o.clientName || '—'}</td>
-                    <td style={{ fontSize: 12 }}>{addrOf(o)}</td>
-                    <td style={{ fontSize: 12 }}>{dmy(dtOf(o))}</td>
-                    <td>{statusBadge(o.status)}</td>
+                <thead><tr><th>Клиент</th><th>Адрес</th><th>Прибор / заявка</th><th>Дата</th><th style={{ textAlign: 'right' }}>Фото</th></tr></thead>
+                <tbody>{photoRows.map(row => (
+                  <tr key={row.key}>
+                    <td className="erp-td-main">{row.client}</td>
+                    <td style={{ fontSize: 12 }}>{row.address}</td>
+                    <td style={{ fontSize: 12 }}>{row.meta}</td>
+                    <td style={{ fontSize: 12 }}>{dmy(row.date)}</td>
                     <td>
-                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                        {o.photos!.slice(0, 3).map((p, i) => (
-                          <img key={i} src={p} alt="" onClick={() => openViewer(o, i)} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, border: '1px solid #e5e7eb', cursor: 'pointer' }} />
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'flex-end' }}>
+                        {row.photos.slice(0, 3).map((p, i) => (
+                          <img key={i} src={p} alt="" loading="lazy" onClick={() => openViewer(row, i)} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, border: '1px solid #e5e7eb', cursor: 'pointer', background: '#f3f4f6' }} />
                         ))}
-                        <button className="erp-icon-btn" title="Смотреть все фото" onClick={() => openViewer(o, 0)} style={{ whiteSpace: 'nowrap' }}>📷 {o.photos!.length}</button>
+                        <button className="erp-icon-btn" title="Смотреть все фото" onClick={() => openViewer(row, 0)} style={{ whiteSpace: 'nowrap' }}>📷 {row.photos.length}</button>
                       </div>
                     </td>
                   </tr>

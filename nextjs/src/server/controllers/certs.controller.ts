@@ -11,6 +11,7 @@ export const GET = withApi(async (req: NextRequest) => {
     source: sp.get('source'),
     archived: sp.get('archived') === 'true',
     type: sp.get('type'),
+    orderId: sp.get('orderId'),
   });
 });
 export const POST = withApi(async (req: NextRequest, ctx) => created(await certsService.create(await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null)));

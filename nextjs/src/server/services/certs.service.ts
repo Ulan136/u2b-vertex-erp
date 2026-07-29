@@ -17,7 +17,8 @@ export const certsService = {
     return certsRepo.list({
       source: q.source ?? null,
       archived: q.archived ?? false,
-      type: q.type || 'cert',
+      type: q.orderId ? null : (q.type || 'cert'),   // по заявке — все её сертификаты, без фильтра по типу
+      orderId: q.orderId ?? null,
     });
   },
 

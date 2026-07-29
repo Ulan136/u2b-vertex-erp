@@ -73,6 +73,10 @@ export const certificates = pgTable('certificates', {
   phone         : varchar('phone', { length: 30 }),
   client        : varchar('client', { length: 200 }),
   sealType      : varchar('seal_type', { length: 40 }),
+  // Фото поверки — единый источник (без дублей на заявке); отдаются по ссылке
+  // /api/v2/certs/{id}/photo/{n}. orderId связывает сертификат с заявкой.
+  photos        : jsonb('photos').$type<string[]>().default([]),
+  orderId       : uuid('order_id'),
   result        : varchar('result', { length: 20 }).default('Годен'),
   docType       : varchar('doc_type', { length: 10 }).default('cert'),   // 'cert' | 'izv'
   sentStatus    : varchar('sent_status', { length: 20 }).default('Не отправлено'),   // извещение: Отправлено | Не отправлено | Запланировано
