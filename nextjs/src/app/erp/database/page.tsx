@@ -7,7 +7,9 @@ import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, EmptyRow } from '@/components/ui';
 
 type Cert = { id: string; source: string; fio?: string | null; address?: string | null; phone?: string | null; serialNo?: string | null; meterType?: string | null; checkDate?: string | null; nextCheckDate?: string | null };
-type View = 'deadlines' | 'archive-cert' | 'archive-izv' | 'orders';
+type Position = { address?: string | null; qty?: number | null; water?: string | null };
+type FieldOrder = { id: string; orderNo?: string | null; clientName?: string | null; phone?: string | null; address?: string | null; positions?: Position[]; photos?: string[]; status?: string | null; orderDate?: string | null; createdAt?: string | null; createdByName?: string | null };
+type View = 'deadlines' | 'archive-cert' | 'archive-izv' | 'orders' | 'field-photos';
 const dmy = (d?: string | null) => formatDate(d) || '—';
 const today = () => new Date().toISOString().slice(0, 10);
 const plus = (days: number) => new Date(Date.now() + days * 864e5).toISOString().slice(0, 10);
@@ -16,7 +18,9 @@ const TITLES: Record<View, { t: string; sub: string }> = {
   'archive-cert': { t: '🗂 Архив сертификатов', sub: 'Сертификаты, отправленные в архив' },
   'archive-izv': { t: '📭 Архив извещений', sub: 'Извещения, отправленные в архив' },
   orders: { t: '📋 Авто-заказы', sub: 'Счётчики с истекающим сроком — кандидаты на заявку' },
+  'field-photos': { t: '📷 Фотоотчёты выезда', sub: 'Фото со счётчиков, снятые мастером на заявке' },
 };
+const navBtn: React.CSSProperties = { background: 'rgba(255,255,255,.15)', color: '#fff', border: 'none', borderRadius: '50%', width: 44, height: 44, fontSize: 26, lineHeight: 1, cursor: 'pointer', flexShrink: 0 };
 
 function DatabaseInner() {
   const sp = useSearchParams();
@@ -26,10 +30,31 @@ function DatabaseInner() {
   const { data: activeCert, isLoading: l1, error, mutate: mCert } = useApi<Cert[]>('/api/v2/certs?archived=false&type=cert');
   const { data: arcCert, mutate: mArcCert } = useApi<Cert[]>('/api/v2/certs?archived=true&type=cert');
   const { data: arcIzv, mutate: mArcIzv } = useApi<Cert[]>('/api/v2/certs?archived=true&type=izv');
+  // Заявки с фото грузим лениво — только на вкладке фотоотчётов (base64 тяжёлый).
+  const { data: fieldOrders, isLoading: lPhotos } = useApi<FieldOrder[]>(view === 'field-photos' ? '/api/v2/orders?source=field_check' : null);
+
+  // Полноэкранный просмотрщик фото одной заявки.
+  const [viewer, setViewer] = React.useState<{ photos: string[]; idx: number; title: string } | null>(null);
+  React.useEffect(() => {
+    if (!viewer) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setViewer(null);
+      else if (e.key === 'ArrowLeft') setViewer(v => v && { ...v, idx: (v.idx - 1 + v.photos.length) % v.photos.length });
+      else if (e.key === 'ArrowRight') setViewer(v => v && { ...v, idx: (v.idx + 1) % v.photos.length });
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [viewer]);
 
   const t = today(); const soonBound = plus(60);
   const deadlines = (activeCert || []).filter(c => c.nextCheckDate).sort((a, b) => String(a.nextCheckDate).localeCompare(String(b.nextCheckDate)));
   const expiring = deadlines.filter(c => String(c.nextCheckDate).slice(0, 10) <= soonBound);
+  const dtOf = (o: FieldOrder) => o.orderDate || o.createdAt || '';
+  const addrOf = (o: FieldOrder) => (Array.isArray(o.positions) && o.positions[0]?.address) || o.address || '—';
+  const photoOrders = (fieldOrders || []).filter(o => Array.isArray(o.photos) && o.photos.length > 0)
+    .sort((a, b) => String(dtOf(b)).localeCompare(String(dtOf(a))));
+  const openViewer = (o: FieldOrder, idx: number) => setViewer({ photos: o.photos || [], idx, title: `${o.orderNo || ''} · ${o.clientName || ''}`.trim() });
+  const statusBadge = (s?: string | null) => s === 'Готова' ? <Badge tone="ok">Готова</Badge> : s === 'Отменён' ? <Badge tone="err">Отменён</Badge> : <Badge tone="info">В работе</Badge>;
   const meta = TITLES[view];
 
   async function archive(c: Cert, flag: boolean) {
@@ -50,9 +75,9 @@ function DatabaseInner() {
     <div>
       <PageTitle title="База данных" sub={meta.sub} />
       <Card className="erp-filters"><div className="erp-chips">
-        {(['deadlines', 'archive-cert', 'archive-izv', 'orders'] as View[]).map(v => (
+        {(['deadlines', 'archive-cert', 'archive-izv', 'orders', 'field-photos'] as View[]).map(v => (
           <button key={v} className={`erp-chip${view === v ? ' on' : ''}`} onClick={() => setView(v)}>
-            {TITLES[v].t}{v === 'archive-cert' ? ` (${(arcCert || []).length})` : v === 'archive-izv' ? ` (${(arcIzv || []).length})` : v === 'orders' ? ` (${expiring.length})` : ''}
+            {TITLES[v].t}{v === 'archive-cert' ? ` (${(arcCert || []).length})` : v === 'archive-izv' ? ` (${(arcIzv || []).length})` : v === 'orders' ? ` (${expiring.length})` : v === 'field-photos' && fieldOrders ? ` (${photoOrders.length})` : ''}
           </button>
         ))}
       </div></Card>
@@ -105,9 +130,52 @@ function DatabaseInner() {
                 ))}</tbody>
               </table>
             ))}
+
+            {view === 'field-photos' && (lPhotos ? <EmptyRow>Загрузка…</EmptyRow> : photoOrders.length === 0 ? <EmptyRow>Пока нет заявок с фото. Мастер прикрепляет фото в мобильном кабинете.</EmptyRow> : (
+              <table className="erp-table">
+                <thead><tr><th>№ заявки</th><th>Клиент</th><th>Адрес</th><th>Дата</th><th>Статус</th><th>Фото</th></tr></thead>
+                <tbody>{photoOrders.map(o => (
+                  <tr key={o.id}>
+                    <td style={{ fontSize: 12, fontFamily: 'monospace' }}>{o.orderNo || '—'}</td>
+                    <td className="erp-td-main">{o.clientName || '—'}</td>
+                    <td style={{ fontSize: 12 }}>{addrOf(o)}</td>
+                    <td style={{ fontSize: 12 }}>{dmy(dtOf(o))}</td>
+                    <td>{statusBadge(o.status)}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        {o.photos!.slice(0, 3).map((p, i) => (
+                          <img key={i} src={p} alt="" onClick={() => openViewer(o, i)} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, border: '1px solid #e5e7eb', cursor: 'pointer' }} />
+                        ))}
+                        <button className="erp-icon-btn" title="Смотреть все фото" onClick={() => openViewer(o, 0)} style={{ whiteSpace: 'nowrap' }}>📷 {o.photos!.length}</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            ))}
           </>
         )}
       </Card>
+
+      {viewer && (
+        <div onClick={() => setViewer(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.88)', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ position: 'absolute', top: 12, left: 16, color: '#fff', fontSize: 14, fontWeight: 600, maxWidth: '60vw', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{viewer.title} · {viewer.idx + 1}/{viewer.photos.length}</div>
+          <button onClick={(e) => { e.stopPropagation(); setViewer(null); }} style={{ position: 'absolute', top: 10, right: 14, background: 'rgba(255,255,255,.15)', color: '#fff', border: 'none', borderRadius: 20, padding: '6px 14px', fontSize: 14, cursor: 'pointer' }}>✕ Закрыть</button>
+          <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 12, maxWidth: '100%' }}>
+            {viewer.photos.length > 1 && <button aria-label="Назад" onClick={() => setViewer(v => v && { ...v, idx: (v.idx - 1 + v.photos.length) % v.photos.length })} style={navBtn}>‹</button>}
+            <img src={viewer.photos[viewer.idx]} alt="" style={{ maxWidth: '78vw', maxHeight: '76vh', objectFit: 'contain', borderRadius: 8, background: '#111' }} />
+            {viewer.photos.length > 1 && <button aria-label="Вперёд" onClick={() => setViewer(v => v && { ...v, idx: (v.idx + 1) % v.photos.length })} style={navBtn}>›</button>}
+          </div>
+          {viewer.photos.length > 1 && (
+            <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6, marginTop: 12, overflowX: 'auto', maxWidth: '92vw', paddingBottom: 4 }}>
+              {viewer.photos.map((p, i) => (
+                <img key={i} src={p} alt="" onClick={() => setViewer(v => v && { ...v, idx: i })} style={{ width: 52, height: 52, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', flexShrink: 0, border: i === viewer.idx ? '2px solid #3b82f6' : '2px solid transparent', opacity: i === viewer.idx ? 1 : .55 }} />
+              ))}
+            </div>
+          )}
+          <a href={viewer.photos[viewer.idx]} download={`фото-${viewer.idx + 1}.jpg`} onClick={e => e.stopPropagation()} style={{ marginTop: 10, color: '#fff', fontSize: 13, textDecoration: 'underline' }}>⬇ Скачать это фото</a>
+        </div>
+      )}
     </div>
   );
 }
