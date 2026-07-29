@@ -137,26 +137,37 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
                   {items.map((item, i) => renderItem(item, i))}
                 </div>
               ))
-          ) : sections.map((section, si) => {
-          const prevZone = si > 0 ? sections[si - 1].zone : undefined;
-          const showZoneHead = section.zone && section.zone !== prevZone;
-          return (
-            <React.Fragment key={section.title}>
-            {showZoneHead && (
-              <div className={`erp-zone-head erp-zone-head-${section.zone}`}>
-                <span>{ZONE_LABELS[section.zone!]}</span><span className="erp-zh-line" />
+          ) : (() => {
+            // Группируем подряд идущие секции одной зоны в тонированную обёртку
+            // (внутри — белые карточки-разделы); плейн-секции (Главная/Настройка) — без обёртки.
+            const groups: { zone?: NavSection['zone']; sections: NavSection[] }[] = [];
+            sections.forEach(s => {
+              const last = groups[groups.length - 1];
+              if (last && last.zone === s.zone) last.sections.push(s);
+              else groups.push({ zone: s.zone, sections: [s] });
+            });
+            const renderSection = (section: NavSection) => (
+              <React.Fragment key={section.title}>
+                {section.divider && <div className="erp-nav-divider">{section.divider}</div>}
+                <div className={`erp-nav-section${section.zone ? ' erp-zone-' + section.zone : ''}`}>
+                  <div className="erp-nav-title"><span>{section.icon}</span>{section.title}</div>
+                  {section.items.map((item, i) => item.heading
+                    ? <div key={item.label + i} className="erp-nav-subhead">{item.label}</div>
+                    : renderItem(item, i))}
+                </div>
+              </React.Fragment>
+            );
+            return groups.map((g, gi) => g.zone ? (
+              <div key={gi} className={`erp-zone-wrap erp-zone-wrap-${g.zone}`}>
+                <div className={`erp-zone-head erp-zone-head-${g.zone}`}>
+                  <span>{ZONE_LABELS[g.zone]}</span><span className="erp-zh-line" />
+                </div>
+                {g.sections.map(renderSection)}
               </div>
-            )}
-            {section.divider && <div className={`erp-nav-divider${section.zone ? ' erp-zone-' + section.zone : ''}`}>{section.divider}</div>}
-            <div className={`erp-nav-section${section.zone ? ' erp-zone-' + section.zone : ''}`}>
-              <div className="erp-nav-title"><span>{section.icon}</span>{section.title}</div>
-              {section.items.map((item, i) => item.heading
-                ? <div key={item.label + i} className="erp-nav-subhead">{item.label}</div>
-                : renderItem(item, i))}
-            </div>
-            </React.Fragment>
-          );
-          })}
+            ) : (
+              <React.Fragment key={gi}>{g.sections.map(renderSection)}</React.Fragment>
+            ));
+          })()}
         </nav>
         <div className="erp-sidebar-foot">
           <span className="erp-avatar">{(user.name || '?').trim().charAt(0).toUpperCase() || '?'}</span>

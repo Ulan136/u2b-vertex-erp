@@ -110,8 +110,8 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Типы приборов', screenKey: 'handbook', href: '/erp/handbook/device-types' },
   ] },
 
-  // ── под-раздел «Система» ──
-  { title: 'Настройка', icon: '⚙️', zone: 'ops', divider: 'Система', items: [
+  // ── под-раздел «Система» (вынесен отдельно, вне зон — как в макете) ──
+  { title: 'Настройка', icon: '⚙️', divider: 'Система', items: [
     { label: 'Настройки', screenKey: 'settings', href: '/erp/settings' },
     { label: 'Доступы', screenKey: 'settings', href: '/erp/access' },
     { label: 'Организация', screenKey: 'settings', href: '/erp/settings/org' },
