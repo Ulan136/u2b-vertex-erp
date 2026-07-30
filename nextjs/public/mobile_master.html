@@ -137,6 +137,12 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
 .pos-more{font-size:11px;color:var(--muted);}
 .pos-nophoto{font-size:11px;color:#c0c4cc;}
 .pos-del{border:none;background:none;font-size:15px;cursor:pointer;padding:4px;color:#dc2626;flex-shrink:0;}
+.za-pay-line{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted);margin-bottom:8px;}
+.za-pay-line b{color:var(--text);font-size:15px;}
+.za-pay-row{display:flex;gap:6px;align-items:center;margin-bottom:8px;}
+.za-pay-row select{flex:1;min-width:0;border:1.5px solid var(--border);border-radius:10px;padding:9px 10px;font-size:13px;font-family:inherit;background:#fff;}
+.za-pay-row input{width:110px;border:1.5px solid var(--border);border-radius:10px;padding:9px 10px;font-size:14px;font-family:inherit;text-align:right;}
+.za-pay-row button{border:none;background:none;color:#dc2626;font-size:15px;cursor:pointer;padding:4px;flex-shrink:0;}
 .success-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:36px 20px;text-align:center;}
 .success-icon{font-size:72px;margin-bottom:16px;animation:pop .4s ease;}
 @keyframes pop{0%{transform:scale(0)}80%{transform:scale(1.15)}100%{transform:scale(1)}}
@@ -275,6 +281,16 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
       <div class="za-sec-title">Позиции · счётчики</div>
       <div id="za-positions" style="padding:0 2px;"></div>
       <div style="padding:12px 2px 4px;"><button class="btn-primary" onclick="posOpen()">➕ Создать позицию</button></div>
+
+      <!-- Оплата: смешанная по счетам раздела «Поверка» (№1) -->
+      <div class="za-sec-title">Оплата</div>
+      <div style="padding:0 2px 8px;">
+        <div class="za-pay-line"><span>Итого к оплате (сумма позиций)</span><b id="za-total">0 ₸</b></div>
+        <div id="za-pay-rows"></div>
+        <button class="btn-outline-sm" style="width:100%;margin:2px 0 8px;" onclick="zaAddPayRow()">+ ещё счёт (смешанная)</button>
+        <div class="za-pay-line"><span>Внесено</span><b id="za-pay-sum">0 ₸</b></div>
+        <button class="btn-primary" id="za-pay-btn" style="background:var(--green);margin-top:8px;" onclick="zaAcceptPayment()">✅ Принять оплату</button>
+      </div>
     </div>
   </div>
 </div>
@@ -294,6 +310,7 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
         </div>
         <div class="form-group"><div class="form-label">Тип прибора</div><input class="form-input" id="pos-meter" placeholder="СГВ-15"></div>
         <div class="form-group"><div class="form-label">№ счётчика</div><input class="form-input" id="pos-serial" placeholder="00000000" inputmode="numeric"></div>
+        <div class="form-group"><div class="form-label">Год выпуска</div><input type="number" class="form-input" id="pos-year" placeholder="напр. 2024" inputmode="numeric"></div>
         <div class="form-group"><div class="form-label">Показания счётчика, м³ <span class="required">*</span></div>
           <div style="display:flex;gap:8px;align-items:center;"><input type="number" class="form-input" id="pos-readings" placeholder="0000" inputmode="decimal" style="flex:1;"><button class="mic-inline" onclick="mvStart('pos-readings','Показания в кубометрах',true)">🎤</button></div></div>
         <div class="form-group"><div class="form-label">Дата поверки <span class="required">*</span></div><input type="date" class="form-input" id="pos-date"></div>
@@ -302,6 +319,7 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
         <div class="form-group"><div class="form-label">№ поверительного клейма</div>
           <div style="display:flex;gap:8px;align-items:center;"><input class="form-input" id="pos-stamp" placeholder="0000000" inputmode="numeric" style="flex:1;"><button class="mic-inline" onclick="mvStart('pos-stamp','Номер клейма цифрами',true)">🎤</button></div></div>
         <div class="form-group"><div class="form-label">Тип пломбы</div><select class="form-input form-select" id="pos-seal"><option value="СЛ">Самоклеющийся лейбл (СЛ)</option><option value="ПЛ">Пластиковое пломбо (ПЛ)</option></select></div>
+        <div class="form-group"><div class="form-label">Цена, ₸</div><input type="number" class="form-input" id="pos-amount" placeholder="0" inputmode="decimal"></div>
         <div class="form-group"><div class="form-label">Комментарий</div>
           <div style="display:flex;gap:8px;align-items:center;"><input class="form-input" id="pos-note" placeholder="комментарий" style="flex:1;"><button class="mic-inline" onclick="mvStart('pos-note','Комментарий',false)">🎤</button></div></div>
         <div class="form-group"><div class="form-label">📷 Фото счётчика</div><div class="cf-pgrid" id="pos-pgrid"></div></div>
@@ -550,18 +568,20 @@ async function zaLoadPositions(){
 }
 function zaRenderPositions(){
   const box=document.getElementById('za-positions'); if(!box)return;
-  if(!zaPositions.length){ box.innerHTML='<div style="color:#9ca3af;font-size:13px;text-align:center;padding:14px;">Позиций пока нет. Нажмите «Создать позицию».</div>'; return; }
+  if(!zaPositions.length){ box.innerHTML='<div style="color:#9ca3af;font-size:13px;text-align:center;padding:14px;">Позиций пока нет. Нажмите «Создать позицию».</div>'; zaRenderPay(); return; }
   box.innerHTML=zaPositions.map(c=>{
     const n=c.photoCount||0;
     const thumbs=Array.from({length:Math.min(n,3)},(_,i)=>`<img class="pos-thumb" src="${CERTS_API}/${c.id}/photo/${i}" alt="">`).join('');
     const photos=n?`${thumbs}${n>3?`<span class="pos-more">+${n-3}</span>`:''}`:'<span class="pos-nophoto">без фото</span>';
+    const paid=c.payStatus==='Оплачено'?' · ✅ оплачено':'';
     return `<div class="pos-row">
       <div class="pos-info"><div class="pos-name">${esc(c.meterType||'Прибор')}${c.serialNo?' №'+esc(c.serialNo):''}</div>
-        <div class="pos-sub">${esc(c.readings||'—')} м³ · ${esc(c.waterType||'')}${c.sealType?' · '+esc(c.sealType):''}</div></div>
+        <div class="pos-sub">${esc(c.readings||'—')} м³ · ${esc(c.waterType||'')}${c.sealType?' · '+esc(c.sealType):''}${Number(c.amount)>0?' · '+fmtSum(c.amount)+' ₸':''}${paid}</div></div>
       <div class="pos-photos">${photos}</div>
       <button class="pos-del" onclick="zaDelPosition('${c.id}')" title="Удалить позицию">🗑</button>
     </div>`;
   }).join('');
+  zaRenderPay();
 }
 async function zaDelPosition(id){
   if(!confirm('Удалить позицию (сертификат)?'))return;
@@ -589,10 +609,63 @@ async function zaSaveHeader(){
   catch(e){ if(e.message!=='auth')toast('⚠️ '+e.message); }
 }
 
+// ── ОПЛАТА заявки: смешанная по счетам раздела «Поверка» (№1) ──
+let poverkaAccounts=[];
+async function loadPoverkaAccounts(){
+  try{ const r=await fetch('/api/v2/finance',{cache:'no-store'}); if(r.ok){ const d=await r.json(); poverkaAccounts=(d.accounts||[]).filter(a=>a.section==='poverka'); } }catch(e){}
+}
+function fmtSum(n){ return Number(n||0).toLocaleString('ru-RU'); }
+function zaTotal(){ return zaPositions.reduce((s,c)=>s+Number(c.amount||0),0); }
+function zaAccOptions(){
+  return poverkaAccounts.length
+    ? poverkaAccounts.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')
+    : '<option value="">— нет счетов «Поверка» —</option>';
+}
+function zaPayRowNode(amount){
+  const div=document.createElement('div'); div.className='za-pay-row';
+  div.innerHTML=`<select>${zaAccOptions()}</select><input type="number" inputmode="decimal" placeholder="0" value="${amount!=null&&amount!==''?amount:''}"><button title="Убрать" onclick="this.parentNode.remove();zaRecalcPaySum();">✕</button>`;
+  div.querySelector('input').addEventListener('input', zaRecalcPaySum);
+  return div;
+}
+function zaAddPayRow(amount){ document.getElementById('za-pay-rows').appendChild(zaPayRowNode(amount)); zaRecalcPaySum(); }
+function zaRecalcPaySum(){
+  const rows=[...document.querySelectorAll('#za-pay-rows .za-pay-row')];
+  const sum=rows.reduce((s,r)=>s+Number(r.querySelector('input').value||0),0);
+  const el=document.getElementById('za-pay-sum'); if(!el)return;
+  el.textContent=fmtSum(sum)+' ₸';
+  el.style.color=(sum>0 && Math.abs(sum-zaTotal())<0.01)?'#16a34a':'';
+}
+function zaRenderPay(){
+  const total=zaTotal();
+  const tEl=document.getElementById('za-total'); if(tEl)tEl.textContent=fmtSum(total)+' ₸';
+  const box=document.getElementById('za-pay-rows'); if(!box)return;
+  box.innerHTML='';
+  box.appendChild(zaPayRowNode(total>0?total:''));   // по умолчанию — весь итог на один счёт
+  zaRecalcPaySum();
+}
+async function zaAcceptPayment(){
+  if(!zaOrderId){ toast('⚠️ Сначала создайте позиции'); return; }
+  const total=zaTotal();
+  if(total<=0){ toast('⚠️ У позиций не указана цена'); return; }
+  const rows=[...document.querySelectorAll('#za-pay-rows .za-pay-row')];
+  const payments=rows.map(r=>({accountId:r.querySelector('select').value, amount:Number(r.querySelector('input').value||0)})).filter(p=>p.accountId&&p.amount>0);
+  if(!payments.length){ toast('⚠️ Укажите счёт и сумму'); return; }
+  const sum=payments.reduce((s,p)=>s+p.amount,0);
+  if(Math.abs(sum-total)>0.01){ toast('⚠️ Внесено '+fmtSum(sum)+' ≠ итог '+fmtSum(total)); return; }
+  const btn=document.getElementById('za-pay-btn'); btn.disabled=true; btn.textContent='Приём…';
+  try{
+    const r=await fetch(ORDERS_API+'/'+zaOrderId+'/payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({payments})});
+    if(r.status===401){location.href='/login?from=/master';return;}
+    if(!r.ok){ let m='HTTP '+r.status; try{const e=await r.json();m=e.error||m;}catch(_e){} throw new Error(m); }
+    toast('✅ Оплата принята — приход на «Поверка»'); await zaLoadPositions();
+  }catch(e){ toast('⚠️ '+e.message); }
+  finally{ btn.disabled=false; btn.textContent='✅ Принять оплату'; }
+}
+
 // ── ПОЗИЦИЯ (модалка сертификата) ──
 function posOpen(){
   posPhotos=[];
-  ['pos-meter','pos-serial','pos-readings','pos-stamp','pos-note'].forEach(id=>setV(id,''));
+  ['pos-meter','pos-serial','pos-year','pos-readings','pos-stamp','pos-note','pos-amount'].forEach(id=>setV(id,''));
   setV('pos-date',todayStr());
   document.getElementById('pos-water').value='х/в';
   document.getElementById('pos-seal').value='СЛ';
@@ -623,6 +696,7 @@ async function posSave(){
       orderId, source:'Выездная', operStatus:'Готова к КТРМ',
       fio:getV('za-fio'), address:getV('za-addr'), phone:getV('za-phone')||null,
       meterType:getV('pos-meter')||null, serialNo:getV('pos-serial')||null,
+      yearMade:getV('pos-year')||null, amount:getV('pos-amount')||null,
       waterType:document.getElementById('pos-water').value,
       readings, checkDate:date, nextCheckDate:plus5y(date),
       stampNo:getV('pos-stamp')||null, sealType:document.getElementById('pos-seal').value, seal:true,
@@ -702,6 +776,7 @@ function mvClose(){ if(mvRecog){try{mvRecog.onend=null;mvRecog.stop();}catch(e){
   await loadMe();
   document.getElementById('hdr-sub').textContent=(me&&me.name?me.name:'Мастер')+' · '+(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+d.getFullYear();})();
   await loadOrders();
+  loadPoverkaAccounts();   // счета раздела «Поверка» для приёма оплаты
   setInterval(loadOrders,60000);
   // Общий модуль: колокольчик + экран «Задачи» + комментарии + обновление
   if(window.CabinetCommon) CabinetCommon.init({ me, onOpenTasks:()=>goScreen('tasks'), onRefresh:()=>loadOrders() });

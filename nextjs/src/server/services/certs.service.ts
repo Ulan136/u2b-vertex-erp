@@ -1,10 +1,14 @@
 import { db } from '@/db';
 import { certsRepo } from '@/server/repositories/certs.repo';
-import { certUpsertSchema, certUpdateSchema, cleanCertFields, isCertPaid, type CertQuery } from '@/server/dto/certs.dto';
+import { certUpsertSchema, certUpdateSchema, cleanCertFields, isCertPaid, poverkaPaymentSchema, type CertQuery } from '@/server/dto/certs.dto';
 import { deviceTypesService } from '@/server/services/deviceTypes.service';
 import { productsService } from '@/server/services/products.service';
+import { financeService } from '@/server/services/finance.service';
+import { financeRepo } from '@/server/repositories/finance.repo';
 import { sealMarker } from '@/server/dto/products.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
+
+const m2 = (n: unknown) => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
 
 // Какое клеймо должно быть списано у ИТОГОВОГО состояния поверки:
 // расходуется только у ОПЛАЧЕННОЙ поверки (docType='cert'); иначе — ничего.
@@ -72,5 +76,36 @@ export const certsService = {
       await certsRepo.remove(id, tx);
     });
     return { ok: true };
+  },
+
+  // Приём оплаты заявки (выездной мастер): смешанная оплата → приход на счета
+  // раздела «Поверка», сертификаты заявки → «Оплачено» + списание клейма. Всё
+  // одной транзакцией. Итог = сумма цен позиций; оплаты должны его покрыть.
+  async payOrder(orderId: string, input: unknown, actor?: { id: string; name?: string } | null) {
+    if (!orderId) throw badRequest('orderId is required');
+    const { payments } = poverkaPaymentSchema.parse(input);
+    const certs = await certsRepo.list({ orderId, archived: false });
+    if (!certs.length) throw badRequest('В заявке нет позиций для оплаты');
+    const total = certs.reduce((s, c) => s + Number(c.amount || 0), 0);
+    if (total <= 0) throw badRequest('У позиций не указана цена — заполните «Цена» в позициях');
+    const paid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+    if (Math.abs(paid - total) > 0.01) throw badRequest(`Сумма оплат (${m2(paid)}) должна равняться итогу (${m2(total)})`);
+
+    return db.transaction(async (tx) => {
+      for (const p of payments) {
+        const acc = await financeRepo.findAccount(p.accountId, tx);
+        if (!acc) throw badRequest('Счёт оплаты не найден');
+        await financeService.createOperation(
+          { opType: 'Приход', accountId: p.accountId, amount: m2(p.amount), name: 'Поверка (выездная)', source: 'Поверка', orderId, accountName: acc.name },
+          actor?.id ?? null, tx,
+        );
+      }
+      // Все позиции заявки → «Оплачено» (+ списание клейма по каждой).
+      for (const c of certs) {
+        const upd = await certsRepo.update(c.id, { payStatus: 'Оплачено' }, tx);
+        await productsService.syncCertSeal({ id: upd.id, serialNo: upd.serialNo }, sealFor(upd), actor, tx);
+      }
+      return { ok: true, total: m2(total), count: certs.length };
+    });
   },
 };

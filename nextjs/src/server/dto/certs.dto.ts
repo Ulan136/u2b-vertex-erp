@@ -16,6 +16,7 @@ export const certUpsertSchema = z.object({
   nextCheckDate: z.string().nullish(),
   stampNo: z.string().nullish(),
   readings: z.union([z.string(), z.number()]).nullish(),
+  amount: z.union([z.string(), z.number()]).nullish(),   // цена поверки (позиции)
   note: z.string().nullish(),
   phone: z.string().nullish(),
   client: z.string().nullish(),
@@ -41,6 +42,14 @@ export function isCertPaid(payStatus?: string | null): boolean {
 }
 
 export type CertQuery = { source?: string | null; archived?: boolean; type?: string | null; orderId?: string | null };
+
+// Приём оплаты поверки (заявки): смешанная оплата — строки {счёт, сумма}.
+export const poverkaPaymentSchema = z.object({
+  payments: z.array(z.object({
+    accountId: z.string().uuid(),
+    amount: z.coerce.number().positive(),
+  })).min(1, 'Добавьте хотя бы одну оплату'),
+});
 
 // Подготовка полей к вставке/апдейту: undefined убираем (→ дефолт БД / без изменения),
 // пустую строку в date/uuid-колонках приводим к null (иначе Postgres 500 на '').
