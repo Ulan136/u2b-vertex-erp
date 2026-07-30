@@ -54,7 +54,7 @@ test('userCreateSchema: requires name, email and password', () => {
   assert.throws(() => userCreateSchema.parse({ role: 'manager', email: 'a@b.kz', password: 'secret' })); // no name
   assert.throws(() => userCreateSchema.parse({ name: 'X', role: 'manager', password: 'secret' }));         // no email
   assert.throws(() => userCreateSchema.parse({ name: 'X', role: 'manager', email: 'a@b.kz', password: '1' })); // short pw
-  assert.throws(() => userCreateSchema.parse({ name: 'X', role: 'buyer', email: 'a@b.kz', password: 'secret' })); // old role
+  assert.throws(() => userCreateSchema.parse({ name: 'X', role: '', email: 'a@b.kz', password: 'secret' })); // пустая роль
 });
 test('userCreateSchema: a valid new user parses', () => {
   const u = userCreateSchema.parse({ name: 'Иванов И.', phone: '87001234567', position: 'Мастер', role: 'master', email: 'iv@vertex.kz', password: 'secret1' });

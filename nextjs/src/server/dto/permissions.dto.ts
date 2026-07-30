@@ -88,9 +88,25 @@ export function startScreenKey(role: string, perms: PermRow[], keys: readonly st
 
 // ── Zod schema ────────────────────────────────────────────────
 export const permissionUpsertSchema = z.object({
-  role: z.enum(ROLES),
+  role: z.string().min(1),          // системный или кастомный ключ роли
   screenKey: z.enum(SCREEN_KEYS),
   allowed: z.boolean(),
 });
 
 export type PermissionUpsert = z.infer<typeof permissionUpsertSchema>;
+
+// ── Roles (создание пользовательских ролей в «Доступах») ──────
+// Латинский ключ роли генерируется из названия (для users.role / матрицы).
+const TRANSLIT: Record<string, string> = {
+  а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'e',ж:'zh',з:'z',и:'i',й:'y',к:'k',л:'l',м:'m',
+  н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'ts',ч:'ch',ш:'sh',щ:'sch',
+  ъ:'',ы:'y',ь:'',э:'e',ю:'yu',я:'ya',
+};
+export function roleKeyFromLabel(label: string): string {
+  const base = String(label || '').toLowerCase().split('').map(c => TRANSLIT[c] ?? c).join('')
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 32);
+  return base || 'role';
+}
+export const roleCreateSchema = z.object({ label: z.string().trim().min(2, 'Название минимум 2 символа').max(60) });
+export const roleUpdateSchema = z.object({ label: z.string().trim().min(2, 'Название минимум 2 символа').max(60) });
+export type RoleCreate = z.infer<typeof roleCreateSchema>;

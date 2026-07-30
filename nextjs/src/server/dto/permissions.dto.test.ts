@@ -2,8 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   migrateRole, isScreenAllowed, visibleScreenKeys, permissionUpsertSchema,
-  startScreenKey, SCREEN_KEYS, SCREEN_LABELS, type PermRow,
+  startScreenKey, roleKeyFromLabel, SCREEN_KEYS, SCREEN_LABELS, type PermRow,
 } from './permissions.dto';
+
+test('roleKeyFromLabel: кириллица → латинский ключ', () => {
+  assert.equal(roleKeyFromLabel('Кладовщик'), 'kladovschik');
+  assert.equal(roleKeyFromLabel('Менеджер по продажам'), 'menedzher_po_prodazham');
+  assert.equal(roleKeyFromLabel('   '), 'role');   // пусто → безопасный дефолт
+});
 
 test('SCREEN_LABELS: подпись есть для каждого экрана матрицы «Доступы»', () => {
   for (const k of SCREEN_KEYS) assert.ok(SCREEN_LABELS[k], `нет подписи для ${k}`);
@@ -71,9 +77,10 @@ test('permissionUpsertSchema: valid cell parses', () => {
   const p = permissionUpsertSchema.parse({ role: 'manager', screenKey: 'debts', allowed: false });
   assert.equal(p.allowed, false);
 });
-test('permissionUpsertSchema: rejects unknown role or screen', () => {
-  assert.throws(() => permissionUpsertSchema.parse({ role: 'buyer', screenKey: 'debts', allowed: true }));
-  assert.throws(() => permissionUpsertSchema.parse({ role: 'manager', screenKey: 'nope', allowed: true }));
+test('permissionUpsertSchema: роль — любая непустая строка (кастомные роли), экран из каталога', () => {
+  assert.ok(permissionUpsertSchema.parse({ role: 'kladovshchik', screenKey: 'debts', allowed: true })); // кастомная роль — ок
+  assert.throws(() => permissionUpsertSchema.parse({ role: '', screenKey: 'debts', allowed: true }));     // пустая роль — нет
+  assert.throws(() => permissionUpsertSchema.parse({ role: 'manager', screenKey: 'nope', allowed: true })); // чужой экран — нет
 });
 
 // ── start screen per role (with matrix fallback) ─────────────

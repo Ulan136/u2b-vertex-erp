@@ -13,7 +13,10 @@ const EMPTY = { id: '', name: '', email: '', phone: '', position: '', role: 'man
 export default function UsersPage() {
   const { data: users, error, isLoading, mutate } = useApi<User[]>('/api/v2/users?all=1');
   const { data: branches } = useApi<Branch[]>('/api/v2/branches');
+  const { data: roleList } = useApi<{ key: string; label: string }[]>('/api/v2/roles');
   const branchName = (id?: string | null) => (branches || []).find(b => b.id === id)?.name;
+  const roleOptions = (roleList && roleList.length) ? roleList : ROLES.map(k => ({ key: k, label: ROLE[k] }));
+  const roleLabel = (k: string) => (roleList || []).find(r => r.key === k)?.label || ROLE[k] || k;
   const [modal, setModal] = React.useState(false);
   const [f, setF] = React.useState<typeof EMPTY>(EMPTY);
   const [saving, setSaving] = React.useState(false);
@@ -47,7 +50,7 @@ export default function UsersPage() {
             <tbody>{list.map(u => (
               <tr key={u.id}>
                 <td className="erp-td-main">{u.name}</td><td className="erp-muted" style={{ fontSize: 12 }}>{u.email}</td><td style={{ fontSize: 12 }}>{u.phone || '—'}</td>
-                <td style={{ fontSize: 12 }}>{u.position || '—'}</td><td><Badge tone={u.role === 'admin' || u.role === 'director' ? 'info' : 'neutral'}>{ROLE[u.role] || u.role}</Badge></td>
+                <td style={{ fontSize: 12 }}>{u.position || '—'}</td><td><Badge tone={u.role === 'admin' || u.role === 'director' ? 'info' : 'neutral'}>{roleLabel(u.role)}</Badge></td>
                 <td style={{ fontSize: 12 }}>{branchName(u.branchId) || '—'}</td>
                 <td><Badge tone={u.isActive === false ? 'warn' : 'ok'}>{u.isActive === false ? 'Неактивен' : 'Активен'}</Badge></td>
                 <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}><button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(u)}>✏️</button><button className="erp-icon-btn" title={u.isActive === false ? 'Активировать' : 'Деактивировать'} onClick={() => toggleActive(u)}>{u.isActive === false ? '↩️' : '🚫'}</button></td>
@@ -61,7 +64,7 @@ export default function UsersPage() {
         {err && <div className="erp-form-err">{err}</div>}
         <div className="erp-form-row"><Field label="ФИО" required><Input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field><Field label="Должность"><Input value={f.position} onChange={e => setF({ ...f, position: e.target.value })} /></Field></div>
         <div className="erp-form-row"><Field label="Email (логин)" required><Input value={f.email} onChange={e => setF({ ...f, email: e.target.value })} disabled={!!f.id} /></Field><Field label="Телефон"><Input value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} /></Field></div>
-        <div className="erp-form-row"><Field label="Роль"><Select value={f.role} onChange={e => setF({ ...f, role: e.target.value })}>{ROLES.map(r => <option key={r} value={r}>{ROLE[r]}</option>)}</Select></Field><Field label="Филиал"><Select value={f.branchId} onChange={e => setF({ ...f, branchId: e.target.value })}><option value="">— головной —</option>{(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Field></div>
+        <div className="erp-form-row"><Field label="Роль"><Select value={f.role} onChange={e => setF({ ...f, role: e.target.value })}>{roleOptions.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}</Select></Field><Field label="Филиал"><Select value={f.branchId} onChange={e => setF({ ...f, branchId: e.target.value })}><option value="">— головной —</option>{(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Field></div>
         <Field label={f.id ? 'Новый пароль (если менять)' : 'Пароль'} required={!f.id}><Input type="password" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} placeholder={f.id ? 'оставьте пустым' : 'мин. 4 символа'} /></Field>
       </Modal>
     </div>

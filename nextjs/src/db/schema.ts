@@ -43,7 +43,7 @@ export const users = pgTable('users', {
   name         : varchar('name', { length: 150 }).notNull(),
   phone        : varchar('phone', { length: 20 }),            // normalized to +7XXXXXXXXXX
   position     : varchar('position', { length: 100 }),
-  role         : userRoleEnum('role').notNull().default('manager'),
+  role         : varchar('role', { length: 40 }).notNull().default('manager'),   // ключ из roles (системный или кастомный)
   branchId     : uuid('branch_id').references(() => branches.id),
   passwordHash : varchar('password_hash', { length: 255 }),
   isActive     : boolean('is_active').default(true),
@@ -412,6 +412,16 @@ export const debtPayments = pgTable('debt_payments', {
   comment     : text('comment'),
   createdBy   : uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+// ── ROLES (системные + пользовательские) ─────────────────────
+// key — латиница (хранится в users.role и role_permissions.role); label —
+// подпись в UI; is_system — 5 базовых ролей (нельзя удалить/переименовать ключ).
+export const roles = pgTable('roles', {
+  key       : varchar('key', { length: 40 }).primaryKey(),
+  label     : varchar('label', { length: 80 }).notNull(),
+  isSystem  : boolean('is_system').notNull().default(false),
+  createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
 // ── ROLE PERMISSIONS (доступ ролей к экранам) ─────────────────

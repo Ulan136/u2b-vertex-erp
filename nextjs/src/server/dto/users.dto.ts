@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { ROLES } from '@/server/dto/permissions.dto';
 import { normalizePhone } from '@/server/dto/clients.dto';
 import { badRequest } from '@/server/lib/errors';
 
@@ -30,7 +29,7 @@ export const userCreateSchema = z.object({
   name: z.string().trim().min(1, 'ФИО обязательно'),
   phone: z.string().nullish(),
   position: z.string().nullish(),
-  role: z.enum(ROLES),
+  role: z.string().min(1),   // ключ роли (системной или кастомной)
   branchId: z.string().uuid().nullish(),   // филиал сотрудника
   email: z.string().trim().email('Некорректный email'),   // login
   password: z.string().min(4, 'Пароль минимум 4 символа'), // login
@@ -40,7 +39,7 @@ export const userUpdateSchema = z.object({
   name: z.string().trim().min(1).optional(),
   phone: z.string().nullish(),
   position: z.string().nullish(),
-  role: z.enum(ROLES).optional(),
+  role: z.string().min(1).optional(),
   branchId: z.string().uuid().nullish(),   // филиал сотрудника
   email: z.string().trim().email().optional(),
   password: z.string().min(4).optional(),   // only rehashed when provided
