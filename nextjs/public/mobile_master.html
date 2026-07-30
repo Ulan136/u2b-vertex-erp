@@ -609,17 +609,23 @@ async function zaSaveHeader(){
   catch(e){ if(e.message!=='auth')toast('⚠️ '+e.message); }
 }
 
-// ── ОПЛАТА заявки: смешанная по счетам раздела «Поверка» (№1) ──
-let poverkaAccounts=[];
-async function loadPoverkaAccounts(){
-  try{ const r=await fetch('/api/v2/finance',{cache:'no-store'}); if(r.ok){ const d=await r.json(); poverkaAccounts=(d.accounts||[]).filter(a=>a.section==='poverka'); } }catch(e){}
+// ── ОПЛАТА заявки: смешанная, счёт из ЛЮБОГО раздела (по умолчанию №1 Поверка) ──
+const SECTION_LABEL={poverka:'№1 Поверка',sale:'№2 Продажа',branch:'№3 Филиалы',other:'№4 Прочие'};
+const SECTION_ORDER=['poverka','sale','branch','other'];
+let payAccounts=[];
+async function loadPayAccounts(){
+  try{ const r=await fetch('/api/v2/finance',{cache:'no-store'}); if(r.ok){ const d=await r.json(); payAccounts=d.accounts||[]; } }catch(e){}
 }
 function fmtSum(n){ return Number(n||0).toLocaleString('ru-RU'); }
 function zaTotal(){ return zaPositions.reduce((s,c)=>s+Number(c.amount||0),0); }
 function zaAccOptions(){
-  return poverkaAccounts.length
-    ? poverkaAccounts.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')
-    : '<option value="">— нет счетов «Поверка» —</option>';
+  if(!payAccounts.length) return '<option value="">— нет счетов —</option>';
+  // Счета сгруппированы по разделам; «Поверка» (№1) идёт первой → выбрана по умолчанию.
+  return SECTION_ORDER.map(sec=>{
+    const accs=payAccounts.filter(a=>(a.section||'other')===sec);
+    if(!accs.length) return '';
+    return `<optgroup label="${SECTION_LABEL[sec]}">${accs.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</optgroup>`;
+  }).join('');
 }
 function zaPayRowNode(amount){
   const div=document.createElement('div'); div.className='za-pay-row';
@@ -776,7 +782,7 @@ function mvClose(){ if(mvRecog){try{mvRecog.onend=null;mvRecog.stop();}catch(e){
   await loadMe();
   document.getElementById('hdr-sub').textContent=(me&&me.name?me.name:'Мастер')+' · '+(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+d.getFullYear();})();
   await loadOrders();
-  loadPoverkaAccounts();   // счета раздела «Поверка» для приёма оплаты
+  loadPayAccounts();   // счета всех разделов для приёма оплаты
   setInterval(loadOrders,60000);
   // Общий модуль: колокольчик + экран «Задачи» + комментарии + обновление
   if(window.CabinetCommon) CabinetCommon.init({ me, onOpenTasks:()=>goScreen('tasks'), onRefresh:()=>loadOrders() });
