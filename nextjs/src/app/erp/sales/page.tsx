@@ -3,7 +3,7 @@ import * as React from 'react';
 import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
 import { getRecent, pushRecent, removeRecent, type RecentItem } from '@/lib/recent';
 
@@ -57,7 +57,11 @@ export default function SalesPage() {
   const [topup, setTopup] = React.useState<{ open: boolean; sale: Sale | null; rows: FormPay[]; err: string; saving: boolean }>({ open: false, sale: null, rows: [emptyPay()], err: '', saving: false });
 
   const list = React.useMemo(() => sales || [], [sales]);
-  const active = list.filter(x => !x.cancelledAt);
+  const [fFrom, setFFrom] = React.useState('');
+  const [fTo, setFTo] = React.useState('');
+  const inRange = (d?: string | null) => { const x = (d || '').slice(0, 10); if (fFrom && x < fFrom) return false; if (fTo && x > fTo) return false; return true; };
+  const visible = list.filter(s => inRange(s.saleDate));   // фильтр по дням (влияет на таблицу, KPI, экспорт)
+  const active = visible.filter(x => !x.cancelledAt);
   const total = active.reduce((s, x) => s + num(x.totalSum), 0);
   const paidSum = active.reduce((s, x) => s + num(x.paidSum), 0);
   const pendingSum = total - paidSum;
@@ -240,14 +244,20 @@ export default function SalesPage() {
         <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">⏳</span><span className="erp-kpi-label">Ожидает оплаты</span></div><div className="erp-kpi-val" style={{ color: '#b45309' }}>{fmt(pendingSum)} ₸</div></div>
       </div>
 
+      <Card className="erp-filters" style={{ flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+        <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
+        <span style={{ marginLeft: 'auto', fontSize: 12 }} className="erp-muted">Показано: <b>{visible.length}</b> · Итого: <b>{fmt(total)} ₸</b></span>
+      </Card>
+
       <Card style={{ padding: 0, marginTop: 12, overflowX: 'auto' }}>
         {error ? <EmptyRow>Нет доступа к продажам.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
           : list.length === 0 ? <EmptyRow>Продаж пока нет. Нажмите «+ Продажа».</EmptyRow>
+          : visible.length === 0 ? <EmptyRow>Нет продаж за выбранный период.</EmptyRow>
           : (
             <table className="erp-table">
               <thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Тип</th><th>Товар</th><th style={{ textAlign: 'right' }}>Кол-во</th><th style={{ textAlign: 'right' }}>Сумма</th><th>Оплата</th><th>Счёт</th><th>Автор</th><th></th></tr></thead>
               <tbody>
-                {list.map(s => {
+                {visible.map(s => {
                   const cancelled = !!s.cancelledAt;
                   const st = s.payStatus || 'Ожидает';
                   const canTopup = !cancelled && (st === 'Ожидает' || st === 'Частично');

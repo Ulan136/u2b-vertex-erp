@@ -3,7 +3,7 @@ import * as React from 'react';
 import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
 
 type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; accountId: string; source?: string | null; comment?: string | null; expenseCat?: string | null; subCategory?: string | null; supplier?: string | null; docNo?: string | null; status?: string | null; orderId?: string | null; createdByName?: string | null };
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; sortOrder?: number | null; balance?: string | number | null };
@@ -52,12 +52,17 @@ export default function ExpensesPage() {
   const [q, setQ] = React.useState('');
   const [fAcc, setFAcc] = React.useState('');
   const [fStatus, setFStatus] = React.useState('');
+  const [fFrom, setFFrom] = React.useState('');
+  const [fTo, setFTo] = React.useState('');
   const [pick, setPick] = React.useState<{ cat: string; sub: string }>({ cat: '', sub: '' });
 
   const list = expenses.filter(o => {
     if (q.trim() && !`${o.name || ''} ${o.supplier || ''} ${o.comment || ''}`.toLowerCase().includes(q.toLowerCase())) return false;
     if (fAcc && accName(o) !== fAcc) return false;
     if (fStatus && statusOf(o) !== fStatus) return false;
+    const d = (o.opDate || '').slice(0, 10);
+    if (fFrom && d < fFrom) return false;
+    if (fTo && d > fTo) return false;
     if (pick.cat && catOf(o) !== pick.cat) return false;
     if (pick.sub && subOf(o) !== pick.sub) return false;
     return true;
@@ -167,6 +172,7 @@ export default function ExpensesPage() {
             <Input placeholder="🔍 Описание, поставщик…" value={q} onChange={e => setQ(e.target.value)} style={{ maxWidth: 200 }} />
             <Select value={fAcc} onChange={e => setFAcc(e.target.value)}><option value="">Счёт: все</option>{Array.from(new Set(accounts.map(a => a.name))).map(n => <option key={n}>{n}</option>)}</Select>
             <Select value={fStatus} onChange={e => setFStatus(e.target.value)}><option value="">Статус: все</option>{STATUSES.map(s => <option key={s}>{s}</option>)}</Select>
+            <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
             <span style={{ marginLeft: 'auto', fontSize: 12 }} className="erp-muted">Записей: <b>{list.length}</b> · <b style={{ color: '#dc2626' }}>{fmt(listSum)}</b></span>
           </Card>
 
