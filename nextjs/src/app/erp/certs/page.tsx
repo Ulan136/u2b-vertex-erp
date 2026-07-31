@@ -271,6 +271,23 @@ function CertsInner() {
   }
 
   const Mic = ({ k, h }: { k: keyof typeof EMPTY; h: string }) => <button type="button" className="cert-mic" title={`🎤 ${h}`} onClick={() => voiceField(k, h)}>🎤</button>;
+  // Копирование значения поля в буфер — для ручной вставки на сайт е-КТРМ.
+  const copyVal = async (v: unknown) => {
+    const s = v == null ? '' : String(v).trim();
+    if (!s) { toast('Пусто — нечего копировать'); return; }
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('no-clipboard');
+      await navigator.clipboard.writeText(s);
+      toast('📋 Скопировано: ' + (s.length > 24 ? s.slice(0, 24) + '…' : s));
+    } catch {
+      const ta = document.createElement('textarea'); ta.value = s; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      let ok = false; try { ok = document.execCommand('copy'); } catch { /* ignore */ }
+      document.body.removeChild(ta);
+      toast(ok ? '📋 Скопировано' : '⚠️ Не удалось скопировать');
+    }
+  };
+  const Copy = ({ v, h }: { v: unknown; h?: string }) => <button type="button" className="cert-mic" title={`📋 Копировать${h ? ' — ' + h : ''}`} onClick={() => copyVal(v)}>📋</button>;
   // Инлайн-селект статуса, стилизован как бейдж.
   const SSel = ({ c, field, opts, tone }: { c: Cert; field: keyof Cert; opts: string[]; tone: 'ok' | 'warn' | 'info' | 'neutral' }) => (
     <select className={`cert-inline-sel tone-${tone}`} value={(c[field] as string) || opts[0]} onChange={e => patchField(c, field, e.target.value)} title="Изменить">
@@ -416,12 +433,12 @@ function CertsInner() {
           {voiceSupported && <button type="button" className="cert-voice-all" onClick={voiceAll}>🎤 Заполнить голосом</button>}
         </div>
         <div className="erp-form-row">
-          <Field label="ФИО абонента" required><div className="cert-vf"><Input value={form.fio} onChange={e => setForm({ ...form, fio: e.target.value })} placeholder="ФИО" /><Mic k="fio" h="ФИО абонента" /></div></Field>
-          <Field label="Адрес"><div className="cert-vf"><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Адрес" /><Mic k="address" h="Адрес" /></div></Field>
+          <Field label="ФИО абонента" required><div className="cert-vf"><Input value={form.fio} onChange={e => setForm({ ...form, fio: e.target.value })} placeholder="ФИО" /><Mic k="fio" h="ФИО абонента" /><Copy v={form.fio} h="ФИО" /></div></Field>
+          <Field label="Адрес"><div className="cert-vf"><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Адрес" /><Mic k="address" h="Адрес" /><Copy v={form.address} h="Адрес" /></div></Field>
         </div>
         <div className="erp-form-row">
           <Field label="Тип прибора">
-            <div style={{ position: 'relative' }}>
+            <div className="cert-vf"><div style={{ position: 'relative', flex: 1 }}>
               <Input value={form.meterType} onChange={e => { setForm({ ...form, meterType: e.target.value }); setMeterOpen(true); }} onFocus={() => setMeterOpen(true)} onBlur={() => setTimeout(() => setMeterOpen(false), 150)} onKeyDown={meterKey} placeholder="Начните вводить — справочник и склад" />
               {meterOpen && meterFlat.length > 0 && (
                 <div className="cert-meter-dd">
@@ -442,19 +459,19 @@ function CertsInner() {
                   {skuHits.map((s, jj) => { const idx = (deviceHits || []).length + jj; return <div key={`s-${s.label}`} className={`cert-meter-opt${meterIdx === idx ? ' is-active' : ''}`} onMouseEnter={() => setMeterIdx(idx)} onMouseDown={() => pickMeter(s.value)}>{s.label}</div>; })}
                 </div>
               )}
-            </div>
+            </div><Copy v={form.meterType} h="Тип прибора" /></div>
           </Field>
-          <Field label="Заводской номер"><div className="cert-vf"><Input value={form.serialNo} onChange={e => setForm({ ...form, serialNo: e.target.value })} placeholder="Серийный номер" style={{ fontFamily: 'monospace' }} /><Mic k="serialNo" h="Номер счётчика" /></div></Field>
+          <Field label="Заводской номер"><div className="cert-vf"><Input value={form.serialNo} onChange={e => setForm({ ...form, serialNo: e.target.value })} placeholder="Серийный номер" style={{ fontFamily: 'monospace' }} /><Mic k="serialNo" h="Номер счётчика" /><Copy v={form.serialNo} h="Зав. №" /></div></Field>
         </div>
         <div className="erp-form-row">
-          <Field label="Дата поверки"><Input type="date" value={form.checkDate} onChange={e => onCheckDate(e.target.value)} /></Field>
+          <Field label="Дата поверки"><div className="cert-vf"><Input type="date" value={form.checkDate} onChange={e => onCheckDate(e.target.value)} /><Copy v={form.checkDate ? dmy(form.checkDate) : ''} h="Дата поверки" /></div></Field>
           {isCert
-            ? <Field label="Дата очередной поверки"><Input type="date" value={form.nextCheckDate} onChange={e => setForm({ ...form, nextCheckDate: e.target.value })} /></Field>
-            : <Field label="Гор/хол вода"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option>х/в</option><option>г/в</option></Select></Field>}
+            ? <Field label="Дата очередной поверки"><div className="cert-vf"><Input type="date" value={form.nextCheckDate} onChange={e => setForm({ ...form, nextCheckDate: e.target.value })} /><Copy v={form.nextCheckDate ? dmy(form.nextCheckDate) : ''} h="След. поверка" /></div></Field>
+            : <Field label="Гор/хол вода"><div className="cert-vf"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option>х/в</option><option>г/в</option></Select><Copy v={form.waterType} h="Вода" /></div></Field>}
         </div>
         {isCert && (<>
           <div className="erp-form-row">
-            <Field label="№ клейма"><div className="cert-vf"><Input value={form.stampNo} onChange={e => setForm({ ...form, stampNo: e.target.value })} placeholder="0000000" style={{ fontFamily: 'monospace' }} /><Mic k="stampNo" h="Номер клейма" /></div></Field>
+            <Field label="№ клейма"><div className="cert-vf"><Input value={form.stampNo} onChange={e => setForm({ ...form, stampNo: e.target.value })} placeholder="0000000" style={{ fontFamily: 'monospace' }} /><Mic k="stampNo" h="Номер клейма" /><Copy v={form.stampNo} h="№ клейма" /></div></Field>
             <Field label="Тип поверительного клейма">
               <div className="cert-seal">
                 <label><input type="radio" name="sealType" checked={form.sealType === 'СЛ'} onChange={() => setForm({ ...form, sealType: 'СЛ' })} /> Самоклеющийся лейбл (СЛ)</label>
@@ -463,13 +480,13 @@ function CertsInner() {
             </Field>
           </div>
           <div className="erp-form-row">
-            <Field label="Показания м³"><div className="cert-vf"><Input type="number" value={form.readings} onChange={e => setForm({ ...form, readings: e.target.value })} /><Mic k="readings" h="Показания в кубометрах" /></div></Field>
-            <Field label="Тип воды"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option>х/в</option><option>г/в</option></Select></Field>
+            <Field label="Показания м³"><div className="cert-vf"><Input type="number" value={form.readings} onChange={e => setForm({ ...form, readings: e.target.value })} /><Mic k="readings" h="Показания в кубометрах" /><Copy v={form.readings} h="Показания" /></div></Field>
+            <Field label="Тип воды"><div className="cert-vf"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option>х/в</option><option>г/в</option></Select><Copy v={form.waterType} h="Вода" /></div></Field>
           </div>
         </>)}
         <div className="erp-form-row">
           <Field label="Результат поверки"><Select value={form.result} onChange={e => setForm({ ...form, result: e.target.value })}><option value="Годен">✅ Годен</option><option value="Не годен">⛔ Не годен</option></Select></Field>
-          <Field label="Год выпуска"><div className="cert-vf"><Input type="number" value={form.yearMade} onChange={e => setForm({ ...form, yearMade: e.target.value })} placeholder="2020" /><Mic k="yearMade" h="Год выпуска" /></div></Field>
+          <Field label="Год выпуска"><div className="cert-vf"><Input type="number" value={form.yearMade} onChange={e => setForm({ ...form, yearMade: e.target.value })} placeholder="2020" /><Mic k="yearMade" h="Год выпуска" /><Copy v={form.yearMade} h="Год выпуска" /></div></Field>
         </div>
         <div className="erp-form-row">
           <Field label="Телефон (не печатается)"><div className="cert-vf"><Input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+7 700 000 00 00" /><Mic k="phone" h="Телефон" /></div></Field>
