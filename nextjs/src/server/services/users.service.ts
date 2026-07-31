@@ -11,14 +11,21 @@ export const usersService = {
 
   async create(input: unknown) {
     const data = userCreateSchema.parse(input);
-    if (await usersRepo.findByEmail(data.email)) throw conflict('Пользователь с таким email уже есть');
+    const phone = normalizePhone(data.phone);
+    // email в БД NOT NULL UNIQUE, но вход возможен и по телефону. Если почты нет —
+    // генерим тех.заглушку из телефона (вход по телефону работает как обычно).
+    const email = (data.email && data.email.trim())
+      ? data.email.trim().toLowerCase()
+      : (phone ? `${phone.replace(/\D/g, '')}@phone.local` : '');
+    if (!email) throw conflict('Укажите email или телефон');
+    if (await usersRepo.findByEmail(email)) throw conflict('Пользователь с таким email/телефоном уже есть');
     return usersRepo.create({
       name: data.name,
-      phone: normalizePhone(data.phone),
+      phone,
       position: data.position ?? null,
       role: data.role,
       branchId: data.branchId ?? null,
-      email: data.email,
+      email,
       passwordHash: await bcrypt.hash(data.password, 10),
       isActive: true,
     });

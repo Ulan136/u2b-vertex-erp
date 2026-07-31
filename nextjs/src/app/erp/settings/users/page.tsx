@@ -27,7 +27,8 @@ export default function UsersPage() {
   const openEdit = (u: User) => { setF({ id: u.id, name: u.name, email: u.email || '', phone: u.phone || '', position: u.position || '', role: u.role, branchId: u.branchId || '', password: '' }); setErr(''); setModal(true); };
   async function save() {
     if (!f.name.trim()) { setErr('ФИО обязательно'); return; }
-    if (!f.id && (!f.email.trim() || f.password.length < 4)) { setErr('Email и пароль (мин. 4) обязательны'); return; }
+    if (!f.id && (!f.email.trim() && !f.phone.trim())) { setErr('Укажите email или телефон (это логин)'); return; }
+    if (!f.id && f.password.length < 4) { setErr('Пароль минимум 4 символа'); return; }
     setSaving(true); setErr('');
     const body: Record<string, unknown> = { name: f.name.trim(), phone: f.phone || null, position: f.position || null, role: f.role, branchId: f.branchId || null };
     if (!f.id) { body.email = f.email.trim(); body.password = f.password; }
@@ -49,7 +50,7 @@ export default function UsersPage() {
             <thead><tr><th>ФИО</th><th>Email</th><th>Телефон</th><th>Должность</th><th>Роль</th><th>Филиал</th><th>Статус</th><th style={{ textAlign: 'right' }}></th></tr></thead>
             <tbody>{list.map(u => (
               <tr key={u.id}>
-                <td className="erp-td-main">{u.name}</td><td className="erp-muted" style={{ fontSize: 12 }}>{u.email}</td><td style={{ fontSize: 12 }}>{u.phone || '—'}</td>
+                <td className="erp-td-main">{u.name}</td><td className="erp-muted" style={{ fontSize: 12 }}>{u.email && u.email.endsWith('@phone.local') ? '📱 по телефону' : (u.email || '—')}</td><td style={{ fontSize: 12 }}>{u.phone || '—'}</td>
                 <td style={{ fontSize: 12 }}>{u.position || '—'}</td><td><Badge tone={u.role === 'admin' || u.role === 'director' ? 'info' : 'neutral'}>{roleLabel(u.role)}</Badge></td>
                 <td style={{ fontSize: 12 }}>{branchName(u.branchId) || '—'}</td>
                 <td><Badge tone={u.isActive === false ? 'warn' : 'ok'}>{u.isActive === false ? 'Неактивен' : 'Активен'}</Badge></td>
@@ -63,7 +64,7 @@ export default function UsersPage() {
         footer={<><Button onClick={save} disabled={saving}>{saving ? '…' : 'Сохранить'}</Button><Button variant="outline" onClick={() => setModal(false)}>Отмена</Button></>}>
         {err && <div className="erp-form-err">{err}</div>}
         <div className="erp-form-row"><Field label="ФИО" required><Input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field><Field label="Должность"><Input value={f.position} onChange={e => setF({ ...f, position: e.target.value })} /></Field></div>
-        <div className="erp-form-row"><Field label="Email (логин)" required><Input value={f.email} onChange={e => setF({ ...f, email: e.target.value })} disabled={!!f.id} /></Field><Field label="Телефон"><Input value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} /></Field></div>
+        <div className="erp-form-row"><Field label="Email (логин, необязательно)"><Input value={f.email} onChange={e => setF({ ...f, email: e.target.value })} disabled={!!f.id} placeholder="можно оставить пустым" /></Field><Field label="Телефон (логин)"><Input value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} placeholder="+7…" /></Field></div>
         <div className="erp-form-row"><Field label="Роль"><Select value={f.role} onChange={e => setF({ ...f, role: e.target.value })}>{roleOptions.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}</Select></Field><Field label="Филиал"><Select value={f.branchId} onChange={e => setF({ ...f, branchId: e.target.value })}><option value="">— головной —</option>{(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Field></div>
         <Field label={f.id ? 'Новый пароль (если менять)' : 'Пароль'} required={!f.id}><Input type="password" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} placeholder={f.id ? 'оставьте пустым' : 'мин. 4 символа'} /></Field>
       </Modal>

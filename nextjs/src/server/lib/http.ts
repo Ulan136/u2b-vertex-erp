@@ -74,7 +74,8 @@ export function withApi(handler: Handler) {
     } catch (err) {
       if (err instanceof ZodError) {
         console.warn(`[${req.method} ${path}] validation`, err.issues);
-        return json({ error: 'Validation error', issues: err.issues }, 400);
+        // Показываем первое человекочитаемое сообщение (было общее «Validation error»).
+        return json({ error: err.issues[0]?.message || 'Ошибка валидации', issues: err.issues }, 400);
       }
       if (err instanceof ApiError) {
         console.warn(`[${req.method} ${path}]`, err.message);

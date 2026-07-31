@@ -52,9 +52,14 @@ test('assertCanDeactivate: deactivating a different user is allowed', () => {
 // ── create validation (login fields required) ────────────────
 test('userCreateSchema: requires name, email and password', () => {
   assert.throws(() => userCreateSchema.parse({ role: 'manager', email: 'a@b.kz', password: 'secret' })); // no name
-  assert.throws(() => userCreateSchema.parse({ name: 'X', role: 'manager', password: 'secret' }));         // no email
+  assert.throws(() => userCreateSchema.parse({ name: 'X', role: 'manager', password: 'secret' }));         // ни email, ни телефона
   assert.throws(() => userCreateSchema.parse({ name: 'X', role: 'manager', email: 'a@b.kz', password: '1' })); // short pw
   assert.throws(() => userCreateSchema.parse({ name: 'X', role: '', email: 'a@b.kz', password: 'secret' })); // пустая роль
+  assert.throws(() => userCreateSchema.parse({ name: 'X', role: 'manager', email: '@vertex', password: 'secret' })); // битый email
+});
+test('userCreateSchema: телефон вместо email — логин по телефону', () => {
+  const u = userCreateSchema.parse({ name: 'Тех персонал', role: 'personal', phone: '+77778889966', password: 'secret' });
+  assert.equal(u.role, 'personal');
 });
 test('userCreateSchema: a valid new user parses', () => {
   const u = userCreateSchema.parse({ name: 'Иванов И.', phone: '87001234567', position: 'Мастер', role: 'master', email: 'iv@vertex.kz', password: 'secret1' });

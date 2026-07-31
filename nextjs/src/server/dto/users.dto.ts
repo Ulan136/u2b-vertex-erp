@@ -31,9 +31,15 @@ export const userCreateSchema = z.object({
   position: z.string().nullish(),
   role: z.string().min(1),   // ключ роли (системной или кастомной)
   branchId: z.string().uuid().nullish(),   // филиал сотрудника
-  email: z.string().trim().email('Некорректный email'),   // login
+  email: z.string().trim().optional(),   // логин: email ИЛИ телефон
   password: z.string().min(4, 'Пароль минимум 4 символа'), // login
-});
+})
+  // Логин — email или телефон; хотя бы одно обязательно.
+  .refine(d => (!!d.email && d.email.length > 0) || !!normalizePhone(d.phone),
+    { message: 'Укажите email или телефон (это логин)', path: ['email'] })
+  // Если email задан — он должен быть корректным.
+  .refine(d => !d.email || d.email.length === 0 || z.string().email().safeParse(d.email).success,
+    { message: 'Некорректный email', path: ['email'] });
 
 export const userUpdateSchema = z.object({
   name: z.string().trim().min(1).optional(),
