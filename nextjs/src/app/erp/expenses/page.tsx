@@ -102,8 +102,8 @@ export default function ExpensesPage() {
 
   async function save() {
     const amount = num(f.amount);
-    // Комментарий обязателен (кроме зарплаты — там обязателен сотрудник).
-    if (!isSalary && !f.comment.trim()) { setF(s => ({ ...s, err: 'Заполните комментарий — без него расход не сохранить' })); return; }
+    // Описание расхода обязательно (кроме зарплаты — там обязателен сотрудник).
+    if (!isSalary && !f.desc.trim()) { setF(s => ({ ...s, err: 'Заполните описание — без него расход не сохранить' })); return; }
     const meta = { expenseCat: cat?.name || null, subCategory: f.subName || null, supplier: f.supplier || null, docNo: f.docNo || null, status: f.status, orderId: f.orderId || null };
     const name = (f.desc || cat?.name || 'Расход');
     // ── правка: только метаданные (сумма/счета не трогаем — балансы защищены) ──
@@ -235,7 +235,7 @@ export default function ExpensesPage() {
           <Field label="Дата" required><Input type="date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field>
           <Field label="Сумма (₸)" required><Input type="number" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} disabled={!!f.editId} /></Field>
         </div>
-        <Field label="Описание"><Input value={f.desc} onChange={e => setF({ ...f, desc: e.target.value })} placeholder="Необязательно — по умолчанию название категории" /></Field>
+        <Field label="Описание расхода" required={!isSalary}><Input value={f.desc} onChange={e => setF({ ...f, desc: e.target.value })} placeholder={isSalary ? 'Необязательно — по умолчанию название категории' : 'Обязательно — за что расход'} /></Field>
         {isSalary && !f.editId
           ? <Field label="Сотрудник (получатель)" required><Select value={f.employeeId} onChange={e => setF({ ...f, employeeId: e.target.value })}><option value="">— выберите —</option>{(emp?.employees || []).filter(e => !e.salaryHidden).map(e => <option key={e.userId} value={e.userId}>{e.name}</option>)}</Select></Field>
           : <Field label="Поставщик / Получатель"><Input value={f.supplier} onChange={e => setF({ ...f, supplier: e.target.value })} placeholder="Название или ФИО" /></Field>}
@@ -271,7 +271,7 @@ export default function ExpensesPage() {
           </Field>
           <Field label="№ документа"><Input value={f.docNo} onChange={e => setF({ ...f, docNo: e.target.value })} placeholder="СЧ-2026-001" /></Field>
         </div>
-        <Field label="Комментарий" required={!isSalary}><Input value={f.comment} onChange={e => setF({ ...f, comment: e.target.value })} placeholder={isSalary ? 'Доп. информация…' : 'Обязательно — за что расход'} /></Field>
+        <Field label="Комментарий"><Input value={f.comment} onChange={e => setF({ ...f, comment: e.target.value })} placeholder="Доп. информация…" /></Field>
         <div className="erp-muted" style={{ fontSize: 11, marginTop: 6 }}>Ответственный: <b>{respName}</b> (текущий пользователь).{f.editId ? ' Сумму и счёт при правке не меняем — балансы защищены (для смены — удалите и создайте заново).' : (isSalary ? ' Выплата идёт через кадры (контроль переплаты).' : '')}</div>
       </Modal>
 
