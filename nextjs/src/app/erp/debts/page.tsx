@@ -3,7 +3,7 @@ import * as React from 'react';
 import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
 
 type Debt = { id: string; type: string; amount: string | number; paidAmount: string | number; status: string; clientName?: string | null; counterpartyName?: string | null; accountId?: string | null; accountName?: string | null; dueDate?: string | null; comment?: string | null; createdByName?: string | null; categoryId?: string | null; categoryName?: string | null; categoryIcon?: string | null };
 type Payment = { id: string; amount: string | number; payDate?: string | null; accountId?: string | null; comment?: string | null; financeOpId?: string | null };
@@ -153,9 +153,7 @@ export default function DebtsPage() {
         </div>
         <Input placeholder="🔍 Контрагент" value={q} onChange={e => setQ(e.target.value)} />
         {isJournal && <>
-          <Input type="date" value={jFrom} onChange={e => setJFrom(e.target.value)} style={{ width: 150 }} />
-          <span className="erp-muted">—</span>
-          <Input type="date" value={jTo} onChange={e => setJTo(e.target.value)} style={{ width: 150 }} />
+          <DateRange from={jFrom} to={jTo} onChange={(f, t) => { setJFrom(f); setJTo(t); }} />
           <Button variant="outline" onClick={exportJournal}>⬇ Excel</Button>
         </>}
       </Card>

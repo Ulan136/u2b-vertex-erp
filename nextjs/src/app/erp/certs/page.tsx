@@ -4,7 +4,7 @@ import { formatDate } from '@/lib/format';
 import { useSearchParams } from 'next/navigation';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
 import { getRecent, pushRecent, removeRecent, type RecentItem } from '@/lib/recent';
 
@@ -71,6 +71,8 @@ function CertsInner() {
   const [q, setQ] = React.useState('');
   const [fOper, setFOper] = React.useState('');
   const [fPay, setFPay] = React.useState('');
+  const [fFrom, setFFrom] = React.useState('');
+  const [fTo, setFTo] = React.useState('');
   const [fInv, setFInv] = React.useState('');
   const [fSent, setFSent] = React.useState('');
   const [histDays, setHistDays] = React.useState('30');
@@ -175,6 +177,9 @@ function CertsInner() {
     if (fPay && c.payStatus !== fPay) return false;
     if (fInv && c.invoiceType !== fInv) return false;
     if (!isCert && fSent && (c.sentStatus || 'Не отправлено') !== fSent) return false;
+    const d = iso(c.checkDate);
+    if (fFrom && d < fFrom) return false;   // фильтр по дате поверки
+    if (fTo && d > fTo) return false;
     return true;
   });
 
@@ -301,6 +306,7 @@ function CertsInner() {
         <Select value={fPay} onChange={e => setFPay(e.target.value)}><option value="">Оплата: все</option>{PAY.map(o => <option key={o}>{o}</option>)}</Select>
         <Select value={fInv} onChange={e => setFInv(e.target.value)}><option value="">Счёт: все</option>{INV.map(o => <option key={o}>{o}</option>)}</Select>
         {!isCert && <Select value={fSent} onChange={e => setFSent(e.target.value)}><option value="">Отправка: все</option>{SENT.map(o => <option key={o}>{o}</option>)}</Select>}
+        <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
       </Card>
 
       <Card style={{ marginTop: 8, padding: 0, overflowX: 'auto' }}>
