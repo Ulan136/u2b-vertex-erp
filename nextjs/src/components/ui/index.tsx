@@ -53,15 +53,18 @@ export function EmptyRow({ children }: { children: React.ReactNode }) {
 // Фильтр по дням: диапазон дат «с … по …» + быстрые пресеты. Значения — ISO
 // (YYYY-MM-DD); пустая строка = без границы. Строковое сравнение дат корректно.
 export function DateRange({ from, to, onChange }: { from: string; to: string; onChange: (from: string, to: string) => void }) {
-  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  // Локальные компоненты, НЕ toISOString (UTC мог сдвинуть день на границе суток).
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const preset = (days: number) => { const t = new Date(); onChange(iso(new Date(t.getTime() - days * 864e5)), iso(t)); };
   const todayOnly = () => { const t = iso(new Date()); onChange(t, t); };
+  const thisMonth = () => { const d = new Date(); onChange(iso(new Date(d.getFullYear(), d.getMonth(), 1)), iso(new Date(d.getFullYear(), d.getMonth() + 1, 0))); };
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
       <input type="date" className="ui-input" style={{ width: 148 }} value={from} max={to || undefined} onChange={e => onChange(e.target.value, to)} title="С даты" />
       <span className="erp-muted" style={{ fontSize: 12 }}>—</span>
       <input type="date" className="ui-input" style={{ width: 148 }} value={to} min={from || undefined} onChange={e => onChange(from, e.target.value)} title="По дату" />
       <button type="button" className="erp-chip" onClick={todayOnly}>Сегодня</button>
+      <button type="button" className="erp-chip" onClick={thisMonth}>Этот месяц</button>
       <button type="button" className="erp-chip" onClick={() => preset(6)}>7 дней</button>
       <button type="button" className="erp-chip" onClick={() => preset(29)}>30 дней</button>
       {(from || to) && <button type="button" className="erp-chip" onClick={() => onChange('', '')}>× сброс</button>}

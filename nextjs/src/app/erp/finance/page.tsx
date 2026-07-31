@@ -3,7 +3,7 @@ import * as React from 'react';
 import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import { Card, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
 import { isRealIncome, isRealExpense } from '@/server/dto/finance.dto';
 import { opIcon, opName, opSign, opAmountColor, isReversed, isReversal } from '@/lib/opDisplay';
 
@@ -75,8 +75,7 @@ export default function FinancePage() {
           <button className={`erp-chip${cat === 'all' ? ' on' : ''}`} onClick={() => setCat('all')}>Все</button>
           {SECTIONS.map(s => <button key={s.key} className={`erp-chip${cat === s.key ? ' on' : ''}`} style={cat === s.key ? { background: s.color, borderColor: s.color, color: '#fff' } : undefined} onClick={() => setCat(s.key)}>№{s.no} {s.icon} {s.label}</button>)}
         </div>
-        <label className="erp-check">с <Input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ width: 150 }} /></label>
-        <label className="erp-check">по <Input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ width: 150 }} /></label>
+        <DateRange from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
       </Card>
 
       <div className="erp-kpi-grid" style={{ marginTop: 12 }}>
