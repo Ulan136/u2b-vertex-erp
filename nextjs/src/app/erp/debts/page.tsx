@@ -30,6 +30,8 @@ export default function DebtsPage() {
   const [tab, setTab] = React.useState('credit');
   const [q, setQ] = React.useState('');
   const [catFilter, setCatFilter] = React.useState('');   // фильтр по категории (кредиторка)
+  const [dFrom, setDFrom] = React.useState('');           // фильтр по сроку (dueDate)
+  const [dTo, setDTo] = React.useState('');
   const isJournal = tab === 'journal';
   const qs = new URLSearchParams(); if (tab === 'debit' || tab === 'credit') qs.set('type', tab); if (q.trim()) qs.set('q', q.trim());
   const { data: debts, error, isLoading, mutate } = useApi<Debt[]>(!isJournal ? '/api/v2/debts' + (qs.toString() ? '?' + qs : '') : null);
@@ -41,9 +43,11 @@ export default function DebtsPage() {
 
   // Список с учётом фильтра по категории (для кредиторки/всех).
   const list = React.useMemo(() => {
-    const base = debts || [];
-    return catFilter ? base.filter(d => (d.categoryId || '') === catFilter) : base;
-  }, [debts, catFilter]);
+    let base = debts || [];
+    if (catFilter) base = base.filter(d => (d.categoryId || '') === catFilter);
+    if (dFrom || dTo) base = base.filter(d => { const x = iso(d.dueDate); if (!x) return false; if (dFrom && x < dFrom) return false; if (dTo && x > dTo) return false; return true; });
+    return base;
+  }, [debts, catFilter, dFrom, dTo]);
 
   const sumRem = (type: string) => (all || []).filter(d => d.type === type && d.status !== 'closed').reduce((s, d) => s + remaining(d), 0);
   const overdueSum = (all || []).filter(d => overdue(d)).reduce((s, d) => s + remaining(d), 0);
@@ -156,6 +160,7 @@ export default function DebtsPage() {
           <DateRange from={jFrom} to={jTo} onChange={(f, t) => { setJFrom(f); setJTo(t); }} />
           <Button variant="outline" onClick={exportJournal}>⬇ Excel</Button>
         </>}
+        {!isJournal && <><span className="erp-muted" style={{ fontSize: 12 }}>Срок:</span><DateRange from={dFrom} to={dTo} onChange={(f, t) => { setDFrom(f); setDTo(t); }} /></>}
       </Card>
 
       {/* Категории (фильтр по кредиторке): чипы с остатком + управление */}
