@@ -102,6 +102,8 @@ export default function ExpensesPage() {
 
   async function save() {
     const amount = num(f.amount);
+    // Комментарий обязателен (кроме зарплаты — там обязателен сотрудник).
+    if (!isSalary && !f.comment.trim()) { setF(s => ({ ...s, err: 'Заполните комментарий — без него расход не сохранить' })); return; }
     const meta = { expenseCat: cat?.name || null, subCategory: f.subName || null, supplier: f.supplier || null, docNo: f.docNo || null, status: f.status, orderId: f.orderId || null };
     const name = (f.desc || cat?.name || 'Расход');
     // ── правка: только метаданные (сумма/счета не трогаем — балансы защищены) ──
@@ -269,7 +271,7 @@ export default function ExpensesPage() {
           </Field>
           <Field label="№ документа"><Input value={f.docNo} onChange={e => setF({ ...f, docNo: e.target.value })} placeholder="СЧ-2026-001" /></Field>
         </div>
-        <Field label="Комментарий"><Input value={f.comment} onChange={e => setF({ ...f, comment: e.target.value })} placeholder="Доп. информация…" /></Field>
+        <Field label="Комментарий" required={!isSalary}><Input value={f.comment} onChange={e => setF({ ...f, comment: e.target.value })} placeholder={isSalary ? 'Доп. информация…' : 'Обязательно — за что расход'} /></Field>
         <div className="erp-muted" style={{ fontSize: 11, marginTop: 6 }}>Ответственный: <b>{respName}</b> (текущий пользователь).{f.editId ? ' Сумму и счёт при правке не меняем — балансы защищены (для смены — удалите и создайте заново).' : (isSalary ? ' Выплата идёт через кадры (контроль переплаты).' : '')}</div>
       </Modal>
 
