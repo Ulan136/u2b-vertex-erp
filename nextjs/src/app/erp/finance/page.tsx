@@ -75,6 +75,13 @@ export default function FinancePage() {
     } catch (e) { setAcc(a => ({ ...a, err: (e as Error).message, saving: false })); }
   }
 
+  // Выбор счёта в модалке операции — сгруппировано по разделам (Поверка/Продажа/…),
+  // внутри раздела его счета (Каспи/БЦК/Наличка). Не «слитно» плоским списком.
+  const acctOptions = SECTIONS.map(s => {
+    const accs = accounts.filter(a => (a.section || 'other') === s.key).sort((x, y) => Number(x.sortOrder ?? 0) - Number(y.sortOrder ?? 0));
+    return accs.length ? <optgroup key={s.key} label={`№${s.no} ${s.label}`}>{accs.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}</optgroup> : null;
+  });
+
   return (
     <div>
       <PageTitle title="Финансы" sub="Счета и операции по разделам" action={
@@ -140,9 +147,9 @@ export default function FinancePage() {
           {['Приход', 'Расход', 'Перевод'].map(t => <button key={t} className={`erp-chip${op.type === t ? ' on' : ''}`} onClick={() => setOp(o => ({ ...o, type: t }))}>{t}</button>)}
         </div>
         <Field label={op.type === 'Перевод' ? 'Со счёта' : 'Счёт'} required>
-          <Select value={op.accountId} onChange={e => setOp(o => ({ ...o, accountId: e.target.value }))}><option value="">— выберите —</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name} · {SECTIONS.find(s => s.key === a.section)?.label}</option>)}</Select>
+          <Select value={op.accountId} onChange={e => setOp(o => ({ ...o, accountId: e.target.value }))}><option value="">— раздел и счёт —</option>{acctOptions}</Select>
         </Field>
-        {op.type === 'Перевод' && <Field label="На счёт" required><Select value={op.toAccountId} onChange={e => setOp(o => ({ ...o, toAccountId: e.target.value }))}><option value="">— выберите —</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name} · {SECTIONS.find(s => s.key === a.section)?.label}</option>)}</Select></Field>}
+        {op.type === 'Перевод' && <Field label="На счёт" required><Select value={op.toAccountId} onChange={e => setOp(o => ({ ...o, toAccountId: e.target.value }))}><option value="">— раздел и счёт —</option>{acctOptions}</Select></Field>}
         <div className="erp-form-row">
           <Field label="Сумма (₸)" required><Input type="number" min={0} value={op.amount} onChange={e => setOp(o => ({ ...o, amount: e.target.value }))} /></Field>
           <Field label="Дата"><Input type="date" value={op.date} onChange={e => setOp(o => ({ ...o, date: e.target.value }))} /></Field>
