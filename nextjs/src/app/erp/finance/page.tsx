@@ -34,7 +34,7 @@ export default function FinancePage() {
   const [opModal, setOpModal] = React.useState(false);
   const [op, setOp] = React.useState({ type: 'Приход', accountId: '', toAccountId: '', amount: '', name: '', date: today(), err: '', saving: false });
   const [acctModal, setAcctModal] = React.useState(false);
-  const [acc, setAcc] = React.useState({ name: '', category: 'kaspi', section: 'poverka', icon: '💳', balance: '', err: '', saving: false });
+  const [acc, setAcc] = React.useState({ id: '', name: '', category: 'kaspi', section: 'poverka', icon: '💳', balance: '', err: '', saving: false });
 
   const sortAccs = (list: Acct[]) => [...list].sort((a, b) => (Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)) || String(a.name).localeCompare(String(b.name)));
 
@@ -55,18 +55,31 @@ export default function FinancePage() {
     try { await apiSend('/api/v2/finance', 'POST', body); setOpModal(false); await mutate(); toast('✅ Операция сохранена'); }
     catch (e) { setOp(o => ({ ...o, err: (e as Error).message, saving: false })); }
   }
+  function editAcct(a: Acct) {
+    const startOp = ops.find(o => o.accountId === a.id && o.source === 'Старт');
+    setAcc({ id: a.id, name: a.name, category: a.category || 'other', section: a.section || 'poverka', icon: a.icon || '💳', balance: startOp ? String(Number(startOp.amount)) : '', err: '', saving: false });
+    setAcctModal(true);
+  }
   async function saveAcct() {
     if (!acc.name.trim()) { setAcc(a => ({ ...a, err: 'Введите название' })); return; }
     setAcc(a => ({ ...a, saving: true, err: '' }));
-    try { await apiSend('/api/v2/finance/accounts', 'POST', { name: acc.name.trim(), category: acc.category, section: acc.section, icon: acc.icon || null, balance: Number(acc.balance) || 0 }); setAcctModal(false); await mutate(); toast('✅ Счёт создан'); }
-    catch (e) { setAcc(a => ({ ...a, err: (e as Error).message, saving: false })); }
+    try {
+      if (acc.id) {
+        await apiSend(`/api/v2/finance/accounts/${acc.id}`, 'PATCH', { name: acc.name.trim(), category: acc.category, section: acc.section, icon: acc.icon || null, startBalance: Number(acc.balance) || 0 });
+        toast('✅ Счёт обновлён');
+      } else {
+        await apiSend('/api/v2/finance/accounts', 'POST', { name: acc.name.trim(), category: acc.category, section: acc.section, icon: acc.icon || null, balance: Number(acc.balance) || 0 });
+        toast('✅ Счёт создан');
+      }
+      setAcctModal(false); await mutate();
+    } catch (e) { setAcc(a => ({ ...a, err: (e as Error).message, saving: false })); }
   }
 
   return (
     <div>
       <PageTitle title="Финансы" sub="Счета и операции по разделам" action={
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="outline" onClick={() => { setAcc({ name: '', category: 'kaspi', section: cat === 'all' ? 'poverka' : cat, icon: '💳', balance: '', err: '', saving: false }); setAcctModal(true); }}>+ Счёт</Button>
+          <Button variant="outline" onClick={() => { setAcc({ id: '', name: '', category: 'kaspi', section: cat === 'all' ? 'poverka' : cat, icon: '💳', balance: '', err: '', saving: false }); setAcctModal(true); }}>+ Счёт</Button>
           <Button onClick={() => { setOp({ type: 'Приход', accountId: '', toAccountId: '', amount: '', name: '', date: today(), err: '', saving: false }); setOpModal(true); }}>+ Операция</Button>
         </div>} />
 
@@ -100,7 +113,7 @@ export default function FinancePage() {
                 <div className="erp-fin-head" style={{ background: sec.color }}><span>№{sec.no} {sec.icon} {sec.label}</span><span>{fmt(total)}</span></div>
                 <div className="erp-fin-accs">
                   {accs.length === 0 ? <div className="erp-muted" style={{ fontSize: 12, padding: 6 }}>Нет счетов</div> : accs.map((a, i) => (
-                    <div className="erp-fin-acc" key={a.id}><span><b>№{i + 1}</b> {a.icon} {a.name}</span><span>{fmt(a.balance || 0)}</span></div>
+                    <div className="erp-fin-acc" key={a.id}><span><b>№{i + 1}</b> {a.icon} {a.name}</span><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{fmt(a.balance || 0)}<button className="erp-icon-btn" title="Изменить счёт / начальный остаток" style={{ fontSize: 13 }} onClick={() => editAcct(a)}>✏️</button></span></div>
                   ))}
                 </div>
                 <div className="erp-fin-movs">
@@ -137,8 +150,8 @@ export default function FinancePage() {
         <Field label="Назначение"><Input value={op.name} onChange={e => setOp(o => ({ ...o, name: e.target.value }))} placeholder="комментарий" /></Field>
       </Modal>
 
-      <Modal open={acctModal} onClose={() => setAcctModal(false)} title="➕ Новый счёт"
-        footer={<><Button onClick={saveAcct} disabled={acc.saving}>{acc.saving ? 'Сохранение…' : 'Создать'}</Button><Button variant="outline" onClick={() => setAcctModal(false)}>Отмена</Button></>}>
+      <Modal open={acctModal} onClose={() => setAcctModal(false)} title={acc.id ? '✏️ Счёт' : '➕ Новый счёт'}
+        footer={<><Button onClick={saveAcct} disabled={acc.saving}>{acc.saving ? 'Сохранение…' : acc.id ? 'Сохранить' : 'Создать'}</Button><Button variant="outline" onClick={() => setAcctModal(false)}>Отмена</Button></>}>
         {acc.err && <div className="erp-form-err">{acc.err}</div>}
         <Field label="Название" required><Input value={acc.name} onChange={e => setAcc(a => ({ ...a, name: e.target.value }))} placeholder="напр. Каспи" /></Field>
         <div className="erp-form-row">

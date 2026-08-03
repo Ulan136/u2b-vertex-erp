@@ -100,11 +100,28 @@ async function createAccount(input: unknown, actorId?: string | null) {
 
 async function updateAccount(id: string, input: unknown) {
   const d = accountUpdateSchema.parse(input);
-  const patch: Record<string, unknown> = {};
-  if (d.name !== undefined) patch.name = d.name;
-  if (d.section !== undefined) patch.section = d.section;
-  if (d.icon !== undefined) patch.icon = d.icon;
-  return financeRepo.updateAccount(id, patch);
+  return db.transaction(async (tx) => {
+    const patch: Record<string, unknown> = {};
+    if (d.name !== undefined) patch.name = d.name;
+    if (d.section !== undefined) patch.section = d.section;
+    if (d.category !== undefined) patch.category = d.category;
+    if (d.icon !== undefined) patch.icon = d.icon;
+    let acc = Object.keys(patch).length ? await financeRepo.updateAccount(id, patch, tx) : await financeRepo.findAccount(id, tx);
+    // Правка начального остатка: обновляем операцию «Старт» и двигаем баланс на разницу.
+    if (d.startBalance !== undefined) {
+      const newStart = Math.round((Number(d.startBalance) || 0) * 100) / 100;
+      const startOp = await financeRepo.findStartOp(id, tx);
+      if (startOp) {
+        const delta = newStart - (Number(startOp.amount) || 0);
+        await financeRepo.updateOperation(startOp.id, { amount: String(newStart) }, tx);
+        if (delta !== 0) await financeRepo.adjustBalance(id, delta, tx);
+      } else if (newStart !== 0) {
+        await createOperation({ opType: 'Приход', accountId: id, amount: newStart, name: 'Начальный остаток', accountName: acc?.name, source: 'Старт' }, null, tx);
+      }
+      acc = await financeRepo.findAccount(id, tx);
+    }
+    return acc;
+  });
 }
 
 // Правка МЕТАДАННЫХ операции (описание/поставщик/№док/статус/категория/дата/

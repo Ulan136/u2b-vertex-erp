@@ -121,7 +121,9 @@ export const accountCreateSchema = z.object({
 export const accountUpdateSchema = z.object({
   name: z.string().trim().min(1).optional(),
   section: z.enum(FINANCE_SECTIONS).optional(),
+  category: z.enum(ACCOUNT_CATEGORIES).optional(),
   icon: z.string().nullish(),
+  startBalance: z.union([z.string(), z.number()]).optional(),   // правка начального остатка (операция «Старт»)
 });
 
 // ── Влияние операции на балансы счетов (pure, unit-testable) ──

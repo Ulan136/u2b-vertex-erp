@@ -41,6 +41,13 @@ export const financeRepo = {
     return row ?? null;
   },
 
+  // Операция «Начальный остаток» счёта (source='Старт'), если заведена.
+  async findStartOp(accountId: string, exec: Executor = db) {
+    const [row] = await exec.select().from(financeOperations)
+      .where(and(eq(financeOperations.accountId, accountId), eq(financeOperations.source, 'Старт'))).limit(1);
+    return row;
+  },
+
   async findAccount(id: string, exec: Executor = db) {
     const [row] = await exec.select().from(financeAccounts).where(eq(financeAccounts.id, id)).limit(1);
     return row ?? null;
