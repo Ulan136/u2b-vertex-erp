@@ -20,6 +20,44 @@ const fmt = (n: number | string) => Math.round(Number(n) || 0).toLocaleString('r
 const dmy = (d?: string | null) => formatDate(d);
 const today = () => new Date().toISOString().slice(0, 10);
 
+// Выбор счёта блоками: раздел (Поверка/Продажа/…) → его счета (Каспи/БЦК/Наличка)
+// с балансом — как колонки на странице, а не плоский список.
+function AccountPicker({ accounts, value, onChange, placeholder }: { accounts: Acct[]; value: string; onChange: (id: string) => void; placeholder?: string }) {
+  const [open, setOpen] = React.useState(false);
+  const sel = accounts.find(a => a.id === value);
+  const selSec = sel ? SECTIONS.find(s => s.key === (sel.section || 'other')) : null;
+  return (
+    <div className="rsh-acc-picker">
+      <button type="button" className="rsh-acc-trigger" onClick={() => setOpen(o => !o)}>
+        {sel
+          ? <span>{selSec && <span className="rsh-acc-tag">№{selSec.no}</span>}{sel.icon || '💳'} {sel.name}</span>
+          : <span className="erp-muted">{placeholder || '— раздел и счёт —'}</span>}
+        <span className="rsh-acc-caret">▾</span>
+      </button>
+      {open && <>
+        <div className="rsh-acc-backdrop" onClick={() => setOpen(false)} />
+        <div className="rsh-acc-menu">
+          {SECTIONS.map(s => {
+            const accs = accounts.filter(a => (a.section || 'other') === s.key).sort((x, y) => Number(x.sortOrder ?? 0) - Number(y.sortOrder ?? 0));
+            if (!accs.length) return null;
+            return (
+              <div key={s.key}>
+                <div className="rsh-acc-grp-h">№{s.no} {s.icon} {s.label}</div>
+                {accs.map(a => (
+                  <div key={a.id} className={`rsh-acc-opt${a.id === value ? ' on' : ''}`} onClick={() => { onChange(a.id); setOpen(false); }}>
+                    <span>{a.icon || '💳'} {a.name}</span>
+                    <span className="rsh-acc-bal">{fmt(a.balance ?? 0)}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </>}
+    </div>
+  );
+}
+
 export default function FinancePage() {
   const [cat, setCat] = React.useState('all');
   const [from, setFrom] = React.useState('');
@@ -74,13 +112,6 @@ export default function FinancePage() {
       setAcctModal(false); await mutate();
     } catch (e) { setAcc(a => ({ ...a, err: (e as Error).message, saving: false })); }
   }
-
-  // Выбор счёта в модалке операции — сгруппировано по разделам (Поверка/Продажа/…),
-  // внутри раздела его счета (Каспи/БЦК/Наличка). Не «слитно» плоским списком.
-  const acctOptions = SECTIONS.map(s => {
-    const accs = accounts.filter(a => (a.section || 'other') === s.key).sort((x, y) => Number(x.sortOrder ?? 0) - Number(y.sortOrder ?? 0));
-    return accs.length ? <optgroup key={s.key} label={`№${s.no} ${s.label}`}>{accs.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}</optgroup> : null;
-  });
 
   return (
     <div>
@@ -147,9 +178,9 @@ export default function FinancePage() {
           {['Приход', 'Расход', 'Перевод'].map(t => <button key={t} className={`erp-chip${op.type === t ? ' on' : ''}`} onClick={() => setOp(o => ({ ...o, type: t }))}>{t}</button>)}
         </div>
         <Field label={op.type === 'Перевод' ? 'Со счёта' : 'Счёт'} required>
-          <Select value={op.accountId} onChange={e => setOp(o => ({ ...o, accountId: e.target.value }))}><option value="">— раздел и счёт —</option>{acctOptions}</Select>
+          <AccountPicker accounts={accounts} value={op.accountId} onChange={id => setOp(o => ({ ...o, accountId: id }))} />
         </Field>
-        {op.type === 'Перевод' && <Field label="На счёт" required><Select value={op.toAccountId} onChange={e => setOp(o => ({ ...o, toAccountId: e.target.value }))}><option value="">— раздел и счёт —</option>{acctOptions}</Select></Field>}
+        {op.type === 'Перевод' && <Field label="На счёт" required><AccountPicker accounts={accounts} value={op.toAccountId} onChange={id => setOp(o => ({ ...o, toAccountId: id }))} /></Field>}
         <div className="erp-form-row">
           <Field label="Сумма (₸)" required><Input type="number" min={0} value={op.amount} onChange={e => setOp(o => ({ ...o, amount: e.target.value }))} /></Field>
           <Field label="Дата"><Input type="date" value={op.date} onChange={e => setOp(o => ({ ...o, date: e.target.value }))} /></Field>
