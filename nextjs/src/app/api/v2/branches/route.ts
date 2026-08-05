@@ -1,1 +1,1 @@
-export { GET, OPTIONS } from '@/server/controllers/branches.controller';
+export { GET, POST, OPTIONS } from '@/server/controllers/branches.controller';

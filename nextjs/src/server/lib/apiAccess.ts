@@ -39,6 +39,8 @@ export function apiScreenFor(method: string, pathname: string, searchParams: URL
   if (pathname.startsWith('/api/v2/products')) return 'warehouse';
   if (pathname.startsWith('/api/v2/role-permissions')) return 'settings';
   if (pathname.startsWith('/api/v2/roles')) return 'settings';   // создание/правка ролей — «Настройки»
+  // Филиалы: GET открыт всем вошедшим (селекты «Филиал»), запись — «Настройки».
+  if (pathname === '/api/v2/branches' || pathname.startsWith('/api/v2/branches/')) return method === 'GET' ? null : 'settings';
   if (pathname === '/api/v2/users') {
     // GET активного списка (пикер исполнителей для задач) — доступен любому
     // вошедшему; полный список (?all) и создание — только «Настройки».
