@@ -109,7 +109,7 @@ export default function ExpensesPage() {
     // ── правка: только метаданные (сумма/счета не трогаем — балансы защищены) ──
     if (f.editId) {
       setF(s => ({ ...s, saving: true, err: '' }));
-      try { await apiSend(`/api/v2/finance/${f.editId}`, 'PATCH', { name, opDate: f.date, comment: f.comment || null, ...meta }); setModal(false); await mutate(); toast('✅ Расход обновлён'); }
+      try { await apiSend(`/api/v2/expenses/${f.editId}`, 'PATCH', { name, opDate: f.date, comment: f.comment || null, ...meta }); setModal(false); await mutate(); toast('✅ Расход обновлён'); }
       catch (e) { setF(s => ({ ...s, err: (e as Error).message, saving: false })); }
       return;
     }
@@ -130,14 +130,14 @@ export default function ExpensesPage() {
         if (r.status === 409) { const e = await r.json().catch(() => ({})); if (!confirm((e.error || 'Оклад выплачен.') + '\n\nПровести как аванс?')) { setF(s => ({ ...s, saving: false })); return; } body.confirmOverpay = true; r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || ('HTTP ' + r.status)); }
       } else {
-        await apiSend('/api/v2/finance', 'POST', { payments: pays, name, source: 'Расходы', opDate: f.date, comment: f.comment || null, ...meta });
+        await apiSend('/api/v2/expenses', 'POST', { payments: pays, name, source: 'Расходы', opDate: f.date, comment: f.comment || null, ...meta });
       }
       setModal(false); await mutate(); toast(pays.length > 1 ? '✅ Расход проведён с нескольких счетов' : '✅ Расход проведён');
     } catch (e) { setF(s => ({ ...s, err: (e as Error).message, saving: false })); }
   }
   async function del(o: Op) {
     if (!confirm(`Удалить расход «${o.name}»?\nБудет отмена — сумма вернётся на счёт.`)) return;
-    try { await apiSend(`/api/v2/finance/${o.id}/reverse`, 'POST'); await mutate(); toast('↩️ Операция отменена'); }
+    try { await apiSend(`/api/v2/expenses/${o.id}/reverse`, 'POST'); await mutate(); toast('↩️ Операция отменена'); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
   async function addCat() { if (!newCat.trim()) return; const icon = newCatIcon || suggestIcon(newCat); try { await apiSend('/api/v2/expense-categories', 'POST', { name: newCat.trim(), icon }); setNewCat(''); setNewCatIcon(''); await mutateCats(); toast('✅ Категория добавлена'); } catch (e) { toast('⚠️ ' + (e as Error).message); } }

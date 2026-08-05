@@ -28,6 +28,7 @@ export function apiScreenFor(method: string, pathname: string, searchParams: URL
   if (pathname.startsWith('/api/v2/reports')) return 'reports';   // отчёты/аналитика → раздел «Отчёт» (матрица)
   if (pathname.startsWith('/api/v2/employees')) return 'staff';   // кадры/зарплата → раздел «Сотрудники»
   if (pathname.startsWith('/api/v2/expense-categories')) return 'expenses';   // категории расходов → «Расходы»
+  if (pathname === '/api/v2/expenses' || pathname.startsWith('/api/v2/expenses/')) return 'expenses';   // расходы (внести/править/сторно) → «Расходы»
   if (pathname.startsWith('/api/v2/documents')) return 'accounting';          // документы → «Бухгалтерия»
   if (pathname === '/api/v2/org' || pathname.startsWith('/api/v2/org/')) {    // реквизиты: чтение всем, правка — «Настройки»
     return method === 'GET' ? null : 'settings';
