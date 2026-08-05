@@ -4,7 +4,7 @@
 (function () {
   'use strict';
   // Порядок = нумерация категорий. Держать в синхроне с finance.dto.ts (FINANCE_SECTION_META).
-  const SECTIONS = { poverka: '№1 📋 Поверка', sale: '№2 💰 Продажа', branch: '№3 🏢 Филиалы', other: '№4 📄 Прочие операции' };
+  const SECTIONS = { poverka: '№1 📋 Поверка', sale: '№2 💰 Продажа', other: '№3 📄 Прочие операции', branch: '№4 🏢 Филиал Астана', branch_almaty: '№5 🏢 Филиал Алматы' };
   const BANK = { kaspi: 'Kaspi Bank', bck: 'БЦК', nalichka: 'касса', other: '' };
   const S = { root: null, accounts: [], ops: [], cat: 'all', readOnly: false, stack: false, api: '/api/v2/finance', hooks: {}, collapsed: {} };
 
@@ -16,7 +16,7 @@
   const movSign = o => o.opType === 'Приход' ? 1 : -1;
 
   const CSS = `
-  .fv-view{--c-pov:#2563eb;--c-sale:#d97706;--c-other:#6f42c1;--c-branch:#0d9488;--c-navy:#1b2a4a;--fv-card:#fff;--fv-line:#e2e8f0;--fv-bg:#f8fafc;--fv-ink:#111827;--fv-muted:#6b7280;color:var(--fv-ink);}
+  .fv-view{--c-pov:#2563eb;--c-sale:#d97706;--c-other:#6f42c1;--c-branch:#0d9488;--c-branch-almaty:#0891b2;--c-navy:#1b2a4a;--fv-card:#fff;--fv-line:#e2e8f0;--fv-bg:#f8fafc;--fv-ink:#111827;--fv-muted:#6b7280;color:var(--fv-ink);}
   .fv-filters{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:var(--fv-card);border:1px solid var(--fv-line);border-radius:10px;padding:12px 14px;margin-bottom:14px;}
   .fv-chip{border:1.5px solid var(--fv-line);background:#fff;border-radius:20px;padding:6px 14px;font-size:13px;cursor:pointer;font-weight:600;color:var(--fv-muted);font-family:inherit;}
   .fv-chip.on{color:#fff;}
@@ -25,6 +25,7 @@
   .fv-chip[data-c="sale"].on{background:var(--c-sale);border-color:var(--c-sale);}
   .fv-chip[data-c="other"].on{background:var(--c-other);border-color:var(--c-other);}
   .fv-chip[data-c="branch"].on{background:var(--c-branch);border-color:var(--c-branch);}
+  .fv-chip[data-c="branch_almaty"].on{background:var(--c-branch-almaty);border-color:var(--c-branch-almaty);}
   .fv-sep{width:1px;height:26px;background:var(--fv-line);margin:0 4px;}
   .fv-filters label{font-size:12.5px;color:var(--fv-muted);}
   .fv-filters input[type=date]{border:1px solid var(--fv-line);border-radius:6px;padding:6px 8px;font-size:13px;background:#fff;color:var(--fv-ink);font-family:inherit;}
@@ -48,6 +49,7 @@
   .fv-col[data-c="sale"] .fv-col-head{background:var(--c-sale);}
   .fv-col[data-c="other"] .fv-col-head{background:var(--c-other);}
   .fv-col[data-c="branch"] .fv-col-head{background:var(--c-branch);}
+  .fv-col[data-c="branch_almaty"] .fv-col-head{background:var(--c-branch-almaty);}
   .fv-col.acc .fv-col-head{cursor:pointer;}
   .fv-col.acc .fv-col-head .name::before{content:'▾ ';font-size:11px;}
   .fv-col.acc.collapsed .fv-col-head .name::before{content:'▸ ';}
@@ -81,8 +83,9 @@
       <button class="fv-chip on" data-c="all"     onclick="FinanceView.setCat('all')">Все</button>
       <button class="fv-chip"    data-c="poverka" onclick="FinanceView.setCat('poverka')">№1 📋 Поверка</button>
       <button class="fv-chip"    data-c="sale"    onclick="FinanceView.setCat('sale')">№2 💰 Продажа</button>
-      <button class="fv-chip"    data-c="branch"  onclick="FinanceView.setCat('branch')">№3 🏢 Филиалы</button>
-      <button class="fv-chip"    data-c="other"   onclick="FinanceView.setCat('other')">№4 📄 Прочие операции</button>
+      <button class="fv-chip"    data-c="other"   onclick="FinanceView.setCat('other')">№3 📄 Прочие операции</button>
+      <button class="fv-chip"    data-c="branch"  onclick="FinanceView.setCat('branch')">№4 🏢 Филиал Астана</button>
+      <button class="fv-chip"    data-c="branch_almaty" onclick="FinanceView.setCat('branch_almaty')">№5 🏢 Филиал Алматы</button>
       <span class="fv-sep"></span>
       <label>с</label><input type="date" id="fv-d1" onchange="FinanceView.load()">
       <label>по</label><input type="date" id="fv-d2" onchange="FinanceView.load()">
@@ -172,7 +175,7 @@
   function doExport() {
     const cs = cats();
     const movs = S.ops.filter(o => cs.includes(secOf(o.accountId))).sort((a, b) => String(b.opDate).localeCompare(String(a.opDate)));
-    const secN = { poverka: '№1 Поверка', sale: '№2 Продажа', branch: '№3 Филиалы', other: '№4 Прочие операции' };
+    const secN = { poverka: '№1 Поверка', sale: '№2 Продажа', other: '№3 Прочие операции', branch: '№4 Филиал Астана', branch_almaty: '№5 Филиал Алматы' };
     const csvEsc = v => { v = String(v == null ? '' : v); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
     const lines = [['Дата', 'Категория', 'Счёт', 'Операция', 'Тип', 'Сумма'].join(';')];
     movs.forEach(o => lines.push([o.opDate, secN[secOf(o.accountId)] || '', (o.accountName || ''), o.name, o.opType, movSign(o) * (Number(o.amount) || 0)].map(csvEsc).join(';')));

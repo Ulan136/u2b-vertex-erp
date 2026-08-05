@@ -11,7 +11,7 @@ type Acct = { id: string; name: string; icon?: string | null; section?: string |
 type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; accountId: string; comment?: string | null };
 type Client = { id: string; name: string };
 
-const SECTIONS = [{ key: 'poverka', no: 1, label: 'Поверка', color: '#2563eb' }, { key: 'sale', no: 2, label: 'Продажа', color: '#d97706' }, { key: 'branch', no: 3, label: 'Филиалы', color: '#0d9488' }, { key: 'other', no: 4, label: 'Прочие операции', color: '#6f42c1' }];
+const SECTIONS = [{ key: 'poverka', no: 1, label: 'Поверка', color: '#2563eb' }, { key: 'sale', no: 2, label: 'Продажа', color: '#d97706' }, { key: 'other', no: 3, label: 'Прочие операции', color: '#6f42c1' }, { key: 'branch', no: 4, label: 'Филиал Астана', color: '#0d9488' }, { key: 'branch_almaty', no: 5, label: 'Филиал Алматы', color: '#0891b2' }];
 const SECTION_SOURCES: Record<string, string[]> = { poverka: ['📋 САМИ', '🏭 ВДК', '⚡ ТЭЦ', '🚗 Выездная'], sale: ['💰 Продажа', '🆕 Первичная'], branch: ['🏢 Филиалы'], other: ['📁 Проект', '📜 Тендер', '🛠 Услуга'] };
 const BANKS = [{ key: 'all', label: 'Все', badge: '' }, { key: 'kaspi', label: '🍊 Каспи', badge: '🍊' }, { key: 'bck', label: '🏦 БЦК', badge: '🏦' }, { key: 'nalichka', label: '💵 Наличка', badge: '💵' }];
 const BANK_LABEL: Record<string, string> = { kaspi: '🍊 Каспи', bck: '🏦 БЦК', nalichka: '💵 Наличка', other: '💳 Другое' };
@@ -84,7 +84,7 @@ function InvoicesInner() {
         <Link href="/erp/finance/accounts" style={{ marginLeft: 'auto', fontSize: 11, color: '#6b7280', border: '1px dashed #d1d5db', borderRadius: 6, padding: '3px 9px', textDecoration: 'none' }}>⚙️ Настроить связи</Link>
       </Card>
 
-      {/* Разделы №1–№4 */}
+      {/* Разделы №1–№5 */}
       <Card className="erp-filters" style={{ marginTop: 12 }}>
         <div className="erp-chips">{SECTIONS.map(s => <button key={s.key} className={`erp-chip${section === s.key ? ' on' : ''}`} style={section === s.key ? { background: s.color, borderColor: s.color, color: '#fff' } : undefined} onClick={() => setSection(s.key)}>№{s.no} {s.label}</button>)}</div>
       </Card>

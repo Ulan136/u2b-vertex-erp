@@ -15,7 +15,7 @@ export const stockMoveEnum   = pgEnum('stock_move_type',  ['IN','OUT','REV+','RE
 export const financeOpEnum   = pgEnum('finance_op_type',  ['Приход','Расход','Перевод']);
 export const accountCatEnum  = pgEnum('account_category', ['kaspi','bck','nalichka','other']);
 // Раздел счёта (колонки экрана «Финансы»): Поверка / Продажа / Прочие / Филиалы.
-export const financeSectionEnum = pgEnum('finance_section', ['poverka','sale','other','branch']);
+export const financeSectionEnum = pgEnum('finance_section', ['poverka','sale','other','branch','branch_almaty']);
 export const orderSourceEnum = pgEnum('order_source',     ['field_check','tec']);
 export const debtTypeEnum    = pgEnum('debt_type',        ['debit','credit']);   // debit = нам должны, credit = мы должны
 export const debtStatusEnum  = pgEnum('debt_status',      ['open','partial','closed']);

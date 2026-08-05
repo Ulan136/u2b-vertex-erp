@@ -11,7 +11,7 @@ type Cat = { id: string; name: string; icon?: string | null; base?: boolean; sub
 type Emp = { userId: string; name: string; salaryHidden?: boolean };
 type Order = { id: string; orderNo?: string | null; clientName?: string | null };
 
-const SECTIONS = [{ key: 'poverka', no: 1, label: 'Поверка' }, { key: 'sale', no: 2, label: 'Продажа' }, { key: 'branch', no: 3, label: 'Филиалы' }, { key: 'other', no: 4, label: 'Прочие операции' }];
+const SECTIONS = [{ key: 'poverka', no: 1, label: 'Поверка' }, { key: 'sale', no: 2, label: 'Продажа' }, { key: 'other', no: 3, label: 'Прочие операции' }, { key: 'branch', no: 4, label: 'Филиал Астана' }, { key: 'branch_almaty', no: 5, label: 'Филиал Алматы' }];
 // Умная иконка по названию категории + палитра для ручного выбора.
 const ICON_RULES: Array<[RegExp, string]> = [
   [/аренд/i, '🏢'], [/коммунал|свет|электр|вода|отоплен|газ/i, '⚡'], [/налог|платеж|госпошлин|штраф/i, '🧾'],

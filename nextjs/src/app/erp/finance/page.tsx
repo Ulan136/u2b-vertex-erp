@@ -13,8 +13,9 @@ type Op = { id: string; opType: string; accountId: string; accountName?: string 
 const SECTIONS = [
   { key: 'poverka', no: 1, label: 'Поверка', icon: '📋', color: '#2563eb' },
   { key: 'sale', no: 2, label: 'Продажа', icon: '💰', color: '#d97706' },
-  { key: 'branch', no: 3, label: 'Филиалы', icon: '🏢', color: '#0d9488' },
-  { key: 'other', no: 4, label: 'Прочие операции', icon: '📄', color: '#6f42c1' },
+  { key: 'other', no: 3, label: 'Прочие операции', icon: '📄', color: '#6f42c1' },
+  { key: 'branch', no: 4, label: 'Филиал Астана', icon: '🏢', color: '#0d9488' },
+  { key: 'branch_almaty', no: 5, label: 'Филиал Алматы', icon: '🏢', color: '#0891b2' },
 ];
 const fmt = (n: number | string) => Math.round(Number(n) || 0).toLocaleString('ru-RU') + ' ₸';
 const dmy = (d?: string | null) => formatDate(d);

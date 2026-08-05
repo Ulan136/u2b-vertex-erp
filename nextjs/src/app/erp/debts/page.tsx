@@ -24,7 +24,7 @@ const daysLeft = (d: Debt): number | null => { if (!d.dueDate || d.status === 'c
 
 // Мы должны (credit) — ПЕРВЫМ везде.
 const TABS: Array<[string, string]> = [['credit', '📤 Мы должны'], ['debit', '📥 Нам должны'], ['all', 'Все'], ['journal', '🧾 Журнал оплат']];
-const SECTIONS: Array<[string, string]> = [['poverka', '№1 Поверка'], ['sale', '№2 Продажа'], ['branch', '№3 Филиалы'], ['other', '№4 Прочие']];
+const SECTIONS: Array<[string, string]> = [['poverka', '№1 Поверка'], ['sale', '№2 Продажа'], ['other', '№3 Прочие'], ['branch', '№4 Филиал Астана'], ['branch_almaty', '№5 Филиал Алматы']];
 
 export default function DebtsPage() {
   const [tab, setTab] = React.useState('credit');

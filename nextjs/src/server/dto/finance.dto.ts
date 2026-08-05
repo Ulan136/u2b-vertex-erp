@@ -70,21 +70,23 @@ export const financeOpMetaSchema = z.object({
 export const ACCOUNT_CATEGORIES = ['kaspi', 'bck', 'nalichka', 'other'] as const;
 
 // Единый источник порядка/номеров/названий/цветов разделов финансов («категорий»).
-// Порядок = нумерация: №1 Поверка · №2 Продажа · №3 Филиалы · №4 Прочие операции.
+// Порядок = нумерация: №1 Поверка · №2 Продажа · №3 Прочие операции ·
+// №4 Филиал Астана · №5 Филиал Алматы.
 // ВНИМАНИЕ: при изменении держать в синхроне с зеркалом в public/finance-view.js
-// и public/sketch_screens.html (FIN_SECTIONS).
+// и public/mobile_master.html (SECTION_LABEL). Ключ 'branch' = Астана.
 export const FINANCE_SECTION_META = [
-  { key: 'poverka', no: 1, label: 'Поверка',         icon: '📋', color: '#2563eb' },
-  { key: 'sale',    no: 2, label: 'Продажа',         icon: '💰', color: '#d97706' },
-  { key: 'branch',  no: 3, label: 'Филиалы',         icon: '🏢', color: '#0d9488' },
-  { key: 'other',   no: 4, label: 'Прочие операции', icon: '📄', color: '#6f42c1' },
+  { key: 'poverka',       no: 1, label: 'Поверка',         icon: '📋', color: '#2563eb' },
+  { key: 'sale',          no: 2, label: 'Продажа',         icon: '💰', color: '#d97706' },
+  { key: 'other',         no: 3, label: 'Прочие операции', icon: '📄', color: '#6f42c1' },
+  { key: 'branch',        no: 4, label: 'Филиал Астана',   icon: '🏢', color: '#0d9488' },
+  { key: 'branch_almaty', no: 5, label: 'Филиал Алматы',   icon: '🏢', color: '#0891b2' },
 ] as const;
 
-export const FINANCE_SECTIONS = FINANCE_SECTION_META.map(s => s.key) as unknown as readonly ['poverka', 'sale', 'branch', 'other'];
+export const FINANCE_SECTIONS = FINANCE_SECTION_META.map(s => s.key) as unknown as readonly ['poverka', 'sale', 'other', 'branch', 'branch_almaty'];
 export type FinanceSection = (typeof FINANCE_SECTIONS)[number];
 
 export function sectionMeta(key: string | null | undefined) {
-  return FINANCE_SECTION_META.find(s => s.key === key) || FINANCE_SECTION_META[3];
+  return FINANCE_SECTION_META.find(s => s.key === key) || FINANCE_SECTION_META.find(s => s.key === 'other')!;
 }
 export function sectionNo(key: string | null | undefined): number { return sectionMeta(key).no; }
 // «№1 Поверка» (withNo=false → «Поверка»)

@@ -23,7 +23,7 @@ const fmtT = (n: number) => fmt(n) + ' ₸';
 const dmy = (d?: string | null) => formatDate(d);
 const hm = (d?: string | null) => (d ? new Date(d).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '');
 const roleRu = (r: string) => ROLE_LABELS_RU[r as Role] || r;
-const SECTIONS = [{ k: 'poverka', l: '№1 Поверка' }, { k: 'sale', l: '№2 Продажа' }, { k: 'branch', l: '№3 Филиалы' }, { k: 'other', l: '№4 Прочие' }];
+const SECTIONS = [{ k: 'poverka', l: '№1 Поверка' }, { k: 'sale', l: '№2 Продажа' }, { k: 'other', l: '№3 Прочие' }, { k: 'branch', l: '№4 Филиал Астана' }, { k: 'branch_almaty', l: '№5 Филиал Алматы' }];
 const PRESETS: Array<{ k: string; l: string }> = [{ k: 'today', l: 'Сегодня' }, { k: '7d', l: '7 дней' }, { k: 'month', l: 'Месяц' }, { k: 'quarter', l: 'Квартал' }, { k: 'custom', l: 'Период…' }];
 const CERT_SRC = ['САМИ', 'ВДК', 'ТЭЦ'];
 const SRC_COLOR: Record<string, string> = { 'САМИ': '#2563eb', 'ВДК': '#16a34a', 'ТЭЦ': '#b45309' };

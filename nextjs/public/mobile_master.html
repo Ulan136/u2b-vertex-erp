@@ -606,8 +606,8 @@ async function zaSaveHeader(){
 }
 
 // ── ОПЛАТА заявки: смешанная, счёт из ЛЮБОГО раздела (по умолчанию №1 Поверка) ──
-const SECTION_LABEL={poverka:'№1 Поверка',sale:'№2 Продажа',branch:'№3 Филиалы',other:'№4 Прочие'};
-const SECTION_ORDER=['poverka','sale','branch','other'];
+const SECTION_LABEL={poverka:'№1 Поверка',sale:'№2 Продажа',other:'№3 Прочие',branch:'№4 Филиал Астана',branch_almaty:'№5 Филиал Алматы'};
+const SECTION_ORDER=['poverka','sale','other','branch','branch_almaty'];
 let payAccounts=[];
 async function loadPayAccounts(){
   try{ const r=await fetch('/api/v2/finance',{cache:'no-store'}); if(r.ok){ const d=await r.json(); payAccounts=d.accounts||[]; } }catch(e){}

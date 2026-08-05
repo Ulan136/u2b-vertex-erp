@@ -10,8 +10,9 @@ type Acct = { id: string; name: string; icon?: string | null; section?: string |
 const SECTIONS = [
   { key: 'poverka', no: 1, label: 'Поверка', icon: '📋', color: '#2563eb', sources: 'САМИ · ВДК · ТЭЦ · Выездная' },
   { key: 'sale', no: 2, label: 'Продажа', icon: '💰', color: '#d97706', sources: 'Продажа · Первичная' },
-  { key: 'branch', no: 3, label: 'Филиалы', icon: '🏢', color: '#0d9488', sources: 'Филиалы (Астана…)' },
-  { key: 'other', no: 4, label: 'Прочие операции', icon: '📄', color: '#6f42c1', sources: 'Проект · Тендер · Услуга' },
+  { key: 'other', no: 3, label: 'Прочие операции', icon: '📄', color: '#6f42c1', sources: 'Проект · Тендер · Услуга' },
+  { key: 'branch', no: 4, label: 'Филиал Астана', icon: '🏢', color: '#0d9488', sources: 'Филиал Астана' },
+  { key: 'branch_almaty', no: 5, label: 'Филиал Алматы', icon: '🏢', color: '#0891b2', sources: 'Филиал Алматы' },
 ];
 const BANKS = [{ key: 'kaspi', label: '🍊 Каспи' }, { key: 'bck', label: '🏦 БЦК' }, { key: 'nalichka', label: '💵 Наличка' }, { key: 'other', label: '💳 Другое' }];
 const BANK_LABEL: Record<string, string> = { kaspi: '🍊 Каспи', bck: '🏦 БЦК', nalichka: '💵 Наличка', other: '💳 Другое' };
@@ -47,7 +48,7 @@ export default function AccountsBindingPage() {
 
   return (
     <div>
-      <PageTitle title="Привязка счетов" sub="Маршрут: Источник → Тип счёта (№1–№4) → Банковский счёт" action={<Link href="/erp/finance" style={{ fontSize: 13 }}>Финансы →</Link>} />
+      <PageTitle title="Привязка счетов" sub="Маршрут: Источник → Тип счёта (№1–№5) → Банковский счёт" action={<Link href="/erp/finance" style={{ fontSize: 13 }}>Финансы →</Link>} />
 
       <Card style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e3a8a', fontSize: 13 }}>
         ℹ️ Каждый <b>тип счёта</b> (Поверка / Продажа / Филиалы / Прочие) — это раздел учёта. К нему привязаны <b>банковские счета</b> (Каспи / БЦК / Наличка), на которые падает доход. При операции менеджер выбирает конкретный банк. От этой привязки зависит вся касса и разбивка «Счетов».

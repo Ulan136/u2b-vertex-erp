@@ -39,19 +39,20 @@ test('зарплата с двух счетов = одна выплата сум
 });
 
 // ── нумерация и порядок разделов (категорий) ─────────────────
-test('FINANCE_SECTIONS: порядок №1 Поверка · №2 Продажа · №3 Филиалы · №4 Прочие', () => {
-  assert.deepEqual([...FINANCE_SECTIONS], ['poverka', 'sale', 'branch', 'other']);
-  assert.deepEqual(FINANCE_SECTION_META.map(s => s.no), [1, 2, 3, 4]);
+test('FINANCE_SECTIONS: порядок №1 Поверка · №2 Продажа · №3 Прочие · №4 Астана · №5 Алматы', () => {
+  assert.deepEqual([...FINANCE_SECTIONS], ['poverka', 'sale', 'other', 'branch', 'branch_almaty']);
+  assert.deepEqual(FINANCE_SECTION_META.map(s => s.no), [1, 2, 3, 4, 5]);
 });
 test('sectionNo / sectionTitle', () => {
   assert.equal(sectionNo('poverka'), 1);
-  assert.equal(sectionNo('branch'), 3);
-  assert.equal(sectionNo('other'), 4);
+  assert.equal(sectionNo('other'), 3);
+  assert.equal(sectionNo('branch'), 4);
+  assert.equal(sectionNo('branch_almaty'), 5);
   assert.equal(sectionTitle('poverka'), '№1 Поверка');
-  assert.equal(sectionTitle('branch'), '№3 Филиалы');
-  assert.equal(sectionTitle('other'), '№4 Прочие операции');
+  assert.equal(sectionTitle('branch'), '№4 Филиал Астана');
+  assert.equal(sectionTitle('branch_almaty'), '№5 Филиал Алматы');
   assert.equal(sectionTitle('other', false), 'Прочие операции');
-  assert.equal(sectionNo('unknown'), 4);   // фолбэк на «Прочие»
+  assert.equal(sectionNo('unknown'), 3);   // фолбэк на «Прочие»
 });
 test('numberAccounts: нумерует счета внутри раздела по sort_order', () => {
   const accs = [

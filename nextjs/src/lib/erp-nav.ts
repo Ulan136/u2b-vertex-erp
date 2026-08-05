@@ -91,8 +91,9 @@ export const ERP_NAV: NavSection[] = [
   { title: 'Счета', icon: '🧾', zone: 'ops', divider: 'Финансы и учёт', items: [
     { label: '№1 📋 Поверка', screenKey: 'invoices', href: '/erp/invoices?section=poverka' },
     { label: '№2 💰 Продажа', screenKey: 'invoices', href: '/erp/invoices?section=sale' },
-    { label: '№3 🏢 Филиалы', screenKey: 'invoices', href: '/erp/invoices?section=branch' },
-    { label: '№4 📄 Прочие операции', screenKey: 'invoices', href: '/erp/invoices?section=other' },
+    { label: '№3 📄 Прочие операции', screenKey: 'invoices', href: '/erp/invoices?section=other' },
+    { label: '№4 🏢 Филиал Астана', screenKey: 'invoices', href: '/erp/invoices?section=branch' },
+    { label: '№5 🏢 Филиал Алматы', screenKey: 'invoices', href: '/erp/invoices?section=branch_almaty' },
   ] },
   { title: 'База данных', icon: '🗄', zone: 'ops', items: [
     { label: '⏰ Сроки счётчиков', screenKey: 'database', href: '/erp/database?view=deadlines' },

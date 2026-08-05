@@ -21,7 +21,7 @@ const money = (n: number | string) => Math.round(num(n)).toLocaleString('ru-RU')
 const dmy = (d?: string | null) => formatDate(d);
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 const todayStr = () => new Date().toISOString().slice(0, 10);
-const SECTIONS = [{ key: 'poverka', label: '№1 Поверка', color: '#2563eb' }, { key: 'sale', label: '№2 Продажа', color: '#d97706' }, { key: 'branch', label: '№3 Филиалы', color: '#0d9488' }, { key: 'other', label: '№4 Прочие', color: '#6f42c1' }];
+const SECTIONS = [{ key: 'poverka', label: '№1 Поверка', color: '#2563eb' }, { key: 'sale', label: '№2 Продажа', color: '#d97706' }, { key: 'other', label: '№3 Прочие', color: '#6f42c1' }, { key: 'branch', label: '№4 Филиал Астана', color: '#0d9488' }, { key: 'branch_almaty', label: '№5 Филиал Алматы', color: '#0891b2' }];
 const OPER = ['В работе', 'Готова к КТРМ', 'Внести в КТРМ', 'КТРМ 70%', 'Внесён в КТРМ'];
 const OPER_COLOR: Record<string, string> = { 'В работе': '#64748b', 'Готова к КТРМ': '#0ea5e9', 'Внести в КТРМ': '#d97706', 'КТРМ 70%': '#8b5cf6', 'Внесён в КТРМ': '#16a34a' };
 const SRC = ['САМИ', 'ВДК', 'ТЭЦ', 'Выездная', 'Первичная-КМ', 'Первичная-АК', 'Астана'];
