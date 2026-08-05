@@ -40,7 +40,7 @@ export const ordersService = {
     if (!data.orderNo) {
       data.orderNo = await ordersRepo.nextOrderNo(data.source);   // номер из секвенса БД
     }
-    // филиал: из ERP — филиал создателя, из внешнего кабинета — головной (Алматы)
+    // филиал: из ERP — филиал создателя, из внешнего кабинета — головной (Тараз)
     if (data.branchId == null) {
       const fromUser = actor ? await usersRepo.branchOf(actor.id) : null;
       data.branchId = fromUser ?? await branchesRepo.headId();

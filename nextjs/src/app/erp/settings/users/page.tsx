@@ -5,7 +5,7 @@ import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 
 type User = { id: string; name: string; email?: string | null; phone?: string | null; position?: string | null; role: string; branchId?: string | null; isActive?: boolean };
-type Branch = { id: string; name: string };
+type Branch = { id: string; name: string; isHead?: boolean };
 const ROLE: Record<string, string> = { admin: 'Админ', director: 'Директор', accountant: 'Бухгалтер', manager: 'Менеджер', master: 'Мастер' };
 const ROLES = ['admin', 'director', 'accountant', 'manager', 'master'];
 const EMPTY = { id: '', name: '', email: '', phone: '', position: '', role: 'manager', branchId: '', password: '' };
@@ -65,7 +65,7 @@ export default function UsersPage() {
         {err && <div className="erp-form-err">{err}</div>}
         <div className="erp-form-row"><Field label="ФИО" required><Input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field><Field label="Должность"><Input value={f.position} onChange={e => setF({ ...f, position: e.target.value })} /></Field></div>
         <div className="erp-form-row"><Field label="Email (логин, необязательно)"><Input value={f.email} onChange={e => setF({ ...f, email: e.target.value })} disabled={!!f.id} placeholder="можно оставить пустым" /></Field><Field label="Телефон (логин)"><Input value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} placeholder="+7…" /></Field></div>
-        <div className="erp-form-row"><Field label="Роль"><Select value={f.role} onChange={e => setF({ ...f, role: e.target.value })}>{roleOptions.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}</Select></Field><Field label="Филиал"><Select value={f.branchId} onChange={e => setF({ ...f, branchId: e.target.value })}><option value="">— головной —</option>{(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Field></div>
+        <div className="erp-form-row"><Field label="Роль"><Select value={f.role} onChange={e => setF({ ...f, role: e.target.value })}>{roleOptions.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}</Select></Field><Field label="Филиал"><Select value={f.branchId} onChange={e => setF({ ...f, branchId: e.target.value })}><option value="">— головной ({(branches || []).find(b => b.isHead)?.name || 'головной'}) —</option>{(branches || []).filter(b => !b.isHead).map(b => <option key={b.id} value={b.id}>{b.name} - Филиал</option>)}</Select></Field></div>
         <Field label={f.id ? 'Новый пароль (если менять)' : 'Пароль'} required={!f.id}><Input type="password" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} placeholder={f.id ? 'оставьте пустым' : 'мин. 4 символа'} /></Field>
       </Modal>
     </div>

@@ -8,7 +8,9 @@ import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow }
 import EntityHistory from '@/components/erp/EntityHistory';
 
 type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null; createdByName?: string | null };
-type Branch = { id: string; name: string };
+type Branch = { id: string; name: string; isHead?: boolean };
+// Подпись филиала «— Головной / — Филиал» выводим из флага isHead (не из имени).
+const branchLabel = (b: Branch) => `${b.name} - ${b.isHead ? 'Головной' : 'Филиал'}`;
 
 const SOURCES = [{ key: 'field_check', label: '🚗 Выездная' }, { key: 'tec', label: '⚡ ТЭЦ' }];
 const STATUSES = ['В работе', 'Готова', 'Отменён'];
@@ -63,7 +65,7 @@ function OrdersInner() {
 
       <Card className="erp-filters">
         <div className="erp-chips">{SOURCES.map(s => <button key={s.key} className={`erp-chip${source === s.key ? ' on' : ''}`} onClick={() => setSource(s.key)}>{s.label}</button>)}</div>
-        <Select value={branch} onChange={e => setBranch(e.target.value)}><option value="all">Все филиалы</option>{(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</Select>
+        <Select value={branch} onChange={e => setBranch(e.target.value)}><option value="all">Все филиалы</option>{(branches || []).map(b => <option key={b.id} value={b.id}>{branchLabel(b)}</option>)}</Select>
         <Input placeholder="🔍 №, клиент, адрес, телефон" value={q} onChange={e => setQ(e.target.value)} />
       </Card>
 
@@ -110,7 +112,7 @@ function OrdersInner() {
           <Field label="Вода"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option>х/в</option><option>г/в</option></Select></Field>
         </div>
         <div className="erp-form-row">
-          <Field label="Филиал"><Select value={form.branchId} onChange={e => setForm({ ...form, branchId: e.target.value })}><option value="">— головной —</option>{(branches || []).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</Select></Field>
+          <Field label="Филиал"><Select value={form.branchId} onChange={e => setForm({ ...form, branchId: e.target.value })}><option value="">— головной ({(branches || []).find(b => b.isHead)?.name || 'головной'}) —</option>{(branches || []).filter(b => !b.isHead).map(b => <option key={b.id} value={b.id}>{b.name} - Филиал</option>)}</Select></Field>
           <Field label="Статус"><Select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>{STATUSES.map(s => <option key={s}>{s}</option>)}</Select></Field>
         </div>
         <Field label="Комментарий"><Input value={form.comment} onChange={e => setForm({ ...form, comment: e.target.value })} /></Field>

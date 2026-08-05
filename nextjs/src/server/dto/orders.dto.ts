@@ -73,7 +73,7 @@ export function externalCabinetUrl(base: string, source: OrderSource): string {
 
 // ── Разделение заявок по филиалу (pure, unit-testable) ────────────
 // Заявка без филиала (branchId === null) считается заявкой ГОЛОВНОГО филиала
-// (headBranchId) — так старые заявки остаются у Алматы.
+// (headBranchId) — так старые заявки остаются у головного (Тараз).
 export function orderInBranch(
   order: { branchId?: string | null },
   branchId: string,

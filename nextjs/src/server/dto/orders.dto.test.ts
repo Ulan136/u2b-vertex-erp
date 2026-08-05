@@ -5,11 +5,11 @@ import {
   orderInBranch, scopeOrdersByBranch,
 } from './orders.dto';
 
-const HEAD = 'head-almaty', AST = 'astana';
+const HEAD = 'head-taraz', AST = 'astana';
 const O = (branchId: string | null) => ({ id: branchId || 'null', branchId });
-const rows = [O(HEAD), O(AST), O(null)];   // Алматы, Астана, без филиала (=Алматы)
+const rows = [O(HEAD), O(AST), O(null)];   // Тараз (головной), Астана, без филиала (=Тараз)
 
-// ── заявка без филиала = головной (Алматы) ───────────────────
+// ── заявка без филиала = головной (Тараз) ───────────────────
 test('orderInBranch: NULL филиал считается головным', () => {
   assert.equal(orderInBranch({ branchId: null }, HEAD, HEAD), true);
   assert.equal(orderInBranch({ branchId: null }, AST, HEAD), false);
@@ -35,7 +35,7 @@ test('scopeOrdersByBranch: менеджер Астаны видит только
   assert.deepEqual(r.map(o => o.branchId), [AST]);
 });
 
-test('scopeOrdersByBranch: сотрудник головного видит Алматы + заявки без филиала', () => {
+test('scopeOrdersByBranch: сотрудник головного видит Тараз + заявки без филиала', () => {
   const r = scopeOrdersByBranch(rows, { role: 'master', userBranchId: HEAD, headBranchId: HEAD });
   assert.deepEqual(r.map(o => o.branchId).sort(), [HEAD, null].sort());
 });
