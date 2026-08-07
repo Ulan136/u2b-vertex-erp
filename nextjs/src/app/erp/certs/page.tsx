@@ -20,7 +20,8 @@ type DeviceTypeHit = { id: string; name: string; usageCount: number };
 
 const SOURCES = ['САМИ', 'ВДК', 'ТЭЦ', 'Выездная', 'Первичная-КМ', 'Первичная-АК', 'Астана'];
 const OPER = ['В работе', 'Готова к КТРМ', 'Внести в КТРМ', 'КТРМ 70%', 'Внесён в КТРМ'];
-const PAY = ['В ожидании', 'Оплачено'];
+const PAY = ['В ожидании', 'Оплачено', 'Бесплатно'];
+const payTone = (s?: string | null): 'ok' | 'warn' | 'neutral' => s === 'Оплачено' ? 'ok' : s === 'Бесплатно' ? 'neutral' : 'warn';
 const INV = ['Каспи', 'БЦК', 'Наличка', 'Каспи Голд'];
 const SENT = ['Не отправлено', 'Запланировано', 'Отправлено'];
 const dmy = (d?: string | null) => formatDate(d) || '—';
@@ -54,7 +55,7 @@ function CertAccordion({ items, empty }: { items: Cert[]; empty: string }) {
             <div key={c.id} className="cert-acc-row">
               <b>{c.fio}</b> <span className="erp-muted" style={{ fontSize: 12 }}>{c.address}</span>
               <span className="erp-muted" style={{ fontSize: 11, fontFamily: 'monospace' }}>{c.meterType} {c.serialNo}</span>
-              <Badge tone={c.payStatus === 'Оплачено' ? 'ok' : 'warn'}>{c.payStatus}</Badge>
+              <Badge tone={payTone(c.payStatus)}>{c.payStatus}</Badge>
             </div>
           ))}
         </div>
@@ -371,7 +372,7 @@ function CertsInner() {
                     <td className="erp-muted" style={{ fontSize: 11 }}>{c.phone || '—'}</td>
                     <td style={{ fontSize: 11 }}>{c.client || '—'}</td>
                     <td><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
-                    <td><SSel c={c} field="payStatus" opts={PAY} tone={c.payStatus === 'Оплачено' ? 'ok' : 'warn'} /></td>
+                    <td><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
                     <td><SSel c={c} field="invoiceType" opts={INV} tone="neutral" /></td>
                     <td className="erp-muted" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>
                     <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
@@ -400,7 +401,7 @@ function CertsInner() {
                     <td style={{ fontSize: 11 }}>{dmy(c.checkDate)}</td>
                     <td style={{ fontSize: 11 }}>{dmy(c.nextCheckDate)}</td>
                     <td><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
-                    <td><SSel c={c} field="payStatus" opts={PAY} tone={c.payStatus === 'Оплачено' ? 'ok' : 'warn'} /></td>
+                    <td><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
                     <td><SSel c={c} field="invoiceType" opts={INV} tone="neutral" /></td>
                     <td><SSel c={c} field="sentStatus" opts={SENT} tone={sentTone(c.sentStatus)} /></td>
                     <td className="erp-muted" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>

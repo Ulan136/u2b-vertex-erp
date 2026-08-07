@@ -7,7 +7,7 @@ import { sql } from 'drizzle-orm';
 // ── ENUMS ─────────────────────────────────────────────────────
 export const userRoleEnum    = pgEnum('user_role',        ['admin','director','accountant','manager','master']);
 export const operStatusEnum  = pgEnum('oper_status',      ['В работе','Готова к КТРМ','Внести в КТРМ','КТРМ 70%','Внесён в КТРМ']);
-export const payStatusEnum   = pgEnum('pay_status',       ['В ожидании','Оплачено']);
+export const payStatusEnum   = pgEnum('pay_status',       ['В ожидании','Оплачено','Бесплатно']);
 export const invoiceTypeEnum = pgEnum('invoice_type',     ['Каспи','БЦК','Наличка','Каспи Голд']);
 export const waterTypeEnum   = pgEnum('water_type',       ['х/в','г/в']);
 export const certSourceEnum  = pgEnum('cert_source',      ['САМИ','ВДК','ТЭЦ','Выездная','Первичная','Астана','Первичная-КМ','Первичная-АК']);
