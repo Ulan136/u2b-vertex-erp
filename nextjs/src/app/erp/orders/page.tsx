@@ -4,7 +4,7 @@ import { formatDate } from '@/lib/format';
 import { useSearchParams } from 'next/navigation';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
 
 type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null; createdByName?: string | null };
@@ -24,6 +24,8 @@ function OrdersInner() {
   const [source, setSource] = React.useState(initial === 'tec' ? 'tec' : 'field_check');
   const [branch, setBranch] = React.useState('all');
   const [q, setQ] = React.useState('');
+  const [fFrom, setFFrom] = React.useState('');
+  const [fTo, setFTo] = React.useState('');
   const qs = new URLSearchParams({ source }); if (branch !== 'all') qs.set('branch', branch);
   const { data: orders, error, isLoading, mutate } = useApi<Order[]>('/api/v2/orders?' + qs);
   const { data: branches } = useApi<Branch[]>('/api/v2/branches');
@@ -34,7 +36,13 @@ function OrdersInner() {
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState('');
 
-  const list = (orders || []).filter(o => !q.trim() || `${o.orderNo} ${o.clientName} ${o.address} ${o.phone}`.toLowerCase().includes(q.toLowerCase()));
+  const list = (orders || []).filter(o => {
+    if (q.trim() && !`${o.orderNo} ${o.clientName} ${o.address} ${o.phone}`.toLowerCase().includes(q.toLowerCase())) return false;
+    const d = (o.orderDate || '').slice(0, 10);
+    if (fFrom && d < fFrom) return false;   // фильтр по дате заявки
+    if (fTo && d > fTo) return false;
+    return true;
+  });
 
   const openNew = () => { setForm(EMPTY); setErr(''); setModal(true); };
   const openEdit = (o: Order) => { setForm({ id: o.id, clientName: o.clientName || '', phone: o.phone || '', address: o.address || '', qty: o.qty ? String(o.qty) : '1', waterType: o.waterType || 'х/в', branchId: o.branchId || '', status: o.status || 'В работе', comment: o.comment || '' }); setErr(''); setModal(true); };
@@ -67,6 +75,7 @@ function OrdersInner() {
         <div className="erp-chips">{SOURCES.map(s => <button key={s.key} className={`erp-chip${source === s.key ? ' on' : ''}`} onClick={() => setSource(s.key)}>{s.label}</button>)}</div>
         <Select value={branch} onChange={e => setBranch(e.target.value)}><option value="all">Все филиалы</option>{(branches || []).map(b => <option key={b.id} value={b.id}>{branchLabel(b)}</option>)}</Select>
         <Input placeholder="🔍 №, клиент, адрес, телефон" value={q} onChange={e => setQ(e.target.value)} />
+        <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
       </Card>
 
       <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>

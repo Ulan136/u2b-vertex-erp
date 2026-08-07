@@ -251,9 +251,19 @@ function CertsInner() {
     await patchField(c, 'operStatus', 'Внесён в КТРМ'); toast('✅ Внесено в е-КТРМ');
   }
 
-  // ── Экспорт CSV / Word ──
-  const exportRows = (arr: Cert[]) => arr.map((c, i) => [String(i + 1), c.fio || '', c.address || '', c.meterType || '', c.serialNo || '', dmy(c.checkDate), isCert ? dmy(c.nextCheckDate) : '', c.stampNo || '', c.readings != null ? String(c.readings) : '', c.waterType || '', c.yearMade ? String(c.yearMade) : '', c.result || '', c.payStatus || '', c.invoiceType || '', c.createdByName || '']);
-  const EXP_HEAD = ['№', 'ФИО/объект', 'Адрес', 'Тип', 'Зав.№', 'Поверка', 'Очередная', 'Клеймо', 'Показания', 'Вода', 'Год', 'Результат', 'Оплата', 'Счёт', 'Автор'];
+  // ── Экспорт: только 11 нужных колонок (№ · ФИО/объект · Адрес · Тип · Зав.№ ·
+  // Поверка · Очередная · Клеймо · Показания · Вода · Год) — без Результат/Оплата/
+  // Счёт/Автор. Формы: PDF (печать), CSV, Word.
+  const exportRows = (arr: Cert[]) => arr.map((c, i) => [String(i + 1), c.fio || '', c.address || '', c.meterType || '', c.serialNo || '', dmy(c.checkDate), isCert ? dmy(c.nextCheckDate) : '', c.stampNo || '', c.readings != null ? String(c.readings) : '', c.waterType || '', c.yearMade ? String(c.yearMade) : '']);
+  const EXP_HEAD = ['№', 'ФИО/объект', 'Адрес', 'Тип', 'Зав.№', 'Поверка', 'Очередная', 'Клеймо', 'Показания', 'Вода', 'Год'];
+  // PDF = печать таблицы (браузер → «Сохранить как PDF»); сервер PDF не генерит.
+  function printPdf(arr: Cert[], title: string) {
+    const esc = (v: unknown) => String(v ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
+    const head = EXP_HEAD.map(h => `<th>${esc(h)}</th>`).join('');
+    const body = exportRows(arr).map(r => `<tr>${r.map((x, i) => `<td style="text-align:${i === 1 || i === 2 ? 'left' : 'center'}">${esc(x)}</td>`).join('')}</tr>`).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(title)}</title><style>@page{size:A4 landscape;margin:9mm}body{font-family:'Times New Roman',serif;font-size:10.5px}h2{text-align:center;margin:0 0 3px;font-size:15px}table{width:100%;border-collapse:collapse;margin-top:6px}td,th{border:1px solid #000;padding:3px 4px}th{background:#eee}</style></head><body><h2>${esc(title)}</h2><div style="text-align:center;margin-bottom:4px">Направление: ${esc(source)} · записей: ${arr.length}</div><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><script>window.onload=function(){window.print()}<\/script></body></html>`;
+    const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); } else toast('⚠️ Разрешите всплывающие окна для печати');
+  }
   function exportCsv(arr: Cert[], name: string) {
     const rows = [EXP_HEAD, ...exportRows(arr)];
     const csv = '﻿' + rows.map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(';')).join('\n');
@@ -299,7 +309,8 @@ function CertsInner() {
     <div>
       <PageTitle title={`Поверка — ${isCert ? 'сертификаты' : 'извещения'}`} sub={`Направление: ${source} · записей: ${list.length}`} action={
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Button variant="outline" onClick={() => exportCsv(list, `${isCert ? 'Сертификаты' : 'Извещения'}_${source}.csv`)}>📤 Экспорт</Button>
+          <Button variant="outline" onClick={() => printPdf(list, `${isCert ? 'Сертификаты' : 'Извещения'} — ${source}`)}>🖨 PDF</Button>
+          <Button variant="outline" onClick={() => exportCsv(list, `${isCert ? 'Сертификаты' : 'Извещения'}_${source}.csv`)}>📤 CSV</Button>
           <Button variant="outline" onClick={() => exportWord(list, `${isCert ? 'Сертификаты' : 'Извещения'} — ${source}`, `${isCert ? 'Сертификаты' : 'Извещения'}_${source}.docx`)}>⬇ Word</Button>
           <Button onClick={openNew}>+ {isCert ? 'Сертификат' : 'Извещение'}</Button>
         </div>} />
