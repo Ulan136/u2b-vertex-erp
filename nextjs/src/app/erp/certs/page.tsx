@@ -268,21 +268,22 @@ function CertsInner() {
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(title)}</title><style>@page{size:A4 landscape;margin:9mm}body{font-family:'Times New Roman',serif;font-size:10.5px}h2{text-align:center;margin:0 0 3px;font-size:15px}table{width:100%;border-collapse:collapse;margin-top:6px}td,th{border:1px solid #000;padding:3px 4px}th{background:#eee}</style></head><body><h2>${esc(title)}</h2><div style="text-align:center;margin-bottom:4px">Направление: ${esc(source)} · записей: ${arr.length}</div><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><script>window.onload=function(){window.print()}<\/script></body></html>`;
     const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); } else toast('⚠️ Разрешите всплывающие окна для печати');
   }
-  function exportCsv(arr: Cert[], name: string) {
-    const rows = [EXP_HEAD, ...exportRows(arr)];
-    const csv = '﻿' + rows.map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(';')).join('\n');
-    const b = new Blob([csv], { type: 'text/csv;charset=utf-8' }); const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(b), download: name });
-    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  }
-  async function exportWord(arr: Cert[], title: string, name: string) {
-    const spec = { titleLines: [title], subtitle: `Направление: ${source} · записей: ${arr.length}`, orientation: 'landscape', columns: EXP_HEAD.map((h, i) => ({ header: h, width: i === 1 || i === 2 ? 22 : 10, align: i >= 8 && i < 14 ? 'right' : 'left' })), rows: exportRows(arr), filename: name };
+  // Единый spec для Word/Excel (11 колонок). ФИО/Адрес — шире и по левому краю.
+  const expSpec = (arr: Cert[], title: string, name: string) => ({
+    titleLines: [title], subtitle: `Направление: ${source} · записей: ${arr.length}`, orientation: 'landscape',
+    columns: EXP_HEAD.map((h, i) => ({ header: h, width: i === 1 || i === 2 ? 22 : 10, align: i === 1 || i === 2 ? 'left' : 'center' })),
+    rows: exportRows(arr), filename: name,
+  });
+  async function exportDoc(endpoint: string, arr: Cert[], title: string, name: string) {
     try {
-      const r = await fetch('/api/v2/docx', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(spec) });
+      const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(expSpec(arr, title, name)) });
       if (!r.ok) throw new Error('Ошибка выгрузки');
       const b = await r.blob(); const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(b), download: name });
       a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     } catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
+  const exportExcel = (arr: Cert[], title: string, name: string) => exportDoc('/api/v2/xlsx', arr, title, name);
+  const exportWord = (arr: Cert[], title: string, name: string) => exportDoc('/api/v2/docx', arr, title, name);
 
   const Mic = ({ k, h }: { k: keyof typeof EMPTY; h: string }) => <button type="button" className="cert-mic" title={`🎤 ${h}`} onClick={() => voiceField(k, h)}>🎤</button>;
   // Копирование значения поля в буфер — для ручной вставки на сайт е-КТРМ.
@@ -314,7 +315,7 @@ function CertsInner() {
       <PageTitle title={`Поверка — ${isCert ? 'сертификаты' : 'извещения'}`} sub={`Направление: ${source} · записей: ${list.length}`} action={
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button variant="outline" onClick={() => printPdf(list, `${isCert ? 'Сертификаты' : 'Извещения'} — ${source}`)}>🖨 PDF</Button>
-          <Button variant="outline" onClick={() => exportCsv(list, `${isCert ? 'Сертификаты' : 'Извещения'}_${source}.csv`)}>📤 CSV</Button>
+          <Button variant="outline" onClick={() => exportExcel(list, `${isCert ? 'Сертификаты' : 'Извещения'} — ${source}`, `${isCert ? 'Сертификаты' : 'Извещения'}_${source}.xlsx`)}>⬇ Excel</Button>
           <Button variant="outline" onClick={() => exportWord(list, `${isCert ? 'Сертификаты' : 'Извещения'} — ${source}`, `${isCert ? 'Сертификаты' : 'Извещения'}_${source}.docx`)}>⬇ Word</Button>
           <Button onClick={openNew}>+ {isCert ? 'Сертификат' : 'Извещение'}</Button>
         </div>} />
@@ -423,7 +424,7 @@ function CertsInner() {
         {/* Блок 3 · Извещение о непригодности */}
         <div className="cert-sec-lbl" style={{ marginTop: 22, display: 'flex', alignItems: 'center' }}>📄 Блок 3 · Извещение о непригодности <span className="erp-muted">· {unfit.length}</span>
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <Button variant="outline" onClick={() => exportCsv(unfit, `Непригодность_${source}.csv`)}>📤 Экспорт извещения</Button>
+            <Button variant="outline" onClick={() => exportExcel(unfit, `Извещение о непригодности — ${source}`, `Непригодность_${source}.xlsx`)}>⬇ Excel извещения</Button>
             <Button variant="outline" onClick={() => exportWord(unfit, `Извещение о непригодности — ${source}`, `Непригодность_${source}.docx`)}>⬇ Word</Button>
           </span>
         </div>
