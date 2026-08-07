@@ -5,7 +5,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
 
-type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; accountId: string; source?: string | null; comment?: string | null; expenseCat?: string | null; subCategory?: string | null; supplier?: string | null; docNo?: string | null; status?: string | null; orderId?: string | null; createdByName?: string | null };
+type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; accountId: string; source?: string | null; comment?: string | null; expenseCat?: string | null; subCategory?: string | null; supplier?: string | null; docNo?: string | null; status?: string | null; orderId?: string | null; createdByName?: string | null; reverses?: string | null; reversedAt?: string | null };
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; sortOrder?: number | null; balance?: string | number | null };
 type Cat = { id: string; name: string; icon?: string | null; base?: boolean; subs?: { id: string; name: string }[] };
 type Emp = { userId: string; name: string; salaryHidden?: boolean };
@@ -39,7 +39,9 @@ export default function ExpensesPage() {
 
   const accounts = fin?.accounts || [];
   const catList = cats || [];
-  const expenses = React.useMemo(() => (fin?.operations || []).filter(o => o.opType === 'Расход' && !o.name?.startsWith('Сторно')), [fin]);
+  // Список расходов: только действующие Расходы. Исключаем сторно-строки и
+  // ОТМЕНЁННЫЕ оригиналы (reversedAt) — после «удаления» (сторно) расход уходит.
+  const expenses = React.useMemo(() => (fin?.operations || []).filter(o => o.opType === 'Расход' && !o.name?.startsWith('Сторно') && !o.reversedAt && !o.reverses), [fin]);
   const orderNo = (id?: string | null) => orders?.find(o => o.id === id)?.orderNo;
 
   // категория/подкатегория операции: из полей, иначе из имени/источника (legacy).
