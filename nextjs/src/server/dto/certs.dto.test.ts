@@ -1,7 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanCertFields, isCertPaid } from './certs.dto';
+import { cleanCertFields, isCertPaid, sectionForCertSource, certIncomePosts } from './certs.dto';
 import { sealMarker } from './products.dto';
+
+test('sectionForCertSource: Астана → branch, прочие → poverka', () => {
+  assert.equal(sectionForCertSource('Астана'), 'branch');
+  assert.equal(sectionForCertSource('САМИ'), 'poverka');
+  assert.equal(sectionForCertSource('Выездная'), 'poverka');
+});
+test('certIncomePosts: доход только оплачено + не Выездная + цена>0', () => {
+  assert.equal(certIncomePosts({ source: 'САМИ', payStatus: 'Оплачено', amount: 10000 }), true);
+  assert.equal(certIncomePosts({ source: 'Выездная', payStatus: 'Оплачено', amount: 10000 }), false); // Выездная — доход через заявку
+  assert.equal(certIncomePosts({ source: 'САМИ', payStatus: 'В ожидании', amount: 10000 }), false);
+  assert.equal(certIncomePosts({ source: 'САМИ', payStatus: 'Бесплатно', amount: 10000 }), false);
+  assert.equal(certIncomePosts({ source: 'САМИ', payStatus: 'Оплачено', amount: 0 }), false);      // без цены — не проводим
+});
 
 test('cleanCertFields: undefined убирается (→ дефолт БД), не ломает вставку', () => {
   const out = cleanCertFields({ source: 'САМИ', fio: 'Иванов', checkDate: undefined, branchId: undefined, meterType: undefined });

@@ -12,8 +12,10 @@ type Cert = {
   id: string; source: string; docType?: string | null; fio?: string | null; address?: string | null; phone?: string | null; client?: string | null;
   meterType?: string | null; serialNo?: string | null; yearMade?: number | null; waterType?: string | null;
   checkDate?: string | null; nextCheckDate?: string | null; stampNo?: string | null; sealType?: string | null; readings?: string | number | null;
-  result?: string | null; operStatus?: string | null; payStatus?: string | null; invoiceType?: string | null; sentStatus?: string | null; note?: string | null; createdByName?: string | null; createdAt?: string | null;
+  result?: string | null; operStatus?: string | null; payStatus?: string | null; invoiceType?: string | null; sentStatus?: string | null; note?: string | null; createdByName?: string | null; createdAt?: string | null; amount?: string | number | null;
 };
+type Acct = { id: string; name: string; section?: string | null; category?: string | null; isActive?: boolean; icon?: string | null };
+const fmtNum = (n: number) => (Number(n) || 0).toLocaleString('ru-RU');
 type Product = { id: string; skuCode: string; name: string };
 type Client = { id: string; name: string };
 type DeviceTypeHit = { id: string; name: string; usageCount: number };
@@ -30,7 +32,7 @@ const num = (v: unknown) => Number(v) || 0;
 const operTone = (s?: string | null): 'ok' | 'warn' | 'info' | 'neutral' => s === 'Внесён в КТРМ' ? 'ok' : s === 'В работе' ? 'neutral' : 'warn';
 const sentTone = (s?: string | null): 'ok' | 'warn' | 'info' => s === 'Отправлено' ? 'ok' : s === 'Запланировано' ? 'info' : 'warn';
 const isTTE = (c: Cert) => /ттэ/i.test(c.note || '') || c.waterType === 'г/в';
-const EMPTY = { id: '', fio: '', address: '', phone: '', client: '', meterType: '', serialNo: '', yearMade: '', waterType: 'х/в', checkDate: '', nextCheckDate: '', stampNo: '', sealType: 'СЛ', readings: '', result: 'Годен', operStatus: 'В работе', payStatus: 'В ожидании', invoiceType: 'Каспи', sentStatus: 'Не отправлено', note: '' };
+const EMPTY = { id: '', fio: '', address: '', phone: '', client: '', meterType: '', serialNo: '', yearMade: '', waterType: 'х/в', checkDate: '', nextCheckDate: '', stampNo: '', sealType: 'СЛ', readings: '', result: 'Годен', operStatus: 'В работе', payStatus: 'В ожидании', invoiceType: 'Каспи', sentStatus: 'Не отправлено', note: '', amount: '' };
 
 const VOICE_CERT: Array<[keyof typeof EMPTY, string]> = [['fio', 'ФИО абонента'], ['address', 'Адрес'], ['serialNo', 'Номер счётчика'], ['stampNo', 'Номер клейма'], ['readings', 'Показания в кубометрах'], ['yearMade', 'Год выпуска'], ['phone', 'Телефон'], ['client', 'Клиент'], ['note', 'Примечание']];
 const VOICE_IZV: Array<[keyof typeof EMPTY, string]> = [['fio', 'ФИО абонента'], ['address', 'Адрес'], ['serialNo', 'Заводской номер'], ['yearMade', 'Год выпуска'], ['phone', 'Телефон'], ['client', 'Клиент'], ['note', 'Примечание']];
@@ -86,11 +88,25 @@ function CertsInner() {
   const { data: certs, error, isLoading, mutate } = useApi<Cert[]>(`/api/v2/certs?source=${encodeURIComponent(source)}&archived=false&type=${docType}`);
   const { data: products } = useApi<Product[]>('/api/v2/products');
   const { data: clients } = useApi<Client[]>('/api/v2/clients');
+  const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
+  // Оплата прямых сертификатов: счета раздела источника (Астана→branch, иначе poverka).
+  const isDirect = source !== 'Выездная';
+  const certSection = source === 'Астана' ? 'branch' : 'poverka';
+  const secAccounts = React.useMemo(() => (fin?.accounts || []).filter(a => (a.section || '') === certSection && a.isActive !== false), [fin, certSection]);
+  const defaultAcc = secAccounts.find(a => a.category === 'kaspi') || secAccounts[0];
+  const [payRows, setPayRows] = React.useState<Array<{ accountId: string; amount: string }>>([{ accountId: '', amount: '' }]);
+  const [payTouched, setPayTouched] = React.useState(false);   // трогал ли пользователь оплату/цену в этой сессии модалки
+  const setPay = (updater: React.SetStateAction<Array<{ accountId: string; amount: string }>>) => { setPayTouched(true); setPayRows(updater); };
   const [modal, setModal] = React.useState(false);
   const [form, setForm] = React.useState<typeof EMPTY>(EMPTY);
   const [cloneFrom, setCloneFrom] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState('');
+  // При открытии модалки — одна строка оплаты: счёт раздела по умолчанию + цена.
+  React.useEffect(() => { if (modal) { setPayRows([{ accountId: defaultAcc?.id || '', amount: form.amount || '' }]); setPayTouched(false); } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [modal]);
+  const payTotal = payRows.reduce((s, p) => s + num(p.amount), 0);
+  const priceNum = num(form.amount);
+  const payMismatch = isDirect && form.payStatus === 'Оплачено' && priceNum > 0 && Math.abs(payTotal - priceNum) > 0.01;
 
   // Тип прибора — автоподсказка: 🕘 недавние (пустое поле) + справочник + склад.
   const { data: session } = useApi<{ user?: { id?: string } }>('/api/auth/session');
@@ -213,7 +229,7 @@ function CertsInner() {
   };
 
   const openNew = () => { setForm(EMPTY); setCloneFrom(''); setErr(''); setModal(true); };
-  const fillForm = (c: Cert): typeof EMPTY => ({ id: c.id, fio: c.fio || '', address: c.address || '', phone: c.phone || '', client: c.client || '', meterType: c.meterType || '', serialNo: c.serialNo || '', yearMade: c.yearMade ? String(c.yearMade) : '', waterType: c.waterType || 'х/в', checkDate: iso(c.checkDate), nextCheckDate: iso(c.nextCheckDate), stampNo: c.stampNo || '', sealType: c.sealType === 'ПЛ' ? 'ПЛ' : 'СЛ', readings: c.readings != null ? String(c.readings) : '', result: c.result || 'Годен', operStatus: c.operStatus || 'В работе', payStatus: c.payStatus || 'В ожидании', invoiceType: c.invoiceType || 'Каспи', sentStatus: c.sentStatus || 'Не отправлено', note: c.note || '' });
+  const fillForm = (c: Cert): typeof EMPTY => ({ id: c.id, fio: c.fio || '', address: c.address || '', phone: c.phone || '', client: c.client || '', meterType: c.meterType || '', serialNo: c.serialNo || '', yearMade: c.yearMade ? String(c.yearMade) : '', waterType: c.waterType || 'х/в', checkDate: iso(c.checkDate), nextCheckDate: iso(c.nextCheckDate), stampNo: c.stampNo || '', sealType: c.sealType === 'ПЛ' ? 'ПЛ' : 'СЛ', readings: c.readings != null ? String(c.readings) : '', result: c.result || 'Годен', operStatus: c.operStatus || 'В работе', payStatus: c.payStatus || 'В ожидании', invoiceType: c.invoiceType || 'Каспи', sentStatus: c.sentStatus || 'Не отправлено', note: c.note || '', amount: c.amount != null ? String(c.amount) : '' });
   const openEdit = (c: Cert) => { setForm(fillForm(c)); setCloneFrom(''); setErr(''); setModal(true); };
   const openClone = (c: Cert) => { setForm({ ...fillForm(c), id: '', checkDate: '', nextCheckDate: '' }); setCloneFrom(`${c.fio || ''}`); setErr(''); setModal(true); };
 
@@ -225,12 +241,17 @@ function CertsInner() {
   }
 
   function buildBody() {
-    const base: Record<string, unknown> = { source, docType, fio: form.fio.trim(), address: form.address || '', phone: form.phone || null, client: form.client || null, meterType: form.meterType || null, serialNo: form.serialNo || null, yearMade: form.yearMade ? Number(form.yearMade) : null, waterType: form.waterType, checkDate: form.checkDate || null, result: form.result, operStatus: form.operStatus, payStatus: form.payStatus, invoiceType: form.invoiceType, note: form.note || null };
+    const base: Record<string, unknown> = { source, docType, fio: form.fio.trim(), address: form.address || '', phone: form.phone || null, client: form.client || null, meterType: form.meterType || null, serialNo: form.serialNo || null, yearMade: form.yearMade ? Number(form.yearMade) : null, waterType: form.waterType, checkDate: form.checkDate || null, result: form.result, operStatus: form.operStatus, payStatus: form.payStatus, invoiceType: form.invoiceType, note: form.note || null, amount: form.amount ? Number(form.amount) : null };
+    // Прямой доход: при «Оплачено» передаём раскладку по счетам (иначе сервер не проведёт).
+    // Раскладку шлём только для новой записи или если оплату/цену трогали —
+    // иначе сервер не пересобирает уже проведённый доход (правка не-оплатных полей).
+    if (isDirect && form.payStatus === 'Оплачено' && (!form.id || payTouched)) base.payments = payRows.filter(p => p.accountId && num(p.amount) > 0).map(p => ({ accountId: p.accountId, amount: num(p.amount) }));
     if (isCert) return { ...base, nextCheckDate: form.nextCheckDate || null, stampNo: form.stampNo || null, sealType: form.sealType, readings: form.readings || null };
     return { ...base, sentStatus: form.sentStatus };
   }
   async function save() {
     if (!form.fio.trim()) { setErr('Укажите ФИО / объект'); return; }
+    if (payMismatch) { setErr(`Сумма оплат (${fmtNum(payTotal)}) должна равняться цене (${fmtNum(priceNum)})`); return; }
     setSaving(true); setErr('');
     try {
       if (form.id) await apiSend(`/api/v2/certs/${form.id}`, 'PATCH', buildBody());
@@ -444,7 +465,7 @@ function CertsInner() {
 
       <Modal open={modal} onClose={() => setModal(false)} width={680}
         title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>{form.id ? (isCert ? '✏️ Сертификат' : '✏️ Извещение') : `➕ ${isCert ? 'Сертификат' : 'Извещение'} · ${source}`}{cloneFrom && <span className="sale-clone-badge">⧉ на основе {cloneFrom}</span>}</span>}
-        footer={<><Button onClick={save} disabled={saving}>{saving ? 'Сохранение…' : '💾 Сохранить'}</Button><Button variant="outline" onClick={() => setModal(false)}>Отмена</Button></>}>
+        footer={<><Button onClick={save} disabled={saving || payMismatch} title={payMismatch ? 'Сумма оплат ≠ цене' : undefined}>{saving ? 'Сохранение…' : payMismatch ? '⚠ Оплата ≠ цене' : '💾 Сохранить'}</Button><Button variant="outline" onClick={() => setModal(false)}>Отмена</Button></>}>
         {err && <div className="erp-form-err">{err}</div>}
         <div className="cert-sec-lbl">📋 Данные {isCert ? 'поверки' : 'извещения'}
           {voiceSupported && <button type="button" className="cert-voice-all" onClick={voiceAll}>🎤 Заполнить голосом</button>}
@@ -521,6 +542,38 @@ function CertsInner() {
           <Field label="Счёт"><Select value={form.invoiceType} onChange={e => setForm({ ...form, invoiceType: e.target.value })}>{INV.map(o => <option key={o}>{o}</option>)}</Select></Field>
           {!isCert && <Field label="Отправка"><Select value={form.sentStatus} onChange={e => setForm({ ...form, sentStatus: e.target.value })}>{SENT.map(o => <option key={o}>{o}</option>)}</Select></Field>}
         </div>
+
+        {isDirect ? (
+          <>
+            <div className="cert-sec-lbl">💳 Оплата (доход)</div>
+            <div className="erp-form-row">
+              <Field label="Цена, ₸"><Input type="number" value={form.amount} onChange={e => { setPayTouched(true); setForm({ ...form, amount: e.target.value }); }} placeholder="0" /></Field>
+              <div />
+            </div>
+            {form.payStatus === 'Оплачено' && (
+              <div className="sale-pay" style={{ marginTop: 0 }}>
+                <div className="erp-muted" style={{ fontSize: 11, marginBottom: 6 }}>Счета раздела «{certSection === 'branch' ? '№4 Филиал Астана' : '№1 Поверка'}». Одна строка — вся цена на один счёт; можно разбить (смешанная).</div>
+                {payRows.map((p, i) => (
+                  <div className="sale-pay-row" key={i}>
+                    <Select value={p.accountId} onChange={e => setPay(rs => rs.map((r, j) => j === i ? { ...r, accountId: e.target.value } : r))}>
+                      <option value="">{secAccounts.length ? '— счёт —' : '— нет счетов раздела —'}</option>
+                      {secAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
+                    </Select>
+                    <Input type="number" min={0} value={p.amount} onChange={e => setPay(rs => rs.map((r, j) => j === i ? { ...r, amount: e.target.value } : r))} placeholder="сумма" style={{ textAlign: 'right' }} />
+                    <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => setPay(rs => rs.length > 1 ? rs.filter((_, j) => j !== i) : rs)} title="Убрать">✕</button>
+                  </div>
+                ))}
+                <Button variant="outline" onClick={() => setPay(rs => [...rs, { accountId: defaultAcc?.id || '', amount: '' }])} style={{ fontSize: 12 }}>+ ещё счёт</Button>
+                <div className="sale-pay-state">
+                  <span>Внесено: <b style={{ color: payMismatch ? '#b45309' : '#16a34a' }}>{fmtNum(payTotal)} ₸</b></span>
+                  <span>Цена: <b>{fmtNum(priceNum)} ₸</b></span>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="erp-muted" style={{ fontSize: 12, marginTop: 10 }}>ℹ️ Выездная: доход проводится через приём оплаты заявки у мастера, не здесь.</div>
+        )}
 
         {form.id && <EntityHistory entityType="certificate" entityId={form.id} />}
       </Modal>

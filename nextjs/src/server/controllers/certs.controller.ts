@@ -18,7 +18,7 @@ export const POST = withApi(async (req: NextRequest, ctx) => created(await certs
 
 // item: /api/v2/certs/[id]
 export const PATCH = withApi(async (req: NextRequest, ctx) => certsService.update(ctx.params!.id, await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
-export const DELETE = withApi(async (req: NextRequest, ctx) => certsService.remove(ctx.params!.id));
+export const DELETE = withApi(async (req: NextRequest, ctx) => certsService.remove(ctx.params!.id, ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
 
 // POST /api/v2/orders/[id]/payment — приём оплаты заявки (выездной мастер):
 // смешанная оплата → приход на счета «Поверка» + сертификаты «Оплачено».

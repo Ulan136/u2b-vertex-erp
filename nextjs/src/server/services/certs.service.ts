@@ -1,6 +1,6 @@
-import { db } from '@/db';
+import { db, type Executor } from '@/db';
 import { certsRepo } from '@/server/repositories/certs.repo';
-import { certUpsertSchema, certUpdateSchema, cleanCertFields, isCertPaid, poverkaPaymentSchema, type CertQuery } from '@/server/dto/certs.dto';
+import { certUpsertSchema, certUpdateSchema, cleanCertFields, isCertPaid, poverkaPaymentSchema, sectionForCertSource, certIncomePosts, type CertQuery } from '@/server/dto/certs.dto';
 import { deviceTypesService } from '@/server/services/deviceTypes.service';
 import { productsService } from '@/server/services/products.service';
 import { financeService } from '@/server/services/finance.service';
@@ -16,6 +16,52 @@ function sealFor(cert: { docType?: string | null; sealType?: string | null; payS
   return isCertPaid(cert.payStatus) ? sealMarker(cert.docType, cert.sealType) : null;
 }
 
+// ── Доход прямого сертификата/извещения (смешанная оплата → приход на счета) ──
+type CertRow = { id: string; source?: string | null; payStatus?: string | null; amount?: unknown; docType?: string | null; serialNo?: string | null };
+type PayLine = { accountId: string; amount: number };
+
+// Сторнируем действующий доход сертификата (обратной операцией, баланс к нулю).
+async function reverseCertIncome(certId: string, actor: { id: string; name?: string } | null | undefined, tx: Executor) {
+  const ops = (await financeRepo.findByCert(certId, tx)).filter(o => o.opType === 'Приход' && !o.reversedAt && !o.reverses);
+  for (const o of ops) await financeService.reverseOperation(o.id, actor?.id ?? null, tx);
+  return ops.length;
+}
+
+// Раскладка дохода: явные строки оплаты или (пусто) весь доход на счёт раздела.
+async function resolveCertAlloc(cert: CertRow, payments: PayLine[] | undefined, tx: Executor): Promise<PayLine[]> {
+  const amount = Math.round((Number(cert.amount) || 0) * 100) / 100;
+  let alloc = (payments || []).map(p => ({ accountId: String(p.accountId), amount: Math.round((Number(p.amount) || 0) * 100) / 100 })).filter(p => p.accountId && p.amount > 0);
+  if (!alloc.length) {
+    const acc = await financeRepo.defaultAccount(sectionForCertSource(cert.source), tx);
+    if (!acc) throw badRequest('Нет счёта для дохода — заведите счёт в разделе (Финансы → Привязка счетов)');
+    alloc = [{ accountId: acc.id, amount }];
+  }
+  const sum = alloc.reduce((s, p) => s + p.amount, 0);
+  if (Math.abs(sum - amount) > 0.01) throw badRequest(`Сумма оплат (${m2(sum)}) должна равняться цене (${m2(amount)})`);
+  return alloc;
+}
+
+// Идемпотентная сверка дохода: приводит доход сертификата к нужному состоянию
+// (оплачено+не Выездная+цена>0 → приход по раскладке; иначе → сторно). Не трогает
+// уже проведённый доход, если раскладка не изменилась (правка не-оплатных полей).
+async function syncCertIncome(cert: CertRow, payments: PayLine[] | undefined, actor: { id: string; name?: string } | null | undefined, tx: Executor) {
+  const existing = (await financeRepo.findByCert(cert.id, tx)).filter(o => o.opType === 'Приход' && !o.reversedAt && !o.reverses);
+  if (!certIncomePosts(cert)) { if (existing.length) await reverseCertIncome(cert.id, actor, tx); return; }
+  const alloc = await resolveCertAlloc(cert, payments, tx);
+  const norm = (arr: PayLine[]) => arr.map(p => `${p.accountId}:${p.amount.toFixed(2)}`).sort().join('|');
+  if (existing.length && norm(existing.map(o => ({ accountId: o.accountId as string, amount: Number(o.amount) }))) === norm(alloc)) return;
+  if (existing.length) await reverseCertIncome(cert.id, actor, tx);
+  const src = sectionForCertSource(cert.source) === 'branch' ? 'Филиал' : 'Поверка';
+  for (const p of alloc) {
+    const acc = await financeRepo.findAccount(p.accountId, tx);
+    if (!acc) throw badRequest('Счёт оплаты не найден');
+    await financeService.createOperation(
+      { opType: 'Приход', accountId: p.accountId, amount: m2(p.amount), name: `${cert.docType === 'izv' ? 'Извещение' : 'Сертификат'} ${cert.source || ''}${cert.serialNo ? ' №' + cert.serialNo : ''}`.slice(0, 200), source: src, certId: cert.id, accountName: acc.name },
+      actor?.id ?? null, tx,
+    );
+  }
+}
+
 export const certsService = {
   list(q: CertQuery) {
     return certsRepo.list({
@@ -28,17 +74,19 @@ export const certsService = {
 
   async create(input: unknown, actor?: { id: string; name?: string } | null) {
     const data = certUpsertSchema.parse(input);
-    const fields = cleanCertFields(data);
+    const { payments, ...certData } = data;
+    const fields = cleanCertFields(certData);
     // fio/address — NOT NULL в БД без дефолта: гарантируем непустую строку (иначе 500).
     fields.fio ??= '';
     fields.address ??= '';
     // Автор сертификата — для аналитики по сотрудникам (раньше не сохранялся).
     if (actor?.id) fields.createdBy = actor.id;
-    // Сертификат + списание клейма (только если поверка уже «Оплачено») — одной
-    // транзакцией. Маркер считаем по сохранённой строке (итоговое состояние).
+    // Сертификат + списание клейма + доход (если «Оплачено», не Выездная) — одной
+    // транзакцией. Всё считаем по сохранённой строке (итоговое состояние).
     const row = await db.transaction(async (tx) => {
       const created = await certsRepo.create(fields, tx);
       await productsService.syncCertSeal({ id: created.id, serialNo: created.serialNo }, sealFor(created), actor, tx);
+      await syncCertIncome(created, payments, actor, tx);
       return created;
     });
     // Самообучение справочника типов приборов (best-effort, не роняет сохранение).
@@ -49,17 +97,18 @@ export const certsService = {
   async update(id: string, input: unknown, actor?: { id: string; name?: string } | null) {
     if (!id) throw badRequest('id is required');
     const data = certUpdateSchema.parse(input);
-    const fields = cleanCertFields(data);
+    const { payments, ...certData } = data;
+    const fields = cleanCertFields(certData);
     // нельзя занулять NOT NULL поля — если пришёл null, пишем ''
     if ('fio' in fields && fields.fio == null) fields.fio = '';
     if ('address' in fields && fields.address == null) fields.address = '';
-    // Правка + пересверка списания клейма (статус оплаты/тип клейма могли
-    // измениться) — одной транзакцией. Оплатили → списываем; откатили в ожидание
-    // → возвращаем; сменили СЛ/ПЛ → переставляем.
+    // Правка + пересверка клейма и дохода (статус оплаты/цена/раскладка могли
+    // измениться) — одной транзакцией. Оплатили → приход/клеймо; откатили → сторно.
     const row = await db.transaction(async (tx) => {
       const updated = await certsRepo.update(id, fields, tx);
       if (!updated) return null;
       await productsService.syncCertSeal({ id: updated.id, serialNo: updated.serialNo }, sealFor(updated), actor, tx);
+      await syncCertIncome(updated, payments, actor, tx);
       return updated;
     });
     if (!row) throw notFound('Certificate not found');
@@ -67,11 +116,13 @@ export const certsService = {
     return row;
   },
 
-  async remove(id: string) {
+  async remove(id: string, actor?: { id: string; name?: string } | null) {
     if (!id) throw badRequest('id is required');
-    // Возвращаем списанные клейма на склад и удаляем поверку — одной транзакцией
-    // (заодно снимаем ссылку cert_id с движений, иначе FK не даст удалить).
+    // Сторнируем доход (баланс к нулю) + снимаем cert_id с финопер (FK NO ACTION),
+    // возвращаем клейма на склад и удаляем поверку — одной транзакцией.
     await db.transaction(async (tx) => {
+      await reverseCertIncome(id, actor, tx);
+      await financeRepo.detachCert(id, tx);
       await productsService.releaseCertConsumables(id, tx);
       await certsRepo.remove(id, tx);
     });

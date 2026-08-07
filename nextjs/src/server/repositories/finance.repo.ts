@@ -63,6 +63,20 @@ export const financeRepo = {
   findBySale: (saleId: string, exec: Executor = db) =>
     exec.select().from(financeOperations).where(eq(financeOperations.saleId, saleId)),
 
+  // Операции дохода, привязанные к сертификату (для сверки/отката дохода).
+  findByCert: (certId: string, exec: Executor = db) =>
+    exec.select().from(financeOperations).where(eq(financeOperations.certId, certId)),
+  // Снять привязку к сертификату (перед удалением — FK cert_id = NO ACTION).
+  detachCert: (certId: string, exec: Executor = db) =>
+    exec.update(financeOperations).set({ certId: null }).where(eq(financeOperations.certId, certId)),
+  // Счёт по умолчанию для раздела (Каспи, иначе первый активный) — куда идёт доход.
+  async defaultAccount(section: string, exec: Executor = db) {
+    const rows = await exec.select().from(financeAccounts)
+      .where(and(eq(financeAccounts.section, section as typeof financeAccounts.section.enumValues[number]), eq(financeAccounts.isActive, true)))
+      .orderBy(asc(financeAccounts.sortOrder));
+    return rows.find(a => a.category === 'kaspi') ?? rows[0] ?? null;
+  },
+
   // Операции одной группы расхода (смешанная оплата — для отмены всей группы).
   findByGroup: (groupId: string, exec: Executor = db) =>
     exec.select().from(financeOperations).where(eq(financeOperations.expenseGroupId, groupId)),

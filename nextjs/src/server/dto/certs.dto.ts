@@ -30,7 +30,21 @@ export const certUpsertSchema = z.object({
   payStatus: z.string().optional(),
   invoiceType: z.string().optional(),
   isArchived: z.boolean().optional(),   // в архив / из архива
+  // Оплата прямого сертификата/извещения (смешанная): строки {счёт, сумма}.
+  // Пусто/не передано → приход на счёт раздела по умолчанию (при «Оплачено»).
+  payments: z.array(z.object({ accountId: z.string().uuid(), amount: z.coerce.number().nonnegative() })).optional(),
 });
+
+// Раздел финансов, куда идёт доход прямого сертификата, по его источнику.
+// Астана → «Филиал Астана» (branch); все поверочные → «Поверка» (poverka).
+export function sectionForCertSource(source?: string | null): 'poverka' | 'branch' {
+  return source === 'Астана' ? 'branch' : 'poverka';
+}
+// Доход по сертификату проводим только: оплачено + не Выездная (там доход через
+// заявку мастера) + указана цена (>0). Иначе — не проводим/сторнируем.
+export function certIncomePosts(cert: { source?: string | null; payStatus?: string | null; amount?: unknown }): boolean {
+  return isCertPaid(cert.payStatus) && cert.source !== 'Выездная' && (Number(cert.amount) || 0) > 0;
+}
 
 export const certUpdateSchema = certUpsertSchema.partial();
 
