@@ -68,6 +68,9 @@ export default function SalesPage() {
 
   // ── форма позиций ──
   const formTotal = form.items.reduce((s, it) => s + num(it.qty) * num(it.price), 0);
+  // Перепродажа в минус: при создании/клоне нельзя продать больше остатка (сервер
+  // тоже блокирует). При правке остаток уже списан — не проверяем на клиенте.
+  const overSell = !form.id && form.items.some(it => { const p = (products || []).find(x => x.id === it.productId); return p && num(it.qty) > num(p.currentStock); });
   const allocated = form.payments.reduce((s, p) => s + num(p.amount), 0);
   const remaining = Math.max(0, Math.round((formTotal - allocated) * 100) / 100);
   const formStatus = payState(formTotal, allocated);
@@ -291,7 +294,7 @@ export default function SalesPage() {
       {/* ── Модалка продажи (мультипозиция + смешанная оплата) ── */}
       <Modal open={modal} onClose={() => setModal(false)}
         title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>{form.id ? '✏️ Продажа' : '➕ Новая продажа'}{form.cloneFrom && <span className="sale-clone-badge">⧉ на основе {form.cloneFrom}</span>}</span>} width={700}
-        footer={<><Button onClick={save} disabled={saving}>{saving ? 'Сохранение…' : (form.id ? 'Сохранить' : 'Провести продажу')}</Button><Button variant="outline" onClick={() => setModal(false)}>Отмена</Button></>}>
+        footer={<><Button onClick={save} disabled={saving || overSell} title={overSell ? 'Нельзя продать больше остатка' : undefined}>{saving ? 'Сохранение…' : overSell ? '⚠ Больше остатка нельзя' : (form.id ? 'Сохранить' : 'Провести продажу')}</Button><Button variant="outline" onClick={() => setModal(false)}>Отмена</Button></>}>
         {err && <div className="erp-form-err">{err}</div>}
         <Field label="ФИО / название" required>
           <div style={{ position: 'relative' }}>
@@ -333,7 +336,7 @@ export default function SalesPage() {
                         <option value="">— выберите —</option>
                         {(products || []).map(pr => <option key={pr.id} value={pr.id}>{pr.skuCode} · {pr.name} (ост. {pr.currentStock})</option>)}
                       </Select>
-                      {p && num(it.qty) > num(p.currentStock) && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 2 }}>⚠ на складе {p.currentStock}</div>}
+                      {p && !form.id && num(it.qty) > num(p.currentStock) && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 2 }}>⚠ доступно {p.currentStock} — нельзя больше</div>}
                     </td>
                     <td><Input type="number" min={1} value={it.qty} onChange={e => setItemField(i, 'qty', e.target.value)} style={{ padding: '4px 6px', textAlign: 'center' }} /></td>
                     <td><Input type="number" min={0} value={it.price} onChange={e => setItemField(i, 'price', e.target.value)} style={{ padding: '4px 6px', textAlign: 'right' }} /></td>

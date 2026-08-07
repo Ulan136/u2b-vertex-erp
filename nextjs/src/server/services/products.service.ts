@@ -102,6 +102,10 @@ export const productsService = {
     // Иначе приводим к нужному состоянию: сначала откат всего лишнего, потом списание.
     if (existing.length) await this.releaseCertConsumables(cert.id, exec);
     if (target) {
+      // Не уводим клеймо в минус: если на складе 0 — поверка создаётся, но списание
+      // не проводим (остаток не станет отрицательным). Фактический остаток
+      // выставляется ревизией. Когда клейма появятся — спишутся при следующей синхре.
+      if ((Number(target.currentStock) || 0) <= 0) return;
       const price = Number(target.costPrice ?? target.price ?? 0);
       await productsRepo.createMovement({
         productId: target.id, skuCode: target.skuCode, productName: target.name,
