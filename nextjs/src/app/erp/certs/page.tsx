@@ -12,7 +12,7 @@ type Cert = {
   id: string; source: string; docType?: string | null; fio?: string | null; address?: string | null; phone?: string | null; client?: string | null;
   meterType?: string | null; serialNo?: string | null; yearMade?: number | null; waterType?: string | null;
   checkDate?: string | null; nextCheckDate?: string | null; stampNo?: string | null; sealType?: string | null; readings?: string | number | null;
-  result?: string | null; operStatus?: string | null; payStatus?: string | null; invoiceType?: string | null; sentStatus?: string | null; note?: string | null; createdByName?: string | null;
+  result?: string | null; operStatus?: string | null; payStatus?: string | null; invoiceType?: string | null; sentStatus?: string | null; note?: string | null; createdByName?: string | null; createdAt?: string | null;
 };
 type Product = { id: string; skuCode: string; name: string };
 type Client = { id: string; name: string };
@@ -181,7 +181,11 @@ function CertsInner() {
     if (fFrom && d < fFrom) return false;   // фильтр по дате поверки
     if (fTo && d > fTo) return false;
     return true;
-  });
+  })
+    // Порядок реестра: по возрастанию создания — новые записи и клоны собираются
+    // ВНИЗ, порядковый № (индекс+1) продолжается. Печать/экспорт идут в том же
+    // порядке и нумеруются 1,2,3… сверху вниз.
+    .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
 
   // Блоки 2–4 (по полному списку направления).
   const waiting = all.filter(c => c.payStatus !== 'Оплачено');
