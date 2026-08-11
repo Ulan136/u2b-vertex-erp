@@ -191,6 +191,12 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
       <div class="fchip" id="f-all" onclick="setFilter('all')">Все</div>
       <input type="date" id="f-date" class="fdate" onchange="setFilterDate(this.value)" title="Заявки за дату">
     </div>
+    <div class="filter-row" style="padding-top:0;">
+      <div class="fchip on" id="st-all" onclick="setStatusFilter('')">Все статусы</div>
+      <div class="fchip" id="st-work" onclick="setStatusFilter('В работе')">🔄 В работе</div>
+      <div class="fchip" id="st-done" onclick="setStatusFilter('Готова')">✅ Готовые</div>
+      <div class="fchip" id="st-cancel" onclick="setStatusFilter('Отменён')">❌ Отмена</div>
+    </div>
     <div class="stats-row" id="stats"></div>
     <div id="orders-list" style="flex:1;"></div>
     <div style="height:16px;"></div>
@@ -352,7 +358,8 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
 <script src="/cabinet-common.js"></script>
 <script>
 const ORDERS_API='/api/v2/orders', COMMENTS_API='/api/v2/comments', ME_API='/api/v2/me';
-let me=null, orders=[], filter='today', filterDate='', commentCounts={}, activeOrderId=null;
+let me=null, orders=[], filter='today', filterDate='', filterStatus='', commentCounts={}, activeOrderId=null;
+function statusKey(o){ return o.status==='Готова'?'Готова':o.status==='Отменён'?'Отменён':'В работе'; }
 
 const ROLE_LABEL={admin:'Администратор',director:'Директор',accountant:'Бухгалтер',manager:'Менеджер',master:'Мастер'};
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2500);}
@@ -400,17 +407,24 @@ async function loadOrders(){
 }
 
 function visibleOrders(){
-  if(filter==='date' && filterDate) return orders.filter(o=>orderDay(o)===filterDate);
   const t=todayStr();
-  return filter==='today' ? orders.filter(o=>orderDay(o)===t) : orders;
+  let list = (filter==='date' && filterDate) ? orders.filter(o=>orderDay(o)===filterDate)
+           : filter==='today' ? orders.filter(o=>orderDay(o)===t) : orders;
+  if(filterStatus) list = list.filter(o=>statusKey(o)===filterStatus);
+  return list;
 }
 function syncFilterUi(){
   document.getElementById('f-today').classList.toggle('on',filter==='today');
   document.getElementById('f-all').classList.toggle('on',filter==='all');
   document.getElementById('f-date').classList.toggle('on',filter==='date');
+  document.getElementById('st-all').classList.toggle('on',filterStatus==='');
+  document.getElementById('st-work').classList.toggle('on',filterStatus==='В работе');
+  document.getElementById('st-done').classList.toggle('on',filterStatus==='Готова');
+  document.getElementById('st-cancel').classList.toggle('on',filterStatus==='Отменён');
 }
 function setFilter(f){ filter=f; filterDate=''; document.getElementById('f-date').value=''; syncFilterUi(); render(); }
 function setFilterDate(v){ filterDate=v; filter=v?'date':'today'; syncFilterUi(); render(); }
+function setStatusFilter(s){ filterStatus=s; syncFilterUi(); render(); }
 
 function stTag(s){return s==='Готова'?{c:'#059669',t:'✅ Готова'}:s==='Отменён'?{c:'#dc2626',t:'❌ Отменён'}:{c:'#1d4ed8',t:'🔄 В работе'};}
 
