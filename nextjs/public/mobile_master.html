@@ -53,6 +53,8 @@ html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:
 .filter-row{display:flex;gap:8px;padding:6px 14px 4px;}
 .fchip{flex:1;text-align:center;padding:8px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;}
 .fchip.on{background:#eff6ff;border-color:var(--blue);color:var(--blue);}
+.fdate{flex:1.2;min-width:0;border:1.5px solid var(--border);border-radius:10px;padding:7px 8px;font-size:13px;font-weight:600;color:var(--text);background:#fff;font-family:inherit;}
+.fdate.on{border-color:var(--blue);color:var(--blue);background:#eff6ff;}
 .order-card{background:#fff;border:1.5px solid var(--border);border-radius:14px;margin:8px 14px;padding:13px 14px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
 .order-card.done{border-color:#a7f3d0;background:#f0fdf4;}
 .order-card.cancelled{border-color:#fca5a5;background:#fff5f5;opacity:.85;}
@@ -187,6 +189,7 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
     <div class="filter-row">
       <div class="fchip on" id="f-today" onclick="setFilter('today')">Сегодня</div>
       <div class="fchip" id="f-all" onclick="setFilter('all')">Все</div>
+      <input type="date" id="f-date" class="fdate" onchange="setFilterDate(this.value)" title="Заявки за дату">
     </div>
     <div class="stats-row" id="stats"></div>
     <div id="orders-list" style="flex:1;"></div>
@@ -349,7 +352,7 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
 <script src="/cabinet-common.js"></script>
 <script>
 const ORDERS_API='/api/v2/orders', COMMENTS_API='/api/v2/comments', ME_API='/api/v2/me';
-let me=null, orders=[], filter='today', commentCounts={}, activeOrderId=null;
+let me=null, orders=[], filter='today', filterDate='', commentCounts={}, activeOrderId=null;
 
 const ROLE_LABEL={admin:'Администратор',director:'Директор',accountant:'Бухгалтер',manager:'Менеджер',master:'Мастер'};
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2500);}
@@ -397,14 +400,17 @@ async function loadOrders(){
 }
 
 function visibleOrders(){
+  if(filter==='date' && filterDate) return orders.filter(o=>orderDay(o)===filterDate);
   const t=todayStr();
   return filter==='today' ? orders.filter(o=>orderDay(o)===t) : orders;
 }
-function setFilter(f){filter=f;
-  document.getElementById('f-today').classList.toggle('on',f==='today');
-  document.getElementById('f-all').classList.toggle('on',f==='all');
-  render();
+function syncFilterUi(){
+  document.getElementById('f-today').classList.toggle('on',filter==='today');
+  document.getElementById('f-all').classList.toggle('on',filter==='all');
+  document.getElementById('f-date').classList.toggle('on',filter==='date');
 }
+function setFilter(f){ filter=f; filterDate=''; document.getElementById('f-date').value=''; syncFilterUi(); render(); }
+function setFilterDate(v){ filterDate=v; filter=v?'date':'today'; syncFilterUi(); render(); }
 
 function stTag(s){return s==='Готова'?{c:'#059669',t:'✅ Готова'}:s==='Отменён'?{c:'#dc2626',t:'❌ Отменён'}:{c:'#1d4ed8',t:'🔄 В работе'};}
 
@@ -440,7 +446,7 @@ function render(){
     <div class="stat-chip sc-new"><div class="sc-num">${active.length}</div><div class="sc-lbl">В работе</div></div>
     <div class="stat-chip sc-done"><div class="sc-num">${done}</div><div class="sc-lbl">Готово</div></div>
     <div class="stat-chip"><div class="sc-num">${vis.length}</div><div class="sc-lbl">Всего</div></div>`;
-  list.innerHTML=vis.length?vis.map(orderCardHtml).join(''):`<div class="empty">${filter==='today'?'На сегодня заявок нет':'Заявок нет'}</div>`;
+  list.innerHTML=vis.length?vis.map(orderCardHtml).join(''):`<div class="empty">${filter==='today'?'На сегодня заявок нет':filter==='date'?'Нет заявок на '+fmtDate(filterDate):'Заявок нет'}</div>`;
   // nav badge = активные заявки сегодня
   const t=todayStr();
   const todayActive=orders.filter(o=>orderDay(o)===t&&o.status!=='Готова'&&o.status!=='Отменён').length;
