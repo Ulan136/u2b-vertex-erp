@@ -23,39 +23,22 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 // Выбор счёта блоками: раздел (Поверка/Продажа/…) → его счета (Каспи/БЦК/Наличка)
 // с балансом — как колонки на странице, а не плоский список.
+// Выбор счёта: нативный сгруппированный select (разделы = optgroup, счета внутри
+// с балансом). Нативный — всегда закрывается сам при выборе, без перекрытий/зависаний.
 function AccountPicker({ accounts, value, onChange, placeholder }: { accounts: Acct[]; value: string; onChange: (id: string) => void; placeholder?: string }) {
-  const [open, setOpen] = React.useState(false);
-  const sel = accounts.find(a => a.id === value);
-  const selSec = sel ? SECTIONS.find(s => s.key === (sel.section || 'other')) : null;
   return (
-    <div className="rsh-acc-picker">
-      <button type="button" className="rsh-acc-trigger" onClick={() => setOpen(o => !o)}>
-        {sel
-          ? <span>{selSec && <span className="rsh-acc-tag">№{selSec.no}</span>}{sel.icon || '💳'} {sel.name}</span>
-          : <span className="erp-muted">{placeholder || '— раздел и счёт —'}</span>}
-        <span className="rsh-acc-caret">▾</span>
-      </button>
-      {open && <>
-        <div className="rsh-acc-backdrop" onClick={() => setOpen(false)} />
-        <div className="rsh-acc-menu">
-          {SECTIONS.map(s => {
-            const accs = accounts.filter(a => (a.section || 'other') === s.key).sort((x, y) => Number(x.sortOrder ?? 0) - Number(y.sortOrder ?? 0));
-            if (!accs.length) return null;
-            return (
-              <div key={s.key}>
-                <div className="rsh-acc-grp-h">№{s.no} {s.icon} {s.label}</div>
-                {accs.map(a => (
-                  <div key={a.id} className={`rsh-acc-opt${a.id === value ? ' on' : ''}`} onClick={() => { onChange(a.id); setOpen(false); }}>
-                    <span>{a.icon || '💳'} {a.name}</span>
-                    <span className="rsh-acc-bal">{fmt(a.balance ?? 0)}</span>
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      </>}
-    </div>
+    <Select value={value} onChange={e => onChange(e.target.value)}>
+      <option value="">{placeholder || '— раздел и счёт —'}</option>
+      {SECTIONS.map(s => {
+        const accs = accounts.filter(a => (a.section || 'other') === s.key).sort((x, y) => Number(x.sortOrder ?? 0) - Number(y.sortOrder ?? 0));
+        if (!accs.length) return null;
+        return (
+          <optgroup key={s.key} label={`№${s.no} ${s.label}`}>
+            {accs.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name} · {fmt(a.balance ?? 0)}</option>)}
+          </optgroup>
+        );
+      })}
+    </Select>
   );
 }
 
