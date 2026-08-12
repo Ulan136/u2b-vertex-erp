@@ -10,7 +10,7 @@ import { z } from 'zod';
 
 const m2 = (n: number) => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
 // invoice_type — enum БД; произвольное имя счёта туда класть нельзя (иначе 500).
-const INVOICE_TYPES = ['Каспи', 'БЦК', 'Наличка', 'Каспи Голд'];
+const INVOICE_TYPES = ['Каспи', 'БЦК', 'Наличка'];
 const invType = (v: unknown) => (INVOICE_TYPES.includes(String(v)) ? String(v) : null);
 const legacyPay = (status: string) => (status === 'Оплачено' ? 'Оплачено' : 'В ожидании');
 

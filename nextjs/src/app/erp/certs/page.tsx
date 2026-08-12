@@ -24,7 +24,7 @@ const SOURCES = ['САМИ', 'ВДК', 'ТЭЦ', 'Выездная', 'Перви
 const OPER = ['В работе', 'Готова к КТРМ', 'Внести в КТРМ', 'КТРМ 70%', 'Внесён в КТРМ'];
 const PAY = ['В ожидании', 'Оплачено', 'Бесплатно'];
 const payTone = (s?: string | null): 'ok' | 'warn' | 'neutral' => s === 'Оплачено' ? 'ok' : s === 'Бесплатно' ? 'neutral' : 'warn';
-const INV = ['Каспи', 'БЦК', 'Наличка', 'Каспи Голд'];
+const INV = ['Каспи', 'БЦК', 'Наличка'];
 const SENT = ['Не отправлено', 'Запланировано', 'Отправлено'];
 const dmy = (d?: string | null) => formatDate(d) || '—';
 const iso = (d?: string | null) => (d ? String(d).slice(0, 10) : '');

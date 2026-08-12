@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Типы счёта/оплаты филиала — совпадают с invoice_type enum в схеме.
-export const INVOICE_TYPES = ['Каспи', 'БЦК', 'Наличка', 'Каспи Голд'] as const;
+export const INVOICE_TYPES = ['Каспи', 'БЦК', 'Наличка'] as const;
 
 export const branchCreateSchema = z.object({
   name: z.string().trim().min(1, 'Название обязательно'),
