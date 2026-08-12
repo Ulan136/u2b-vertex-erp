@@ -1,7 +1,7 @@
 // U2B-SuTrack service worker.
 // Strategy: cache only the app shell + static assets. API responses are NEVER
 // cached (network-only) so managers never see stale orders / stock.
-const CACHE = 'sutrack-v5';
+const CACHE = 'sutrack-v6';
 const SHELL = ['/', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png'];
 const APP_URL = '/sketch_screens.html'; // экран заявок (куда ведёт клик по пушу)
 

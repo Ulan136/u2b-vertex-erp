@@ -61,6 +61,8 @@ html,body{height:100%;background:var(--bg);font-family:'Inter',sans-serif;color:
 .oc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;}
 .oc-no{font-family:'JetBrains Mono',monospace;font-size:11px;color:#6b7280;}
 .oc-st{font-size:11px;font-weight:700;white-space:nowrap;}
+.oc-right{display:flex;align-items:center;gap:8px;flex:none;}
+.oc-date{font-size:12.5px;font-weight:700;color:#111827;white-space:nowrap;}
 .oc-client{font-weight:700;font-size:15px;}
 .oc-phone{font-size:12px;color:#6b7280;margin:2px 0 6px;}
 .oc-pos{font-size:12px;color:#374151;margin-bottom:2px;}
@@ -189,7 +191,11 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
     <div class="filter-row">
       <div class="fchip on" id="f-today" onclick="setFilter('today')">Сегодня</div>
       <div class="fchip" id="f-all" onclick="setFilter('all')">Все</div>
-      <input type="date" id="f-date" class="fdate" onchange="setFilterDate(this.value)" title="Заявки за дату">
+    </div>
+    <div class="filter-row" style="padding-top:0;align-items:center;gap:6px;">
+      <input type="date" id="f-from" class="fdate" onchange="setRange()" title="С даты">
+      <span style="color:#9ca3af;font-size:13px;flex:none;">—</span>
+      <input type="date" id="f-to" class="fdate" onchange="setRange()" title="По дату">
     </div>
     <div class="filter-row" style="padding-top:0;">
       <div class="fchip on" id="st-all" onclick="setStatusFilter('')">Все статусы</div>
@@ -358,7 +364,7 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
 <script src="/cabinet-common.js"></script>
 <script>
 const ORDERS_API='/api/v2/orders', COMMENTS_API='/api/v2/comments', ME_API='/api/v2/me';
-let me=null, orders=[], filter='today', filterDate='', filterStatus='', commentCounts={}, activeOrderId=null;
+let me=null, orders=[], filter='today', filterFrom='', filterTo='', filterStatus='', commentCounts={}, activeOrderId=null;
 function statusKey(o){ return o.status==='Готова'?'Готова':o.status==='Отменён'?'Отменён':'В работе'; }
 
 const ROLE_LABEL={admin:'Администратор',director:'Директор',accountant:'Бухгалтер',manager:'Менеджер',master:'Мастер'};
@@ -408,22 +414,27 @@ async function loadOrders(){
 
 function visibleOrders(){
   const t=todayStr();
-  let list = (filter==='date' && filterDate) ? orders.filter(o=>orderDay(o)===filterDate)
-           : filter==='today' ? orders.filter(o=>orderDay(o)===t) : orders;
+  let list;
+  if(filter==='range' && (filterFrom||filterTo)){
+    list = orders.filter(o=>{ const d=orderDay(o); if(!d) return false; if(filterFrom && d<filterFrom) return false; if(filterTo && d>filterTo) return false; return true; });
+  } else if(filter==='today'){ list = orders.filter(o=>orderDay(o)===t); }
+  else { list = orders; }
   if(filterStatus) list = list.filter(o=>statusKey(o)===filterStatus);
   return list;
 }
 function syncFilterUi(){
+  const range=filter==='range';
   document.getElementById('f-today').classList.toggle('on',filter==='today');
   document.getElementById('f-all').classList.toggle('on',filter==='all');
-  document.getElementById('f-date').classList.toggle('on',filter==='date');
+  document.getElementById('f-from').classList.toggle('on',range&&!!filterFrom);
+  document.getElementById('f-to').classList.toggle('on',range&&!!filterTo);
   document.getElementById('st-all').classList.toggle('on',filterStatus==='');
   document.getElementById('st-work').classList.toggle('on',filterStatus==='В работе');
   document.getElementById('st-done').classList.toggle('on',filterStatus==='Готова');
   document.getElementById('st-cancel').classList.toggle('on',filterStatus==='Отменён');
 }
-function setFilter(f){ filter=f; filterDate=''; document.getElementById('f-date').value=''; syncFilterUi(); render(); }
-function setFilterDate(v){ filterDate=v; filter=v?'date':'today'; syncFilterUi(); render(); }
+function setFilter(f){ filter=f; filterFrom=''; filterTo=''; document.getElementById('f-from').value=''; document.getElementById('f-to').value=''; syncFilterUi(); render(); }
+function setRange(){ filterFrom=document.getElementById('f-from').value; filterTo=document.getElementById('f-to').value; filter=(filterFrom||filterTo)?'range':'today'; syncFilterUi(); render(); }
 function setStatusFilter(s){ filterStatus=s; syncFilterUi(); render(); }
 
 function stTag(s){return s==='Готова'?{c:'#059669',t:'✅ Готова'}:s==='Отменён'?{c:'#dc2626',t:'❌ Отменён'}:{c:'#1d4ed8',t:'🔄 В работе'};}
@@ -435,7 +446,7 @@ function orderCardHtml(o){
   const pos=positions.map(p=>`<div class="oc-pos">📍 ${esc(p.address)} — <b>${esc(p.qty||0)} шт.</b>${p.water?' · '+esc(p.water):''}</div>`).join('');
   const cc=commentCounts[o.id]||0;
   return `<div class="order-card ${cls}">
-    <div class="oc-top"><span class="oc-no">${esc(o.orderNo||'—')}</span><span class="oc-st" style="color:${st.c};">${st.t}</span></div>
+    <div class="oc-top"><span class="oc-no">${esc(o.orderNo||'—')}</span><span class="oc-right"><span class="oc-date">📅 ${esc(fmtDate(orderDay(o))||'—')}</span><span class="oc-st" style="color:${st.c};">${st.t}</span></span></div>
     ${o.clientName?`<div class="oc-client">${esc(o.clientName)}</div>`:''}
     <div class="oc-phone">📞 ${esc(o.phone||'—')}</div>
     ${pos}
@@ -460,7 +471,7 @@ function render(){
     <div class="stat-chip sc-new"><div class="sc-num">${active.length}</div><div class="sc-lbl">В работе</div></div>
     <div class="stat-chip sc-done"><div class="sc-num">${done}</div><div class="sc-lbl">Готово</div></div>
     <div class="stat-chip"><div class="sc-num">${vis.length}</div><div class="sc-lbl">Всего</div></div>`;
-  list.innerHTML=vis.length?vis.map(orderCardHtml).join(''):`<div class="empty">${filter==='today'?'На сегодня заявок нет':filter==='date'?'Нет заявок на '+fmtDate(filterDate):'Заявок нет'}</div>`;
+  list.innerHTML=vis.length?vis.map(orderCardHtml).join(''):`<div class="empty">${filter==='today'?'На сегодня заявок нет':filter==='range'?'Нет заявок за период':'Заявок нет'}</div>`;
   // nav badge = активные заявки сегодня
   const t=todayStr();
   const todayActive=orders.filter(o=>orderDay(o)===t&&o.status!=='Готова'&&o.status!=='Отменён').length;
