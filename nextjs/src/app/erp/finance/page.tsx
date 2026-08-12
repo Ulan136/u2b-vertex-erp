@@ -8,7 +8,11 @@ import { isRealIncome, isRealExpense } from '@/server/dto/finance.dto';
 import { opIcon, opName, opSign, opAmountColor, isReversed, isReversal } from '@/lib/opDisplay';
 
 type Acct = { id: string; name: string; category?: string | null; section?: string | null; icon?: string | null; balance?: string | number | null; sortOrder?: number | null };
-type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; createdByName?: string | null };
+type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; createdByName?: string | null; saleId?: string | null; certId?: string | null };
+// Можно ли отменить (сторно) операцию прямо в Финансах: не отменённая, не сторно,
+// не перевод (нет 2-го счёта для отката), не начальный остаток, и не связана с
+// продажей/сертификатом (у тех своя отмена: отмена продажи / снятие «Оплачено»).
+const canReverseOp = (o: Op) => !isReversed(o) && !isReversal(o) && o.opType !== 'Перевод' && o.source !== 'Старт' && !o.saleId && !o.certId;
 
 const SECTIONS = [
   { key: 'poverka', no: 1, label: 'Поверка', icon: '📋', color: '#2563eb' },
@@ -76,6 +80,11 @@ export default function FinancePage() {
     if (op.type === 'Перевод') { body.toAccountId = op.toAccountId; body.name = 'Перевод: ' + (op.name.trim() || ''); }
     try { await apiSend('/api/v2/finance', 'POST', body); setOpModal(false); await mutate(); toast('✅ Операция сохранена'); }
     catch (e) { setOp(o => ({ ...o, err: (e as Error).message, saving: false })); }
+  }
+  async function reverseOp(o: Op) {
+    if (!confirm(`Отменить операцию «${opName(o)}» на ${fmt(o.amount)}?\nБудет сторно — обратная операция вернёт баланс. Ошибку так исправляют.`)) return;
+    try { await apiSend(`/api/v2/finance/${o.id}/reverse`, 'POST'); await mutate(); toast('↩️ Операция отменена (сторно)'); }
+    catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
   function editAcct(a: Acct) {
     const startOp = ops.find(o => o.accountId === a.id && o.source === 'Старт');
@@ -146,6 +155,7 @@ export default function FinancePage() {
                       <span className="erp-fin-movd">{dmy(o.opDate)}</span>
                       <span className="erp-fin-movt" style={isReversed(o) ? { textDecoration: 'line-through', opacity: .55 } : undefined}>{opName(o)}{o.createdByName ? <span className="erp-muted" style={{ marginLeft: 6, fontSize: 10 }}>· {o.createdByName}</span> : null}</span>
                       <span style={{ color: opAmountColor(o), fontWeight: 700, whiteSpace: 'nowrap' }}>{opSign(o)}{fmt(o.amount)}</span>
+                      {canReverseOp(o) && <button className="erp-icon-btn" title="Отменить операцию (сторно)" style={{ color: '#dc2626', flexShrink: 0, fontSize: 12, padding: '0 4px', lineHeight: 1 }} onClick={() => reverseOp(o)}>↩️</button>}
                     </div>
                   ))}
                 </div>
