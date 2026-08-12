@@ -113,6 +113,12 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
         <div class="stat-card" style="cursor:pointer;" onclick="openDebts()" title="Список долгов"><div class="sc-top"><div class="sc-icon" style="background:#f0fdf4;">📥</div></div><div class="sc-val" style="color:var(--green);" id="s-debit">0 ₸</div><div class="sc-lbl">Нам должны</div></div>
       </div>
 
+      <div class="sec">🏦 Счета по разделам <span style="opacity:.55;font-weight:600;text-transform:none;letter-spacing:0;">· как в Финансах</span></div>
+      <div id="d-accounts"><div class="loading">Загрузка…</div></div>
+
+      <div class="sec">📦 Склад</div>
+      <div id="d-warehouse"><div class="loading">Загрузка…</div></div>
+
       <div class="sec">🟢 Кто онлайн (<span id="online-inline">0</span>)</div>
       <div id="d-online-list"></div>
 
@@ -161,6 +167,23 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
     <div class="content"><div id="d-debts-list"></div><div style="height:16px;"></div></div>
   </div>
 
+  <!-- РАСХОДЫ — аналитика по категориям + журнал (за текущий месяц) -->
+  <div class="scr" id="scr-exp">
+    <div style="background:linear-gradient(135deg,#dc2626,#f97316);padding:calc(16px + env(safe-area-inset-top,0px)) 16px 16px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;">
+      <div><div style="font-size:16px;font-weight:800;color:#fff;">Расходы</div>
+      <div style="font-size:11px;color:rgba(255,255,255,.85);margin-top:2px;" id="exp-period">За текущий месяц</div></div>
+      <span class="cc-bell-mount"></span>
+    </div>
+    <div class="content">
+      <div class="kpi-row" id="exp-kpis"></div>
+      <div class="sec">📊 По категориям</div>
+      <div id="exp-cats"><div class="loading">Загрузка…</div></div>
+      <div class="sec">🧾 Журнал расходов</div>
+      <div id="exp-journal"><div class="loading">Загрузка…</div></div>
+      <div style="height:16px;"></div>
+    </div>
+  </div>
+
   <!-- ПРОФИЛЬ -->
   <div class="scr" id="scr-prof">
     <div class="prof-header">
@@ -180,6 +203,7 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
     <div class="ni on" id="nav-dash" onclick="goScr('dash',this)"><div class="ni-ico">🏠</div><div class="ni-lbl">Главная</div></div>
     <div class="ni" id="nav-tasks" onclick="goScr('tasks',this)"><div class="ni-ico" style="position:relative;">✅<span class="cc-nav-badge" id="cc-tasks-badge" style="display:none;">0</span></div><div class="ni-lbl">Задачи</div></div>
     <div class="ni" id="nav-fin" onclick="goScr('fin',this)"><div class="ni-ico">💳</div><div class="ni-lbl">Финансы</div></div>
+    <div class="ni" id="nav-exp" onclick="goScr('exp',this)"><div class="ni-ico">📊</div><div class="ni-lbl">Расходы</div></div>
     <div class="ni" id="nav-online" onclick="goScr('online',this)"><div class="ni-ico">🟢</div><div class="ni-lbl">Онлайн</div></div>
     <div class="ni" id="nav-prof" onclick="goScr('prof',this)"><div class="ni-ico">👤</div><div class="ni-lbl">Профиль</div></div>
   </div>
@@ -188,7 +212,12 @@ html,body{height:100%;font-family:'Inter',sans-serif;background:var(--bg);color:
 <script src="/finance-view.js"></script>
 <script src="/cabinet-common.js"></script>
 <script>
-const ME_API='/api/v2/me',ORDERS_API='/api/v2/orders',SALES_API='/api/v2/sales',DEBTS_API='/api/v2/debts',FIN_API='/api/v2/finance',PRESENCE_API='/api/v2/presence';
+const ME_API='/api/v2/me',ORDERS_API='/api/v2/orders',SALES_API='/api/v2/sales',DEBTS_API='/api/v2/debts',FIN_API='/api/v2/finance',PRESENCE_API='/api/v2/presence',PRODUCTS_API='/api/v2/products';
+// Разделы финансов — зеркало finance-view.js (единый источник подписей счетов)
+const SECTIONS_ORDER=['poverka','sale','other','branch','branch_almaty'];
+const SECTION_LABEL={poverka:'№1 📋 Поверка',sale:'№2 💰 Продажа',other:'№3 📄 Прочие операции',branch:'№4 🏢 Филиал Астана',branch_almaty:'№5 🏢 Филиал Алматы'};
+const ACC_ICON={kaspi:'🔴',bck:'🟢',nalichka:'💵',other:'💳'};
+const MONTHS_GEN=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
 const ROLE_LABEL={admin:'Администратор',director:'Директор',accountant:'Бухгалтер',manager:'Менеджер',master:'Мастер'};
 let me=null, finAccts=[], finOps=[];
 
@@ -201,6 +230,7 @@ function fmtDate(s){if(!s)return '';const p=String(s).slice(0,10).split('-');ret
 function fmtDateTime(s){if(!s)return '';const d=new Date(s);if(isNaN(d.getTime()))return fmtDate(s);const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes());}
 function todayStr(){return dayStr(new Date());}
 function weekAgoStr(){const d=new Date();d.setDate(d.getDate()-6);return dayStr(d);}
+function monthStartStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01';}
 function rowDay(r,fields){for(const f of fields){if(r[f])return String(r[f]).slice(0,10);}return '';}
 function ago(iso){if(!iso)return 'давно';const s=Math.floor((Date.now()-new Date(iso).getTime())/1000);
   if(s<60)return 'только что';if(s<3600)return Math.floor(s/60)+' мин назад';if(s<86400)return Math.floor(s/3600)+' ч назад';return Math.floor(s/86400)+' дн назад';}
@@ -218,12 +248,16 @@ async function loadMe(){
 
 async function loadDash(){
   const today=todayStr(),weekAgo=weekAgoStr();
-  const [orders,sales,debts,fin,presence]=await Promise.all([
+  // Финансы берём за текущий месяц (иначе API отдаёт лишь последние 50 операций —
+  // аналитика расходов и журнал были бы неполными). Счета приходят полностью в любом случае.
+  const finUrl=FIN_API+'?from='+monthStartStr()+'&to='+today;
+  const [orders,sales,debts,fin,presence,products]=await Promise.all([
     getJSON(ORDERS_API).catch(()=>[]),
     getJSON(SALES_API).catch(()=>[]),
     getJSON(DEBTS_API).catch(()=>[]),
-    getJSON(FIN_API).catch(()=>({accounts:[],operations:[]})),
+    getJSON(finUrl).catch(()=>({accounts:[],operations:[]})),
     getJSON(PRESENCE_API).catch(()=>({onlineCount:0,users:[]})),
+    getJSON(PRODUCTS_API).catch(()=>[]),
   ]);
 
   // Заказы
@@ -255,9 +289,11 @@ async function loadDash(){
 
   // Касса + сохраняем данные для экрана «История»
   finAccts=fin.accounts||[]; finOps=fin.operations||[];
+  window.__products=Array.isArray(products)?products:(products&&products.items)||[];
   const cash=finAccts.reduce((a,ac)=>a+num(ac.balance),0);
   document.getElementById('d-cash').textContent=fmt(cash)+' ₸';
   document.getElementById('d-cash-sub').textContent=finAccts.length+' счетов';
+  renderAccounts(); renderWarehouse(); renderExpenses();
 
   // Онлайн
   const online=presence.onlineCount||0;
@@ -282,6 +318,98 @@ function opRow(o){
   const nm=esc((o.name||o.opType||'').replace(/Сторно/gi,'Отмена'));
   const strike=revd?'text-decoration:line-through;opacity:.6;':'';
   return `<div class="op-item"><div class="op-ico" style="background:#f3f4f6;">${ico}</div><div class="op-info"><div class="op-name" style="${strike}">${nm}</div><div class="op-meta">${esc(o.accountName||'')} · ${esc(fmtDate(o.opDate))}${o.createdByName?' · 👤 '+esc(o.createdByName):''}</div></div><div class="op-amt" style="color:${amtColor};">${sign}${fmt(num(o.amount))}</div></div>`;
+}
+
+// Счета по разделам — зеркало финанс-страницы: группировка №1…№5 + итог по разделу + касса.
+function renderAccounts(){
+  const el=document.getElementById('d-accounts'); if(!el) return;
+  const accts=(finAccts||[]).filter(a=>a.isActive!==false);
+  if(!accts.length){ el.innerHTML='<div class="empty">Нет счетов</div>'; return; }
+  const groups={}; accts.forEach(a=>{ (groups[a.section]||(groups[a.section]=[])).push(a); });
+  const secs=[...SECTIONS_ORDER.filter(s=>groups[s]), ...Object.keys(groups).filter(s=>!SECTIONS_ORDER.includes(s))];
+  let html='';
+  secs.forEach(sec=>{
+    const list=groups[sec]||[]; if(!list.length) return;
+    const tot=list.reduce((s,a)=>s+num(a.balance),0);
+    html+='<div style="margin-bottom:10px;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;">'
+      +'<span style="font-size:12px;font-weight:800;color:var(--text);">'+esc(SECTION_LABEL[sec]||sec||'Прочее')+'</span>'
+      +'<b style="font-size:13px;color:var(--blue);">'+fmt(tot)+' ₸</b></div>';
+    list.forEach(a=>{
+      const b=num(a.balance);
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 11px;background:#fff;border:1px solid var(--border);border-radius:9px;margin-bottom:5px;box-shadow:0 1px 3px rgba(0,0,0,.05);">'
+        +'<span style="font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(a.icon||ACC_ICON[a.category]||'💳')+' '+esc(a.name||'—')+'</span>'
+        +'<b style="font-size:12px;flex-shrink:0;margin-left:8px;color:'+(b<0?'var(--red)':'var(--text)')+';">'+fmt(b)+' ₸</b></div>';
+    });
+    html+='</div>';
+  });
+  const grand=accts.reduce((s,a)=>s+num(a.balance),0);
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 13px;background:linear-gradient(135deg,#1a56db,#0ea5e9);border-radius:11px;">'
+    +'<span style="font-size:12px;font-weight:800;color:#fff;">💰 Касса — всего</span>'
+    +'<b style="font-size:15px;color:#fff;">'+fmt(grand)+' ₸</b></div>';
+  el.innerHTML=html;
+}
+
+// Склад — общая стоимость (Σ остаток·себестоимость) + позиции ниже минимума / в нуле.
+function renderWarehouse(){
+  const el=document.getElementById('d-warehouse'); if(!el) return;
+  const prods=window.__products||[];
+  if(!prods.length){ el.innerHTML='<div class="empty">Нет данных о складе</div>'; return; }
+  const totalVal=prods.reduce((s,p)=>s+num(p.currentStock)*num(p.costPrice),0);
+  const totalQty=prods.reduce((s,p)=>s+num(p.currentStock),0);
+  const crit=prods.filter(p=>num(p.minStock)>0 && num(p.currentStock)<num(p.minStock))
+    .sort((a,b)=>(num(a.currentStock)-num(a.minStock))-(num(b.currentStock)-num(b.minStock)));
+  let html='<div class="stat-grid" style="margin-bottom:6px;">'
+    +'<div class="stat-card"><div class="sc-top"><div class="sc-icon" style="background:#eff6ff;">📦</div></div>'
+    +'<div class="sc-val" style="color:var(--blue);font-size:16px;">'+fmt(totalVal)+' ₸</div><div class="sc-lbl">Стоимость склада</div></div>'
+    +'<div class="stat-card"><div class="sc-top"><div class="sc-icon" style="background:#fef2f2;">⚠️</div></div>'
+    +'<div class="sc-val" style="color:'+(crit.length?'var(--red)':'var(--green)')+';">'+crit.length+'</div><div class="sc-lbl">Ниже минимума</div></div></div>'
+    +'<div style="font-size:10px;color:var(--muted);margin:0 0 7px 2px;">'+prods.length+' позиций · '+fmt(totalQty)+' ед. на складе</div>';
+  if(crit.length){
+    html+=crit.slice(0,40).map(p=>{
+      const cur=num(p.currentStock), mn=num(p.minStock), zero=cur<=0;
+      return '<div class="op-item"><div class="op-ico" style="background:'+(zero?'#fee2e2':'#fef3c7')+';">'+(zero?'🚫':'⚠️')+'</div>'
+        +'<div class="op-info"><div class="op-name">'+esc(p.name||p.skuCode||'—')+'</div>'
+        +'<div class="op-meta">'+esc(p.skuCode||'')+(p.skuCode?' · ':'')+'мин '+fmt(mn)+'</div></div>'
+        +'<div class="op-amt" style="color:'+(zero?'#dc2626':'#d97706')+';">'+fmt(cur)+' шт</div></div>';
+    }).join('');
+  } else {
+    html+='<div class="empty" style="padding:12px;">✅ Все остатки выше минимума</div>';
+  }
+  el.innerHTML=html;
+}
+
+// Категория расхода: expense_cat, иначе Зарплата по source, иначе из имени «Кат: …».
+function catOf(o){return o.expenseCat||(o.source==='Зарплата'?'Зарплата':(String(o.name||'').split(':')[0].trim())||'Прочие');}
+// Экран «Расходы»: KPI + разбивка по категориям (бары) + журнал за текущий месяц.
+function renderExpenses(){
+  const kpiEl=document.getElementById('exp-kpis'), catEl=document.getElementById('exp-cats'), jEl=document.getElementById('exp-journal');
+  if(!kpiEl||!catEl||!jEl) return;
+  const pEl=document.getElementById('exp-period'); if(pEl){const n=new Date();pEl.textContent='За '+MONTHS_GEN[n.getMonth()]+' '+n.getFullYear();}
+  const exps=(finOps||[]).filter(o=>o.opType==='Расход' && !o.reversedAt && !o.reverses);
+  const total=exps.reduce((s,o)=>s+num(o.amount),0);
+  const m={}; exps.forEach(o=>{ const k=catOf(o); m[k]=(m[k]||0)+num(o.amount); });
+  const cats=Object.entries(m).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v);
+  const mx=Math.max(1,...cats.map(c=>c.v));
+  kpiEl.innerHTML='<div class="kpi-chip"><div class="kpi-val" style="color:var(--red);">'+fmtK(total)+'</div><div class="kpi-lbl">Всего расходов</div></div>'
+    +'<div class="kpi-chip"><div class="kpi-val">'+cats.length+'</div><div class="kpi-lbl">Категорий</div></div>'
+    +'<div class="kpi-chip"><div class="kpi-val">'+exps.length+'</div><div class="kpi-lbl">Операций</div></div>'
+    +'<div class="kpi-chip"><div class="kpi-val">'+fmtK(exps.length?total/exps.length:0)+'</div><div class="kpi-lbl">Средний</div></div>';
+  catEl.innerHTML=cats.length?cats.map(c=>{
+    const pct=total?Math.round(c.v/total*100):0;
+    return '<div style="background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:7px;box-shadow:0 1px 3px rgba(0,0,0,.05);">'
+      +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;"><span style="font-size:13px;font-weight:700;color:var(--text);">'+esc(c.k)+'</span><b style="font-size:13px;color:var(--red);">'+fmt(c.v)+' ₸</b></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;"><span style="flex:1;height:8px;background:#f1f5f9;border-radius:5px;overflow:hidden;"><span style="display:block;height:100%;width:'+(c.v/mx*100)+'%;background:#dc2626;border-radius:5px;"></span></span>'
+      +'<span style="font-size:11px;color:var(--muted);width:34px;text-align:right;">'+pct+'%</span></div></div>';
+  }).join(''):'<div class="empty">Нет расходов за месяц</div>';
+  jEl.innerHTML=exps.length?exps.map(expRow).join(''):'<div class="empty">Нет расходов за месяц</div>';
+}
+// строка журнала расхода: описание + категория/подкатегория + дата/счёт/автор + сумма
+function expRow(o){
+  const cat=catOf(o), sub=(o.subCategory||'').trim();
+  const desc=String(o.comment||o.name||'').trim();
+  const meta=[cat+(sub?' · '+sub:''), fmtDate(o.opDate), o.accountName||'', o.createdByName?'👤 '+o.createdByName:''].filter(Boolean).map(esc).join(' · ');
+  return '<div class="op-item"><div class="op-ico op-exp">📉</div><div class="op-info"><div class="op-name">'+esc(desc||cat)+'</div><div class="op-meta">'+meta+'</div></div><div class="op-amt amt-exp">−'+fmt(num(o.amount))+'</div></div>';
 }
 
 // экран «Финансы» — только просмотр через переиспользуемый компонент FinanceView
@@ -330,6 +458,7 @@ function goScr(id,el){
   document.getElementById('scr-'+id).classList.add('on');el.classList.add('on');
   if(id==='tasks' && window.CabinetCommon) CabinetCommon.renderTasks();
   if(id==='fin') finOpenView();
+  if(id==='exp') renderExpenses();
 }
 
 // Вернулся в кабинет — сбрасываем выбор «Полная версия ERP», чтобы при
