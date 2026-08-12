@@ -3,11 +3,14 @@ import * as React from 'react';
 import { useApi } from '@/lib/api';
 import { Card, PageTitle, Input, EmptyRow } from '@/components/ui';
 
-type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; source?: string | null };
+type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; source?: string | null; expenseCat?: string | null; subCategory?: string | null; reverses?: string | null; reversedAt?: string | null };
 const num = (v: unknown) => Number(v) || 0;
 const fmt = (n: number) => Math.round(n).toLocaleString('ru-RU') + ' ₸';
 const monthStart = () => new Date().toISOString().slice(0, 8) + '01';
 const today = () => new Date().toISOString().slice(0, 10);
+// Категория расхода: expense_cat, иначе Зарплата по source, иначе из имени «Кат: …».
+const catOf = (o: Op) => o.expenseCat || (o.source === 'Зарплата' ? 'Зарплата' : (o.name || '').split(':')[0].trim() || 'Прочие');
+const subOf = (o: Op) => (o.subCategory || '').trim();
 
 function groupSum(ops: Op[], key: (o: Op) => string) {
   const m: Record<string, { sum: number; n: number }> = {};
@@ -20,11 +23,13 @@ export default function ExpenseAnalyticsPage() {
   const [to, setTo] = React.useState(today());
   const qs = new URLSearchParams(); if (from) qs.set('from', from); if (to) qs.set('to', to);
   const { data, error, isLoading } = useApi<{ operations: Op[] }>('/api/v2/finance?' + qs);
-  const expenses = (data?.operations || []).filter(o => o.opType !== 'Приход');
+  // Расходы за период: только Расход, без сторно/отменённых.
+  const expenses = (data?.operations || []).filter(o => o.opType === 'Расход' && !o.reversedAt && !o.reverses);
   const total = expenses.reduce((s, o) => s + num(o.amount), 0);
-  const bySource = groupSum(expenses, o => o.source || 'Прочее');
+  const byCategory = groupSum(expenses, catOf);
+  const bySub = groupSum(expenses.filter(subOf), o => `${catOf(o)} · ${subOf(o)}`);
   const byAccount = groupSum(expenses, o => o.accountName || '—');
-  const maxSrc = Math.max(1, ...bySource.map(x => x.sum));
+  const maxCat = Math.max(1, ...byCategory.map(x => x.sum));
 
   const Table = ({ title, rows }: { title: string; rows: Array<{ k: string; sum: number; n: number }> }) => (
     <Card style={{ padding: 0, overflowX: 'auto' }}>
@@ -42,7 +47,7 @@ export default function ExpenseAnalyticsPage() {
 
   return (
     <div>
-      <PageTitle title="Аналитика расходов" sub="Сводные данные по источникам и счетам за период" />
+      <PageTitle title="Аналитика расходов" sub="Сколько по каждой категории за период" />
       <Card className="erp-filters">
         <label className="erp-check">с <Input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ width: 150 }} /></label>
         <label className="erp-check">по <Input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ width: 150 }} /></label>
@@ -54,25 +59,28 @@ export default function ExpenseAnalyticsPage() {
           <>
             <div className="erp-kpi-grid" style={{ marginTop: 12 }}>
               <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">📤</span><span className="erp-kpi-label">Всего расходов</span></div><div className="erp-kpi-val" style={{ color: '#dc2626' }}>{fmt(total)}</div></div>
+              <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">🗂</span><span className="erp-kpi-label">Категорий</span></div><div className="erp-kpi-val">{byCategory.length}</div></div>
               <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">🧾</span><span className="erp-kpi-label">Операций</span></div><div className="erp-kpi-val">{expenses.length}</div></div>
               <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">📊</span><span className="erp-kpi-label">Средний расход</span></div><div className="erp-kpi-val">{fmt(expenses.length ? total / expenses.length : 0)}</div></div>
             </div>
 
             <Card style={{ marginTop: 12 }}>
-              <h3 style={{ margin: '0 0 10px' }}>По источникам</h3>
-              {bySource.map(x => (
-                <div key={x.k} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '5px 0', fontSize: 13 }}>
-                  <span style={{ width: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{x.k}</span>
-                  <span style={{ flex: 1, background: '#f1f5f9', borderRadius: 4, height: 12 }}><span style={{ display: 'block', height: '100%', width: `${(x.sum / maxSrc) * 100}%`, background: '#dc2626', borderRadius: 4 }} /></span>
-                  <span style={{ width: 110, textAlign: 'right', fontWeight: 600 }}>{fmt(x.sum)}</span>
+              <h3 style={{ margin: '0 0 10px' }}>По категориям</h3>
+              {byCategory.map(x => (
+                <div key={x.k} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0', fontSize: 13 }}>
+                  <span style={{ width: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={x.k}>{x.k}</span>
+                  <span style={{ flex: 1, background: '#f1f5f9', borderRadius: 4, height: 14 }}><span style={{ display: 'block', height: '100%', width: `${(x.sum / maxCat) * 100}%`, background: '#dc2626', borderRadius: 4 }} /></span>
+                  <span style={{ width: 120, textAlign: 'right', fontWeight: 700 }}>{fmt(x.sum)}</span>
+                  <span style={{ width: 42, textAlign: 'right' }} className="erp-muted">{total ? Math.round((x.sum / total) * 100) : 0}%</span>
                 </div>
               ))}
-              {bySource.length === 0 && <div className="erp-muted">Нет расходов за период.</div>}
+              {byCategory.length === 0 && <div className="erp-muted">Нет расходов за период.</div>}
             </Card>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 12, marginTop: 12 }}>
-              <Table title="По источникам" rows={bySource} />
-              <Table title="По счетам" rows={byAccount} />
+              <Table title="По категориям" rows={byCategory} />
+              <Table title="По подкатегориям" rows={bySub} />
+              <Table title="По счетам списания" rows={byAccount} />
             </div>
           </>
         )}

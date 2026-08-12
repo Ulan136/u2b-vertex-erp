@@ -29,8 +29,11 @@ const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU') + '
 const dmy = (d?: string | null) => formatDate(d) || '—';
 const today = () => new Date().toISOString().slice(0, 10);
 
+const yearStart = () => new Date().getFullYear() + '-01-01';
 export default function ExpensesPage() {
-  const { data: fin, error, isLoading, mutate } = useApi<{ accounts: Acct[]; operations: Op[] }>('/api/v2/finance');
+  // Грузим с начала года (иначе overview отдаёт только последние 50 операций и
+  // старые расходы теряются из дерева/сумм). Фильтр по датам ниже — по загруженным.
+  const { data: fin, error, isLoading, mutate } = useApi<{ accounts: Acct[]; operations: Op[] }>('/api/v2/finance?from=' + yearStart());
   const { data: cats, mutate: mutateCats } = useApi<Cat[]>('/api/v2/expense-categories');
   const { data: emp } = useApi<{ employees: Emp[] }>('/api/v2/employees');
   const { data: orders } = useApi<Order[]>('/api/v2/orders');
@@ -46,6 +49,8 @@ export default function ExpensesPage() {
 
   // категория/подкатегория операции: из полей, иначе из имени/источника (legacy).
   const catOf = (o: Op) => o.expenseCat || (o.source === 'Зарплата' ? 'Зарплата' : (o.name || '').split(':')[0].trim() || 'Прочие');
+  // Сумма расходов по каждой категории (для дерева слева — «какая категория сколько»).
+  const catTotals = React.useMemo(() => { const m: Record<string, number> = {}; expenses.forEach(o => { const k = catOf(o); m[k] = (m[k] || 0) + num(o.amount); }); return m; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [expenses]);
   const subOf = (o: Op) => o.subCategory || '';
   const statusOf = (o: Op) => o.status || 'Оплачен';
   const accName = (o: Op) => o.accountName || accounts.find(a => a.id === o.accountId)?.name || '—';
@@ -156,12 +161,13 @@ export default function ExpensesPage() {
         {/* Левое дерево категорий */}
         <Card className="rsh-tree">
           <div className="rsh-tree-head"><span>Категории</span><button className="erp-icon-btn" title="Категории" onClick={() => setCatModal(true)}>＋</button></div>
-          <div className={`rsh-tree-item${!pick.cat ? ' on' : ''}`} onClick={() => setPick({ cat: '', sub: '' })}>📋 Все расходы <span className="erp-muted">{expenses.length}</span></div>
+          <div className={`rsh-tree-item${!pick.cat ? ' on' : ''}`} onClick={() => setPick({ cat: '', sub: '' })}><span>📋 Все расходы</span><b style={{ color: '#dc2626' }}>{fmt(expenses.reduce((s, o) => s + num(o.amount), 0))}</b></div>
           {catList.map(c => {
             const n = expenses.filter(o => catOf(o) === c.name).length;
+            const sum = catTotals[c.name] || 0;
             return (
               <div key={c.id}>
-                <div className={`rsh-tree-item${pick.cat === c.name && !pick.sub ? ' on' : ''}`} onClick={() => setPick({ cat: pick.cat === c.name && !pick.sub ? '' : c.name, sub: '' })}>{c.icon || '📁'} {c.name} <span className="erp-muted">{n}</span></div>
+                <div className={`rsh-tree-item${pick.cat === c.name && !pick.sub ? ' on' : ''}`} onClick={() => setPick({ cat: pick.cat === c.name && !pick.sub ? '' : c.name, sub: '' })} title={`${n} операц.`}><span>{c.icon || '📁'} {c.name}</span><b style={{ color: sum ? '#dc2626' : '#94a3b8' }}>{fmt(sum)}</b></div>
                 {pick.cat === c.name && (c.subs || []).map(s => (
                   <div key={s.id} className={`rsh-tree-sub${pick.sub === s.name ? ' on' : ''}`} onClick={() => setPick({ cat: c.name, sub: pick.sub === s.name ? '' : s.name })}>└ {s.name}</div>
                 ))}
