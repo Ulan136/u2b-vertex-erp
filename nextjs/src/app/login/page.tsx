@@ -23,6 +23,9 @@ function LoginForm() {
         login: login.trim(), password: password.trim(), remember: remember ? 'true' : 'false', redirect: false,
       });
       if (res?.error) { setError('Неверный телефон/email или пароль, либо пользователь деактивирован'); setBusy(false); return; }
+      // Сброс флага «Полная версия ERP»: свежий вход всегда возвращает директора
+      // в мобильный кабинет (иначе застрявшая кука навсегда держит его на /erp).
+      document.cookie = 'erp_full=;path=/;max-age=0';
       window.location.href = from.startsWith('/') ? from : '/';
     } catch {
       setError('Ошибка входа'); setBusy(false);
