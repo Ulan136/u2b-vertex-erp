@@ -133,6 +133,10 @@ export const stockMovements = pgTable('stock_movements', {
   moveDate    : date('move_date').default(sql`CURRENT_DATE`),
   createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
   createdBy   : uuid('created_by').references(() => users.id),
+  // Закуп с оплатой: группа финопераций-расходов (для отмены денег вместе со складом).
+  financeGroup: uuid('finance_group'),
+  // Отмена движения (сторно): остаток откачен, деньги сторнированы. Строка остаётся для истории.
+  reversedAt  : timestamp('reversed_at', { withTimezone: true }),
 });
 
 // ── SALES ─────────────────────────────────────────────────────

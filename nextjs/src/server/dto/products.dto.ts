@@ -32,6 +32,35 @@ export function sealMarker(docType?: string | null, sealType?: string | null): '
   return sealType === 'ПЛ' ? 'ПЛ' : 'СЛ';
 }
 
+// Новый товар «на лету» из закупа (если SKU ещё нет в базе).
+export const newProductSchema = z.object({
+  skuCode: z.string().trim().min(1, 'Укажите артикул (SKU)').max(20),
+  name: z.string().trim().min(1, 'Укажите название товара').max(200),
+  minStock: z.coerce.number().int().nonnegative().optional(),
+  price: z.union([z.string(), z.number()]).optional(),      // цена продажи (можно 0, задать позже)
+  waterType: z.string().trim().nullish(),
+});
+
+// Строка оплаты закупа: счёт + сумма (как у расхода).
+export const purchasePaymentSchema = z.object({
+  accountId: z.string().uuid(),
+  amount: z.coerce.number().positive(),
+});
+
+// POST /purchases — закуп: приход товара (склад) + опц. оплата со счёта(ов).
+// Либо existing productId, либо newProduct (создаётся при отсутствии SKU).
+export const purchaseCreateSchema = z.object({
+  productId: z.string().uuid().nullish(),
+  newProduct: newProductSchema.nullish(),
+  qty: z.coerce.number().int().positive('Количество больше 0'),
+  price: z.coerce.number().nonnegative().default(0),         // цена закупа за ед.
+  supplier: z.string().trim().nullish(),
+  docNo: z.string().trim().nullish(),
+  moveDate: z.string().nullish(),
+  comment: z.string().trim().nullish(),
+  payments: z.array(purchasePaymentSchema).optional().default([]),
+}).refine(d => !!d.productId || !!d.newProduct, { message: 'Выберите товар или заведите новый', path: ['productId'] });
+
 // POST /products records a stock movement (приход/расход), not a product.
 export const stockMovementSchema = z.object({
   productId: z.string(),

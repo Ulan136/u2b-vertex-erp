@@ -1,10 +1,14 @@
 import { db, type Executor } from '@/db';
+import { randomUUID } from 'crypto';
 import { productsRepo } from '@/server/repositories/products.repo';
-import { stockMovementSchema, productUpdateSchema, STOCK_SIGN, canApplyStock } from '@/server/dto/products.dto';
+import { financeRepo } from '@/server/repositories/finance.repo';
+import { financeService } from '@/server/services/finance.service';
+import { stockMovementSchema, productUpdateSchema, purchaseCreateSchema, STOCK_SIGN, canApplyStock } from '@/server/dto/products.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
 export { STOCK_SIGN };
 const money = (n: number) => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
+type Actor = { id: string; name?: string } | null | undefined;
 
 // Провести движение склада + сдвинуть остаток товара — атомарно (движение и
 // остаток фиксируются вместе). Запрет ухода остатка в минус.
@@ -85,6 +89,85 @@ export const productsService = {
   // иначе открываем свою, чтобы движение и остаток всегда были согласованы.
   async createMovement(input: unknown, actor?: { id: string; name?: string } | null, exec?: Executor) {
     return exec ? doMovement(input, actor, exec) : db.transaction((tx) => doMovement(input, actor, tx));
+  },
+
+  // ── ЗАКУП: приход товара (склад + себестоимость) + опциональная оплата со счёта(ов) ──
+  // Всё одной транзакцией. Новый товар (нет SKU) заводится автоматически. Оплата
+  // (payments[]) → Расход(ы) в Финансах source='Закуп', связанные с движением через
+  // finance_group (для совместной отмены денег и склада). Без оплаты — только склад
+  // (закуп в долг / бесплатно).
+  async createPurchase(input: unknown, actor?: Actor) {
+    const d = purchaseCreateSchema.parse(input);
+    return db.transaction(async (tx) => {
+      // 1. товар: существующий по id, иначе найти/завести по SKU
+      let product;
+      if (d.productId) {
+        product = await productsRepo.findById(d.productId, tx);
+        if (!product) throw notFound('Товар не найден');
+      } else {
+        const np = d.newProduct!;
+        product = await productsRepo.findBySku(np.skuCode.trim(), tx);
+        if (!product) {
+          product = await productsRepo.createProduct({
+            skuCode: np.skuCode.trim(), name: np.name.trim(),
+            minStock: np.minStock ?? 5,
+            price: money(Number(np.price) || 0),
+            costPrice: money(d.price),
+            waterType: np.waterType || null,
+          }, tx);
+        }
+      }
+      // 2. приход на склад (остаток + себестоимость)
+      const movement = await doMovement({
+        productId: product!.id, moveType: 'IN', qty: d.qty, price: d.price,
+        supplier: d.supplier ?? null, docNo: d.docNo ?? null,
+        moveDate: d.moveDate ?? undefined, comment: d.comment ?? 'Закупка',
+      }, actor, tx);
+      // 3. оплата: Расход(ы) в финансах, связанные с движением одной группой
+      if (d.payments.length) {
+        const financeGroup = randomUUID();
+        const name = `Закуп: ${product!.name} ×${d.qty}`.slice(0, 200);
+        for (const p of d.payments) {
+          await financeService.createOperation({
+            opType: 'Расход', accountId: p.accountId, amount: p.amount,
+            name, source: 'Закуп', supplier: d.supplier || undefined, docNo: d.docNo || undefined,
+            opDate: d.moveDate || undefined, expenseGroupId: financeGroup,
+          }, actor?.id ?? null, tx);
+        }
+        await productsRepo.updateMovement(movement.id, { financeGroup }, tx);
+      }
+      return { movement, productId: product!.id };
+    });
+  },
+
+  // ── Отмена/удаление движения склада (закупа/прихода/расхода/ревизии) ──
+  // hard=false («Отменить»): откат остатка + сторно связанных денег, строка остаётся
+  //   помеченной reversedAt (для истории). hard=true («Удалить»): то же + удаление строки.
+  // Идемпотентно (повторная отмена ничего не задваивает). Движения поверки не трогаем.
+  async reverseMovement(id: string, opts: { hard?: boolean }, actor?: Actor) {
+    if (!id) throw badRequest('id обязателен');
+    return db.transaction(async (tx) => {
+      const m = await productsRepo.findMovement(id, tx);
+      if (!m) throw notFound('Движение не найдено');
+      if (m.certId) throw badRequest('Движение поверки — отменяется удалением поверки, не здесь');
+      const already = !!m.reversedAt;
+      if (!already) {
+        const sign = STOCK_SIGN[m.moveType] ?? 0;
+        const undo = -sign * (Number(m.qty) || 0);          // обратный сдвиг остатка
+        const product = await productsRepo.findById(m.productId, tx);
+        const cur = Number(product?.currentStock) || 0;
+        if (cur + undo < 0) throw badRequest(`Нельзя отменить: остаток «${m.productName}» уйдёт в минус (товар уже израсходован/продан)`);
+        if (sign) await productsRepo.adjustStock(m.productId, undo, tx);
+        // вернуть деньги: сторнировать всю связанную группу расходов
+        if (m.financeGroup) {
+          const ops = await financeRepo.findByGroup(m.financeGroup, tx);
+          for (const op of ops) if (!op.reversedAt && !op.reverses) await financeService.reverseOperation(op.id, actor?.id ?? null, tx);
+        }
+      }
+      if (opts.hard) await productsRepo.deleteMovement(m.id, tx);
+      else if (!already) await productsRepo.markMovementReversed(m.id, tx);
+      return { ok: true };
+    });
   },
 
   // Приводит списание клейма поверки к нужному состоянию (идемпотентно):

@@ -13,6 +13,28 @@ export const productsRepo = {
     return row ?? null;
   },
 
+  async findBySku(sku: string, exec: Executor = db) {
+    const [row] = await exec.select().from(products).where(eq(products.skuCode, sku)).limit(1);
+    return row ?? null;
+  },
+
+  // Завести новый товар (из закупа, когда SKU нет в базе).
+  async createProduct(data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.insert(products).values(data as unknown as typeof products.$inferInsert).returning();
+    return row;
+  },
+
+  async findMovement(id: string, exec: Executor = db) {
+    const [row] = await exec.select().from(stockMovements).where(eq(stockMovements.id, id)).limit(1);
+    return row ?? null;
+  },
+
+  markMovementReversed: (id: string, exec: Executor = db) =>
+    exec.update(stockMovements).set({ reversedAt: new Date() }).where(eq(stockMovements.id, id)),
+
+  updateMovement: (id: string, data: Record<string, unknown>, exec: Executor = db) =>
+    exec.update(stockMovements).set(data as Partial<MovementInsert>).where(eq(stockMovements.id, id)),
+
   async createMovement(data: Record<string, unknown>, exec: Executor = db) {
     const [row] = await exec.insert(stockMovements).values(data as unknown as MovementInsert).returning();
     return row;

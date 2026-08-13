@@ -6,7 +6,7 @@ import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 
 type Product = { id: string; skuCode: string; name: string; fullName?: string | null; groupId?: string | null; waterType?: string | null; minStock: number; currentStock: number; reserved?: number | null; price: string | number; priceDiscount?: string | number | null; costPrice?: string | number | null };
-type Movement = { id: string; skuCode?: string | null; productName?: string | null; moveType: string; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; comment?: string | null; author?: string | null; moveDate?: string | null };
+type Movement = { id: string; skuCode?: string | null; productName?: string | null; moveType: string; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; comment?: string | null; author?: string | null; moveDate?: string | null; certId?: string | null; financeGroup?: string | null; reversedAt?: string | null };
 type SummaryRow = { skuCode: string | null; inQty: number; outQty: number; revPlus: number; revMinus: number };
 type Period = { preset: string; from: string; to: string };
 
@@ -58,6 +58,20 @@ export default function WarehousePage() {
   const range = React.useMemo(() => periodRange(period), [period]);
   const rangeQs = `${range.from ? `&from=${range.from}` : ''}${range.to ? `&to=${range.to}` : ''}`;
   const { data: movements, mutate: mutateMoves } = useApi<Movement[]>(`/api/v2/products/movements?limit=200${rangeQs}`);
+
+  // Отмена/удаление движения: откат остатка + сторно связанных денег (закуп). Движения
+  // поверки не трогаем (они снимаются удалением поверки).
+  async function reverseMove(mv: Movement, hard: boolean) {
+    if (mv.certId) { toast('⚠️ Движение поверки — снимается удалением поверки'); return; }
+    const paid = !!mv.financeGroup;
+    const head = hard ? `Удалить движение по «${mv.productName}» (${fmt(mv.qty)} шт)?` : `Отменить движение по «${mv.productName}» (${fmt(mv.qty)} шт)?`;
+    if (!confirm(`${head}\n\nОстаток откатится${paid ? ', деньги вернутся на счёт (сторно)' : ''}.${hard ? ' Строка будет удалена.' : ' Строка останется как отменённая.'}`)) return;
+    try {
+      if (hard) await apiSend(`/api/v2/products/movements/${mv.id}`, 'DELETE');
+      else await apiSend(`/api/v2/products/movements/${mv.id}/reverse`, 'POST');
+      await mutateMoves(); await mutate(); toast(hard ? '🗑️ Движение удалено' : '↩️ Движение отменено');
+    } catch (e) { toast('⚠️ ' + (e as Error).message); }
+  }
   const { data: summary } = useApi<SummaryRow[]>(`/api/v2/products/movements/summary${range.from || range.to ? `?from=${range.from}&to=${range.to}` : ''}`);
   const sumBySku = React.useMemo(() => { const m: Record<string, SummaryRow> = {}; (summary || []).forEach(r => { if (r.skuCode) m[r.skuCode] = r; }); return m; }, [summary]);
   const periodTotals = React.useMemo(() => (summary || []).reduce((a, r) => ({ in: a.in + r.inQty, out: a.out + r.outQty }), { in: 0, out: 0 }), [summary]);
@@ -296,22 +310,32 @@ export default function WarehousePage() {
         <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>
           {!movements || movements.length === 0 ? <EmptyRow>Движений пока нет. Проведите приход или ревизию.</EmptyRow> : (
             <table className="erp-table">
-              <thead><tr><th>Дата</th><th>SKU</th><th>Товар</th><th>Тип</th><th style={{ textAlign: 'right' }}>Кол-во</th><th style={{ textAlign: 'right' }}>Сумма</th><th>Контрагент</th><th>Документ</th><th>Комментарий</th><th>Автор</th></tr></thead>
+              <thead><tr><th>Дата</th><th>SKU</th><th>Товар</th><th>Тип</th><th style={{ textAlign: 'right' }}>Кол-во</th><th style={{ textAlign: 'right' }}>Сумма</th><th>Контрагент</th><th>Документ</th><th>Комментарий</th><th>Автор</th><th style={{ textAlign: 'center' }}>Действия</th></tr></thead>
               <tbody>
-                {movements.map(mv => (
-                  <tr key={mv.id}>
-                    <td className="erp-muted" style={{ fontSize: 12 }}>{dmy(mv.moveDate)}</td>
-                    <td className="erp-muted" style={{ fontSize: 12 }}>{mv.skuCode}</td>
-                    <td>{mv.productName}</td>
-                    <td><Badge tone={MOVE[mv.moveType]?.tone || 'neutral'}>{MOVE[mv.moveType]?.label || mv.moveType}</Badge></td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(mv.qty)}</td>
-                    <td style={{ textAlign: 'right' }}>{num(mv.totalSum) ? fmt(mv.totalSum!) + ' ₸' : '—'}</td>
-                    <td style={{ fontSize: 12 }}>{mv.supplier || '—'}</td>
-                    <td style={{ fontSize: 12 }}>{mv.docNo || '—'}</td>
-                    <td className="erp-muted" style={{ fontSize: 12 }}>{mv.comment || '—'}</td>
-                    <td className="erp-muted" style={{ fontSize: 12 }}>{mv.author || '—'}</td>
-                  </tr>
-                ))}
+                {movements.map(mv => {
+                  const rev = !!mv.reversedAt;
+                  const strike = rev ? { textDecoration: 'line-through' as const } : undefined;
+                  return (
+                    <tr key={mv.id} style={rev ? { opacity: 0.55 } : undefined}>
+                      <td className="erp-muted" style={{ fontSize: 12 }}>{dmy(mv.moveDate)}</td>
+                      <td className="erp-muted" style={{ fontSize: 12 }}>{mv.skuCode}</td>
+                      <td style={strike}>{mv.productName}</td>
+                      <td>{rev ? <Badge tone="err">✕ Отменено</Badge> : <Badge tone={MOVE[mv.moveType]?.tone || 'neutral'}>{MOVE[mv.moveType]?.label || mv.moveType}</Badge>}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600, ...strike }}>{fmt(mv.qty)}</td>
+                      <td style={{ textAlign: 'right' }}>{num(mv.totalSum) ? fmt(mv.totalSum!) + ' ₸' : '—'}{mv.financeGroup && !rev && <span title="Оплачено со счёта" style={{ marginLeft: 4 }}>💳</span>}</td>
+                      <td style={{ fontSize: 12 }}>{mv.supplier || '—'}</td>
+                      <td style={{ fontSize: 12 }}>{mv.docNo || '—'}</td>
+                      <td className="erp-muted" style={{ fontSize: 12 }}>{mv.comment || '—'}</td>
+                      <td className="erp-muted" style={{ fontSize: 12 }}>{mv.author || '—'}</td>
+                      <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                        {mv.certId ? <span className="erp-muted" style={{ fontSize: 11 }}>поверка</span> : (<>
+                          {!rev && <button className="erp-icon-btn" title="Отменить (откат склада + деньги)" onClick={() => reverseMove(mv, false)}>↩️</button>}
+                          <button className="erp-icon-btn" title="Удалить движение" style={{ color: '#dc2626' }} onClick={() => reverseMove(mv, true)}>🗑️</button>
+                        </>)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

@@ -24,3 +24,15 @@ export const MOVEMENTS_SUMMARY = withApi(async (req: NextRequest) => {
   const sp = new URL(req.url).searchParams;
   return productsService.movementsSummary(sp.get('from'), sp.get('to'));
 });
+
+// POST /api/v2/purchases — закуп: приход товара + опц. оплата со счёта(ов)
+export const PURCHASE = withApi(async (req: NextRequest, ctx) =>
+  created(await productsService.createPurchase(await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null)));
+
+// POST /api/v2/products/movements/[id]/reverse — отмена движения (откат склада + сторно денег)
+export const MOVEMENT_REVERSE = withApi(async (_req: NextRequest, ctx) =>
+  productsService.reverseMovement(ctx.params!.id, { hard: false }, ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
+
+// DELETE /api/v2/products/movements/[id] — удаление движения (откат + сторно + удаление строки)
+export const MOVEMENT_DELETE = withApi(async (_req: NextRequest, ctx) =>
+  productsService.reverseMovement(ctx.params!.id, { hard: true }, ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
