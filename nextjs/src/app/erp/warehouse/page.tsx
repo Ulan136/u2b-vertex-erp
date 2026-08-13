@@ -6,7 +6,7 @@ import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 
 type Product = { id: string; skuCode: string; name: string; fullName?: string | null; groupId?: string | null; waterType?: string | null; minStock: number; currentStock: number; reserved?: number | null; price: string | number; priceDiscount?: string | number | null; costPrice?: string | number | null };
-type Movement = { id: string; skuCode?: string | null; productName?: string | null; moveType: string; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; comment?: string | null; author?: string | null; moveDate?: string | null; certId?: string | null; financeGroup?: string | null; reversedAt?: string | null };
+type Movement = { id: string; skuCode?: string | null; productName?: string | null; moveType: string; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; comment?: string | null; author?: string | null; moveDate?: string | null; certId?: string | null; financeGroup?: string | null; purchaseGroup?: string | null; reversedAt?: string | null };
 type SummaryRow = { skuCode: string | null; inQty: number; outQty: number; revPlus: number; revMinus: number };
 type Period = { preset: string; from: string; to: string };
 
@@ -63,9 +63,9 @@ export default function WarehousePage() {
   // поверки не трогаем (они снимаются удалением поверки).
   async function reverseMove(mv: Movement, hard: boolean) {
     if (mv.certId) { toast('⚠️ Движение поверки — снимается удалением поверки'); return; }
-    const paid = !!mv.financeGroup;
+    const paid = !!mv.financeGroup; const multi = !!mv.purchaseGroup;
     const head = hard ? `Удалить движение по «${mv.productName}» (${fmt(mv.qty)} шт)?` : `Отменить движение по «${mv.productName}» (${fmt(mv.qty)} шт)?`;
-    if (!confirm(`${head}\n\nОстаток откатится${paid ? ', деньги вернутся на счёт (сторно)' : ''}.${hard ? ' Строка будет удалена.' : ' Строка останется как отменённая.'}`)) return;
+    if (!confirm(`${head}\n\n${multi ? 'Это позиция закупа — отменится весь закуп (все его позиции). ' : ''}Остаток откатится${paid ? ', деньги вернутся на счёт (сторно)' : ''}.${hard ? ' Строка будет удалена.' : ' Строка останется как отменённая.'}`)) return;
     try {
       if (hard) await apiSend(`/api/v2/products/movements/${mv.id}`, 'DELETE');
       else await apiSend(`/api/v2/products/movements/${mv.id}/reverse`, 'POST');

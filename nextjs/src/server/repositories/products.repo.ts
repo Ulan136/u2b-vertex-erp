@@ -35,6 +35,10 @@ export const productsRepo = {
   updateMovement: (id: string, data: Record<string, unknown>, exec: Executor = db) =>
     exec.update(stockMovements).set(data as Partial<MovementInsert>).where(eq(stockMovements.id, id)),
 
+  // Все приходы одного мультипозиционного закупа (для отмены/удаления всей группой).
+  movementsByPurchaseGroup: (group: string, exec: Executor = db) =>
+    exec.select().from(stockMovements).where(eq(stockMovements.purchaseGroup, group)),
+
   async createMovement(data: Record<string, unknown>, exec: Executor = db) {
     const [row] = await exec.insert(stockMovements).values(data as unknown as MovementInsert).returning();
     return row;

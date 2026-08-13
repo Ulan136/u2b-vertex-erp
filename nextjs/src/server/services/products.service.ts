@@ -99,34 +99,39 @@ export const productsService = {
   async createPurchase(input: unknown, actor?: Actor) {
     const d = purchaseCreateSchema.parse(input);
     return db.transaction(async (tx) => {
-      // 1. товар: существующий по id, иначе найти/завести по SKU
-      let product;
-      if (d.productId) {
-        product = await productsRepo.findById(d.productId, tx);
-        if (!product) throw notFound('Товар не найден');
-      } else {
-        const np = d.newProduct!;
-        product = await productsRepo.findBySku(np.skuCode.trim(), tx);
-        if (!product) {
-          product = await productsRepo.createProduct({
-            skuCode: np.skuCode.trim(), name: np.name.trim(),
-            minStock: np.minStock ?? 5,
-            price: money(Number(np.price) || 0),
-            costPrice: money(d.price),
-            waterType: np.waterType || null,
-          }, tx);
+      const purchaseGroup = randomUUID();
+      const financeGroup = d.payments.length ? randomUUID() : null;
+      let firstName = '';
+      // 1. каждая позиция: товар (существующий/новый) → приход на склад
+      for (const it of d.items) {
+        let product;
+        if (it.productId) {
+          product = await productsRepo.findById(it.productId, tx);
+          if (!product) throw notFound('Товар не найден');
+        } else {
+          const np = it.newProduct!;
+          product = await productsRepo.findBySku(np.skuCode.trim(), tx);
+          if (!product) {
+            product = await productsRepo.createProduct({
+              skuCode: np.skuCode.trim(), name: np.name.trim(),
+              minStock: np.minStock ?? 5,
+              price: money(Number(np.price) || 0),
+              costPrice: money(it.price),
+              waterType: np.waterType || null,
+            }, tx);
+          }
         }
+        if (!firstName) firstName = product!.name;
+        const movement = await doMovement({
+          productId: product!.id, moveType: 'IN', qty: it.qty, price: it.price,
+          supplier: d.supplier ?? null, docNo: d.docNo ?? null,
+          moveDate: d.moveDate ?? undefined, comment: d.comment ?? 'Закупка',
+        }, actor, tx);
+        await productsRepo.updateMovement(movement.id, { purchaseGroup, ...(financeGroup ? { financeGroup } : {}) }, tx);
       }
-      // 2. приход на склад (остаток + себестоимость)
-      const movement = await doMovement({
-        productId: product!.id, moveType: 'IN', qty: d.qty, price: d.price,
-        supplier: d.supplier ?? null, docNo: d.docNo ?? null,
-        moveDate: d.moveDate ?? undefined, comment: d.comment ?? 'Закупка',
-      }, actor, tx);
-      // 3. оплата: Расход(ы) в финансах, связанные с движением одной группой
-      if (d.payments.length) {
-        const financeGroup = randomUUID();
-        const name = `Закуп: ${product!.name} ×${d.qty}`.slice(0, 200);
+      // 2. оплата: Расход(ы) в финансах на весь закуп, связанные общей группой
+      if (financeGroup) {
+        const name = (d.items.length > 1 ? `Закуп: ${firstName} +${d.items.length - 1} поз.` : `Закуп: ${firstName} ×${d.items[0].qty}`).slice(0, 200);
         for (const p of d.payments) {
           await financeService.createOperation({
             opType: 'Расход', accountId: p.accountId, amount: p.amount,
@@ -134,9 +139,8 @@ export const productsService = {
             opDate: d.moveDate || undefined, expenseGroupId: financeGroup,
           }, actor?.id ?? null, tx);
         }
-        await productsRepo.updateMovement(movement.id, { financeGroup }, tx);
       }
-      return { movement, productId: product!.id };
+      return { ok: true, count: d.items.length, purchaseGroup };
     });
   },
 
@@ -150,23 +154,29 @@ export const productsService = {
       const m = await productsRepo.findMovement(id, tx);
       if (!m) throw notFound('Движение не найдено');
       if (m.certId) throw badRequest('Движение поверки — отменяется удалением поверки, не здесь');
-      const already = !!m.reversedAt;
-      if (!already) {
-        const sign = STOCK_SIGN[m.moveType] ?? 0;
-        const undo = -sign * (Number(m.qty) || 0);          // обратный сдвиг остатка
-        const product = await productsRepo.findById(m.productId, tx);
+      // Мультипозиционный закуп: отменяем/удаляем весь закуп (все его приходы), иначе одну строку.
+      const group = m.purchaseGroup ? await productsRepo.movementsByPurchaseGroup(m.purchaseGroup, tx) : [m];
+      // 1. откат остатков по каждой действующей позиции (с защитой от ухода в минус)
+      for (const mv of group) {
+        if (mv.reversedAt) continue;
+        const sign = STOCK_SIGN[mv.moveType] ?? 0;
+        const undo = -sign * (Number(mv.qty) || 0);
+        const product = await productsRepo.findById(mv.productId, tx);
         const cur = Number(product?.currentStock) || 0;
-        if (cur + undo < 0) throw badRequest(`Нельзя отменить: остаток «${m.productName}» уйдёт в минус (товар уже израсходован/продан)`);
-        if (sign) await productsRepo.adjustStock(m.productId, undo, tx);
-        // вернуть деньги: сторнировать всю связанную группу расходов
-        if (m.financeGroup) {
-          const ops = await financeRepo.findByGroup(m.financeGroup, tx);
-          for (const op of ops) if (!op.reversedAt && !op.reverses) await financeService.reverseOperation(op.id, actor?.id ?? null, tx);
-        }
+        if (cur + undo < 0) throw badRequest(`Нельзя отменить: остаток «${mv.productName}» уйдёт в минус (товар уже израсходован/продан)`);
+        if (sign) await productsRepo.adjustStock(mv.productId, undo, tx);
       }
-      if (opts.hard) await productsRepo.deleteMovement(m.id, tx);
-      else if (!already) await productsRepo.markMovementReversed(m.id, tx);
-      return { ok: true };
+      // 2. вернуть деньги: сторнировать связанную группу расходов (один раз на весь закуп)
+      if (m.financeGroup) {
+        const ops = await financeRepo.findByGroup(m.financeGroup, tx);
+        for (const op of ops) if (!op.reversedAt && !op.reverses) await financeService.reverseOperation(op.id, actor?.id ?? null, tx);
+      }
+      // 3. пометить/удалить строки
+      for (const mv of group) {
+        if (opts.hard) await productsRepo.deleteMovement(mv.id, tx);
+        else if (!mv.reversedAt) await productsRepo.markMovementReversed(mv.id, tx);
+      }
+      return { ok: true, count: group.length };
     });
   },
 

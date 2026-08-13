@@ -47,19 +47,24 @@ export const purchasePaymentSchema = z.object({
   amount: z.coerce.number().positive(),
 });
 
-// POST /purchases — закуп: приход товара (склад) + опц. оплата со счёта(ов).
-// Либо existing productId, либо newProduct (создаётся при отсутствии SKU).
-export const purchaseCreateSchema = z.object({
+// Позиция закупа: existing productId, либо newProduct (создаётся при отсутствии SKU).
+export const purchaseItemSchema = z.object({
   productId: z.string().uuid().nullish(),
   newProduct: newProductSchema.nullish(),
   qty: z.coerce.number().int().positive('Количество больше 0'),
   price: z.coerce.number().nonnegative().default(0),         // цена закупа за ед.
+}).refine(d => !!d.productId || !!d.newProduct, { message: 'Выберите товар или заведите новый', path: ['productId'] });
+
+// POST /purchases — закуп: приход одной или НЕСКОЛЬКИХ позиций (склад) + опц. оплата
+// со счёта(ов). Все приходы делят purchase_group; оплата — общая на весь закуп.
+export const purchaseCreateSchema = z.object({
+  items: z.array(purchaseItemSchema).min(1, 'Добавьте хотя бы одну позицию'),
   supplier: z.string().trim().nullish(),
   docNo: z.string().trim().nullish(),
   moveDate: z.string().nullish(),
   comment: z.string().trim().nullish(),
   payments: z.array(purchasePaymentSchema).optional().default([]),
-}).refine(d => !!d.productId || !!d.newProduct, { message: 'Выберите товар или заведите новый', path: ['productId'] });
+});
 
 // POST /products records a stock movement (приход/расход), not a product.
 export const stockMovementSchema = z.object({

@@ -5,17 +5,19 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 
-type Movement = { id: string; skuCode?: string | null; productName?: string | null; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; author?: string | null; moveDate?: string | null; financeGroup?: string | null; reversedAt?: string | null };
+type Movement = { id: string; skuCode?: string | null; productName?: string | null; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; author?: string | null; moveDate?: string | null; financeGroup?: string | null; purchaseGroup?: string | null; reversedAt?: string | null };
 type Product = { id: string; skuCode: string; name: string; price: string | number; costPrice?: string | number | null; currentStock: number };
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; sortOrder?: number | null; balance?: string | number | null };
 type Pay = { accountId: string; amount: string };
+type Item = { mode: 'existing' | 'new'; productId: string; newSku: string; newName: string; newMin: string; qty: string; price: string };
 
 const SECTIONS = [{ key: 'poverka', no: 1, label: 'Поверка' }, { key: 'sale', no: 2, label: 'Продажа' }, { key: 'other', no: 3, label: 'Прочие операции' }, { key: 'branch', no: 4, label: 'Филиал Астана' }, { key: 'branch_almaty', no: 5, label: 'Филиал Алматы' }];
 const num = (v: unknown) => Number(v) || 0;
 const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU');
 const dmy = (d?: string | null) => formatDate(d);
 const today = () => new Date().toISOString().slice(0, 10);
-const emptyForm = () => ({ open: false, mode: 'existing' as 'existing' | 'new', productId: '', newSku: '', newName: '', newMin: '5', qty: '1', price: '', supplier: '', docNo: '', date: today(), payMode: 'pay' as 'pay' | 'debt', payments: [{ accountId: '', amount: '' }] as Pay[], err: '', saving: false });
+const emptyItem = (): Item => ({ mode: 'existing', productId: '', newSku: '', newName: '', newMin: '5', qty: '1', price: '' });
+const emptyForm = () => ({ open: false, items: [emptyItem()], supplier: '', docNo: '', date: today(), payMode: 'pay' as 'pay' | 'debt', payments: [{ accountId: '', amount: '' }] as Pay[], err: '', saving: false });
 
 export default function PurchasesPage() {
   const { data: buys, error, isLoading, mutate } = useApi<Movement[]>('/api/v2/products/movements?type=IN&limit=200');
@@ -31,8 +33,18 @@ export default function PurchasesPage() {
   const list = (buys || []).filter(b => !q.trim() || (`${b.productName} ${b.skuCode} ${b.supplier || ''}`).toLowerCase().includes(q.toLowerCase()));
   const totalSum = live.reduce((s, b) => s + num(b.totalSum), 0);
 
-  // ── форма ──
-  const cost = Math.round(num(f.qty) * num(f.price) * 100) / 100;
+  // ── позиции ──
+  const cost = Math.round(f.items.reduce((s, it) => s + num(it.qty) * num(it.price), 0) * 100) / 100;
+  function setItemProduct(i: number, value: string) {
+    if (value === '__new__') { setF(s => ({ ...s, items: s.items.map((it, j) => j === i ? { ...it, mode: 'new', productId: '' } : it) })); return; }
+    const p = (products || []).find(x => x.id === value); const c = num(p?.costPrice);
+    setF(s => ({ ...s, items: s.items.map((it, j) => j === i ? { ...it, mode: 'existing', productId: value, price: p ? String(c > 0 ? c : num(p.price)) : it.price } : it) }));
+  }
+  const setItemField = (i: number, key: keyof Item, v: string) => setF(s => ({ ...s, items: s.items.map((it, j) => j === i ? { ...it, [key]: v } : it) }));
+  const addItem = () => setF(s => ({ ...s, items: [...s.items, emptyItem()] }));
+  const removeItem = (i: number) => setF(s => ({ ...s, items: s.items.length > 1 ? s.items.filter((_, j) => j !== i) : s.items }));
+
+  // ── оплата ──
   const allocated = f.payments.reduce((s, p) => s + num(p.amount), 0);
   const remaining = Math.round((cost - allocated) * 100) / 100;
   function setPayAccount(i: number, accountId: string) {
@@ -44,10 +56,19 @@ export default function PurchasesPage() {
 
   function openNew() { setF({ ...emptyForm(), open: true }); }
   async function save() {
-    if (f.mode === 'existing' && !f.productId) { setF(s => ({ ...s, err: 'Выберите товар (или заведите новый)' })); return; }
-    if (f.mode === 'new' && (!f.newSku.trim() || !f.newName.trim())) { setF(s => ({ ...s, err: 'Укажите артикул (SKU) и название нового товара' })); return; }
-    if (num(f.qty) <= 0) { setF(s => ({ ...s, err: 'Количество больше 0' })); return; }
-    // Оплата: «в долг» → без денег; иначе строки с счётом. Одна строка без суммы → вся стоимость.
+    // позиции → тело + валидация
+    const items: Array<Record<string, unknown>> = [];
+    for (const it of f.items) {
+      if (num(it.qty) <= 0) { setF(s => ({ ...s, err: 'Количество в позиции должно быть больше 0' })); return; }
+      if (it.mode === 'existing') {
+        if (!it.productId) { setF(s => ({ ...s, err: 'Выберите товар в каждой позиции (или заведите новый)' })); return; }
+        items.push({ productId: it.productId, qty: num(it.qty), price: num(it.price) });
+      } else {
+        if (!it.newSku.trim() || !it.newName.trim()) { setF(s => ({ ...s, err: 'У нового товара укажите артикул (SKU) и название' })); return; }
+        items.push({ newProduct: { skuCode: it.newSku.trim(), name: it.newName.trim(), minStock: num(it.newMin) || 0, price: 0 }, qty: num(it.qty), price: num(it.price) });
+      }
+    }
+    // оплата
     let payments: Array<{ accountId: string; amount: number }> = [];
     if (f.payMode === 'pay') {
       payments = f.payments.filter(p => p.accountId && num(p.amount) > 0).map(p => ({ accountId: p.accountId, amount: num(p.amount) }));
@@ -55,9 +76,7 @@ export default function PurchasesPage() {
       if (!payments.length && withAcc.length === 1 && cost > 0) payments = [{ accountId: withAcc[0].accountId, amount: cost }];
       if (!payments.length) { setF(s => ({ ...s, err: 'Выберите счёт оплаты (или переключите на «В долг»)' })); return; }
     }
-    const body: Record<string, unknown> = { qty: num(f.qty), price: num(f.price), supplier: f.supplier || null, docNo: f.docNo || null, moveDate: f.date || null, payments };
-    if (f.mode === 'existing') body.productId = f.productId;
-    else body.newProduct = { skuCode: f.newSku.trim(), name: f.newName.trim(), minStock: num(f.newMin) || 0, price: 0 };
+    const body = { items, supplier: f.supplier || null, docNo: f.docNo || null, moveDate: f.date || null, payments };
     setF(s => ({ ...s, saving: true, err: '' }));
     try {
       await apiSend('/api/v2/purchases', 'POST', body);
@@ -67,9 +86,9 @@ export default function PurchasesPage() {
   }
 
   async function reverse(b: Movement, hard: boolean) {
-    const paid = !!b.financeGroup;
-    const q1 = hard ? `Удалить закуп «${b.productName}» (${fmt(b.qty)} шт)?` : `Отменить закуп «${b.productName}» (${fmt(b.qty)} шт)?`;
-    if (!confirm(`${q1}\n\nТовар вернётся со склада${paid ? ', деньги вернутся на счёт (сторно)' : ''}.${hard ? ' Строка будет удалена.' : ' Строка останется как отменённая.'}`)) return;
+    const paid = !!b.financeGroup; const multi = !!b.purchaseGroup;
+    const head = hard ? `Удалить закуп «${b.productName}»?` : `Отменить закуп «${b.productName}»?`;
+    if (!confirm(`${head}\n\n${multi ? 'Отменится весь закуп (все его позиции). ' : ''}Товар вернётся со склада${paid ? ', деньги вернутся на счёт (сторно)' : ''}.${hard ? ' Строки будут удалены.' : ' Строки останутся как отменённые.'}`)) return;
     try {
       if (hard) await apiSend(`/api/v2/products/movements/${b.id}`, 'DELETE');
       else await apiSend(`/api/v2/products/movements/${b.id}/reverse`, 'POST');
@@ -82,7 +101,7 @@ export default function PurchasesPage() {
       <PageTitle title="Закупки" sub="Приход товара от поставщиков — склад пополняется, деньги списываются со счёта" action={<Button onClick={openNew}>+ Новая закупка</Button>} />
 
       <div className="erp-kpi-grid">
-        <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">🛒</span><span className="erp-kpi-label">Закупок</span></div><div className="erp-kpi-val">{live.length}</div></div>
+        <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">🛒</span><span className="erp-kpi-label">Позиций закуплено</span></div><div className="erp-kpi-val">{live.length}</div></div>
         <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">💰</span><span className="erp-kpi-label">Сумма закупок</span></div><div className="erp-kpi-val">{fmt(totalSum)} ₸</div></div>
       </div>
 
@@ -101,7 +120,7 @@ export default function PurchasesPage() {
                     <tr key={b.id} style={rev ? { opacity: 0.55 } : undefined}>
                       <td className="erp-muted" style={{ fontSize: 12 }}>{dmy(b.moveDate)}</td>
                       <td className="erp-td-main" style={rev ? { textDecoration: 'line-through' } : undefined}>{b.supplier || '—'}</td>
-                      <td style={rev ? { textDecoration: 'line-through' } : undefined}>{b.productName} <span className="erp-muted" style={{ fontSize: 11 }}>{b.skuCode}</span></td>
+                      <td style={rev ? { textDecoration: 'line-through' } : undefined}>{b.productName} <span className="erp-muted" style={{ fontSize: 11 }}>{b.skuCode}</span>{b.purchaseGroup && <span className="erp-muted" style={{ fontSize: 11 }} title="Позиция мультизакупа"> · 📦</span>}</td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(b.qty)}</td>
                       <td style={{ textAlign: 'right' }}>{fmt(b.price || 0)}</td>
                       <td style={{ textAlign: 'right', fontWeight: 700 }}>{num(b.totalSum) ? fmt(b.totalSum!) + ' ₸' : '—'}</td>
@@ -120,44 +139,48 @@ export default function PurchasesPage() {
           )}
       </Card>
 
-      <Modal open={f.open} onClose={() => setF(s => ({ ...s, open: false }))} title="📥 Новая закупка" width={560}
+      <Modal open={f.open} onClose={() => setF(s => ({ ...s, open: false }))} title="📥 Новая закупка" width={680}
         footer={<><Button onClick={save} disabled={f.saving}>{f.saving ? 'Сохранение…' : 'Провести закупку'}</Button><Button variant="outline" onClick={() => setF(s => ({ ...s, open: false }))}>Отмена</Button></>}>
         {f.err && <div className="erp-form-err">{f.err}</div>}
 
-        {/* Существующий товар / новый */}
-        <div className="erp-chips" style={{ marginBottom: 8 }}>
-          <button type="button" className={`erp-chip${f.mode === 'existing' ? ' on' : ''}`} onClick={() => setF(s => ({ ...s, mode: 'existing' }))}>📦 Из базы</button>
-          <button type="button" className={`erp-chip${f.mode === 'new' ? ' on' : ''}`} onClick={() => setF(s => ({ ...s, mode: 'new' }))}>➕ Новый товар</button>
-        </div>
-        {f.mode === 'existing' ? (
-          <Field label="Товар" required>
-            <Select value={f.productId} onChange={e => { const p = (products || []).find(x => x.id === e.target.value); const c = num(p?.costPrice); setF(s => ({ ...s, productId: e.target.value, price: p ? String(c > 0 ? c : num(p.price)) : s.price })); }}>
-              <option value="">— выберите —</option>
-              {(products || []).map(p => <option key={p.id} value={p.id}>{p.skuCode} · {p.name} (ост. {p.currentStock})</option>)}
-            </Select>
-          </Field>
-        ) : (
-          <>
-            <div className="erp-form-row">
-              <Field label="Артикул (SKU)" required><Input value={f.newSku} onChange={e => setF(s => ({ ...s, newSku: e.target.value }))} placeholder="SKU-030" /></Field>
-              <Field label="Мин. остаток"><Input type="number" min={0} value={f.newMin} onChange={e => setF(s => ({ ...s, newMin: e.target.value }))} /></Field>
-            </div>
-            <Field label="Название товара" required><Input value={f.newName} onChange={e => setF(s => ({ ...s, newName: e.target.value }))} placeholder="Например: Счётчик воды VODOMER BCKM-15" /></Field>
-            <div className="erp-muted" style={{ fontSize: 11, marginTop: -4, marginBottom: 4 }}>Новый товар заведётся в базе автоматически. Цена продажи = 0 (задайте позже в «Складе»); себестоимость = цена закупа.</div>
-          </>
-        )}
+        <Field label="Позиции закупа" required>
+          <table className="erp-table" style={{ fontSize: 12 }}>
+            <thead><tr><th style={{ textAlign: 'left' }}>Товар</th><th style={{ width: 66 }}>Кол-во</th><th style={{ width: 110 }}>Цена закупа</th><th style={{ width: 92 }}>Сумма</th><th style={{ width: 30 }}></th></tr></thead>
+            <tbody>
+              {f.items.map((it, i) => (
+                <tr key={i}>
+                  <td>
+                    <Select value={it.mode === 'new' ? '__new__' : it.productId} onChange={e => setItemProduct(i, e.target.value)}>
+                      <option value="">— выберите —</option>
+                      <option value="__new__">➕ Новый товар…</option>
+                      {(products || []).map(p => <option key={p.id} value={p.id}>{p.skuCode} · {p.name} (ост. {p.currentStock})</option>)}
+                    </Select>
+                    {it.mode === 'new' && (
+                      <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                        <Input placeholder="SKU" value={it.newSku} onChange={e => setItemField(i, 'newSku', e.target.value)} style={{ padding: '4px 6px', width: 90 }} />
+                        <Input placeholder="Название нового товара" value={it.newName} onChange={e => setItemField(i, 'newName', e.target.value)} style={{ padding: '4px 6px', flex: 1 }} />
+                        <Input type="number" min={0} placeholder="мин" title="Мин. остаток" value={it.newMin} onChange={e => setItemField(i, 'newMin', e.target.value)} style={{ padding: '4px 6px', width: 56 }} />
+                      </div>
+                    )}
+                  </td>
+                  <td><Input type="number" min={1} value={it.qty} onChange={e => setItemField(i, 'qty', e.target.value)} style={{ padding: '4px 6px', textAlign: 'center' }} /></td>
+                  <td><Input type="number" min={0} value={it.price} onChange={e => setItemField(i, 'price', e.target.value)} style={{ padding: '4px 6px', textAlign: 'right' }} /></td>
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(num(it.qty) * num(it.price))}</td>
+                  <td style={{ textAlign: 'center' }}><button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => removeItem(i)} title="Убрать позицию" disabled={f.items.length <= 1}>✕</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <Button variant="outline" onClick={addItem} style={{ marginTop: 8, fontSize: 12 }}>➕ Добавить позицию</Button>
+          <div style={{ textAlign: 'right', marginTop: 8, fontSize: 15 }}>Итого закуп: <b>{fmt(cost)} ₸</b></div>
+          <div className="erp-muted" style={{ fontSize: 11, marginTop: 2 }}>«➕ Новый товар…» — если SKU ещё нет в базе, товар заведётся автоматически (цена продажи 0 — задать позже в «Складе»; себестоимость = цена закупа).</div>
+        </Field>
 
         <div className="erp-form-row">
-          <Field label="Количество" required><Input type="number" min={1} value={f.qty} onChange={e => setF(s => ({ ...s, qty: e.target.value }))} /></Field>
-          <Field label="Цена закупа за ед. (₸)"><Input type="number" min={0} value={f.price} onChange={e => setF(s => ({ ...s, price: e.target.value }))} /></Field>
-        </div>
-        <div style={{ textAlign: 'right', fontSize: 14, marginTop: -4 }}>Стоимость закупа: <b>{fmt(cost)} ₸</b></div>
-
-        <Field label="Поставщик"><Input value={f.supplier} onChange={e => setF(s => ({ ...s, supplier: e.target.value }))} /></Field>
-        <div className="erp-form-row">
-          <Field label="№ документа"><Input value={f.docNo} onChange={e => setF(s => ({ ...s, docNo: e.target.value }))} /></Field>
+          <Field label="Поставщик"><Input value={f.supplier} onChange={e => setF(s => ({ ...s, supplier: e.target.value }))} /></Field>
           <Field label="Дата"><Input type="date" value={f.date} onChange={e => setF(s => ({ ...s, date: e.target.value }))} /></Field>
         </div>
+        <Field label="№ документа"><Input value={f.docNo} onChange={e => setF(s => ({ ...s, docNo: e.target.value }))} /></Field>
 
         {/* Оплата — с каких счетов списать */}
         <div className="cert-sec-lbl">🧾 Оплата — с каких счетов списать</div>

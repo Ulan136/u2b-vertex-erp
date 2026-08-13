@@ -135,6 +135,8 @@ export const stockMovements = pgTable('stock_movements', {
   createdBy   : uuid('created_by').references(() => users.id),
   // Закуп с оплатой: группа финопераций-расходов (для отмены денег вместе со складом).
   financeGroup: uuid('finance_group'),
+  // Мультипозиционный закуп: все приходы одного закупа делят purchase_group (отмена — всей группой).
+  purchaseGroup: uuid('purchase_group'),
   // Отмена движения (сторно): остаток откачен, деньги сторнированы. Строка остаётся для истории.
   reversedAt  : timestamp('reversed_at', { withTimezone: true }),
 });
