@@ -227,6 +227,9 @@ export const expenseCategories = pgTable('expense_categories', {
   icon      : varchar('icon', { length: 10 }).default('📦'),
   color     : varchar('color', { length: 20 }).default('#6b7280'),
   sortOrder : integer('sort_order').default(0),
+  // Скрыть суммы/операции этой категории от неруководящих ролей (менеджеры и пр.);
+  // переключает Админ «глазиком». Руководство (admin/accountant/director) видит всё.
+  managerHidden : boolean('manager_hidden').default(false),
 });
 
 export const expenses = pgTable('expenses', {

@@ -1,5 +1,6 @@
 import { db, type Executor } from '@/db';
 import { financeRepo } from '@/server/repositories/finance.repo';
+import { expenseCategoriesRepo } from '@/server/repositories/expenseCategories.repo';
 import { randomUUID } from 'crypto';
 import {
   financeOperationSchema, financeOpMetaSchema, expenseCreateSchema, expensePaymentsTotal,
@@ -169,8 +170,27 @@ async function reverseExpense(id: string, actorId?: string | null) {
   });
 }
 
+// Роли, которым видны все расходы (руководство). Остальным (менеджеры, кастомные
+// роли) операции/суммы категорий с managerHidden не отдаём.
+const FINANCE_FULL_ROLES = ['admin', 'accountant', 'director'];
+// Категория операции — как на клиенте (expense_cat, иначе Зарплата/из имени).
+const opCategory = (o: { expenseCat?: string | null; source?: string | null; name?: string | null }) =>
+  o.expenseCat || (o.source === 'Зарплата' ? 'Зарплата' : (o.name || '').split(':')[0].trim() || 'Прочие');
+
+async function overview(from?: string | null, to?: string | null, role?: string | null) {
+  const data = await financeRepo.overview(from, to);
+  if (FINANCE_FULL_ROLES.includes(role || '')) return data;
+  // Неруководящая роль: убрать операции скрытых категорий (суммы не должны утечь).
+  const cats = await expenseCategoriesRepo.listAll();
+  const hidden = new Set(cats.filter(c => !c.parentId && c.managerHidden).map(c => c.name));
+  if (!hidden.size) return data;
+  const operations = (data.operations as Array<{ opType?: string | null; expenseCat?: string | null; source?: string | null; name?: string | null }>)
+    .filter(o => !(o.opType === 'Расход' && hidden.has(opCategory(o))));
+  return { ...data, operations };
+}
+
 export const financeService = {
-  overview: (from?: string | null, to?: string | null) => financeRepo.overview(from, to),
+  overview,
   createOperation,
   createExpense,
   reverseOperation,

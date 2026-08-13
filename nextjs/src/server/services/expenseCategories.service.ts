@@ -28,6 +28,7 @@ async function tree() {
   return parents.map(p => ({
     id: p.id, name: p.name, icon: p.icon || '📦', color: p.color,
     base: p.name === BASE.name,
+    managerHidden: !!p.managerHidden,
     subs: (childrenByParent[p.id] || []).map(c => ({ id: c.id, name: c.name })),
   }));
 }
@@ -47,13 +48,18 @@ async function create(input: unknown) {
 
 // Правка категории — иконка и/или название (иконку можно менять у любой,
 // в т.ч. базовой «Зарплата»; переименование базовой не даём, чтобы не сломать логику).
-async function update(id: string, input: unknown) {
-  const data = (input ?? {}) as { name?: string; icon?: string; color?: string };
+// managerHidden («скрыть от менеджеров») переключать может только Админ.
+async function update(id: string, input: unknown, role?: string | null) {
+  const data = (input ?? {}) as { name?: string; icon?: string; color?: string; managerHidden?: boolean };
   const row = await expenseCategoriesRepo.findById(id);
   if (!row) throw notFound('Категория не найдена');
   const patch: Record<string, unknown> = {};
   if (data.icon !== undefined) patch.icon = String(data.icon).slice(0, 8) || '📦';
   if (data.color !== undefined) patch.color = data.color || null;
+  if (data.managerHidden !== undefined) {
+    if (role !== 'admin') throw badRequest('Скрывать категорию от менеджеров может только Администратор');
+    patch.managerHidden = !!data.managerHidden;
+  }
   if (data.name !== undefined) {
     const name = String(data.name).trim();
     if (!name) throw badRequest('Название обязательно');
