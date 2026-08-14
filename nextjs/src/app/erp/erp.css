@@ -107,9 +107,13 @@
 /* P1-2: горизонтальный скролл журналов виден всегда (раньше полоса была не видна,
    и пользователь не догадывался, что справа есть колонки). Не меняет вёрстку. */
 .ui-card { scrollbar-width: thin; }
-.ui-card::-webkit-scrollbar { height: 9px; }
+.ui-card::-webkit-scrollbar { height: 9px; width: 9px; }
 .ui-card::-webkit-scrollbar-thumb { background: #cbd3dd; border-radius: 8px; }
 .ui-card::-webkit-scrollbar-thumb:hover { background: #aab4c1; }
+/* P1-2: длинные журналы скроллятся ВНУТРИ карточки, а шапка таблицы закреплена
+   сверху (не уезжает при прокрутке строк). Горизонтальный скролл тоже сохранён. */
+.erp-journal { max-height: calc(100dvh - 250px); min-height: 300px; overflow: auto; }
+.erp-journal thead th { position: sticky; top: 0; z-index: 2; background: var(--erp-surface); }
 .ui-pagetitle h1 { margin: 0; font-size: 20px; }
 .ui-pagetitle p { margin: 2px 0 16px; font-size: 13px; color: var(--erp-muted); }
 .ui-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }

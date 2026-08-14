@@ -264,7 +264,7 @@ export default function SalesPage() {
         <span style={{ marginLeft: 'auto', fontSize: 12 }} className="erp-muted">Показано: <b>{visible.length}</b> · Итого: <b>{fmt(total)} ₸</b></span>
       </Card>
 
-      <Card style={{ padding: 0, marginTop: 12, overflowX: 'auto' }}>
+      <Card className="erp-journal" style={{ padding: 0, marginTop: 12 }}>
         {error ? <EmptyRow>Нет доступа к продажам.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
           : list.length === 0 ? <EmptyRow>Продаж пока нет. Нажмите «+ Продажа».</EmptyRow>
           : visible.length === 0 ? <EmptyRow>{q.trim() ? 'Ничего не найдено — измените поиск или период.' : 'Нет продаж за выбранный период.'}</EmptyRow>

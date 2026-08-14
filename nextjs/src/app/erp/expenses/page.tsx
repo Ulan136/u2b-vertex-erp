@@ -189,7 +189,7 @@ export default function ExpensesPage() {
             <span style={{ marginLeft: 'auto', fontSize: 12 }} className="erp-muted">Записей: <b>{list.length}</b> · <b style={{ color: '#dc2626' }}>{fmt(listSum)}</b></span>
           </Card>
 
-          <Card style={{ marginTop: 8, padding: 0, overflowX: 'auto' }}>
+          <Card className="erp-journal" style={{ marginTop: 8, padding: 0 }}>
             {error ? <EmptyRow>Нет доступа к финансам.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
               : list.length === 0 ? <EmptyRow>Расходов нет. Нажмите «+ Расход».</EmptyRow>
               : (

@@ -365,7 +365,7 @@ function CertsInner() {
         <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
       </Card>
 
-      <Card style={{ marginTop: 8, padding: 0, overflowX: 'auto' }}>
+      <Card className="erp-journal" style={{ marginTop: 8, padding: 0 }}>
         {error ? <EmptyRow>Нет доступа к этому направлению.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
           : list.length === 0 ? <EmptyRow>Записей нет. Нажмите «+ {isCert ? 'Сертификат' : 'Извещение'}».</EmptyRow>
           : isCert ? (
