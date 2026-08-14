@@ -6,6 +6,7 @@ import { useApi } from '@/lib/api';
 import { Card, PageTitle, Badge } from '@/components/ui';
 import { isRealIncome, isRealExpense } from '@/server/dto/finance.dto';
 import { opIcon, opName, opSign, opAmountColor, isReversed } from '@/lib/opDisplay';
+import { payColor } from '@/lib/status';
 
 type Acct = { id: string; name: string; section?: string | null; balance?: string | number | null; icon?: string | null };
 type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null };
@@ -114,7 +115,7 @@ export default function Dashboard() {
         <Kpi icon="📋" label="Поверок всего" value={certs.error ? '—' : String(totalCerts)} sub={`${ktrmPct}% внесено в КТРМ`} href="/erp/certs" />
         <Kpi icon="✅" label="Внесено в КТРМ" value={certs.error ? '—' : String(ktrmDone)} tone="#16a34a" sub={`из ${totalCerts}`} href="/erp/certs" />
         <Kpi icon="🤖" label="В очереди КТРМ" value={certs.error ? '—' : String(inQueue)} tone="#b45309" sub={inQueue ? 'ждут робота' : 'очередь пуста ✓'} href="/erp/certs" />
-        <Kpi icon="⏳" label="Ожидают оплаты" value={certs.error ? '—' : String(unpaidCerts)} tone={unpaidCerts ? '#dc2626' : undefined} href="/erp/certs" />
+        <Kpi icon="⏳" label="Ожидают оплаты" value={certs.error ? '—' : String(unpaidCerts)} tone={unpaidCerts ? payColor('В ожидании') : undefined} href="/erp/certs" />
         <Kpi icon="🏭" label="Позиций в норме" value={products.error ? '—' : String(okNorm)} sub={`⚠ ${low.length} мало · 🚫 ${empty.length} нет`} href="/erp/warehouse" />
         <Kpi icon="💳" label="Касса (все счета)" value={fin.error ? '—' : money(cash)} sub={`${accounts.length} счетов`} href="/erp/finance" />
         <Kpi icon="📥" label="Доходы (месяц)" value={fin.error ? '—' : money(income)} tone="#16a34a" href="/erp/finance" />
@@ -248,7 +249,7 @@ export default function Dashboard() {
                 <Link key={s.id} href="/erp/sales" className="erp-list-row" style={{ textDecoration: 'none', color: 'inherit' }}>
                   <span className="erp-list-ico">💰</span>
                   <span className="erp-list-main">{s.clientName || '—'}<span className="erp-list-sub">{s.productName || ''} · {s.qty || 0} шт.</span></span>
-                  <span className="erp-list-val" style={{ color: s.payStatus === 'Оплачено' ? '#16a34a' : '#b45309' }}>{money(s.totalSum || 0)}</span>
+                  <span className="erp-list-val" style={{ color: payColor(s.payStatus) }}>{money(s.totalSum || 0)}</span>
                 </Link>
               ))}
             </div>

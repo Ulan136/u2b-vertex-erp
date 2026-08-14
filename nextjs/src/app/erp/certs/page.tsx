@@ -7,6 +7,7 @@ import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
 import { getRecent, pushRecent, removeRecent, type RecentItem } from '@/lib/recent';
+import { payTone } from '@/lib/status';   // единый тон статуса оплаты (P1-5)
 
 type Cert = {
   id: string; source: string; docType?: string | null; fio?: string | null; address?: string | null; phone?: string | null; client?: string | null;
@@ -23,7 +24,6 @@ type DeviceTypeHit = { id: string; name: string; usageCount: number };
 const SOURCES = ['САМИ', 'ВДК', 'ТЭЦ', 'Выездная', 'Первичная-КМ', 'Первичная-АК', 'Астана'];
 const OPER = ['В работе', 'Готова к КТРМ', 'Внести в КТРМ', 'КТРМ 70%', 'Внесён в КТРМ'];
 const PAY = ['В ожидании', 'Оплачено', 'Бесплатно'];
-const payTone = (s?: string | null): 'ok' | 'warn' | 'neutral' => s === 'Оплачено' ? 'ok' : s === 'Бесплатно' ? 'neutral' : 'warn';
 const INV = ['Каспи', 'БЦК', 'Наличка'];
 const SENT = ['Не отправлено', 'Запланировано', 'Отправлено'];
 const dmy = (d?: string | null) => formatDate(d) || '—';
@@ -326,7 +326,7 @@ function CertsInner() {
   };
   const Copy = ({ v, h }: { v: unknown; h?: string }) => <button type="button" className="cert-mic" title={`📋 Копировать${h ? ' — ' + h : ''}`} onClick={() => copyVal(v)}>📋</button>;
   // Инлайн-селект статуса, стилизован как бейдж.
-  const SSel = ({ c, field, opts, tone }: { c: Cert; field: keyof Cert; opts: string[]; tone: 'ok' | 'warn' | 'info' | 'neutral' }) => (
+  const SSel = ({ c, field, opts, tone }: { c: Cert; field: keyof Cert; opts: string[]; tone: 'ok' | 'warn' | 'err' | 'info' | 'neutral' }) => (
     <select className={`cert-inline-sel tone-${tone}`} value={(c[field] as string) || opts[0]} onChange={e => patchField(c, field, e.target.value)} title="Изменить">
       {opts.map(o => <option key={o} value={o}>{o}</option>)}
     </select>

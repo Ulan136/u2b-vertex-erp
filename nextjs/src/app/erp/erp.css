@@ -366,6 +366,7 @@
 .cert-inline-sel.tone-warn { background: #fef9c3; color: #854d0e; }
 .cert-inline-sel.tone-info { background: #eff6ff; color: #1d4ed8; }
 .cert-inline-sel.tone-neutral { background: #f3f4f6; color: #374151; }
+.cert-inline-sel.tone-err { background: #fee2e2; color: #b91c1c; }
 .cert-acc { display: flex; flex-direction: column; gap: 4px; }
 .cert-acc-grp { border: 1px solid var(--erp-line, #e5e7eb); border-radius: 8px; overflow: hidden; }
 .cert-acc-head { display: flex; justify-content: space-between; padding: 8px 12px; background: #f8fafc; cursor: pointer; font-weight: 600; font-size: 13px; }
