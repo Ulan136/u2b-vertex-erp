@@ -12,8 +12,8 @@ function Bell() {
   const { data } = useApi<{ unread: number }>('/api/v2/notifications', { refreshInterval: 60000 });
   const unread = data?.unread || 0;
   return (
-    <Link href="/erp/notifications" className="erp-bell" title="Уведомления">
-      🔔{unread > 0 && <span className="erp-bell-badge">{unread > 9 ? '9+' : unread}</span>}
+    <Link href="/erp/notifications" className="erp-bell" title="Уведомления" aria-label={unread > 0 ? `Уведомления (${unread > 99 ? '99+' : unread} новых)` : 'Уведомления'}>
+      🔔{unread > 0 && <span className="erp-bell-badge">{unread > 99 ? '99+' : unread}</span>}
     </Link>
   );
 }
@@ -45,7 +45,7 @@ function Presence() {
   const count = data?.onlineCount || 0;
   return (
     <div className="erp-presence" ref={ref}>
-      <button className="erp-presence-btn" title="Кто онлайн" onClick={e => { e.stopPropagation(); setOpen(v => !v); }}>
+      <button className="erp-presence-btn" title="Кто онлайн" aria-label={`Сейчас в системе: ${count}`} onClick={e => { e.stopPropagation(); setOpen(v => !v); }}>
         🟢 <span className="erp-presence-lbl">Онлайн: </span>{count}
       </button>
       {open && (
@@ -172,7 +172,7 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
         <div className="erp-sidebar-foot">
           <span className="erp-avatar">{(user.name || '?').trim().charAt(0).toUpperCase() || '?'}</span>
           <div className="erp-user">
-            <div className="erp-user-name">{user.name || '—'}</div>
+            <div className="erp-user-name" title={user.name || undefined}>{user.name || '—'}</div>
             <div className="erp-user-role">{user.roleLabel}</div>
           </div>
           <a href="/logout" className="erp-logout" title="Выйти">⎋</a>
@@ -187,7 +187,7 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
           <div className="erp-header-title">{active ? active.label : 'Рабочий стол'}</div>
           <div className="erp-header-right">
             <Presence />
-            <button className="erp-bell" title="История" onClick={() => setHistOpen(true)}>🕘</button>
+            <button className="erp-bell" title="История" aria-label="История действий" onClick={() => setHistOpen(true)}>🕘</button>
             <Bell />
             <a href="/sketch_screens.html" className="erp-legacy-link">Старый интерфейс</a>
           </div>
