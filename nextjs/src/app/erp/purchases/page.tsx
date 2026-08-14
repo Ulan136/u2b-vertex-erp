@@ -107,7 +107,7 @@ export default function PurchasesPage() {
 
       <Card className="erp-filters" style={{ marginTop: 12 }}><Input placeholder="🔍 Товар, SKU или поставщик" value={q} onChange={e => setQ(e.target.value)} /></Card>
 
-      <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>
+      <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
         {error ? <EmptyRow>Нет доступа к закупкам.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
           : list.length === 0 ? <EmptyRow>Закупок пока нет. Нажмите «+ Новая закупка».</EmptyRow>
           : (

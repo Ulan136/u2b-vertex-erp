@@ -75,7 +75,7 @@ export default function AccessPage() {
       </Card>
 
       {/* Матрица доступов */}
-      <Card style={{ padding: 0, overflowX: 'auto' }}>
+      <Card className="erp-journal" style={{ padding: 0 }}>
         {error ? <EmptyRow>Нет доступа к настройке прав.</EmptyRow>
           : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
           : (

@@ -78,7 +78,7 @@ function OrdersInner() {
         <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
       </Card>
 
-      <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>
+      <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
         {error ? <EmptyRow>Нет доступа к заявкам.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
           : list.length === 0 ? <EmptyRow>Заявок нет. Нажмите «+ Заявка».</EmptyRow>
           : (

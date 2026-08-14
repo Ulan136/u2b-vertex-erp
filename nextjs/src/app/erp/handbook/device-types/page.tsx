@@ -65,7 +65,7 @@ export default function DeviceTypesPage() {
         <Badge tone="info">найдено: {list.length}</Badge>
       </Card>
 
-      <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>
+      <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
         {error ? <EmptyRow>Нет доступа к справочнику.</EmptyRow>
           : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
           : list.length === 0 ? <EmptyRow>Типов нет.</EmptyRow>

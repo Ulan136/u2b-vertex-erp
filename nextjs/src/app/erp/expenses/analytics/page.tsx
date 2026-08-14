@@ -32,7 +32,7 @@ export default function ExpenseAnalyticsPage() {
   const maxCat = Math.max(1, ...byCategory.map(x => x.sum));
 
   const Table = ({ title, rows }: { title: string; rows: Array<{ k: string; sum: number; n: number }> }) => (
-    <Card style={{ padding: 0, overflowX: 'auto' }}>
+    <Card className="erp-journal" style={{ padding: 0 }}>
       <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--erp-line)', fontWeight: 700, fontSize: 14 }}>{title}</div>
       {rows.length === 0 ? <EmptyRow>Нет данных за период.</EmptyRow> : (
         <table className="erp-table">

@@ -44,7 +44,7 @@ export default function UsersPage() {
   return (
     <div>
       <PageTitle title="Пользователи" sub={`Всего: ${list.length}`} action={<Button onClick={openNew}>+ Пользователь</Button>} />
-      <Card style={{ padding: 0, overflowX: 'auto' }}>
+      <Card className="erp-journal" style={{ padding: 0 }}>
         {error ? <EmptyRow>Нет доступа.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow> : list.length === 0 ? <EmptyRow>Нет пользователей.</EmptyRow> : (
           <table className="erp-table">
             <thead><tr><th>ФИО</th><th>Email</th><th>Телефон</th><th>Должность</th><th>Роль</th><th>Филиал</th><th>Статус</th><th style={{ textAlign: 'right' }}></th></tr></thead>

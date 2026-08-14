@@ -135,7 +135,7 @@ export default function ReportsPage() {
       </Card>
 
       {/* БЛОК 2 — Работа сотрудников за период */}
-      <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>
+      <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
         <div style={{ padding: '12px 14px', fontWeight: 700 }}>👥 Работа сотрудников за период</div>
         {aErr ? <div className="erp-muted" style={{ padding: 14 }}>Нет доступа к отчётам.</div>
           : aLoading ? <div className="erp-muted" style={{ padding: 14 }}>Загрузка…</div>

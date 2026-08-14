@@ -97,7 +97,7 @@ function DatabaseInner() {
         ))}
       </div></Card>
 
-      <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>
+      <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
         {error ? <EmptyRow>Нет доступа к базе данных.</EmptyRow> : l1 && view === 'deadlines' ? <EmptyRow>Загрузка…</EmptyRow> : (
           <>
             {view === 'deadlines' && (deadlines.length === 0 ? <EmptyRow>Нет записей с датой очередной поверки.</EmptyRow> : (

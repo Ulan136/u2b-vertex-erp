@@ -175,7 +175,7 @@ export default function DebtsPage() {
       )}
 
       {isJournal ? (
-        <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>
+        <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
           {!journal ? <EmptyRow>Загрузка…</EmptyRow> : journal.length === 0 ? <EmptyRow>Оплат нет.</EmptyRow> : (
             <table className="erp-table" style={{ fontSize: 13 }}>
               <thead><tr><th>Дата</th><th>Контрагент</th><th>Долг</th><th style={{ textAlign: 'right' }}>Платёж</th><th>Счёт</th><th style={{ textAlign: 'right' }}>Остаток после</th><th>Автор</th></tr></thead>
@@ -196,7 +196,7 @@ export default function DebtsPage() {
           )}
         </Card>
       ) : (
-        <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>
+        <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
           {error ? <EmptyRow>Нет доступа к долгам.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
             : list.length === 0 ? <EmptyRow>{catFilter ? 'В этой категории долгов нет.' : 'Долгов нет. Нажмите «+ Долг».'}</EmptyRow>
             : (

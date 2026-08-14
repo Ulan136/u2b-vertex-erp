@@ -43,7 +43,7 @@ export default function BranchesPage() {
   return (
     <div>
       <PageTitle title="Филиалы" sub="Головной + региональные. Ровно один головной; заявки без филиала считаются его." action={<Button onClick={openNew}>+ Филиал</Button>} />
-      <Card style={{ padding: 0, overflowX: 'auto' }}>
+      <Card className="erp-journal" style={{ padding: 0 }}>
         {error ? <EmptyRow>Нет доступа.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow> : list.length === 0 ? <EmptyRow>Филиалов нет. Нажмите «+ Филиал».</EmptyRow> : (
           <table className="erp-table">
             <thead><tr><th>Название</th><th>Город</th><th>Счёт</th><th>Тип</th><th>Статус</th><th style={{ textAlign: 'right' }}></th></tr></thead>

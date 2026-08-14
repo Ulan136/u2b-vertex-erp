@@ -103,7 +103,7 @@ function InvoicesInner() {
         <Input placeholder="🔍 Плательщик, назначение" value={q} onChange={e => setQ(e.target.value)} />
       </Card>
 
-      <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>
+      <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
         {error ? <EmptyRow>Нет доступа к финансам.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow> : income.length === 0 ? <EmptyRow>Поступлений нет. Нажмите «+ Поступление».</EmptyRow> : (
           <table className="erp-table">
             <thead><tr><th>Дата</th><th>Плательщик / назначение</th><th>Банк</th><th>Счёт</th><th style={{ textAlign: 'right' }}>Сумма</th></tr></thead>

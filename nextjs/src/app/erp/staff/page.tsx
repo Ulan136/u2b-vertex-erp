@@ -75,7 +75,7 @@ export default function StaffPage() {
     <div>
       <PageTitle title="Зарплата и кадры" sub={`Сотрудники = пользователи системы · ${monthLabel(data?.month)}`} action={canEdit ? <Button onClick={openAdd}>+ Добавить сотрудника</Button> : undefined} />
 
-      <Card style={{ padding: 0, overflowX: 'auto' }}>
+      <Card className="erp-journal" style={{ padding: 0 }}>
         {error ? <EmptyRow>Нет доступа к разделу.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
           : employees.length === 0 ? <EmptyRow>Сотрудников нет.{canEdit ? ' Нажмите «+ Добавить сотрудника».' : ''}</EmptyRow>
           : (

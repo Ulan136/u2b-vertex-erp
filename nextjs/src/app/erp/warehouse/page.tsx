@@ -230,7 +230,7 @@ export default function WarehousePage() {
       </Card>
 
       {tab === 'stock' ? (
-        <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>
+        <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
           {error ? <EmptyRow>Нет доступа к складу.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
             : all.length === 0 ? <EmptyRow>💡 Склад пустой. Нажмите «📥 Приход».</EmptyRow>
             : (
@@ -307,7 +307,7 @@ export default function WarehousePage() {
             )}
         </Card>
       ) : (
-        <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }}>
+        <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
           {!movements || movements.length === 0 ? <EmptyRow>Движений пока нет. Проведите приход или ревизию.</EmptyRow> : (
             <table className="erp-table">
               <thead><tr><th>Дата</th><th>SKU</th><th>Товар</th><th>Тип</th><th style={{ textAlign: 'right' }}>Кол-во</th><th style={{ textAlign: 'right' }}>Сумма</th><th>Контрагент</th><th>Документ</th><th>Комментарий</th><th>Автор</th><th style={{ textAlign: 'center' }}>Действия</th></tr></thead>

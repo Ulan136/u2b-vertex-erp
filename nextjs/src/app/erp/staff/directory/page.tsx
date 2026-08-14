@@ -11,7 +11,7 @@ export default function DirectoryPage() {
   return (
     <div>
       <PageTitle title="Руководитель — команда" sub={`Пользователи системы · ${list.length}`} />
-      <Card style={{ padding: 0, overflowX: 'auto' }}>
+      <Card className="erp-journal" style={{ padding: 0 }}>
         {error ? <EmptyRow>Нет доступа.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
           : list.length === 0 ? <EmptyRow>Нет пользователей.</EmptyRow>
           : (
