@@ -88,6 +88,9 @@
 .erp-legacy-link:hover { border-color: var(--erp-blue); color: var(--erp-blue-d); }
 .erp-content { padding: 18px; }
 .erp-overlay { display: none; }
+/* Блок 1 «Редактирование» в сертификатах — шире остальных блоков: выходит за паддинг
+   контента (18px с каждой стороны), растягиваясь до краёв рабочей области. Блоки 2–4 не трогаем. */
+.cert-b1-wide { margin-left: -18px; margin-right: -18px; }
 
 /* ── UI primitives ── */
 .ui-card { background: var(--erp-surface); border: 1px solid var(--erp-line); border-radius: 12px; padding: 18px; }

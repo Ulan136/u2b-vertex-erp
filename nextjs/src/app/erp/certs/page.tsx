@@ -352,6 +352,7 @@ function CertsInner() {
         <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">🔴</span><span className="erp-kpi-label">ТТЭ (г/в)</span></div><div className="erp-kpi-val" style={{ color: '#dc2626' }}>{stats.tte}</div></div>
       </div>
 
+      <div className="cert-b1-wide">
       <div className="cert-sec-lbl" style={{ marginTop: 14 }}>✏️ Блок 1 · Редактирование</div>
       <Card className="erp-filters" style={{ flexWrap: 'wrap', gap: 8 }}>
         <Badge tone="info">{source}</Badge>
@@ -437,6 +438,7 @@ function CertsInner() {
             </table>
           )}
       </Card>
+      </div>
 
       {isCert && <>
         {/* Блок 2 · Ожидание оплаты */}
