@@ -6,6 +6,7 @@ import type { NavSection } from '@/lib/erp-nav';
 import { ZONE_LABELS } from '@/lib/erp-nav';
 import { useApi } from '@/lib/api';
 import HistoryPanel from '@/components/erp/HistoryPanel';
+import NavIcon, { splitLabel } from '@/components/erp/NavIcon';
 import { ROLE_LABELS_RU, type Role } from '@/server/dto/permissions.dto';
 
 function Bell() {
@@ -92,17 +93,19 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
 
   // Рендер одного пункта (используется и в полном списке, и в поиске).
   const renderItem = (item: NavSection['items'][number], i: number) => {
+    const { emoji, text } = splitLabel(item.label);
+    const ico = emoji ? <NavIcon e={emoji} size={15} style={{ flex: 'none' }} /> : null;
     if (item.external) {
       return (
         <a key={item.label + i} href={item.href} className="erp-nav-item erp-nav-cab" onClick={() => setMobileOpen(false)}>
-          {item.label}<span className="erp-nav-legacy" title="Мобильный кабинет">↗</span>
+          {ico}{text}<span className="erp-nav-legacy" title="Мобильный кабинет">↗</span>
         </a>
       );
     }
     const isActive = !item.legacy && itemActive(item.href);
     return (
       <Link key={item.label + i} href={item.href ?? '#'} className={`erp-nav-item${isActive ? ' active' : ''}`} onClick={() => setMobileOpen(false)}>
-        {item.label}{item.legacy && <span className="erp-nav-legacy" title="Пока в старом интерфейсе">↗</span>}
+        {ico}{text}{item.legacy && <span className="erp-nav-legacy" title="Пока в старом интерфейсе">↗</span>}
       </Link>
     );
   };
@@ -133,7 +136,7 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
               ? <div className="erp-nav-empty">Ничего не найдено</div>
               : filtered.map(({ s, items }) => (
                 <div key={s.title} className={`erp-nav-section${s.zone ? ' erp-zone-' + s.zone : ''}`}>
-                  <div className="erp-nav-title"><span>{s.icon}</span>{s.title}</div>
+                  <div className="erp-nav-title"><span><NavIcon e={s.icon} size={16} /></span>{s.title}</div>
                   {items.map((item, i) => renderItem(item, i))}
                 </div>
               ))
@@ -150,9 +153,9 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
               <React.Fragment key={section.title}>
                 {section.divider && <div className="erp-nav-divider">{section.divider}</div>}
                 <div className={`erp-nav-section${section.zone ? ' erp-zone-' + section.zone : ''}`}>
-                  <div className="erp-nav-title"><span>{section.icon}</span>{section.title}</div>
+                  <div className="erp-nav-title"><span><NavIcon e={section.icon} size={16} /></span>{section.title}</div>
                   {section.items.map((item, i) => item.heading
-                    ? <div key={item.label + i} className="erp-nav-subhead">{item.label}</div>
+                    ? <div key={item.label + i} className="erp-nav-subhead">{(() => { const h = splitLabel(item.label); return <>{h.emoji && <NavIcon e={h.emoji} size={13} style={{ verticalAlign: -2, marginRight: 6 }} />}{h.text}</>; })()}</div>
                     : renderItem(item, i))}
                 </div>
               </React.Fragment>
@@ -184,7 +187,7 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
       <div className="erp-main">
         <header className="erp-header">
           <button className="erp-burger" onClick={() => setMobileOpen(v => !v)} aria-label="Меню">☰</button>
-          <div className="erp-header-title">{active ? active.label : 'Рабочий стол'}</div>
+          <div className="erp-header-title">{active ? splitLabel(active.label).text : 'Рабочий стол'}</div>
           <div className="erp-header-right">
             <Presence />
             <button className="erp-bell" title="История" aria-label="История действий" onClick={() => setHistOpen(true)}>🕘</button>
