@@ -181,6 +181,9 @@
 .ui-field-label { display: block; font-size: 12px; color: var(--erp-muted); margin-bottom: 4px; }
 .ui-input { width: 100%; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; background: #fff; color: var(--erp-ink); }
 .ui-input:focus { outline: none; border-color: var(--erp-blue); }
+/* P1-4: единый вид всех полей дат (включая нативные), чтобы не выпадали из макета */
+.ui-input[type="date"] { font-family: inherit; }
+.ui-input[type="date"]::-webkit-calendar-picker-indicator { opacity: .55; cursor: pointer; }
 .ui-textarea { resize: vertical; min-height: 60px; }
 .erp-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .erp-form-err { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 8px; padding: 8px 10px; font-size: 12px; margin-bottom: 12px; }

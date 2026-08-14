@@ -457,8 +457,8 @@ function CertsInner() {
         {/* Блок 4 · История */}
         <div className="cert-sec-lbl" style={{ marginTop: 22, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>🗂️ Блок 4 · История <span className="erp-muted">· {histList.length}</span>
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-            <label className="erp-muted" style={{ fontSize: 11 }}>с <input type="date" value={histFrom} onChange={e => setHistFrom(e.target.value)} style={{ fontSize: 11 }} /></label>
-            <label className="erp-muted" style={{ fontSize: 11 }}>по <input type="date" value={histTo} onChange={e => setHistTo(e.target.value)} style={{ fontSize: 11 }} /></label>
+            <label className="erp-muted" style={{ fontSize: 11 }}>с <input type="date" className="ui-input" value={histFrom} onChange={e => setHistFrom(e.target.value)} style={{ width: 150, display: 'inline-block' }} /></label>
+            <label className="erp-muted" style={{ fontSize: 11 }}>по <input type="date" className="ui-input" value={histTo} onChange={e => setHistTo(e.target.value)} style={{ width: 150, display: 'inline-block' }} /></label>
             <Select value={histDays} onChange={e => setHistDays(e.target.value)}><option value="7">Последние 7 дней</option><option value="14">Последние 14 дней</option><option value="30">Последние 30 дней</option><option value="0">Все</option></Select>
           </span>
         </div>
