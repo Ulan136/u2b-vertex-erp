@@ -47,7 +47,8 @@ export const Textarea = (p: React.TextareaHTMLAttributes<HTMLTextAreaElement>) =
 export const Select = (p: React.SelectHTMLAttributes<HTMLSelectElement>) => <select className="ui-input" {...p} />;
 
 export function EmptyRow({ children }: { children: React.ReactNode }) {
-  return <div className="ui-empty">{children}</div>;
+  // aria-live: скринридер озвучивает смену состояния (загрузка/пусто/ошибка). P3-2.
+  return <div className="ui-empty" role="status" aria-live="polite">{children}</div>;
 }
 
 // Фильтр по дням: диапазон дат «с … по …» + быстрые пресеты. Значения — ISO

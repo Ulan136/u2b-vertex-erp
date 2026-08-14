@@ -7,6 +7,8 @@ export function toast(msg: string) {
     el = document.createElement('div');
     el.id = 'erp-toast';
     el.className = 'erp-toast';
+    el.setAttribute('role', 'status');        // P3-2: озвучивание тостов скринридером
+    el.setAttribute('aria-live', 'polite');
     document.body.appendChild(el);
   }
   el.textContent = msg;
