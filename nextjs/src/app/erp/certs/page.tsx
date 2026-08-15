@@ -8,6 +8,18 @@ import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, 
 import EntityHistory from '@/components/erp/EntityHistory';
 import { getRecent, pushRecent, removeRecent, type RecentItem } from '@/lib/recent';
 import { payTone } from '@/lib/status';   // единый тон статуса оплаты (P1-5)
+import { useCols, ColumnMenu } from '@/components/erp/ColumnMenu';
+
+// Колонки реестра сертификатов для попапа «Колонки» (№/ФИО/Действия всегда видны).
+const CERT_COLS = [
+  { key: 'no', label: '№', locked: true }, { key: 'fio', label: 'ФИО абонента', locked: true }, { key: 'address', label: 'Адрес' },
+  { key: 'meter', label: 'Тип прибора' }, { key: 'serial', label: 'Заводской номер' }, { key: 'checkdate', label: 'Дата поверки' },
+  { key: 'nextdate', label: 'Очередная поверка' }, { key: 'stamp', label: 'Номер клейма' }, { key: 'readings', label: 'Показания м³' },
+  { key: 'water', label: 'Вода' }, { key: 'year', label: 'Год' }, { key: 'note', label: 'Прим.' },
+  { key: 'phone', label: 'Телефон' }, { key: 'client', label: 'Клиент' }, { key: 'oper', label: 'Операция' },
+  { key: 'pay', label: 'Оплата' }, { key: 'invoice', label: 'Счёт' }, { key: 'author', label: 'Автор' },
+  { key: 'actions', label: 'Действия', locked: true },
+];
 
 type Cert = {
   id: string; source: string; docType?: string | null; fio?: string | null; address?: string | null; phone?: string | null; client?: string | null;
@@ -332,10 +344,12 @@ function CertsInner() {
     </select>
   );
 
+  const cols = useCols('certs', CERT_COLS);
   return (
     <div>
       <PageTitle title={`Поверка — ${isCert ? 'сертификаты' : 'извещения'}`} sub={`Направление: ${source} · записей: ${list.length}`} action={
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {isCert && <ColumnMenu ctl={cols} />}
           <Button variant="outline" onClick={() => printPdf(list, `${isCert ? 'Сертификаты' : 'Извещения'} — ${source}`)}>🖨 PDF</Button>
           <Button variant="outline" onClick={() => exportExcel(list, `${isCert ? 'Сертификаты' : 'Извещения'} — ${source}`, `${isCert ? 'Сертификаты' : 'Извещения'}_${source}.xlsx`)}>⬇ Excel</Button>
           <Button variant="outline" onClick={() => exportWord(list, `${isCert ? 'Сертификаты' : 'Извещения'} — ${source}`, `${isCert ? 'Сертификаты' : 'Извещения'}_${source}.docx`)}>⬇ Word</Button>
@@ -365,39 +379,39 @@ function CertsInner() {
         <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
       </Card>
 
-      <Card className="erp-journal" style={{ marginTop: 8, padding: 0 }}>
+      <Card className={`erp-journal ${cols.wrapClass}`} style={{ marginTop: 8, padding: 0 }}>
         {error ? <EmptyRow>Нет доступа к этому направлению.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
           : list.length === 0 ? <EmptyRow>Записей нет. Нажмите «+ {isCert ? 'Сертификат' : 'Извещение'}».</EmptyRow>
           : isCert ? (
             <table className="erp-table cert-reg">
               <thead><tr>
-                <th>№</th><th>ФИО абонента</th><th>Адрес абонента</th><th>Тип прибора</th><th>Заводской номер</th>
-                <th>Дата поверки</th><th>Очередная поверка</th><th>Номер клейма</th><th style={{ textAlign: 'right' }}>Показания м³</th>
-                <th>Вода</th><th>Год</th><th>Прим.</th><th>Телефон</th><th>Клиент</th>
-                <th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th><th>Автор</th><th style={{ textAlign: 'center' }}>Действия</th>
+                <th className="col-no">№</th><th className="col-fio">ФИО абонента</th><th className="col-address">Адрес абонента</th><th className="col-meter">Тип прибора</th><th className="col-serial">Заводской номер</th>
+                <th className="col-checkdate">Дата поверки</th><th className="col-nextdate">Очередная поверка</th><th className="col-stamp">Номер клейма</th><th className="col-readings" style={{ textAlign: 'right' }}>Показания м³</th>
+                <th className="col-water">Вода</th><th className="col-year">Год</th><th className="col-note">Прим.</th><th className="col-phone">Телефон</th><th className="col-client">Клиент</th>
+                <th className="col-oper">🔄 Операция</th><th className="col-pay">💳 Оплата</th><th className="col-invoice">🧾 Счёт</th><th className="col-author">Автор</th><th className="col-actions" style={{ textAlign: 'center' }}>Действия</th>
               </tr></thead>
               <tbody>
                 {list.map((c, i) => (
                   <tr key={c.id} className={isTTE(c) ? 'cert-hot' : ''}>
-                    <td className="erp-muted" style={{ fontSize: 11 }}>{i + 1}</td>
-                    <td className="erp-td-main">{c.fio}</td>
-                    <td style={{ fontSize: 11, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.address || '—'}</td>
-                    <td><code className="cert-type">{c.meterType || '—'}</code></td>
-                    <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{c.serialNo || '—'}</td>
-                    <td style={{ fontSize: 11 }}>{dmy(c.checkDate)}</td>
-                    <td style={{ fontSize: 11 }}><Badge tone="ok">{dmy(c.nextCheckDate)}</Badge></td>
-                    <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{c.stampNo || '—'}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600, fontSize: 11 }}>{c.readings != null ? num(c.readings).toLocaleString('ru-RU') : '—'}</td>
-                    <td style={{ fontSize: 11 }}>{c.waterType === 'г/в' ? '🔴 г/в' : '🔵 х/в'}</td>
-                    <td className="erp-muted" style={{ fontSize: 11 }}>{c.yearMade || '—'}</td>
-                    <td style={{ fontSize: 11, color: '#c2410c', fontWeight: 700 }}>{c.note || ''}</td>
-                    <td className="erp-muted" style={{ fontSize: 11 }}>{c.phone || '—'}</td>
-                    <td style={{ fontSize: 11 }}>{c.client || '—'}</td>
-                    <td><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
-                    <td><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
-                    <td><SSel c={c} field="invoiceType" opts={INV} tone="neutral" /></td>
-                    <td className="erp-muted" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>
-                    <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                    <td className="erp-muted col-no" style={{ fontSize: 11 }}>{i + 1}</td>
+                    <td className="erp-td-main col-fio">{c.fio}</td>
+                    <td className="col-address" style={{ fontSize: 11, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.address || '—'}</td>
+                    <td className="col-meter"><code className="cert-type">{c.meterType || '—'}</code></td>
+                    <td className="col-serial" style={{ fontFamily: 'monospace', fontSize: 11 }}>{c.serialNo || '—'}</td>
+                    <td className="col-checkdate" style={{ fontSize: 11 }}>{dmy(c.checkDate)}</td>
+                    <td className="col-nextdate" style={{ fontSize: 11 }}><Badge tone="ok">{dmy(c.nextCheckDate)}</Badge></td>
+                    <td className="col-stamp" style={{ fontFamily: 'monospace', fontSize: 11 }}>{c.stampNo || '—'}</td>
+                    <td className="col-readings" style={{ textAlign: 'right', fontWeight: 600, fontSize: 11 }}>{c.readings != null ? num(c.readings).toLocaleString('ru-RU') : '—'}</td>
+                    <td className="col-water" style={{ fontSize: 11 }}>{c.waterType === 'г/в' ? '🔴 г/в' : '🔵 х/в'}</td>
+                    <td className="erp-muted col-year" style={{ fontSize: 11 }}>{c.yearMade || '—'}</td>
+                    <td className="col-note" style={{ fontSize: 11, color: '#c2410c', fontWeight: 700 }}>{c.note || ''}</td>
+                    <td className="erp-muted col-phone" style={{ fontSize: 11 }}>{c.phone || '—'}</td>
+                    <td className="col-client" style={{ fontSize: 11 }}>{c.client || '—'}</td>
+                    <td className="col-oper"><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
+                    <td className="col-pay"><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
+                    <td className="col-invoice"><SSel c={c} field="invoiceType" opts={INV} tone="neutral" /></td>
+                    <td className="erp-muted col-author" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>
+                    <td className="col-actions" style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
                       <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(c)}>✏️</button>
                       <button className="erp-icon-btn" title="Клонировать" onClick={() => openClone(c)}>⧉</button>
                       <button className="erp-icon-btn" title={c.operStatus === 'Внесён в КТРМ' ? 'Уже в КТРМ' : 'Внести в е-КТРМ'} style={{ color: c.operStatus === 'Внесён в КТРМ' ? '#16a34a' : '#1d4ed8' }} onClick={() => ktrm(c)}>{c.operStatus === 'Внесён в КТРМ' ? '✅' : '🤖'}</button>

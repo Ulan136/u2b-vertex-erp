@@ -4,6 +4,15 @@ import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
+import { useCols, ColumnMenu } from '@/components/erp/ColumnMenu';
+
+// Колонки журнала расходов для попапа «Колонки» (№/Сумма/Действия всегда видны).
+const EXPENSE_COLS = [
+  { key: 'no', label: '№', locked: true }, { key: 'date', label: 'Дата' }, { key: 'category', label: 'Категория' },
+  { key: 'sub', label: 'Подкатегория' }, { key: 'desc', label: 'Описание' }, { key: 'supplier', label: 'Поставщик' },
+  { key: 'sum', label: 'Сумма', locked: true }, { key: 'account', label: 'Счёт' }, { key: 'order', label: 'Привязка' },
+  { key: 'status', label: 'Статус' }, { key: 'author', label: 'Автор' }, { key: 'actions', label: 'Действия', locked: true },
+];
 
 type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; accountId: string; source?: string | null; comment?: string | null; expenseCat?: string | null; subCategory?: string | null; supplier?: string | null; docNo?: string | null; status?: string | null; orderId?: string | null; createdByName?: string | null; reverses?: string | null; reversedAt?: string | null };
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; sortOrder?: number | null; balance?: string | number | null };
@@ -40,6 +49,7 @@ export default function ExpensesPage() {
   const { data: session } = useApi<{ user?: { name?: string; role?: string } }>('/api/auth/session');
   const respName = session?.user?.name || '—';
   const isAdmin = session?.user?.role === 'admin';   // только Админ управляет видимостью категории от менеджеров
+  const cols = useCols('expenses', EXPENSE_COLS);
 
   const accounts = fin?.accounts || [];
   const catList = cats || [];
@@ -158,7 +168,7 @@ export default function ExpensesPage() {
 
   return (
     <div>
-      <PageTitle title="Расходы" sub="Журнал расходов — реальные операции из Финансов" action={<div style={{ display: 'flex', gap: 8 }}><Button variant="outline" onClick={() => setCatModal(true)}>Категории</Button><Button onClick={open}>+ Расход</Button></div>} />
+      <PageTitle title="Расходы" sub="Журнал расходов — реальные операции из Финансов" action={<div style={{ display: 'flex', gap: 8 }}><ColumnMenu ctl={cols} /><Button variant="outline" onClick={() => setCatModal(true)}>Категории</Button><Button onClick={open}>+ Расход</Button></div>} />
 
       <div className="rsh-split">
         {/* Левое дерево категорий */}
@@ -189,14 +199,14 @@ export default function ExpensesPage() {
             <span style={{ marginLeft: 'auto', fontSize: 12 }} className="erp-muted">Записей: <b>{list.length}</b> · <b style={{ color: '#dc2626' }}>{fmt(listSum)}</b></span>
           </Card>
 
-          <Card className="erp-journal" style={{ marginTop: 8, padding: 0 }}>
+          <Card className={`erp-journal ${cols.wrapClass}`} style={{ marginTop: 8, padding: 0 }}>
             {error ? <EmptyRow>Нет доступа к финансам.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
               : list.length === 0 ? <EmptyRow>Расходов нет. Нажмите «+ Расход».</EmptyRow>
               : (
                 <table className="erp-table" style={{ fontSize: 12 }}>
                   <thead><tr>
-                    <th>№</th><th>Дата</th><th>Категория</th><th>Подкатегория</th><th>Описание</th><th>Поставщик</th>
-                    <th style={{ textAlign: 'right' }}>Сумма</th><th>🧾 Счёт</th><th>Привязка</th><th>Статус</th><th>Автор</th><th style={{ textAlign: 'center' }}>Действия</th>
+                    <th className="col-no">№</th><th className="col-date">Дата</th><th className="col-category">Категория</th><th className="col-sub">Подкатегория</th><th className="col-desc">Описание</th><th className="col-supplier">Поставщик</th>
+                    <th className="col-sum" style={{ textAlign: 'right' }}>Сумма</th><th className="col-account">🧾 Счёт</th><th className="col-order">Привязка</th><th className="col-status">Статус</th><th className="col-author">Автор</th><th className="col-actions" style={{ textAlign: 'center' }}>Действия</th>
                   </tr></thead>
                   <tbody>
                     {list.map((o, i) => {
@@ -204,18 +214,18 @@ export default function ExpensesPage() {
                       const st = statusOf(o);
                       return (
                         <tr key={o.id}>
-                          <td className="erp-muted">{i + 1}</td>
-                          <td className="erp-muted">{dmy(o.opDate)}</td>
-                          <td>{salary ? '👤 ' : ''}{catOf(o)}</td>
-                          <td className="erp-muted">{subOf(o) || '—'}</td>
-                          <td className="erp-td-main">{o.name}</td>
-                          <td>{o.supplier || '—'}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 700, color: '#dc2626' }}>−{fmt(o.amount)}</td>
-                          <td>{accName(o)}</td>
-                          <td className="erp-muted">{orderNo(o.orderId) || '—'}</td>
-                          <td><Badge tone={st === 'Оплачен' ? 'ok' : st === 'Отменён' ? 'err' : 'warn'}>{st}</Badge></td>
-                          <td className="erp-muted">{o.createdByName || '—'}</td>
-                          <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                          <td className="erp-muted col-no">{i + 1}</td>
+                          <td className="erp-muted col-date">{dmy(o.opDate)}</td>
+                          <td className="col-category">{salary ? '👤 ' : ''}{catOf(o)}</td>
+                          <td className="erp-muted col-sub">{subOf(o) || '—'}</td>
+                          <td className="erp-td-main col-desc">{o.name}</td>
+                          <td className="col-supplier">{o.supplier || '—'}</td>
+                          <td className="col-sum" style={{ textAlign: 'right', fontWeight: 700, color: '#dc2626' }}>−{fmt(o.amount)}</td>
+                          <td className="col-account">{accName(o)}</td>
+                          <td className="erp-muted col-order">{orderNo(o.orderId) || '—'}</td>
+                          <td className="col-status"><Badge tone={st === 'Оплачен' ? 'ok' : st === 'Отменён' ? 'err' : 'warn'}>{st}</Badge></td>
+                          <td className="erp-muted col-author">{o.createdByName || '—'}</td>
+                          <td className="col-actions" style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
                             {!salary && <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(o)}>✏️</button>}
                             {!salary && <button className="erp-icon-btn" title="Удалить (отмена)" style={{ color: '#dc2626' }} onClick={() => del(o)}>🗑️</button>}
                             {salary && <span className="erp-muted" style={{ fontSize: 11 }}>кадры</span>}
