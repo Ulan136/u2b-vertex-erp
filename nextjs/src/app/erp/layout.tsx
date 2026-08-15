@@ -4,6 +4,7 @@ import { permissionsRepo } from '@/server/repositories/permissions.repo';
 import { isScreenAllowed, ROLE_LABELS_RU, type Role } from '@/server/dto/permissions.dto';
 import { ERP_NAV } from '@/lib/erp-nav';
 import ErpShell from '@/components/erp/ErpShell';
+import './tokens.css';
 import './erp.css';
 
 // Серверный шелл: сессия + матрица прав → навигация только по разрешённым экранам.

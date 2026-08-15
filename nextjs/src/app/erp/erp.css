@@ -1,7 +1,7 @@
-/* Новый ERP-шелл. Палитра как в старом интерфейсе (акцент #1a56db). */
+/* Новый ERP-шелл. Палитра — через дизайн-токены (P1-1, tokens.css). Акцент --c-primary. */
 .erp-root {
-  --erp-blue: #1a56db; --erp-blue-d: #1d4ed8; --erp-navy: #1b2a4a;
-  --erp-bg: #f8fafc; --erp-surface: #fff; --erp-ink: #0f172a; --erp-muted: #5a6472; --erp-line: #e2e8f0;
+  --erp-blue: var(--c-primary); --erp-blue-d: var(--c-primary-d); --erp-navy: #1b2a4a;
+  --erp-bg: var(--c-bg); --erp-surface: var(--c-surface); --erp-ink: var(--c-text); --erp-muted: var(--c-text-muted); --erp-line: var(--c-border);
   display: flex; min-height: 100vh; background: var(--erp-bg); color: var(--erp-ink);
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
