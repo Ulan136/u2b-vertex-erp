@@ -192,7 +192,6 @@ export default function ErpShell({ user, sections, children }: { user: ShellUser
             <Presence />
             <button className="erp-bell" title="История" aria-label="История действий" onClick={() => setHistOpen(true)}>🕘</button>
             <Bell />
-            <a href="/sketch_screens.html" className="erp-legacy-link">Старый интерфейс</a>
           </div>
         </header>
         <main className="erp-content">{children}</main>

@@ -66,10 +66,13 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
+  // Старый интерфейс удалён — любой заход на /sketch_screens.html уводим в новый ERP.
+  if (pathname === '/sketch_screens.html') return NextResponse.redirect(new URL('/erp', req.nextUrl));
+
   // Мобильный редирект в свой кабинет при ЛЮБОМ заходе с телефона на ERP:
   // мастер → /master; директор → /director, пока сам не выбрал «Полная версия ERP»
   // (флаг в cookie erp_full, сбрасывается при возврате в кабинет).
-  if (loggedIn && (pathname === '/' || pathname === '/sketch_screens.html' || pathname === '/erp')) {
+  if (loggedIn && (pathname === '/' || pathname === '/erp')) {
     const dest = mobileCabinetRedirect({
       role,
       mobile: isMobileUA(req.headers.get('user-agent')),
@@ -100,8 +103,7 @@ export default auth((req) => {
   return NextResponse.redirect(url);
 });
 
-// Run on everything except Next internals and image assets (so /sketch_screens.html
-// and /api/* are guarded).
+// Run on everything except Next internals and image assets (so /api/* is guarded).
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|gif|ico|webp)$).*)'],
 };

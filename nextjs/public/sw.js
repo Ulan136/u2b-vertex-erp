@@ -1,9 +1,9 @@
 // U2B-SuTrack service worker.
 // Strategy: cache only the app shell + static assets. API responses are NEVER
 // cached (network-only) so managers never see stale orders / stock.
-const CACHE = 'sutrack-v8';
+const CACHE = 'sutrack-v9';
 const SHELL = ['/', '/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png'];
-const APP_URL = '/sketch_screens.html'; // экран заявок (куда ведёт клик по пушу)
+const APP_URL = '/erp'; // новый ERP (куда ведёт клик по пушу; старый интерфейс удалён)
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => {}));
