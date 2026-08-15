@@ -6,6 +6,15 @@ import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
 import { getRecent, pushRecent, removeRecent, type RecentItem } from '@/lib/recent';
+import { useCols, ColumnMenu } from '@/components/erp/ColumnMenu';
+
+// Колонки журнала продаж для попапа «Колонки» (№/Сумма/Действия — всегда видны).
+const SALES_COLS = [
+  { key: 'no', label: '№', locked: true }, { key: 'date', label: 'Дата' }, { key: 'client', label: 'Клиент' },
+  { key: 'type', label: 'Тип' }, { key: 'product', label: 'Товар' }, { key: 'qty', label: 'Кол-во' },
+  { key: 'sum', label: 'Сумма', locked: true }, { key: 'pay', label: 'Оплата' }, { key: 'account', label: 'Счёт' },
+  { key: 'author', label: 'Автор' }, { key: 'actions', label: 'Действия', locked: true },
+];
 
 type SaleItem = { productId: string; productName?: string | null; skuCode?: string | null; qty: number; price: number; sum: number };
 type SalePay = { accountId: string; accountName?: string | null; amount: number };
@@ -56,6 +65,7 @@ export default function SalesPage() {
   const [histSale, setHistSale] = React.useState<Sale | null>(null);
   const [topup, setTopup] = React.useState<{ open: boolean; sale: Sale | null; rows: FormPay[]; err: string; saving: boolean }>({ open: false, sale: null, rows: [emptyPay()], err: '', saving: false });
 
+  const cols = useCols('sales', SALES_COLS);
   const list = React.useMemo(() => sales || [], [sales]);
   const [fFrom, setFFrom] = React.useState('');
   const [fTo, setFTo] = React.useState('');
@@ -244,6 +254,7 @@ export default function SalesPage() {
     <div>
       <PageTitle title="Продажи" sub={`Активных: ${active.length}`} action={
         <div style={{ display: 'flex', gap: 8 }}>
+          <ColumnMenu ctl={cols} />
           <Button variant="outline" onClick={printJournal}>📤 Печать</Button>
           <Button variant="outline" onClick={exportWord}>⬇ Word</Button>
           <Button onClick={openNew}>+ Продажа</Button>
@@ -264,13 +275,13 @@ export default function SalesPage() {
         <span style={{ marginLeft: 'auto', fontSize: 12 }} className="erp-muted">Показано: <b>{visible.length}</b> · Итого: <b>{fmt(total)} ₸</b></span>
       </Card>
 
-      <Card className="erp-journal" style={{ padding: 0, marginTop: 12 }}>
+      <Card className={`erp-journal ${cols.wrapClass}`} style={{ padding: 0, marginTop: 12 }}>
         {error ? <EmptyRow>Нет доступа к продажам.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
           : list.length === 0 ? <EmptyRow>Продаж пока нет. Нажмите «+ Продажа».</EmptyRow>
           : visible.length === 0 ? <EmptyRow>{q.trim() ? 'Ничего не найдено — измените поиск или период.' : 'Нет продаж за выбранный период.'}</EmptyRow>
           : (
             <table className="erp-table">
-              <thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Тип</th><th>Товар</th><th style={{ textAlign: 'right' }}>Кол-во</th><th style={{ textAlign: 'right' }}>Сумма</th><th>Оплата</th><th>Счёт</th><th>Автор</th><th></th></tr></thead>
+              <thead><tr><th className="col-no">№</th><th className="col-date">Дата</th><th className="col-client">Клиент</th><th className="col-type">Тип</th><th className="col-product">Товар</th><th className="col-qty" style={{ textAlign: 'right' }}>Кол-во</th><th className="col-sum" style={{ textAlign: 'right' }}>Сумма</th><th className="col-pay">Оплата</th><th className="col-account">Счёт</th><th className="col-author">Автор</th><th className="col-actions"></th></tr></thead>
               <tbody>
                 {visible.map(s => {
                   const cancelled = !!s.cancelledAt;
@@ -278,17 +289,17 @@ export default function SalesPage() {
                   const canTopup = !cancelled && (st === 'Ожидает' || st === 'Частично');
                   return (
                     <tr key={s.id} style={cancelled ? { opacity: 0.55 } : undefined}>
-                      <td className="erp-muted" style={{ fontSize: 12 }}>{s.saleNo}</td>
-                      <td className="erp-muted" style={{ fontSize: 12 }}>{dmy(s.saleDate)}</td>
-                      <td className="erp-td-main">{s.clientName ? <span className="sale-client-link" title="История продаж клиента" onClick={() => setClientHist(s.clientName!)}>{s.clientName}</span> : '—'}</td>
-                      <td><Badge tone={s.clientType === 'client' ? 'info' : 'neutral'}>{s.clientType === 'client' ? '🤝 Клиент' : '🛒 Покупатель'}</Badge></td>
-                      <td style={cancelled ? { textDecoration: 'line-through' } : undefined}>{s.productName || '—'} {s.skuCode && <span className="erp-muted" style={{ fontSize: 11 }}>{s.skuCode}</span>}</td>
-                      <td style={{ textAlign: 'right' }}>{fmt(s.qty || 0)}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 700, ...(cancelled ? { textDecoration: 'line-through' } : {}) }}>{fmt(s.totalSum || 0)} ₸</td>
-                      <td>{statusBadge(s)}</td>
-                      <td className="erp-muted" style={{ fontSize: 12 }}>{accSummary(s) || '—'}</td>
-                      <td className="erp-muted" style={{ fontSize: 12 }}>{s.createdByName || '—'}</td>
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <td className="erp-muted col-no" style={{ fontSize: 12 }}>{s.saleNo}</td>
+                      <td className="erp-muted col-date" style={{ fontSize: 12 }}>{dmy(s.saleDate)}</td>
+                      <td className="erp-td-main col-client">{s.clientName ? <span className="sale-client-link" title="История продаж клиента" onClick={() => setClientHist(s.clientName!)}>{s.clientName}</span> : '—'}</td>
+                      <td className="col-type"><Badge tone={s.clientType === 'client' ? 'info' : 'neutral'}>{s.clientType === 'client' ? '🤝 Клиент' : '🛒 Покупатель'}</Badge></td>
+                      <td className="col-product" style={cancelled ? { textDecoration: 'line-through' } : undefined}>{s.productName || '—'} {s.skuCode && <span className="erp-muted" style={{ fontSize: 11 }}>{s.skuCode}</span>}</td>
+                      <td className="col-qty" style={{ textAlign: 'right' }}>{fmt(s.qty || 0)}</td>
+                      <td className="col-sum" style={{ textAlign: 'right', fontWeight: 700, ...(cancelled ? { textDecoration: 'line-through' } : {}) }}>{fmt(s.totalSum || 0)} ₸</td>
+                      <td className="col-pay">{statusBadge(s)}</td>
+                      <td className="erp-muted col-account" style={{ fontSize: 12 }}>{accSummary(s) || '—'}</td>
+                      <td className="erp-muted col-author" style={{ fontSize: 12 }}>{s.createdByName || '—'}</td>
+                      <td className="col-actions" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {canTopup && <button className="erp-icon-btn" title="Дооплата" style={{ color: '#16a34a' }} onClick={() => openTopup(s)}>💵</button>}
                         <button className="erp-icon-btn" title="Клонировать" onClick={() => openClone(s)}>⧉</button>
                         {!cancelled && <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(s)}>✏️</button>}

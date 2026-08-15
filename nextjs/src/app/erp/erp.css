@@ -117,6 +117,16 @@
 /* Двухуровневая шапка склада: группирующая строка сверху, строка колонок под ней */
 .erp-journal thead .wh-grp-row th { top: 0; z-index: 3; }
 .erp-journal thead tr + tr th { top: 26px; }
+/* Настройка видимых колонок (P1-2): кнопка «Колонки» + попап с чекбоксами */
+.erp-cols { position: relative; display: inline-block; }
+.erp-cols-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; background: #fff; border: 1px solid var(--erp-line); border-radius: 10px; box-shadow: 0 12px 30px rgba(16,24,40,.14); padding: 8px; min-width: 210px; }
+.erp-cols-pop-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--erp-muted); padding: 4px 8px 8px; }
+.erp-cols-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px; font-size: 13px; cursor: pointer; }
+.erp-cols-row:hover { background: #f1f5f9; }
+.erp-cols-row.is-locked { opacity: .55; cursor: default; }
+.erp-cols-row input { accent-color: var(--erp-blue); }
+.erp-cols-reset { width: 100%; margin-top: 6px; background: #f8fafc; border: 1px solid var(--erp-line); border-radius: 7px; padding: 7px; font-size: 12px; font-weight: 600; color: var(--erp-blue-d); cursor: pointer; }
+.erp-cols-reset:hover { background: #eef2f7; }
 .ui-pagetitle h1 { margin: 0; font-size: 20px; }
 .ui-pagetitle p { margin: 2px 0 16px; font-size: 13px; color: var(--erp-muted); }
 .ui-badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
