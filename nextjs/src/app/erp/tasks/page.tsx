@@ -113,7 +113,7 @@ export default function TasksPage() {
               const items = activeOf(b.key);
               if (!items.length) return null;
               return (
-                <Card style={{ marginTop: 12, padding: 0, overflowX: 'auto' }} key={b.key}>
+                <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }} key={b.key}>
                   <div className="erp-block-head">{b.label} <span className="erp-block-count">· {items.length}</span></div>
                   <table className="erp-table">{activeThead}<tbody>{items.map(rowActive)}</tbody></table>
                 </Card>

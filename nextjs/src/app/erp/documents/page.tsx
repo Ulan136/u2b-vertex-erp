@@ -71,7 +71,7 @@ export default function DocumentsPage() {
         {TYPES.map(t => <div key={t.key} className="ui-card" style={{ cursor: 'pointer' }} onClick={() => open(t.key)}><div style={{ fontSize: 28 }}>{t.icon}</div><div style={{ fontWeight: 700, marginTop: 6 }}>{t.label}</div><div className="erp-muted" style={{ fontSize: 11 }}>{t.sub}</div></div>)}
       </div>
 
-      <Card style={{ padding: 0 }}>
+      <Card className="erp-journal" style={{ padding: 0 }}>
         {list.length === 0 ? <EmptyRow>Пока нет документов. Нажмите на карточку выше.</EmptyRow> : (
           <table className="erp-table">
             <thead><tr><th>Тип</th><th>Номер</th><th>Дата</th><th>Покупатель</th><th style={{ textAlign: 'right' }}>Сумма</th><th>Автор</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>

@@ -113,7 +113,7 @@ export default function ClientsPage() {
         </Card>
       )}
 
-      <Card style={{ marginTop: 12, padding: 0 }}>
+      <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
         {error ? <EmptyRow>Нет доступа.</EmptyRow>
           : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
           : list.length === 0 ? <EmptyRow>{isBuyer ? 'Покупателей нет. Появятся сами при продажах или нажмите «+ Покупатель».' : 'Клиентов нет. Нажмите «+ Клиент».'}</EmptyRow>
