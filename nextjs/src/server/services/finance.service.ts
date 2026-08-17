@@ -1,6 +1,8 @@
 import { db, type Executor } from '@/db';
 import { financeRepo } from '@/server/repositories/finance.repo';
 import { expenseCategoriesRepo } from '@/server/repositories/expenseCategories.repo';
+import { permissionsRepo } from '@/server/repositories/permissions.repo';
+import { isCategoryVisible } from '@/server/dto/permissions.dto';
 import { randomUUID } from 'crypto';
 import {
   financeOperationSchema, financeOpMetaSchema, expenseCreateSchema, expensePaymentsTotal,
@@ -170,19 +172,17 @@ async function reverseExpense(id: string, actorId?: string | null) {
   });
 }
 
-// Роли, которым видны все расходы (руководство). Остальным (менеджеры, кастомные
-// роли) операции/суммы категорий с managerHidden не отдаём.
-const FINANCE_FULL_ROLES = ['admin', 'accountant', 'director'];
 // Категория операции — как на клиенте (expense_cat, иначе Зарплата/из имени).
 const opCategory = (o: { expenseCat?: string | null; source?: string | null; name?: string | null }) =>
   o.expenseCat || (o.source === 'Зарплата' ? 'Зарплата' : (o.name || '').split(':')[0].trim() || 'Прочие');
 
 async function overview(from?: string | null, to?: string | null, role?: string | null) {
   const data = await financeRepo.overview(from, to);
-  if (FINANCE_FULL_ROLES.includes(role || '')) return data;
-  // Неруководящая роль: убрать операции скрытых категорий (суммы не должны утечь).
-  const cats = await expenseCategoriesRepo.listAll();
-  const hidden = new Set(cats.filter(c => !c.parentId && c.managerHidden).map(c => c.name));
+  if (role === 'admin') return data;   // Админ всегда видит всё
+  // Видимость категорий расходов — по ролям (карта «Настройки → Доступы»);
+  // для незаданных явно категорий действует legacy-флаг managerHidden.
+  const [perms, cats] = await Promise.all([permissionsRepo.list(), expenseCategoriesRepo.listAll()]);
+  const hidden = new Set(cats.filter(c => !c.parentId && !isCategoryVisible(role || '', c.id, !!c.managerHidden, perms)).map(c => c.name));
   if (!hidden.size) return data;
   const operations = (data.operations as Array<{ opType?: string | null; expenseCat?: string | null; source?: string | null; name?: string | null }>)
     .filter(o => !(o.opType === 'Расход' && hidden.has(opCategory(o))));

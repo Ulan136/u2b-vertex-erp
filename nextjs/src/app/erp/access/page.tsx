@@ -3,15 +3,18 @@ import * as React from 'react';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Button, Input, PageTitle, EmptyRow } from '@/components/ui';
-import { SCREEN_KEYS, SCREEN_LABELS, ROLES, ROLE_LABELS_RU, isScreenAllowed, type PermRow } from '@/server/dto/permissions.dto';
+import { SCREEN_KEYS, SCREEN_LABELS, ROLES, ROLE_LABELS_RU, isScreenAllowed, categoryPermKey, isCategoryVisible, type PermRow } from '@/server/dto/permissions.dto';
 
 type RoleRow = { key: string; label: string; isSystem?: boolean };
+type Cat = { id: string; name: string; icon?: string | null; managerHidden?: boolean };
 // Пока роли не загрузились — показываем системные (совпадают с сервером).
 const FALLBACK_ROLES: RoleRow[] = ROLES.map(k => ({ key: k, label: ROLE_LABELS_RU[k], isSystem: true }));
 
 export default function AccessPage() {
   const { data: permData, error, isLoading, mutate } = useApi<PermRow[]>('/api/v2/role-permissions');
   const { data: roleData, mutate: mutateRoles } = useApi<RoleRow[]>('/api/v2/roles');
+  const { data: catData } = useApi<Cat[]>('/api/v2/expense-categories');
+  const cats = catData || [];
   const perms = permData || [];
   const roles = roleData && roleData.length ? roleData : FALLBACK_ROLES;
   const [newRole, setNewRole] = React.useState('');
@@ -112,8 +115,46 @@ export default function AccessPage() {
             </table>
           )}
       </Card>
+      {/* Карта видимости категорий расходов по ролям */}
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--erp-muted)', textTransform: 'uppercase', letterSpacing: '.04em', margin: '20px 0 8px' }}>💸 Категории расходов — кто видит суммы</div>
+      <Card className="erp-journal" style={{ padding: 0 }}>
+        {cats.length === 0 ? <EmptyRow>Категорий расходов нет.</EmptyRow> : (
+          <table className="erp-table erp-matrix">
+            <thead>
+              <tr>
+                <th style={{ textAlign: 'left', minWidth: 170 }}>Категория</th>
+                {roles.map(r => <th key={r.key} style={{ textAlign: 'center' }}>{r.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {cats.map(c => (
+                <tr key={c.id}>
+                  <td style={{ textAlign: 'left' }}>{c.icon || '📁'} {c.name}</td>
+                  {roles.map(r => {
+                    const isAdmin = r.key === 'admin';
+                    const visible = isAdmin ? true : isCategoryVisible(r.key, c.id, !!c.managerHidden, perms);
+                    return (
+                      <td key={r.key} style={{ textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          checked={visible}
+                          disabled={isAdmin}
+                          title={isAdmin ? 'Админ — всегда видит все категории' : ''}
+                          onChange={e => toggle(r.key, categoryPermKey(c.id), e.target.checked)}
+                          style={{ width: 16, height: 16, cursor: isAdmin ? 'not-allowed' : 'pointer' }}
+                        />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+
       <p className="erp-muted" style={{ marginTop: 12, fontSize: 12 }}>
-        Права применяются и в меню, и на сервере (API). Изменения сохраняются сразу. Особые полномочия (финансы, отмена продаж) остаются у системных ролей.
+        Права применяются и в меню, и на сервере (API). Изменения сохраняются сразу. Снятая галочка у категории — эта роль не видит её суммы и операции в Финансах/Расходах. Особые полномочия (финансы, отмена продаж) остаются у системных ролей.
       </p>
     </div>
   );

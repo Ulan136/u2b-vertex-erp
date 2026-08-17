@@ -48,7 +48,6 @@ export default function ExpensesPage() {
   const { data: orders } = useApi<Order[]>('/api/v2/orders');
   const { data: session } = useApi<{ user?: { name?: string; role?: string } }>('/api/auth/session');
   const respName = session?.user?.name || '—';
-  const isAdmin = session?.user?.role === 'admin';   // только Админ управляет видимостью категории от менеджеров
   const cols = useCols('expenses', EXPENSE_COLS);
 
   const accounts = fin?.accounts || [];
@@ -160,8 +159,7 @@ export default function ExpensesPage() {
   }
   async function addCat() { if (!newCat.trim()) return; const icon = newCatIcon || suggestIcon(newCat); try { await apiSend('/api/v2/expense-categories', 'POST', { name: newCat.trim(), icon }); setNewCat(''); setNewCatIcon(''); await mutateCats(); toast('✅ Категория добавлена'); } catch (e) { toast('⚠️ ' + (e as Error).message); } }
   async function setCatIcon(c: Cat, icon: string) { setIconEdit(null); try { await apiSend(`/api/v2/expense-categories/${c.id}`, 'PATCH', { icon }); await mutateCats(); } catch (e) { toast('⚠️ ' + (e as Error).message); } }
-  // Глазик: скрыть/показать суммы этой категории от менеджеров (сервер фильтрует overview).
-  async function toggleHidden(c: Cat) { try { await apiSend(`/api/v2/expense-categories/${c.id}`, 'PATCH', { managerHidden: !c.managerHidden }); await mutateCats(); toast(!c.managerHidden ? `🙈 «${c.name}» скрыта от менеджеров` : `👁 «${c.name}» видна всем`); } catch (e) { toast('⚠️ ' + (e as Error).message); } }
+  // Видимость категорий по ролям управляется в «Настройки → Доступы» (не здесь).
   async function delCat(c: Cat) { if (c.base) { toast('⚠️ Базовую нельзя'); return; } if (!confirm(`Удалить категорию «${c.name}»?`)) return; try { await apiSend(`/api/v2/expense-categories/${c.id}`, 'DELETE'); await mutateCats(); toast('🗑️ Удалено'); } catch (e) { toast('⚠️ ' + (e as Error).message); } }
 
   const ordHits = (orders || []).filter(o => !ordQ.trim() || (o.orderNo || '').toLowerCase().includes(ordQ.toLowerCase())).slice(0, 20);
@@ -180,7 +178,7 @@ export default function ExpensesPage() {
             const sum = catTotals[c.name] || 0;
             return (
               <div key={c.id}>
-                <div className={`rsh-tree-item${pick.cat === c.name && !pick.sub ? ' on' : ''}`} onClick={() => setPick({ cat: pick.cat === c.name && !pick.sub ? '' : c.name, sub: '' })} title={`${n} операц.${c.managerHidden ? ' · скрыта от менеджеров' : ''}`}><span>{c.icon || '📁'} {c.name} {isAdmin && c.managerHidden && <span title="Скрыта от менеджеров">🙈</span>}</span><b style={{ color: sum ? '#dc2626' : '#94a3b8' }}>{fmt(sum)}</b></div>
+                <div className={`rsh-tree-item${pick.cat === c.name && !pick.sub ? ' on' : ''}`} onClick={() => setPick({ cat: pick.cat === c.name && !pick.sub ? '' : c.name, sub: '' })} title={`${n} операц.`}><span>{c.icon || '📁'} {c.name}</span><b style={{ color: sum ? '#dc2626' : '#94a3b8' }}>{fmt(sum)}</b></div>
                 {pick.cat === c.name && (c.subs || []).map(s => (
                   <div key={s.id} className={`rsh-tree-sub${pick.sub === s.name ? ' on' : ''}`} onClick={() => setPick({ cat: c.name, sub: pick.sub === s.name ? '' : s.name })}>└ {s.name}</div>
                 ))}
@@ -310,14 +308,13 @@ export default function ExpensesPage() {
           <div key={c.id}>
             <div className="erp-cat-row">
               <button type="button" className="rsh-icon-btn" title="Сменить иконку" onClick={() => setIconEdit(iconEdit === c.id ? null : c.id)}>{c.icon || '📦'}</button>
-              <span style={{ flex: 1 }}>{c.name}{c.base && <span className="erp-muted" style={{ fontSize: 11 }}> · базовая</span>}{c.managerHidden && <span className="erp-muted" style={{ fontSize: 11 }}> · 🙈 скрыта от менеджеров</span>}</span>
-              {isAdmin && <button className="erp-icon-btn" title={c.managerHidden ? 'Показать суммы менеджерам' : 'Скрыть суммы от менеджеров'} style={{ color: c.managerHidden ? '#dc2626' : '#16a34a' }} onClick={() => toggleHidden(c)}>{c.managerHidden ? '🙈' : '👁'}</button>}
+              <span style={{ flex: 1 }}>{c.name}{c.base && <span className="erp-muted" style={{ fontSize: 11 }}> · базовая</span>}</span>
               {!c.base && <button className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => delCat(c)}>🗑️</button>}
             </div>
             {iconEdit === c.id && <div className="rsh-icon-pal">{ICON_PALETTE.map(ic => <button key={ic} type="button" className="rsh-icon-opt" onClick={() => setCatIcon(c, ic)}>{ic}</button>)}</div>}
           </div>
         ))}</div>
-        <div className="erp-muted" style={{ fontSize: 11, marginTop: 8 }}>Категории веду только я — по кнопке «+». Иконку любой категории меняю кликом по ней. Здесь ничего не удаляется автоматически.{isAdmin && ' Глазик 👁/🙈 скрывает суммы и операции категории от менеджеров (руководство видит всё).'}</div>
+        <div className="erp-muted" style={{ fontSize: 11, marginTop: 8 }}>Категории веду только я — по кнопке «+». Иконку любой категории меняю кликом по ней. Здесь ничего не удаляется автоматически. Видимость категорий по ролям — в «Настройки → Доступы».</div>
       </Modal>
     </div>
   );

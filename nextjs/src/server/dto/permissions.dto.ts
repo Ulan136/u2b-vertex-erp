@@ -69,6 +69,26 @@ export function visibleScreenKeys(role: string, perms: PermRow[], keys: readonly
   return keys.filter(k => isScreenAllowed(role, k, perms));
 }
 
+// ── Видимость категорий расходов по ролям (та же таблица role_permissions) ──
+// Ключ права категории = `expcat:<id>`. Управляется в «Настройки → Доступы».
+export const CATEGORY_PERM_PREFIX = 'expcat:';
+export const categoryPermKey = (catId: string) => `${CATEGORY_PERM_PREFIX}${catId}`;
+export const isCategoryPermKey = (k: string) => k.startsWith(CATEGORY_PERM_PREFIX);
+// Роли, которым исторически были видны «скрытые от менеджеров» категории
+// (legacy managerHidden). Админ обрабатывается отдельно (всегда всё видит).
+export const CATEGORY_FULL_ROLES = ['admin', 'accountant', 'director'];
+
+// Видна ли роли категория расходов. Приоритет: явное право (галочка в карте) →
+// иначе legacy-флаг managerHidden (скрыто от всех, кроме admin/accountant/director)
+// → иначе видна. Так старое поведение сохраняется, пока админ не переопределит.
+export function isCategoryVisible(role: string, catId: string, managerHidden: boolean, perms: PermRow[]): boolean {
+  if (role === 'admin') return true;
+  const rec = perms.find(p => p.role === role && p.screenKey === categoryPermKey(catId));
+  if (rec) return rec.allowed;
+  if (managerHidden) return CATEGORY_FULL_ROLES.includes(role);
+  return true;
+}
+
 // Landing screen per role after login. If it is denied by the matrix, fall back
 // to the first screen the role is allowed to see.
 export const START_SCREEN_BY_ROLE: Record<string, string> = {
@@ -89,7 +109,10 @@ export function startScreenKey(role: string, perms: PermRow[], keys: readonly st
 // ── Zod schema ────────────────────────────────────────────────
 export const permissionUpsertSchema = z.object({
   role: z.string().min(1),          // системный или кастомный ключ роли
-  screenKey: z.enum(SCREEN_KEYS),
+  // ключ экрана (SCREEN_KEYS) ИЛИ категории расходов (`expcat:<id>`)
+  screenKey: z.string().min(1).max(60).refine(
+    k => (SCREEN_KEYS as readonly string[]).includes(k) || (isCategoryPermKey(k) && k.length > CATEGORY_PERM_PREFIX.length),
+    { message: 'Некорректный ключ доступа' }),
   allowed: z.boolean(),
 });
 
