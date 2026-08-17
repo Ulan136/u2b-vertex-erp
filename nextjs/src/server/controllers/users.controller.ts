@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { withApi, created, optionsHandler } from '@/server/lib/http';
 import { usersService } from '@/server/services/users.service';
+import { forbidden } from '@/server/lib/errors';
 
 export const OPTIONS = optionsHandler;
 
@@ -16,3 +17,10 @@ export const POST = withApi(async (req: NextRequest) => created(await usersServi
 // actingUserId comes from the SESSION (not the client) for the self-guard.
 export const PATCH = withApi(async (req: NextRequest, ctx) =>
   usersService.update(ctx.params!.id, await req.json(), ctx.user?.id ?? null));
+
+// POST /api/v2/users/[id]/password — сброс пароля (экран «Управление паролями»).
+// Жёстко только для админа (даже если роли выдан экран «Настройки»).
+export const setPassword = withApi(async (req: NextRequest, ctx) => {
+  if (ctx.user?.role !== 'admin') throw forbidden('Управление паролями доступно только администратору');
+  return usersService.setPassword(ctx.params!.id, await req.json());
+});

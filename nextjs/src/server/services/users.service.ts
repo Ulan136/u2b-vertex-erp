@@ -67,4 +67,18 @@ export const usersService = {
     if (!row) throw notFound('Пользователь не найден');
     return row;
   },
+
+  // Сброс/установка пароля админом (экран «Управление паролями»). Пароль всегда
+  // хэшируется (bcrypt) — текущий пароль нигде не хранится в открытом виде и не
+  // возвращается. Жёсткая проверка role=admin выполняется в контроллере.
+  async setPassword(id: string, input: unknown) {
+    if (!id) throw badRequest('id обязателен');
+    const password = String((input as { password?: unknown } | null)?.password ?? '');
+    if (password.length < 4) throw badRequest('Пароль минимум 4 символа');
+    const existing = await usersRepo.findById(id);
+    if (!existing) throw notFound('Пользователь не найден');
+    const row = await usersRepo.update(id, { passwordHash: await bcrypt.hash(password, 10) });
+    if (!row) throw notFound('Пользователь не найден');
+    return { ok: true, id: row.id, name: row.name };
+  },
 };
