@@ -24,3 +24,9 @@ export const DELETE = withApi(async (req: NextRequest, ctx) => certsService.remo
 // смешанная оплата → приход на счета «Поверка» + сертификаты «Оплачено».
 export const payOrder = withApi(async (req: NextRequest, ctx) =>
   certsService.payOrder(ctx.params!.id, await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
+
+// POST /api/v2/certs/pay-by-client — оплата по клиенту (Блок 1, не Выездная):
+// ожидающие сертификаты клиента → «Оплачено» по цене×кол-во + приход на счета +
+// опциональная выплата комиссии клиенту (Расход).
+export const payByClient = withApi(async (req: NextRequest, ctx) =>
+  certsService.payByClient(await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));

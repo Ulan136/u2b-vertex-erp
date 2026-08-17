@@ -1,6 +1,6 @@
 import { db, type Executor } from '@/db';
 import { certsRepo } from '@/server/repositories/certs.repo';
-import { certUpsertSchema, certUpdateSchema, cleanCertFields, isCertPaid, poverkaPaymentSchema, sectionForCertSource, certIncomePosts, type CertQuery } from '@/server/dto/certs.dto';
+import { certUpsertSchema, certUpdateSchema, cleanCertFields, isCertPaid, poverkaPaymentSchema, payByClientSchema, sectionForCertSource, certIncomePosts, type CertQuery } from '@/server/dto/certs.dto';
 import { deviceTypesService } from '@/server/services/deviceTypes.service';
 import { productsService } from '@/server/services/products.service';
 import { financeService } from '@/server/services/finance.service';
@@ -157,6 +157,60 @@ export const certsService = {
         await productsService.syncCertSeal({ id: upd.id, serialNo: upd.serialNo }, sealFor(upd), actor, tx);
       }
       return { ok: true, total: m2(total), count: certs.length };
+    });
+  },
+
+  // Оплата по клиенту (Блок 1, не Выездная): все ожидающие сертификаты клиента
+  // → «Оплачено» по цене за штуку; доход проводится ПО-СЕРТИФИКАТНО (правильно
+  // линкуется/сторнируется), смешанная раскладка «жадно» распределяется по
+  // сертификатам. Плюс опциональная выплата комиссии клиенту (Расход). Всё —
+  // одной транзакцией.
+  async payByClient(input: unknown, actor?: { id: string; name?: string } | null) {
+    const { source, docType, client, pricePerCert, payments, commission } = payByClientSchema.parse(input);
+    if (source === 'Выездная') throw badRequest('Для Выездной оплата идёт через заявку мастера, не здесь');
+    const round2 = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
+    const price = round2(pricePerCert);
+    if (price <= 0) throw badRequest('Укажите цену за сертификат');
+
+    const rows = await certsRepo.list({ source, archived: false, type: docType || 'cert' });
+    const targets = rows.filter(c => (c.client || '') === client && !isCertPaid(c.payStatus));
+    if (!targets.length) throw badRequest('У клиента нет сертификатов в ожидании оплаты');
+    const count = targets.length;
+
+    const incomeTotal = round2(price * count);
+    const paid = payments.reduce((s, p) => s + round2(p.amount), 0);
+    if (Math.abs(paid - incomeTotal) > 0.01) throw badRequest(`Сумма оплат (${m2(paid)}) должна равняться итогу (${m2(incomeTotal)})`);
+
+    const commPer = commission ? round2(commission.perCert) : 0;
+    const commTotal = round2(commPer * count);
+
+    return db.transaction(async (tx) => {
+      // Пул оплаты: раскидываем по сертификатам по порядку (каждому — его цену).
+      const pool = payments.map(p => ({ accountId: String(p.accountId), left: round2(p.amount) }));
+      let pi = 0;
+      for (const c of targets) {
+        const upd = await certsRepo.update(c.id, { amount: String(price), payStatus: 'Оплачено' }, tx);
+        await productsService.syncCertSeal({ id: upd.id, serialNo: upd.serialNo }, sealFor(upd), actor, tx);
+        // Раскладка дохода этого сертификата = его цена, набранная из пула счетов.
+        let need = price;
+        const alloc: PayLine[] = [];
+        while (need > 0.001 && pi < pool.length) {
+          const take = round2(Math.min(need, pool[pi].left));
+          if (take > 0) { alloc.push({ accountId: pool[pi].accountId, amount: take }); pool[pi].left = round2(pool[pi].left - take); need = round2(need - take); }
+          if (pool[pi].left <= 0.001) pi++;
+        }
+        await syncCertIncome(upd, alloc, actor, tx);
+      }
+      // Выплата комиссии клиенту — один Расход с выбранного счёта.
+      if (commTotal > 0 && commission) {
+        const acc = await financeRepo.findAccount(commission.accountId, tx);
+        if (!acc) throw badRequest('Счёт для выплаты комиссии не найден');
+        await financeService.createOperation(
+          { opType: 'Расход', accountId: commission.accountId, amount: m2(commTotal), name: `Комиссия клиенту — ${client}`.slice(0, 200), source: 'Расходы', accountName: acc.name },
+          actor?.id ?? null, tx,
+        );
+      }
+      return { ok: true, count, incomeTotal: m2(incomeTotal), commissionTotal: m2(commTotal) };
     });
   },
 };

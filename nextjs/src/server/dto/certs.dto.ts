@@ -65,6 +65,24 @@ export const poverkaPaymentSchema = z.object({
   })).min(1, 'Добавьте хотя бы одну оплату'),
 });
 
+// Оплата по клиенту (Блок 1): цена за сертификат × кол-во ожидающих → приход
+// (смешанная оплата на счета раздела) + опциональная выплата комиссии клиенту
+// (простой Расход с выбранного счёта). Не для Выездной (там оплата через заявку).
+export const payByClientSchema = z.object({
+  source: z.string().min(1),
+  docType: z.enum(['cert', 'izv']).optional(),
+  client: z.string().min(1, 'Укажите клиента'),
+  pricePerCert: z.coerce.number().positive('Укажите цену за сертификат'),
+  payments: z.array(z.object({
+    accountId: z.string().uuid(),
+    amount: z.coerce.number().positive(),
+  })).min(1, 'Добавьте хотя бы одну оплату'),
+  commission: z.object({
+    perCert: z.coerce.number().nonnegative(),
+    accountId: z.string().uuid(),
+  }).nullish(),
+});
+
 // Подготовка полей к вставке/апдейту: undefined убираем (→ дефолт БД / без изменения),
 // пустую строку в date/uuid-колонках приводим к null (иначе Postgres 500 на '').
 const CERT_DATE_OR_UUID = new Set(['checkDate', 'nextCheckDate', 'branchId', 'orderId']);

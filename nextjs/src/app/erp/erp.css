@@ -288,6 +288,9 @@
 .cert-meter-grp { padding: 6px 10px 2px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; background: #f9fafb; position: sticky; top: 0; }
 .cert-meter-uses { flex: none; min-width: 22px; text-align: center; padding: 1px 6px; font-size: 11px; font-variant-numeric: tabular-nums; color: #2563eb; background: #eff6ff; border-radius: 999px; }
 
+/* Плашка выбранного клиента в режиме «Оплата по клиенту» */
+.cert-payclient-bar { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 8px 12px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 9px; font-size: 13px; }
+
 /* Инлайн-правка «Мин» на складе — карандаш проявляется при наведении */
 .wh-min-edit { cursor: pointer; white-space: nowrap; }
 .wh-min-pen { opacity: 0; font-size: 11px; color: #2563eb; transition: opacity .12s; }

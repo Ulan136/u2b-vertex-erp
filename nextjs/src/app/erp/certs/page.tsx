@@ -114,6 +114,16 @@ function CertsInner() {
   const [cloneFrom, setCloneFrom] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState('');
+  // ── Режим «Оплата по клиенту» (Блок 1, не Выездная) ──
+  const [fClient, setFClient] = React.useState('');               // фильтр по клиенту
+  const [pcOpen, setPcOpen] = React.useState(false);              // модалка оплаты по клиенту
+  const [pcPrice, setPcPrice] = React.useState('');              // цена за сертификат
+  const [pcRows, setPcRows] = React.useState<Array<{ accountId: string; amount: string }>>([{ accountId: '', amount: '' }]);
+  const [pcCommOn, setPcCommOn] = React.useState(true);          // выплачивать комиссию клиенту?
+  const [pcCommPer, setPcCommPer] = React.useState('200');       // комиссия за сертификат, ₸
+  const [pcCommAcct, setPcCommAcct] = React.useState('');        // счёт выплаты комиссии
+  const [pcSaving, setPcSaving] = React.useState(false);
+  const [pcErr, setPcErr] = React.useState('');
   // При открытии модалки — одна строка оплаты: счёт раздела по умолчанию + цена.
   React.useEffect(() => { if (modal) { setPayRows([{ accountId: defaultAcc?.id || '', amount: form.amount || '' }]); setPayTouched(false); } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [modal]);
   const payTotal = payRows.reduce((s, p) => s + num(p.amount), 0);
@@ -204,6 +214,7 @@ function CertsInner() {
     if (q.trim() && !`${c.fio} ${c.address} ${c.serialNo}`.toLowerCase().includes(q.toLowerCase())) return false;
     if (fOper && c.operStatus !== fOper) return false;
     if (fPay && c.payStatus !== fPay) return false;
+    if (fClient && (c.client || '') !== fClient) return false;
     if (fInv && c.invoiceType !== fInv) return false;
     if (!isCert && fSent && (c.sentStatus || 'Не отправлено') !== fSent) return false;
     const d = iso(c.checkDate);
@@ -239,6 +250,40 @@ function CertsInner() {
     wait: all.filter(c => c.payStatus !== 'Оплачено').length,
     tte: all.filter(isTTE).length,
   };
+
+  // ── Оплата по клиенту: данные ──
+  const clientsInDir = React.useMemo(() => Array.from(new Set(all.map(c => (c.client || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ru')), [all]);
+  const allAccounts = React.useMemo(() => (fin?.accounts || []).filter(a => a.isActive !== false), [fin]);
+  const pcAwaiting = React.useMemo(() => fClient ? all.filter(c => (c.client || '') === fClient && c.payStatus !== 'Оплачено') : [], [all, fClient]);
+  const pcCount = pcAwaiting.length;
+  const pcPriceNum = num(pcPrice);
+  const pcIncomeTotal = Math.round(pcPriceNum * pcCount * 100) / 100;
+  const pcPayTotal = pcRows.reduce((s, p) => s + num(p.amount), 0);
+  const pcMismatch = pcPriceNum > 0 && Math.abs(pcPayTotal - pcIncomeTotal) > 0.01;
+  const pcCommPerNum = num(pcCommPer);
+  const pcCommTotal = pcCommOn ? Math.round(pcCommPerNum * pcCount * 100) / 100 : 0;
+  function openPayClient() {
+    if (!fClient) { toast('Сначала выберите клиента в фильтре'); return; }
+    if (pcCount === 0) { toast('У клиента нет сертификатов в ожидании'); return; }
+    setPcErr(''); setPcPrice(''); setPcRows([{ accountId: defaultAcc?.id || '', amount: '' }]);
+    setPcCommOn(true); setPcCommPer('200'); setPcCommAcct(allAccounts.find(a => a.category === 'nalichka')?.id || defaultAcc?.id || allAccounts[0]?.id || '');
+    setPcOpen(true);
+  }
+  async function payClientSubmit() {
+    if (pcPriceNum <= 0) { setPcErr('Укажите цену за сертификат'); return; }
+    if (pcMismatch) { setPcErr(`Сумма оплат (${fmtNum(pcPayTotal)}) должна равняться итогу (${fmtNum(pcIncomeTotal)})`); return; }
+    if (pcCommOn && pcCommPerNum > 0 && !pcCommAcct) { setPcErr('Выберите счёт для выплаты комиссии'); return; }
+    setPcSaving(true); setPcErr('');
+    try {
+      await apiSend('/api/v2/certs/pay-by-client', 'POST', {
+        source, docType, client: fClient, pricePerCert: pcPriceNum,
+        payments: pcRows.filter(p => p.accountId && num(p.amount) > 0).map(p => ({ accountId: p.accountId, amount: num(p.amount) })),
+        commission: pcCommOn && pcCommPerNum > 0 ? { perCert: pcCommPerNum, accountId: pcCommAcct } : null,
+      });
+      setPcOpen(false); await mutate();
+      toast(`✅ Оплачено ${pcCount} серт. на ${fmtNum(pcIncomeTotal)} ₸${pcCommTotal > 0 ? ` · комиссия ${fmtNum(pcCommTotal)} ₸` : ''}`);
+    } catch (e) { setPcErr((e as Error).message); } finally { setPcSaving(false); }
+  }
 
   const openNew = () => { setForm(EMPTY); setCloneFrom(''); setErr(''); setModal(true); };
   const fillForm = (c: Cert): typeof EMPTY => ({ id: c.id, fio: c.fio || '', address: c.address || '', phone: c.phone || '', client: c.client || '', meterType: c.meterType || '', serialNo: c.serialNo || '', yearMade: c.yearMade ? String(c.yearMade) : '', waterType: c.waterType || 'х/в', checkDate: iso(c.checkDate), nextCheckDate: iso(c.nextCheckDate), stampNo: c.stampNo || '', sealType: c.sealType === 'ПЛ' ? 'ПЛ' : 'СЛ', readings: c.readings != null ? String(c.readings) : '', result: c.result || 'Годен', operStatus: c.operStatus || 'В работе', payStatus: c.payStatus || 'В ожидании', invoiceType: c.invoiceType || 'Каспи', sentStatus: c.sentStatus || 'Не отправлено', note: c.note || '', amount: c.amount != null ? String(c.amount) : '' });
@@ -374,10 +419,21 @@ function CertsInner() {
         <Input placeholder="🔍 ФИО, адрес, № счётчика" value={q} onChange={e => setQ(e.target.value)} />
         <Select value={fOper} onChange={e => setFOper(e.target.value)}><option value="">Операция: все</option>{OPER.map(o => <option key={o}>{o}</option>)}</Select>
         <Select value={fPay} onChange={e => setFPay(e.target.value)}><option value="">Оплата: все</option>{PAY.map(o => <option key={o}>{o}</option>)}</Select>
+        <Select value={fClient} onChange={e => setFClient(e.target.value)} title="Фильтр по клиенту"><option value="">Клиент: все</option>{clientsInDir.map(c => <option key={c} value={c}>{c}</option>)}</Select>
         <Select value={fInv} onChange={e => setFInv(e.target.value)}><option value="">Счёт: все</option>{INV.map(o => <option key={o}>{o}</option>)}</Select>
         {!isCert && <Select value={fSent} onChange={e => setFSent(e.target.value)}><option value="">Отправка: все</option>{SENT.map(o => <option key={o}>{o}</option>)}</Select>}
         <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
+        {isDirect && <Button onClick={openPayClient} disabled={!fClient || pcCount === 0} title={!fClient ? 'Выберите клиента' : pcCount === 0 ? 'Нет сертификатов в ожидании' : `Оплатить ${pcCount} серт.`}>💳 Оплата по клиенту</Button>}
       </Card>
+
+      {isDirect && fClient && (
+        <div className="cert-payclient-bar">
+          <span>👤 <b>{fClient}</b></span>
+          <span className="erp-muted">·</span>
+          <span>В ожидании: <b style={{ color: pcCount ? '#b45309' : '#16a34a' }}>{pcCount}</b> из {all.filter(c => (c.client || '') === fClient).length}</span>
+          {pcCount > 0 && <Button variant="outline" onClick={openPayClient} style={{ marginLeft: 'auto', fontSize: 12 }}>💳 Принять оплату за {pcCount} серт.</Button>}
+        </div>
+      )}
 
       <Card className={`erp-journal ${cols.wrapClass}`} style={{ marginTop: 8, padding: 0 }}>
         {error ? <EmptyRow>Нет доступа к этому направлению.</EmptyRow> : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
@@ -592,6 +648,58 @@ function CertsInner() {
         )}
 
         {form.id && <EntityHistory entityType="certificate" entityId={form.id} />}
+      </Modal>
+
+      {/* Модалка «Оплата по клиенту» */}
+      <Modal open={pcOpen} onClose={() => setPcOpen(false)} width={560}
+        title={<span>💳 Оплата по клиенту — {fClient}</span>}
+        footer={<><Button onClick={payClientSubmit} disabled={pcSaving || pcMismatch || pcPriceNum <= 0} title={pcMismatch ? 'Сумма оплат ≠ итогу' : undefined}>{pcSaving ? 'Проведение…' : pcMismatch ? '⚠ Оплата ≠ итогу' : '💾 Провести оплату'}</Button><Button variant="outline" onClick={() => setPcOpen(false)}>Отмена</Button></>}>
+        {pcErr && <div className="erp-form-err">{pcErr}</div>}
+        <div className="erp-muted" style={{ fontSize: 13, marginBottom: 4 }}>
+          Сертификатов в ожидании: <b style={{ color: '#b45309' }}>{pcCount}</b> · итог = цена × {pcCount} = <b style={{ color: '#16a34a' }}>{fmtNum(pcIncomeTotal)} ₸</b>
+        </div>
+
+        <div className="cert-sec-lbl">💳 Оплата (доход)</div>
+        <div className="erp-form-row">
+          <Field label="Цена за сертификат, ₸"><Input type="number" min={0} value={pcPrice} onChange={e => setPcPrice(e.target.value)} placeholder="0" autoFocus /></Field>
+          <Field label="Итого к оплате"><Input value={`${fmtNum(pcIncomeTotal)} ₸`} readOnly style={{ background: '#f8fafc', fontWeight: 700 }} /></Field>
+        </div>
+        <div className="sale-pay" style={{ marginTop: 0 }}>
+          <div className="erp-muted" style={{ fontSize: 11, marginBottom: 6 }}>Счета раздела «{certSection === 'branch' ? '№4 Филиал Астана' : '№1 Поверка'}». Одна строка — весь итог на один счёт; можно разбить (смешанная).</div>
+          {pcRows.map((p, i) => (
+            <div className="sale-pay-row" key={i}>
+              <Select value={p.accountId} onChange={e => setPcRows(rs => rs.map((r, j) => j === i ? { ...r, accountId: e.target.value } : r))}>
+                <option value="">{secAccounts.length ? '— счёт —' : '— нет счетов раздела —'}</option>
+                {secAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
+              </Select>
+              <Input type="number" min={0} value={p.amount} onChange={e => setPcRows(rs => rs.map((r, j) => j === i ? { ...r, amount: e.target.value } : r))} placeholder="сумма" style={{ textAlign: 'right' }} />
+              <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => setPcRows(rs => rs.length > 1 ? rs.filter((_, j) => j !== i) : rs)} title="Убрать">✕</button>
+            </div>
+          ))}
+          <Button variant="outline" onClick={() => setPcRows(rs => [...rs, { accountId: defaultAcc?.id || '', amount: '' }])} style={{ fontSize: 12 }}>+ ещё счёт</Button>
+          <div className="sale-pay-state">
+            <span>Внесено: <b style={{ color: pcMismatch ? '#b45309' : '#16a34a' }}>{fmtNum(pcPayTotal)} ₸</b></span>
+            <span>Итог: <b>{fmtNum(pcIncomeTotal)} ₸</b></span>
+          </div>
+        </div>
+
+        <div className="cert-sec-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 400 }}>
+            <input type="checkbox" checked={pcCommOn} onChange={e => setPcCommOn(e.target.checked)} /> 🎁 Выплата комиссии клиенту
+          </label>
+        </div>
+        {pcCommOn && (
+          <>
+            <div className="erp-form-row">
+              <Field label="Комиссия за сертификат, ₸"><Input type="number" min={0} value={pcCommPer} onChange={e => setPcCommPer(e.target.value)} placeholder="200" /></Field>
+              <Field label="Со счёта"><Select value={pcCommAcct} onChange={e => setPcCommAcct(e.target.value)}><option value="">— счёт —</option>{allAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}</Select></Field>
+            </div>
+            <div className="sale-pay-state">
+              <span className="erp-muted">Выплата = {fmtNum(pcCommPerNum)} × {pcCount}</span>
+              <span>К выплате: <b style={{ color: '#dc2626' }}>−{fmtNum(pcCommTotal)} ₸</b></span>
+            </div>
+          </>
+        )}
       </Modal>
 
       {voice.open && (
