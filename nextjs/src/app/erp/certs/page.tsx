@@ -6,6 +6,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
+import ClientPicker from '@/components/erp/ClientPicker';
 import { getRecent, pushRecent, removeRecent, type RecentItem } from '@/lib/recent';
 import { payTone } from '@/lib/status';   // единый тон статуса оплаты (P1-5)
 import { useCols, ColumnMenu } from '@/components/erp/ColumnMenu';
@@ -99,7 +100,7 @@ function CertsInner() {
   }, [sp]);
   const { data: certs, error, isLoading, mutate } = useApi<Cert[]>(`/api/v2/certs?source=${encodeURIComponent(source)}&archived=false&type=${docType}`);
   const { data: products } = useApi<Product[]>('/api/v2/products');
-  const { data: clients } = useApi<Client[]>('/api/v2/clients');
+  const { data: clients, mutate: mutateClients } = useApi<Client[]>('/api/v2/clients');
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
   // Оплата прямых сертификатов: счета раздела источника (Астана→branch, иначе poverka).
   const isDirect = source !== 'Выездная';
@@ -601,7 +602,7 @@ function CertsInner() {
         <div className="erp-form-row">
           <Field label="Телефон (не печатается)"><div className="cert-vf"><Input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+7 700 000 00 00" /><Mic k="phone" h="Телефон" /></div></Field>
           <Field label="Клиент">
-            <Select value="" onChange={e => { const c = (clients || []).find(x => x.id === e.target.value); if (c) setForm(f => ({ ...f, client: c.name })); }}><option value="">— из справочника —</option>{(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>
+            <ClientPicker clients={clients || []} kind="client" onPick={c => setForm(f => ({ ...f, client: c.name }))} onCreated={() => mutateClients()} />
             <div className="cert-vf" style={{ marginTop: 6 }}><Input value={form.client} onChange={e => setForm({ ...form, client: e.target.value })} placeholder="Название клиента / ТОО" /><Mic k="client" h="Клиент" /></div>
           </Field>
         </div>

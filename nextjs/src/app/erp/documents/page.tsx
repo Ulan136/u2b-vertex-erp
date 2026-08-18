@@ -6,6 +6,7 @@ import { toast } from '@/lib/toast';
 import { Card, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 import { amountInWordsKzt } from '@/server/dto/documents.dto';
 import EntityHistory from '@/components/erp/EntityHistory';
+import ClientPicker from '@/components/erp/ClientPicker';
 
 type Doc = { id: string; type: string; number: number; docNo?: string | null; docDate?: string | null; buyerName?: string | null; total?: string | number | null; bank?: string | null; createdByName?: string | null };
 type Client = { id: string; name: string };
@@ -26,7 +27,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export default function DocumentsPage() {
   const { data: docs, mutate } = useApi<Doc[]>('/api/v2/documents');
-  const { data: clients } = useApi<Client[]>('/api/v2/clients');
+  const { data: clients, mutate: mutateClients } = useApi<Client[]>('/api/v2/clients');
   const { data: products } = useApi<Product[]>('/api/v2/products');
   const { data: org } = useApi<Org>('/api/v2/org');
   const banks = org?.banks || [];
@@ -103,7 +104,7 @@ export default function DocumentsPage() {
         </div>
         {type === 'invoice' && <Field label="Банк (счёт получателя)"><Select value={f.bank} onChange={e => setF({ ...f, bank: e.target.value })}>{banks.map(b => <option key={b.key} value={b.key}>{b.name} · {b.iik}</option>)}</Select></Field>}
         <Field label="Покупатель" required>
-          <Select value="" onChange={e => { const c = (clients || []).find(x => x.id === e.target.value); if (c) setF(s => ({ ...s, buyerName: c.name })); }}><option value="">— из клиентов или впишите —</option>{(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>
+          <ClientPicker clients={clients || []} kind="buyer" placeholder="— из клиентов или впишите —" onPick={c => setF(s => ({ ...s, buyerName: c.name }))} onCreated={() => mutateClients()} />
           <Input value={f.buyerName} onChange={e => setF({ ...f, buyerName: e.target.value })} placeholder="название / ФИО" style={{ marginTop: 6 }} />
         </Field>
         <div className="erp-form-row"><Field label="БИН / ИИН"><Input value={f.buyerBin} onChange={e => setF({ ...f, buyerBin: e.target.value })} /></Field><Field label="Адрес"><Input value={f.buyerAddress} onChange={e => setF({ ...f, buyerAddress: e.target.value })} /></Field></div>

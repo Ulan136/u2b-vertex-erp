@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import ClientPicker from '@/components/erp/ClientPicker';
 
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; category?: string | null; sortOrder?: number | null };
 type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; accountId: string; comment?: string | null };
@@ -30,7 +31,7 @@ function InvoicesInner() {
   React.useEffect(() => { const s = sp.get('section'); if (s && SECTIONS.some(x => x.key === s)) setSection(s); }, [sp]);
 
   const { data: fin, error, isLoading, mutate } = useApi<{ accounts: Acct[]; operations: Op[] }>('/api/v2/finance');
-  const { data: clients } = useApi<Client[]>('/api/v2/clients');
+  const { data: clients, mutate: mutateClients } = useApi<Client[]>('/api/v2/clients');
   const allAccounts = fin?.accounts || [];
   const accounts = allAccounts.filter(a => (a.section || 'other') === section).sort((a, b) => num(a.sortOrder) - num(b.sortOrder));
   const acctOf = (id: string) => allAccounts.find(a => a.id === id);
@@ -124,7 +125,7 @@ function InvoicesInner() {
         footer={<><Button onClick={save} disabled={f.saving}>{f.saving ? '…' : 'Провести'}</Button><Button variant="outline" onClick={() => setModal(false)}>Отмена</Button></>}>
         {f.err && <div className="erp-form-err">{f.err}</div>}
         <Field label="Плательщик / назначение">
-          <Select value="" onChange={e => { const c = (clients || []).find(x => x.id === e.target.value); if (c) setF(s => ({ ...s, name: c.name })); }}><option value="">— из клиентов или впишите —</option>{(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>
+          <ClientPicker clients={clients || []} kind="client" placeholder="— из клиентов или впишите —" onPick={c => setF(s => ({ ...s, name: c.name }))} onCreated={() => mutateClients()} />
           <Input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={sec.key === 'other' ? 'Проект / Тендер / Услуга…' : 'ФИО / название'} style={{ marginTop: 6 }} />
         </Field>
         <div className="erp-form-row"><Field label="Сумма (₸)" required><Input type="number" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></Field><Field label="Дата"><Input type="date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field></div>
