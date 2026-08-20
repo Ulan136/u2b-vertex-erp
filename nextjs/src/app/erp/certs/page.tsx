@@ -212,7 +212,7 @@ function CertsInner() {
   const all = React.useMemo(() => certs || [], [certs]);
   // Фильтры Блока 1 (у извещений — статус отправки вместо оплаты/счёта отдельным полем).
   const list = all.filter(c => {
-    if (q.trim() && !`${c.fio} ${c.address} ${c.serialNo}`.toLowerCase().includes(q.toLowerCase())) return false;
+    if (q.trim() && !`${c.fio} ${c.address} ${c.serialNo} ${c.client || ''} ${c.phone || ''}`.toLowerCase().includes(q.toLowerCase())) return false;
     if (fOper && c.operStatus !== fOper) return false;
     if (fPay && c.payStatus !== fPay) return false;
     if (fClient && (c.client || '') !== fClient) return false;
@@ -417,14 +417,14 @@ function CertsInner() {
       <Card className="erp-filters" style={{ flexWrap: 'wrap', gap: 8 }}>
         <Badge tone="info">{source}</Badge>
         <Badge tone={isCert ? 'ok' : 'warn'}>{isCert ? '📄 Сертификаты' : '📃 Извещения'}</Badge>
-        <Input placeholder="🔍 ФИО, адрес, № счётчика" value={q} onChange={e => setQ(e.target.value)} />
+        <Input placeholder="🔍 ФИО, адрес, № счётчика, клиент, телефон" value={q} onChange={e => setQ(e.target.value)} />
         <Select value={fOper} onChange={e => setFOper(e.target.value)}><option value="">Операция: все</option>{OPER.map(o => <option key={o}>{o}</option>)}</Select>
         <Select value={fPay} onChange={e => setFPay(e.target.value)}><option value="">Оплата: все</option>{PAY.map(o => <option key={o}>{o}</option>)}</Select>
         <Select value={fClient} onChange={e => setFClient(e.target.value)} title="Фильтр по клиенту"><option value="">Клиент: все</option>{clientsInDir.map(c => <option key={c} value={c}>{c}</option>)}</Select>
         <Select value={fInv} onChange={e => setFInv(e.target.value)}><option value="">Счёт: все</option>{INV.map(o => <option key={o}>{o}</option>)}</Select>
         {!isCert && <Select value={fSent} onChange={e => setFSent(e.target.value)}><option value="">Отправка: все</option>{SENT.map(o => <option key={o}>{o}</option>)}</Select>}
         <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
-        {isDirect && <Button onClick={openPayClient} disabled={!fClient || pcCount === 0} title={!fClient ? 'Выберите клиента' : pcCount === 0 ? 'Нет сертификатов в ожидании' : `Оплатить ${pcCount} серт.`}>💳 Оплата по клиенту</Button>}
+        {isDirect && <Button onClick={openPayClient} title={!fClient ? 'Сначала выберите клиента в фильтре «Клиент»' : pcCount === 0 ? 'Нет сертификатов в ожидании' : `Оплатить ${pcCount} серт.`}>💳 Оплата по клиенту</Button>}
       </Card>
 
       {isDirect && fClient && (
