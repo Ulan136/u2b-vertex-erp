@@ -66,6 +66,21 @@ export const purchaseCreateSchema = z.object({
   payments: z.array(purchasePaymentSchema).optional().default([]),
 });
 
+// PATCH /purchases/[id] — правка метаданных закупа (дата закупа/поставщик/№).
+// Кол-во/цену/оплату здесь не трогаем (это склад+финансы — отдельные операции).
+export const purchaseUpdateSchema = z.object({
+  moveDate: z.string().nullish(),
+  supplier: z.string().trim().nullish(),
+  docNo: z.string().trim().nullish(),
+});
+
+// POST /purchases/[id]/pay — погашение долга: Расход со счёта(ов) на стоимость
+// закупа. Дата оплаты (payDate) по умолчанию = сегодня (закуп мог быть раньше).
+export const purchasePaySchema = z.object({
+  payments: z.array(purchasePaymentSchema).min(1, 'Добавьте счёт оплаты'),
+  payDate: z.string().nullish(),
+});
+
 // POST /products records a stock movement (приход/расход), not a product.
 export const stockMovementSchema = z.object({
   productId: z.string(),

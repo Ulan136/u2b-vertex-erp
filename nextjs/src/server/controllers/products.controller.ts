@@ -29,6 +29,14 @@ export const MOVEMENTS_SUMMARY = withApi(async (req: NextRequest) => {
 export const PURCHASE = withApi(async (req: NextRequest, ctx) =>
   created(await productsService.createPurchase(await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null)));
 
+// PATCH /api/v2/purchases/[id] — правка метаданных закупа (дата/поставщик/№)
+export const PURCHASE_UPDATE = withApi(async (req: NextRequest, ctx) =>
+  productsService.updatePurchase(ctx.params!.id, await req.json()));
+
+// POST /api/v2/purchases/[id]/pay — погашение долга (Расход со счёта, дата = сегодня)
+export const PURCHASE_PAY = withApi(async (req: NextRequest, ctx) =>
+  productsService.payPurchaseDebt(ctx.params!.id, await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
+
 // POST /api/v2/products/movements/[id]/reverse — отмена движения (откат склада + сторно денег)
 export const MOVEMENT_REVERSE = withApi(async (_req: NextRequest, ctx) =>
   productsService.reverseMovement(ctx.params!.id, { hard: false }, ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));

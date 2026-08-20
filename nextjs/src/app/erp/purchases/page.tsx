@@ -28,6 +28,8 @@ export default function PurchasesPage() {
 
   const [q, setQ] = React.useState('');
   const [f, setF] = React.useState(emptyForm());
+  const [edit, setEdit] = React.useState<{ id: string; moveDate: string; supplier: string; docNo: string; saving: boolean; err: string } | null>(null);
+  const [pay, setPay] = React.useState<{ id: string; cost: number; count: number; payDate: string; rows: Pay[]; saving: boolean; err: string } | null>(null);
 
   const live = (buys || []).filter(b => !b.reversedAt);
   const list = (buys || []).filter(b => !q.trim() || (`${b.productName} ${b.skuCode} ${b.supplier || ''}`).toLowerCase().includes(q.toLowerCase()));
@@ -85,6 +87,34 @@ export default function PurchasesPage() {
     } catch (e) { setF(s => ({ ...s, err: (e as Error).message, saving: false })); }
   }
 
+  // ── Редактирование метаданных закупа (дата/поставщик/№) ──
+  function openEdit(b: Movement) { setEdit({ id: b.id, moveDate: (b.moveDate || '').slice(0, 10), supplier: b.supplier || '', docNo: b.docNo || '', saving: false, err: '' }); }
+  async function saveEdit() {
+    if (!edit) return;
+    setEdit(s => s && { ...s, saving: true, err: '' });
+    try {
+      await apiSend(`/api/v2/purchases/${edit.id}`, 'PATCH', { moveDate: edit.moveDate || null, supplier: edit.supplier || null, docNo: edit.docNo || null });
+      setEdit(null); await mutate(); toast('✅ Закуп обновлён');
+    } catch (e) { setEdit(s => s && { ...s, saving: false, err: (e as Error).message }); }
+  }
+
+  // ── Погашение долга: Расход со счёта, дата = сегодня (закуп мог быть раньше) ──
+  function openPayDebt(b: Movement) {
+    const g = (buys || []).filter(x => !x.reversedAt && (b.purchaseGroup ? x.purchaseGroup === b.purchaseGroup : x.id === b.id));
+    const cost = Math.round(g.reduce((s, x) => s + num(x.totalSum), 0) * 100) / 100;
+    setPay({ id: b.id, cost, count: g.length, payDate: today(), rows: [{ accountId: '', amount: String(cost) }], saving: false, err: '' });
+  }
+  async function savePayDebt() {
+    if (!pay) return;
+    const payments = pay.rows.filter(p => p.accountId && num(p.amount) > 0).map(p => ({ accountId: p.accountId, amount: num(p.amount) }));
+    if (!payments.length) { setPay(s => s && { ...s, err: 'Выберите счёт и сумму' }); return; }
+    setPay(s => s && { ...s, saving: true, err: '' });
+    try {
+      await apiSend(`/api/v2/purchases/${pay.id}/pay`, 'POST', { payments, payDate: pay.payDate || null });
+      setPay(null); await mutate(); toast('💳 Долг погашен — расход проведён');
+    } catch (e) { setPay(s => s && { ...s, saving: false, err: (e as Error).message }); }
+  }
+
   async function reverse(b: Movement, hard: boolean) {
     const paid = !!b.financeGroup; const multi = !!b.purchaseGroup;
     const head = hard ? `Удалить закуп «${b.productName}»?` : `Отменить закуп «${b.productName}»?`;
@@ -128,6 +158,8 @@ export default function PurchasesPage() {
                       <td style={{ fontSize: 12 }}>{b.docNo || '—'}</td>
                       <td className="erp-muted" style={{ fontSize: 12 }}>{b.author || '—'}</td>
                       <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                        {!rev && <button className="erp-icon-btn" title="Редактировать (дата, поставщик, №)" onClick={() => openEdit(b)}>✏️</button>}
+                        {!rev && !b.financeGroup && <button className="erp-icon-btn" title="Погасить долг" style={{ color: '#16a34a' }} onClick={() => openPayDebt(b)}>💵</button>}
                         {!rev && <button className="erp-icon-btn" title="Отменить (склад + деньги, строка останется)" onClick={() => reverse(b, false)}>↩️</button>}
                         <button className="erp-icon-btn" title="Удалить закуп" style={{ color: '#dc2626' }} onClick={() => reverse(b, true)}>🗑️</button>
                       </td>
@@ -214,6 +246,44 @@ export default function PurchasesPage() {
             <div className="erp-muted" style={{ fontSize: 11 }}>Одна строка без суммы — спишется вся стоимость закупа с выбранного счёта. Каждая строка = свой расход в Финансах (source «Закуп»). Отмена/удаление закупа вернёт и товар, и деньги.</div>
           </div>
         )}
+      </Modal>
+
+      {/* Редактирование закупа: дата / поставщик / № документа */}
+      <Modal open={!!edit} onClose={() => setEdit(null)} title="✏️ Редактировать закуп" width={480}
+        footer={<><Button onClick={saveEdit} disabled={edit?.saving}>{edit?.saving ? 'Сохранение…' : '💾 Сохранить'}</Button><Button variant="outline" onClick={() => setEdit(null)}>Отмена</Button></>}>
+        {edit?.err && <div className="erp-form-err">{edit.err}</div>}
+        <div className="erp-form-row">
+          <Field label="Дата закупа"><Input type="date" value={edit?.moveDate || ''} onChange={e => setEdit(s => s && { ...s, moveDate: e.target.value })} /></Field>
+          <Field label="Поставщик"><Input value={edit?.supplier || ''} onChange={e => setEdit(s => s && { ...s, supplier: e.target.value })} /></Field>
+        </div>
+        <Field label="№ документа"><Input value={edit?.docNo || ''} onChange={e => setEdit(s => s && { ...s, docNo: e.target.value })} /></Field>
+        <div className="erp-muted" style={{ fontSize: 11, marginTop: 8 }}>Меняются дата/поставщик/№ у всех позиций этого закупа. Кол-во/цену/оплату здесь не правим — через отмену и повторный закуп (чтобы склад и деньги пересчитались корректно).</div>
+      </Modal>
+
+      {/* Погашение долга */}
+      <Modal open={!!pay} onClose={() => setPay(null)} title="💵 Погасить долг" width={480}
+        footer={<><Button onClick={savePayDebt} disabled={pay?.saving}>{pay?.saving ? 'Проведение…' : '💳 Погасить'}</Button><Button variant="outline" onClick={() => setPay(null)}>Отмена</Button></>}>
+        {pay?.err && <div className="erp-form-err">{pay.err}</div>}
+        <div className="erp-muted" style={{ fontSize: 13, marginBottom: 8 }}>Долг: <b style={{ color: '#b45309' }}>{fmt(pay?.cost || 0)} ₸</b>{pay && pay.count > 1 ? ` · ${pay.count} поз.` : ''}. Оплата проведётся выбранной датой (по умолчанию — сегодня; сам закуп остаётся своей датой).</div>
+        <Field label="Дата оплаты"><Input type="date" value={pay?.payDate || ''} onChange={e => setPay(s => s && { ...s, payDate: e.target.value })} /></Field>
+        <div className="cert-sec-lbl">🧾 С каких счетов списать</div>
+        <div className="sale-pay" style={{ marginTop: 0 }}>
+          {pay?.rows.map((p, i) => (
+            <div className="sale-pay-row" key={i}>
+              <Select value={p.accountId} onChange={e => setPay(s => s && { ...s, rows: s.rows.map((r, j) => j === i ? { ...r, accountId: e.target.value } : r) })}>
+                <option value="">— выберите счёт —</option>
+                {accGroups.map(g => g.accs.length === 0 ? null : (
+                  <optgroup key={g.key} label={`№${g.no} ${g.label}`}>
+                    {g.accs.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name} · {fmt(a.balance ?? 0)}</option>)}
+                  </optgroup>
+                ))}
+              </Select>
+              <Input type="number" min={0} value={p.amount} onChange={e => setPay(s => s && { ...s, rows: s.rows.map((r, j) => j === i ? { ...r, amount: e.target.value } : r) })} placeholder="сумма" style={{ textAlign: 'right' }} />
+              <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => setPay(s => s && { ...s, rows: s.rows.length > 1 ? s.rows.filter((_, j) => j !== i) : s.rows })} title="Убрать">✕</button>
+            </div>
+          ))}
+          <Button variant="outline" onClick={() => setPay(s => s && { ...s, rows: [...s.rows, { accountId: '', amount: '' }] })} style={{ fontSize: 12 }}>+ Добавить счёт</Button>
+        </div>
       </Modal>
     </div>
   );

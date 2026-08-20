@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { productsRepo } from '@/server/repositories/products.repo';
 import { financeRepo } from '@/server/repositories/finance.repo';
 import { financeService } from '@/server/services/finance.service';
-import { stockMovementSchema, productUpdateSchema, purchaseCreateSchema, STOCK_SIGN, canApplyStock } from '@/server/dto/products.dto';
+import { stockMovementSchema, productUpdateSchema, purchaseCreateSchema, purchaseUpdateSchema, purchasePaySchema, STOCK_SIGN, canApplyStock } from '@/server/dto/products.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
 export { STOCK_SIGN };
@@ -177,6 +177,74 @@ export const productsService = {
         else if (!mv.reversedAt) await productsRepo.markMovementReversed(mv.id, tx);
       }
       return { ok: true, count: group.length };
+    });
+  },
+
+  // ── Правка метаданных закупа (дата закупа / поставщик / № документа) ──
+  // Меняет всю группу мультизакупа. Кол-во/цену/оплату НЕ трогает. Дату оплаты
+  // (финоперацию) НЕ двигает — оплата это отдельный факт (у долга payDate ≠ дата
+  // закупа). Поставщика/№ синхронизирует и в связанных расходах (косметика).
+  async updatePurchase(id: string, input: unknown) {
+    if (!id) throw badRequest('id обязателен');
+    const { moveDate, supplier, docNo } = purchaseUpdateSchema.parse(input);
+    return db.transaction(async (tx) => {
+      const m = await productsRepo.findMovement(id, tx);
+      if (!m) throw notFound('Закуп не найден');
+      if (m.certId) throw badRequest('Движение поверки — правится через поверку, не здесь');
+      if (m.reversedAt) throw badRequest('Отменённый закуп редактировать нельзя');
+      const group = m.purchaseGroup ? await productsRepo.movementsByPurchaseGroup(m.purchaseGroup, tx) : [m];
+      const patch: Record<string, unknown> = {};
+      if (moveDate !== undefined) patch.moveDate = moveDate || null;
+      if (supplier !== undefined) patch.supplier = supplier || null;
+      if (docNo !== undefined) patch.docNo = docNo || null;
+      if (Object.keys(patch).length) {
+        for (const mv of group) if (!mv.reversedAt) await productsRepo.updateMovement(mv.id, patch, tx);
+      }
+      // Поставщик/№ — обновить и в связанных расходах (дату оплаты не трогаем).
+      if (m.financeGroup && (supplier !== undefined || docNo !== undefined)) {
+        const ops = await financeRepo.findByGroup(m.financeGroup, tx);
+        for (const op of ops) {
+          if (op.reversedAt || op.reverses) continue;
+          const opatch: Record<string, unknown> = {};
+          if (supplier !== undefined) opatch.supplier = supplier || null;
+          if (docNo !== undefined) opatch.docNo = docNo || null;
+          if (Object.keys(opatch).length) await financeRepo.updateOperation(op.id, opatch, tx);
+        }
+      }
+      return { ok: true };
+    });
+  },
+
+  // ── Погашение долга по закупу ──
+  // Долговой закуп (без finance_group) → создаём Расход(ы) со счёта(ов) на всю
+  // стоимость, дата оплаты = payDate или СЕГОДНЯ (закуп мог быть раньше), и
+  // проставляем finance_group на все позиции. Идемпотентно: уже оплаченный — ошибка.
+  async payPurchaseDebt(id: string, input: unknown, actor?: Actor) {
+    if (!id) throw badRequest('id обязателен');
+    const { payments, payDate } = purchasePaySchema.parse(input);
+    return db.transaction(async (tx) => {
+      const m = await productsRepo.findMovement(id, tx);
+      if (!m) throw notFound('Закуп не найден');
+      if (m.reversedAt) throw badRequest('Отменённый закуп нельзя оплатить');
+      if (m.financeGroup) throw badRequest('Этот закуп уже оплачен');
+      const group = m.purchaseGroup ? await productsRepo.movementsByPurchaseGroup(m.purchaseGroup, tx) : [m];
+      const live = group.filter(mv => !mv.reversedAt);
+      const cost = Math.round(live.reduce((s, mv) => s + (Number(mv.totalSum) || (Number(mv.qty) || 0) * (Number(mv.price) || 0)), 0) * 100) / 100;
+      if (cost <= 0) throw badRequest('У закупа нулевая стоимость');
+      const paid = Math.round(payments.reduce((s, p) => s + (Number(p.amount) || 0), 0) * 100) / 100;
+      if (Math.abs(paid - cost) > 0.01) throw badRequest(`Сумма оплат (${money(paid)}) должна равняться долгу (${money(cost)})`);
+      const financeGroup = randomUUID();
+      const first = live[0]?.productName || '';
+      const name = (live.length > 1 ? `Погашение долга: ${first} +${live.length - 1} поз.` : `Погашение долга: ${first} ×${live[0]?.qty ?? ''}`).slice(0, 200);
+      for (const p of payments) {
+        await financeService.createOperation({
+          opType: 'Расход', accountId: p.accountId, amount: money(p.amount),
+          name, source: 'Закуп', supplier: m.supplier || undefined, docNo: m.docNo || undefined,
+          opDate: payDate || undefined, expenseGroupId: financeGroup,
+        }, actor?.id ?? null, tx);
+      }
+      for (const mv of live) await productsRepo.updateMovement(mv.id, { financeGroup }, tx);
+      return { ok: true, cost: money(cost) };
     });
   },
 
