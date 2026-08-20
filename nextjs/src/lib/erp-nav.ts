@@ -65,6 +65,10 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Категории', screenKey: 'expenses', href: '/erp/expenses/categories' },
     { label: 'Аналитика', screenKey: 'expenses', href: '/erp/expenses/analytics' },
   ] },
+  { title: 'Склад', icon: '🏭', zone: 'ops', items: [
+    { label: 'Журнал склада', screenKey: 'warehouse', href: '/erp/warehouse' },
+    { label: '🛒 Закупки', screenKey: 'purchases', href: '/erp/purchases' },
+  ] },
   { title: 'Бухгалтерия', icon: '📒', zone: 'ops', items: [
     { label: 'Документы', screenKey: 'accounting', href: '/erp/documents' },
   ] },
@@ -77,10 +81,6 @@ export const ERP_NAV: NavSection[] = [
   ] },
   { title: 'Задачи', icon: '✅', zone: 'ops', items: [
     { label: 'Задачи сотрудникам', screenKey: 'tasks', href: '/erp/tasks' },
-  ] },
-  { title: 'Склад', icon: '🏭', zone: 'ops', items: [
-    { label: 'Журнал склада', screenKey: 'warehouse', href: '/erp/warehouse' },
-    { label: '🛒 Закупки', screenKey: 'purchases', href: '/erp/purchases' },
   ] },
   { title: 'Сотрудники', icon: '👥', zone: 'ops', items: [
     { label: 'Руководитель', screenKey: 'staff', href: '/erp/staff/directory' },
