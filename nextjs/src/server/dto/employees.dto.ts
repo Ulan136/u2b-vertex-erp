@@ -26,15 +26,18 @@ export const salaryPaymentSchema = z.object({
 export type SalaryPaymentInput = z.infer<typeof salaryPaymentSchema>;
 
 // ── Salary privacy ────────────────────────────────────────────
-// Зарплата и выплаты Директора и Админа видны ТОЛЬКО им самим. Всем остальным
-// (включая бухгалтера) суммы скрыты — enforce на сервере, не только в UI.
+// Зарплата и выплаты Директора и Админа приватны: их видит/выплачивает сам
+// сотрудник И Админ (владелец — ведёт зарплату руководства). Бухгалтеру/
+// менеджерам/мастерам суммы руководства скрыты. Enforce на сервере, не только в UI.
 export const SALARY_PRIVATE_ROLES = ['director', 'admin'];
 
 export function canSeeSalary(
   viewerId: string | null | undefined,
   empUserId: string,
   empRole: string | null | undefined,
+  viewerRole?: string | null | undefined,
 ): boolean {
+  if (viewerRole === 'admin') return true;                          // владелец видит/платит всех
   if (viewerId && empUserId && viewerId === empUserId) return true; // сам себя видит всегда
   return !SALARY_PRIVATE_ROLES.includes(empRole || '');
 }

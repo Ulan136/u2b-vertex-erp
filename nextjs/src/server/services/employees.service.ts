@@ -11,12 +11,14 @@ import { badRequest, notFound, forbidden, conflict } from '@/server/lib/errors';
 const money = (n: number) => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
 const thisMonth = () => monthKey(new Date().toISOString());
 
+type Viewer = { id?: string | null; role?: string | null } | null | undefined;
+
 // Скрыть суммы, если смотрящий не имеет права видеть зарплату сотрудника.
 function maskEmployee<T extends { userId: string; role?: string | null }>(
   emp: T & { fixedSalary?: unknown; paidThisMonth?: unknown; remaining?: unknown; advanceIn?: unknown },
-  viewerId: string | null | undefined,
+  viewer: Viewer,
 ) {
-  const canSee = canSeeSalary(viewerId, emp.userId, emp.role);
+  const canSee = canSeeSalary(viewer?.id, emp.userId, emp.role, viewer?.role);
   if (canSee) return { ...emp, salaryHidden: false };
   return {
     ...emp,
@@ -30,7 +32,7 @@ function maskEmployee<T extends { userId: string; role?: string | null }>(
 
 export const employeesService = {
   // Список сотрудников с расчётом статуса за текущий месяц + маскировка приватных.
-  async list(viewerId: string | null | undefined) {
+  async list(viewer: Viewer) {
     const month = thisMonth();
     const [rows, payments] = await Promise.all([
       employeesRepo.listEmployees(),
@@ -55,7 +57,7 @@ export const employeesService = {
         paidThisMonth: st.paidThisMonth,
         remaining: st.remaining,
         advanceIn: st.advanceIn,
-      }, viewerId);
+      }, viewer);
     });
     return { month, employees };
   },
@@ -88,21 +90,21 @@ export const employeesService = {
   },
 
   // Выплаты сотрудника (с проверкой приватности).
-  async payments(userId: string, viewerId: string | null | undefined) {
+  async payments(userId: string, viewer: Viewer) {
     const user = await employeesRepo.findUser(userId);
     if (!user) throw notFound('Сотрудник не найден');
-    if (!canSeeSalary(viewerId, userId, user.role)) throw forbidden('Зарплата скрыта');
+    if (!canSeeSalary(viewer?.id, userId, user.role, viewer?.role)) throw forbidden('Зарплата скрыта');
     return employeesRepo.paymentsFor(userId);
   },
 
   // Зарегистрировать выплату → реальный Расход в финансах + запись в кадрах.
-  async recordPayment(userId: string, input: unknown, actor?: { id: string } | null) {
+  async recordPayment(userId: string, input: unknown, actor?: { id: string; role?: string | null } | null) {
     const data = salaryPaymentSchema.parse(input);
     const user = await employeesRepo.findUser(userId);
     if (!user) throw notFound('Сотрудник не найден');
 
-    // Приватность: выплаты Директору/Админу может проводить только он сам.
-    if (!canSeeSalary(actor?.id, userId, user.role)) throw forbidden('Нет доступа к зарплате сотрудника');
+    // Приватность: выплаты Директору/Админу проводит он сам ИЛИ Админ (владелец).
+    if (!canSeeSalary(actor?.id, userId, user.role, actor?.role)) throw forbidden('Нет доступа к зарплате сотрудника');
 
     const salary = await employeesRepo.findSalary(userId);
     if (!salary) throw badRequest('У сотрудника не задан оклад');
