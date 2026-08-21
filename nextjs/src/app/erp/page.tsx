@@ -7,6 +7,7 @@ import { Card, PageTitle, Badge } from '@/components/ui';
 import { isRealIncome, isRealExpense } from '@/server/dto/finance.dto';
 import { opIcon, opName, opSign, opAmountColor, isReversed } from '@/lib/opDisplay';
 import { payColor } from '@/lib/status';
+import { purchaseDebts, pendingReceivables, type MoveLite } from '@/lib/pending';
 
 type Acct = { id: string; name: string; section?: string | null; balance?: string | number | null; icon?: string | null };
 type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null };
@@ -15,7 +16,7 @@ type Task = { id: string; title: string; status?: string | null; completedAt?: s
 type Order = { status?: string | null };
 type Cert = { id: string; source?: string | null; docType?: string | null; operStatus?: string | null; payStatus?: string | null; fio?: string | null; meterType?: string | null; serialNo?: string | null; createdAt?: string | null };
 type Product = { id: string; skuCode: string; name: string; minStock: number; currentStock: number; reserved?: number | null };
-type Sale = { id: string; saleNo?: string | null; clientName?: string | null; productName?: string | null; qty?: number; totalSum?: string | number; payStatus?: string | null; cancelledAt?: string | null };
+type Sale = { id: string; saleNo?: string | null; clientName?: string | null; productName?: string | null; qty?: number; totalSum?: string | number; paidSum?: string | number; payStatus?: string | null; cancelledAt?: string | null };
 
 const num = (v: unknown) => Number(v) || 0;
 const money = (n: number | string) => Math.round(num(n)).toLocaleString('ru-RU') + ' ₸';
@@ -48,6 +49,7 @@ export default function Dashboard() {
   const certs = useApi<Cert[]>('/api/v2/certs');
   const products = useApi<Product[]>('/api/v2/products');
   const sales = useApi<Sale[]>('/api/v2/sales');
+  const movements = useApi<MoveLite[]>('/api/v2/products/movements?type=IN&limit=500');
 
   const accounts = fin.data?.accounts || [];
   const ops = fin.data?.operations || [];
@@ -62,6 +64,10 @@ export default function Dashboard() {
   const receivable = debtList.filter(d => d.type === 'debit' && d.status !== 'closed').reduce((s, d) => s + Math.max(0, num(d.amount) - num(d.paidAmount)), 0);
   const payable = debtList.filter(d => d.type === 'credit' && d.status !== 'closed').reduce((s, d) => s + Math.max(0, num(d.amount) - num(d.paidAmount)), 0);
   const payableOverdue = debtList.some(d => d.type === 'credit' && d.status !== 'closed' && d.dueDate && String(d.dueDate).slice(0, 10) < today);
+
+  // Вычисляемые долги (не из ручного реестра): закупы «В долг» + ожидаемые поступления.
+  const supDebt = purchaseDebts(movements.data || []);
+  const pend = pendingReceivables(sales.data || [], certs.data || []);
 
   const taskList = tasks.data || [];
   const openTasks = taskList.filter(t => t.status !== 'done' && !t.completedAt);
@@ -120,7 +126,9 @@ export default function Dashboard() {
         <Kpi icon="💳" label="Касса (все счета)" value={fin.error ? '—' : money(cash)} sub={`${accounts.length} счетов`} href="/erp/finance" />
         <Kpi icon="📥" label="Доходы (месяц)" value={fin.error ? '—' : money(income)} tone="#16a34a" href="/erp/finance" />
         <Kpi icon="📤" label="Расходы (месяц)" value={fin.error ? '—' : money(expense)} tone="#dc2626" href="/erp/expenses" />
-        <Kpi icon="🧾" label="Дебиторка" value={debts.error ? '—' : money(receivable)} sub="нам должны" href="/erp/debts" />
+        <Kpi icon="🧾" label="Дебиторка" value={debts.error ? '—' : money(receivable)} sub="нам должны (реестр)" href="/erp/debts" />
+        <Kpi icon="🏭" label="Долг поставщикам" value={movements.error ? '—' : money(supDebt.total)} sub={supDebt.count ? `закупы в долг · ${supDebt.bySupplier.length} пост.` : 'нет долгов'} tone={supDebt.total ? '#dc2626' : undefined} href="/erp/purchases" />
+        <Kpi icon="⏳" label="Ждём оплаты (нам должны)" value={(sales.error && certs.error) ? '—' : money(pend.total)} sub={`продажи ${money(pend.salesTotal)} · поверки ${money(pend.certsTotal)}`} tone={pend.total ? '#b45309' : undefined} href="/erp/finance" />
         <Kpi icon="✅" label="Открытые задачи" value={tasks.error ? '—' : String(openTasks.length)} sub={overdueTasks.length ? `${overdueTasks.length} просрочено` : `всего ${taskList.length}`} tone={overdueTasks.length ? '#dc2626' : undefined} href="/erp/tasks" />
         <Kpi icon="📥" label="Заявки в работе" value={(ordF.error && ordT.error) ? '—' : String(ordersInWork)} href="/erp/orders" />
       </div>
