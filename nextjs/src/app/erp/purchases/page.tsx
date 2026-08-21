@@ -5,7 +5,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 
-type Movement = { id: string; skuCode?: string | null; productName?: string | null; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; author?: string | null; moveDate?: string | null; financeGroup?: string | null; purchaseGroup?: string | null; reversedAt?: string | null };
+type Movement = { id: string; skuCode?: string | null; productName?: string | null; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; author?: string | null; moveDate?: string | null; comment?: string | null; financeGroup?: string | null; purchaseGroup?: string | null; reversedAt?: string | null };
 type Product = { id: string; skuCode: string; name: string; price: string | number; costPrice?: string | number | null; currentStock: number };
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; sortOrder?: number | null; balance?: string | number | null };
 type Pay = { accountId: string; amount: string };
@@ -31,8 +31,13 @@ export default function PurchasesPage() {
   const [edit, setEdit] = React.useState<{ id: string; moveDate: string; supplier: string; docNo: string; saving: boolean; err: string } | null>(null);
   const [pay, setPay] = React.useState<{ id: string; cost: number; count: number; payDate: string; rows: Pay[]; saving: boolean; err: string } | null>(null);
 
-  const live = (buys || []).filter(b => !b.reversedAt);
-  const list = (buys || []).filter(b => !q.trim() || (`${b.productName} ${b.skuCode} ${b.supplier || ''}`).toLowerCase().includes(q.toLowerCase()));
+  // Закупки = только настоящие закупы. Возвраты товара из продаж (правка/отмена
+  // продажи) — это тоже приход (IN), но НЕ закуп: их место в «Журнале склада»,
+  // здесь они не показываются (иначе выглядят как «купили в долг» — неверно).
+  const isSalesReturn = (b: Movement) => /возврат|отмена продажи/i.test(b.comment || '');
+  const purchases = (buys || []).filter(b => !isSalesReturn(b));
+  const live = purchases.filter(b => !b.reversedAt);
+  const list = purchases.filter(b => !q.trim() || (`${b.productName} ${b.skuCode} ${b.supplier || ''}`).toLowerCase().includes(q.toLowerCase()));
   const totalSum = live.reduce((s, b) => s + num(b.totalSum), 0);
 
   // ── позиции ──
