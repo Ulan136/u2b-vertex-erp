@@ -3,7 +3,9 @@ import * as React from 'react';
 import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
+import Link from 'next/link';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
+import { purchaseDebts, pendingReceivables, type MoveLite, type SaleLite, type CertLite } from '@/lib/pending';
 
 type Debt = { id: string; type: string; amount: string | number; paidAmount: string | number; status: string; clientName?: string | null; counterpartyName?: string | null; accountId?: string | null; accountName?: string | null; dueDate?: string | null; comment?: string | null; createdByName?: string | null; categoryId?: string | null; categoryName?: string | null; categoryIcon?: string | null };
 type Payment = { id: string; amount: string | number; payDate?: string | null; accountId?: string | null; comment?: string | null; financeOpId?: string | null };
@@ -38,6 +40,12 @@ export default function DebtsPage() {
   const { data: all } = useApi<Debt[]>('/api/v2/debts');
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
   const { data: cats, mutate: mutateCats } = useApi<Cat[]>('/api/v2/debt-categories');
+  // Авто-долги (не в реестре): закупы «В долг» → мы должны; продажи/поверки в ожидании → нам должны.
+  const { data: movs } = useApi<MoveLite[]>('/api/v2/products/movements?type=IN&limit=500');
+  const { data: salesD } = useApi<SaleLite[]>('/api/v2/sales');
+  const { data: certsD } = useApi<CertLite[]>('/api/v2/certs');
+  const supDebt = purchaseDebts(movs || []);
+  const pend = pendingReceivables(salesD || [], certsD || []);
   const accounts = React.useMemo(() => (fin?.accounts || []).slice().sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)), [fin]);
   const catList = cats || [];
 
@@ -146,10 +154,20 @@ export default function DebtsPage() {
       <PageTitle title="Долги" sub="Кредиторка и дебиторка — по остаткам" action={<Button onClick={openNew}>+ Долг</Button>} />
 
       <div className="erp-kpi-grid">
-        <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">📤</span><span className="erp-kpi-label">Мы должны (остаток)</span></div><div className="erp-kpi-val" style={{ color: '#dc2626' }}>{fmt(sumRem('credit'))}</div></div>
-        <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">📥</span><span className="erp-kpi-label">Нам должны (остаток)</span></div><div className="erp-kpi-val" style={{ color: '#16a34a' }}>{fmt(sumRem('debit'))}</div></div>
-        <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">⏰</span><span className="erp-kpi-label">Просрочено</span></div><div className="erp-kpi-val" style={{ color: '#b45309' }}>{fmt(overdueSum)}</div></div>
+        <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">📤</span><span className="erp-kpi-label">Мы должны (всего)</span></div><div className="erp-kpi-val" style={{ color: '#dc2626' }}>{fmt(sumRem('credit') + supDebt.total)}</div><div className="erp-kpi-sub">реестр {fmt(sumRem('credit'))} + поставщики {fmt(supDebt.total)}</div></div>
+        <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">📥</span><span className="erp-kpi-label">Нам должны (всего)</span></div><div className="erp-kpi-val" style={{ color: '#16a34a' }}>{fmt(sumRem('debit') + pend.total)}</div><div className="erp-kpi-sub">реестр {fmt(sumRem('debit'))} + ожидают {fmt(pend.total)}</div></div>
+        <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">⏰</span><span className="erp-kpi-label">Просрочено (реестр)</span></div><div className="erp-kpi-val" style={{ color: '#b45309' }}>{fmt(overdueSum)}</div></div>
       </div>
+
+      {/* Авто-долги — не в ручном реестре ниже, а вычислены из закупов/продаж/поверок */}
+      {(supDebt.total > 0 || pend.total > 0) && (
+        <Card style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', padding: 12, background: '#f8fafc' }}>
+          <span className="erp-muted" style={{ fontSize: 12, fontWeight: 700 }}>Авто (вне реестра):</span>
+          <Link href="/erp/purchases" style={{ textDecoration: 'none', color: 'inherit' }}>🏭 Долг поставщикам (закупы в долг): <b style={{ color: '#dc2626' }}>{fmt(supDebt.total)}</b>{supDebt.bySupplier.length ? <span className="erp-muted"> · {supDebt.bySupplier.length} пост.</span> : null} <span style={{ color: '#2563eb', fontSize: 12 }}>→ Закупки</span></Link>
+          <Link href="/erp/finance" style={{ textDecoration: 'none', color: 'inherit' }}>⏳ Ждём оплаты (продажи+поверки): <b style={{ color: '#16a34a' }}>{fmt(pend.total)}</b> <span style={{ color: '#2563eb', fontSize: 12 }}>→ Финансы</span></Link>
+          <span className="erp-muted" style={{ fontSize: 11, flexBasis: '100%' }}>Это не записи ручного реестра — они считаются автоматически. Реестр ниже ведёшь вручную (напр. займы, разовые долги).</span>
+        </Card>
+      )}
 
       <Card className="erp-filters" style={{ marginTop: 12, flexWrap: 'wrap', gap: 8 }}>
         <div className="erp-chips">

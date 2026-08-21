@@ -68,6 +68,8 @@ export default function Dashboard() {
   // Вычисляемые долги (не из ручного реестра): закупы «В долг» + ожидаемые поступления.
   const supDebt = purchaseDebts(movements.data || []);
   const pend = pendingReceivables(sales.data || [], certs.data || []);
+  const payableAll = payable + supDebt.total;      // мы должны = реестр + долг поставщикам
+  const receivableAll = receivable + pend.total;   // нам должны = реестр + ожидают оплаты
 
   const taskList = tasks.data || [];
   const openTasks = taskList.filter(t => t.status !== 'done' && !t.completedAt);
@@ -117,7 +119,7 @@ export default function Dashboard() {
       <PageTitle title="Рабочий стол" sub="Оперативная сводка по реальным данным · нажмите на карточку, чтобы перейти" />
 
       <div className="erp-kpi-grid">
-        <Kpi icon="📤" label="Кредиторка (мы должны)" value={debts.error ? '—' : money(payable)} sub={payableOverdue ? '⚠ есть просрочка' : 'остаток'} tone={payableOverdue ? '#dc2626' : undefined} href="/erp/debts" />
+        <Kpi icon="📤" label="Кредиторка (мы должны)" value={money(payableAll)} sub={`реестр ${money(payable)} + поставщики ${money(supDebt.total)}`} tone={payableOverdue || supDebt.total ? '#dc2626' : undefined} href="/erp/debts" />
         <Kpi icon="📋" label="Поверок всего" value={certs.error ? '—' : String(totalCerts)} sub={`${ktrmPct}% внесено в КТРМ`} href="/erp/certs" />
         <Kpi icon="✅" label="Внесено в КТРМ" value={certs.error ? '—' : String(ktrmDone)} tone="#16a34a" sub={`из ${totalCerts}`} href="/erp/certs" />
         <Kpi icon="🤖" label="В очереди КТРМ" value={certs.error ? '—' : String(inQueue)} tone="#b45309" sub={inQueue ? 'ждут робота' : 'очередь пуста ✓'} href="/erp/certs" />
@@ -126,9 +128,7 @@ export default function Dashboard() {
         <Kpi icon="💳" label="Касса (все счета)" value={fin.error ? '—' : money(cash)} sub={`${accounts.length} счетов`} href="/erp/finance" />
         <Kpi icon="📥" label="Доходы (месяц)" value={fin.error ? '—' : money(income)} tone="#16a34a" href="/erp/finance" />
         <Kpi icon="📤" label="Расходы (месяц)" value={fin.error ? '—' : money(expense)} tone="#dc2626" href="/erp/expenses" />
-        <Kpi icon="🧾" label="Дебиторка" value={debts.error ? '—' : money(receivable)} sub="нам должны (реестр)" href="/erp/debts" />
-        <Kpi icon="🏭" label="Долг поставщикам" value={movements.error ? '—' : money(supDebt.total)} sub={supDebt.count ? `закупы в долг · ${supDebt.bySupplier.length} пост.` : 'нет долгов'} tone={supDebt.total ? '#dc2626' : undefined} href="/erp/purchases" />
-        <Kpi icon="⏳" label="Ждём оплаты (нам должны)" value={(sales.error && certs.error) ? '—' : money(pend.total)} sub={`продажи ${money(pend.salesTotal)} · поверки ${money(pend.certsTotal)}`} tone={pend.total ? '#b45309' : undefined} href="/erp/finance" />
+        <Kpi icon="🧾" label="Дебиторка (нам должны)" value={money(receivableAll)} sub={`реестр ${money(receivable)} + ожидают ${money(pend.total)}`} tone={pend.total ? '#b45309' : undefined} href="/erp/debts" />
         <Kpi icon="✅" label="Открытые задачи" value={tasks.error ? '—' : String(openTasks.length)} sub={overdueTasks.length ? `${overdueTasks.length} просрочено` : `всего ${taskList.length}`} tone={overdueTasks.length ? '#dc2626' : undefined} href="/erp/tasks" />
         <Kpi icon="📥" label="Заявки в работе" value={(ordF.error && ordT.error) ? '—' : String(ordersInWork)} href="/erp/orders" />
       </div>
