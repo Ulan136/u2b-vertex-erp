@@ -43,6 +43,15 @@ export function Field({ label, children, required }: { label: string; children: 
   return <label className="ui-field"><span className="ui-field-label">{label}{required && ' *'}</span>{children}</label>;
 }
 export const Input = (p: React.InputHTMLAttributes<HTMLInputElement>) => <input className="ui-input" {...p} />;
+// Поле суммы: показывает число с разделением тысяч (300 000), а хранит «сырую»
+// числовую строку (300000). onValue отдаёт сырое значение (только цифры + точка).
+export function MoneyInput({ value, onValue, ...rest }: { value: string | number | null | undefined; onValue: (v: string) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'>) {
+  const raw = value == null ? '' : String(value);
+  const n = raw.replace(/\s/g, '');
+  const display = n === '' ? '' : (n.includes('.') ? n : (Number(n) || 0).toLocaleString('ru-RU'));
+  return <input className="ui-input" type="text" inputMode="decimal" value={display}
+    onChange={e => onValue(e.target.value.replace(/[^\d.]/g, ''))} {...rest} />;
+}
 export const Textarea = (p: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea className="ui-input ui-textarea" {...p} />;
 export const Select = (p: React.SelectHTMLAttributes<HTMLSelectElement>) => <select className="ui-input" {...p} />;
 

@@ -15,6 +15,13 @@ type Op = { id: string; opType: string; accountId: string; accountName?: string 
 // не перевод (нет 2-го счёта для отката), не начальный остаток, и не связана с
 // продажей/сертификатом (у тех своя отмена: отмена продажи / снятие «Оплачено»).
 const canReverseOp = (o: Op) => !isReversed(o) && !isReversal(o) && o.opType !== 'Перевод' && o.source !== 'Старт' && !o.saleId && !o.certId;
+// Ссылка на исходный документ операции (чтобы не искать вручную).
+const sourceLink = (o: Op): string | null =>
+  o.saleId ? '/erp/sales' : o.certId ? '/erp/certs'
+  : o.source === 'Закуп' ? '/erp/purchases'
+  : o.source === 'Зарплата' ? '/erp/staff'
+  : (o.source === 'Расходы' || (o.opType === 'Расход' && o.source !== 'Старт')) ? '/erp/expenses'
+  : null;
 
 const SECTIONS = [
   { key: 'poverka', no: 1, label: 'Поверка', icon: '📋', color: '#2563eb' },
@@ -167,6 +174,7 @@ export default function FinancePage() {
           {cats.map(c => {
             const sec = SECTIONS.find(s => s.key === c)!;
             const accs = sortAccs(accounts.filter(a => (a.section || 'other') === c));
+            const accNoById = new Map(accs.map((a, i) => [a.id, i + 1]));   // № счёта внутри раздела
             const total = accs.reduce((s, a) => s + (Number(a.balance) || 0), 0);
             const movs = ops.filter(o => secOf(o.accountId) === c).sort((a, b) => String(b.opDate).localeCompare(String(a.opDate)));
             // связь отменённой пары: исходная ↔ её сторно (для подсказки «связана с …»)
@@ -187,8 +195,10 @@ export default function FinancePage() {
                     <div className="erp-fin-mov" key={o.id} title={pairTitle(o)}>
                       <span style={{ flexShrink: 0 }}>{opIcon(o)}</span>
                       <span className="erp-fin-movd">{dmy(o.opDate)}</span>
+                      <span title={o.accountName || ''} style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: '#475569', background: '#eef2f7', borderRadius: 5, padding: '0 5px' }}>№{accNoById.get(o.accountId) ?? '?'}</span>
                       <span className="erp-fin-movt" style={isReversed(o) ? { textDecoration: 'line-through', opacity: .55 } : undefined}>{opName(o)}{o.createdByName ? <span className="erp-muted" style={{ marginLeft: 6, fontSize: 10 }}>· {o.createdByName}</span> : null}</span>
                       <span style={{ color: opAmountColor(o), fontWeight: 700, whiteSpace: 'nowrap' }}>{opSign(o)}{fmt(o.amount)}</span>
+                      {sourceLink(o) && <Link href={sourceLink(o)!} title="Открыть исходный документ" className="erp-icon-btn" style={{ flexShrink: 0, fontSize: 12, padding: '0 4px', lineHeight: 1, textDecoration: 'none' }}>🔗</Link>}
                       {canReverseOp(o) && <button className="erp-icon-btn" title="Отменить операцию (сторно)" style={{ color: '#dc2626', flexShrink: 0, fontSize: 12, padding: '0 4px', lineHeight: 1 }} onClick={() => reverseOp(o)}>↩️</button>}
                     </div>
                   ))}

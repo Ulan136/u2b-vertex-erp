@@ -3,7 +3,7 @@ import * as React from 'react';
 import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
+import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow, DateRange } from '@/components/ui';
 import { useCols, ColumnMenu } from '@/components/erp/ColumnMenu';
 
 // Колонки журнала расходов для попапа «Колонки» (№/Сумма/Действия всегда видны).
@@ -252,7 +252,7 @@ export default function ExpensesPage() {
         <div className="cert-sec-lbl">📋 Детали</div>
         <div className="erp-form-row">
           <Field label="Дата" required><Input type="date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field>
-          <Field label="Сумма (₸)" required><Input type="number" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} disabled={!!f.editId} /></Field>
+          <Field label="Сумма (₸)" required><MoneyInput value={f.amount} onValue={v => setF({ ...f, amount: v })} disabled={!!f.editId} placeholder="0" /></Field>
         </div>
         <Field label="Описание расхода" required={!isSalary}><Input value={f.desc} onChange={e => setF({ ...f, desc: e.target.value })} placeholder={isSalary ? 'Необязательно — по умолчанию название категории' : 'Обязательно — за что расход'} /></Field>
         {isSalary && !f.editId
@@ -272,7 +272,7 @@ export default function ExpensesPage() {
                   </optgroup>
                 ))}
               </Select>
-              <Input type="number" min={0} value={p.amount} onChange={e => setPayAmount(i, e.target.value)} placeholder="сумма" style={{ textAlign: 'right' }} disabled={!!f.editId} />
+              <MoneyInput value={p.amount} onValue={v => setPayAmount(i, v)} placeholder="сумма" style={{ textAlign: 'right' }} disabled={!!f.editId} />
               <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => removePay(i)} title="Убрать" disabled={!!f.editId}>✕</button>
             </div>
           ))}

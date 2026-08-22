@@ -4,7 +4,7 @@ import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import Link from 'next/link';
-import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
+import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow, DateRange } from '@/components/ui';
 import { purchaseDebts, pendingReceivables, type MoveLite, type SaleLite, type CertLite } from '@/lib/pending';
 
 type Debt = { id: string; type: string; amount: string | number; paidAmount: string | number; status: string; clientName?: string | null; counterpartyName?: string | null; accountId?: string | null; accountName?: string | null; dueDate?: string | null; comment?: string | null; createdByName?: string | null; categoryId?: string | null; categoryName?: string | null; categoryIcon?: string | null };
@@ -294,8 +294,8 @@ export default function DebtsPage() {
           <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="название / ФИО" />
         </Field>
         <div className="erp-form-row">
-          <Field label="Сумма долга (₸)" required><Input type="number" min={0} value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} /></Field>
-          <Field label="Уже погашено на момент внесения"><Input type="number" min={0} value={form.paidNow} onChange={e => setForm(f => ({ ...f, paidNow: e.target.value }))} /></Field>
+          <Field label="Сумма долга (₸)" required><MoneyInput value={form.amount} onValue={v => setForm(f => ({ ...f, amount: v }))} placeholder="0" /></Field>
+          <Field label="Уже погашено на момент внесения"><MoneyInput value={form.paidNow} onValue={v => setForm(f => ({ ...f, paidNow: v }))} placeholder="0" /></Field>
         </div>
         <div className="erp-muted" style={{ fontSize: 11, marginTop: -4 }}>Стартовое «погашено» — исторический факт (деньги уходили до системы): операция в Финансах НЕ создаётся.{num(form.amount) > 0 && ` Остаток: ${fmt(Math.max(0, num(form.amount) - num(form.paidNow)))}.`}{catFilter ? ' Категория подставится из выбранного фильтра.' : ''}</div>
       </Modal>
@@ -327,7 +327,7 @@ export default function DebtsPage() {
                   <option value="">— счёт —</option>
                   {SECTIONS.map(([sk, sl]) => { const secAccs = accounts.filter(a => (a.section || 'other') === sk); return secAccs.length ? <optgroup key={sk} label={sl}>{secAccs.map(a => <option key={a.id} value={a.id}>{accLabel(a)}</option>)}</optgroup> : null; })}
                 </Select>
-                <Input type="number" min={0} value={r.amount} onChange={e => setRowAmt(i, e.target.value)} placeholder="сумма" style={{ flex: 1, minWidth: 90 }} />
+                <MoneyInput value={r.amount} onValue={v => setRowAmt(i, v)} placeholder="сумма" style={{ flex: 1, minWidth: 90 }} />
                 <button className="erp-icon-btn" title="Убрать счёт" style={{ color: '#dc2626', opacity: pay.rows.length > 1 ? 1 : .3 }} onClick={() => removeRow(i)} disabled={pay.rows.length <= 1}>✕</button>
               </div>
             ))}
