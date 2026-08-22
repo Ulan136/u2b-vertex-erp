@@ -3,7 +3,7 @@ import * as React from 'react';
 import { formatDate } from '@/lib/format';
 import { useApi, apiFetch, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import { Card, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow } from '@/components/ui';
 import { amountInWordsKzt } from '@/server/dto/documents.dto';
 import EntityHistory from '@/components/erp/EntityHistory';
 import ClientPicker from '@/components/erp/ClientPicker';
@@ -116,7 +116,7 @@ export default function DocumentsPage() {
           <tbody>{items.map((it, i) => <tr key={i}>
             <td><Input value={it.name} onChange={e => { const n = [...items]; n[i] = { ...it, name: e.target.value }; setItems(n); }} style={{ padding: '4px 6px' }} /></td>
             <td><Input type="number" value={String(it.qty)} onChange={e => { const n = [...items]; n[i] = { ...it, qty: Number(e.target.value) || 0 }; setItems(n); }} style={{ padding: 4, textAlign: 'center' }} /></td>
-            <td><Input type="number" value={String(it.price)} onChange={e => { const n = [...items]; n[i] = { ...it, price: Number(e.target.value) || 0 }; setItems(n); }} style={{ padding: 4, textAlign: 'right' }} /></td>
+            <td><MoneyInput value={String(it.price)} onValue={v => { const n = [...items]; n[i] = { ...it, price: Number(v) || 0 }; setItems(n); }} style={{ padding: 4, textAlign: 'right' }} /></td>
             <td style={{ textAlign: 'right' }}>{fmt((Number(it.qty) || 0) * (Number(it.price) || 0))}</td>
             <td style={{ textAlign: 'center' }}><button className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => setItems(items.filter((_, j) => j !== i))}>✕</button></td>
           </tr>)}</tbody>

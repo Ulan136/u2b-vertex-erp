@@ -2,7 +2,7 @@
 import * as React from 'react';
 import { useApi, apiSend, apiFetch } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow } from '@/components/ui';
 
 type Emp = { userId: string; name: string; position?: string | null; role: string; branchName?: string | null; fixedSalary: number | null; paidThisMonth: number | null; remaining: number | null; advanceIn: number | null; salaryHidden?: boolean };
 type Cand = { id: string; name: string; position?: string | null };
@@ -109,13 +109,13 @@ export default function StaffPage() {
         footer={<><Button onClick={saveAdd} disabled={add.saving}>{add.saving ? '…' : 'Добавить'}</Button><Button variant="outline" onClick={() => setAdd(a => ({ ...a, open: false }))}>Отмена</Button></>}>
         {add.err && <div className="erp-form-err">{add.err}</div>}
         <Field label="Пользователь" required><Select value={add.userId} onChange={e => setAdd(a => ({ ...a, userId: e.target.value }))}><option value="">{add.cands.length ? '— выберите —' : '— все добавлены —'}</option>{add.cands.map(c => <option key={c.id} value={c.id}>{c.name}{c.position ? ' · ' + c.position : ''}</option>)}</Select></Field>
-        <Field label="Оклад (₸/мес)" required><Input type="number" value={add.salary} onChange={e => setAdd(a => ({ ...a, salary: e.target.value }))} placeholder="200000" /></Field>
+        <Field label="Оклад (₸/мес)" required><MoneyInput value={add.salary} onValue={v => setAdd(a => ({ ...a, salary: v }))} placeholder="200 000" /></Field>
       </Modal>
 
       <Modal open={edit.open} onClose={() => setEdit(s => ({ ...s, open: false }))} title={`✏️ Оклад — ${edit.e?.name || ''}`}
         footer={<><Button onClick={saveEdit} disabled={edit.saving}>{edit.saving ? '…' : 'Сохранить'}</Button><Button variant="outline" onClick={() => setEdit(s => ({ ...s, open: false }))}>Отмена</Button></>}>
         {edit.err && <div className="erp-form-err">{edit.err}</div>}
-        <Field label="Оклад (₸/мес)"><Input type="number" value={edit.salary} onChange={e => setEdit(s => ({ ...s, salary: e.target.value }))} /></Field>
+        <Field label="Оклад (₸/мес)"><MoneyInput value={edit.salary} onValue={v => setEdit(s => ({ ...s, salary: v }))} placeholder="0" /></Field>
       </Modal>
 
       <Modal open={pay.open} onClose={() => setPay(p => ({ ...p, open: false }))} title={`💵 Выплата — ${pay.e?.name || ''}`}
@@ -123,7 +123,7 @@ export default function StaffPage() {
         {pay.err && <div className="erp-form-err">{pay.err}</div>}
         {pay.e && <div className="erp-muted" style={{ fontSize: 12, marginBottom: 10 }}>Оклад: <b>{fmt(pay.e.fixedSalary)}</b> · Выплачено: <b>{fmt(pay.e.paidThisMonth)}</b> · Остаток: <b style={{ color: '#b45309' }}>{fmt(pay.e.remaining)}</b></div>}
         <div className="erp-form-row">
-          <Field label="Сумма (₸)" required><Input type="number" value={pay.amount} onChange={e => setPay(p => ({ ...p, amount: e.target.value }))} /></Field>
+          <Field label="Сумма (₸)" required><MoneyInput value={pay.amount} onValue={v => setPay(p => ({ ...p, amount: v }))} placeholder="0" /></Field>
           <Field label="Тип"><Select value={pay.kind} onChange={e => setPay(p => ({ ...p, kind: e.target.value }))}><option value="salary">Зарплата</option><option value="advance">Аванс</option></Select></Field>
         </div>
         <Field label="Счёт списания" required><Select value={pay.accountId} onChange={e => setPay(p => ({ ...p, accountId: e.target.value }))}><option value="">— выберите счёт —</option>{accounts.map(a => <option key={a.id} value={a.id}>{a.icon} {a.name}</option>)}</Select></Field>

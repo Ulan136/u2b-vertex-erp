@@ -3,7 +3,7 @@ import * as React from 'react';
 import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
+import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow, DateRange } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
 import { getRecent, pushRecent, removeRecent, type RecentItem } from '@/lib/recent';
 import { useCols, ColumnMenu } from '@/components/erp/ColumnMenu';
@@ -362,7 +362,7 @@ export default function SalesPage() {
                       {p && !form.id && num(it.qty) > num(p.currentStock) && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 2 }}>⚠ доступно {p.currentStock} — нельзя больше</div>}
                     </td>
                     <td><Input type="number" min={1} value={it.qty} onChange={e => setItemField(i, 'qty', e.target.value)} style={{ padding: '4px 6px', textAlign: 'center' }} /></td>
-                    <td><Input type="number" min={0} value={it.price} onChange={e => setItemField(i, 'price', e.target.value)} style={{ padding: '4px 6px', textAlign: 'right' }} /></td>
+                    <td><MoneyInput value={it.price} onValue={v => setItemField(i, 'price', v)} style={{ padding: '4px 6px', textAlign: 'right' }} /></td>
                     <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(num(it.qty) * num(it.price))}</td>
                     <td style={{ textAlign: 'center' }}><button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => removeItem(i)} title="Убрать">✕</button></td>
                   </tr>
@@ -398,7 +398,7 @@ export default function SalesPage() {
                   <option value="">— выберите счёт —</option>
                   {saleAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
                 </Select>
-                <Input type="number" min={0} value={p.amount} onChange={e => setPayAmount(i, e.target.value)} placeholder="сумма" style={{ textAlign: 'right' }} />
+                <MoneyInput value={p.amount} onValue={v => setPayAmount(i, v)} placeholder="сумма" style={{ textAlign: 'right' }} />
                 <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => removePay(i)} title="Убрать">✕</button>
               </div>
             ))}
@@ -430,7 +430,7 @@ export default function SalesPage() {
               <option value="">— выберите счёт —</option>
               {saleAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
             </Select>
-            <Input type="number" min={0} value={p.amount} onChange={e => setTopup(t => ({ ...t, rows: t.rows.map((r, j) => j === i ? { ...r, amount: e.target.value } : r) }))} placeholder="сумма" style={{ textAlign: 'right' }} />
+            <MoneyInput value={p.amount} onValue={v => setTopup(t => ({ ...t, rows: t.rows.map((r, j) => j === i ? { ...r, amount: v } : r) }))} placeholder="сумма" style={{ textAlign: 'right' }} />
             <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => setTopup(t => ({ ...t, rows: t.rows.length > 1 ? t.rows.filter((_, j) => j !== i) : [emptyPay()] }))} title="Убрать">✕</button>
           </div>
         ))}

@@ -3,7 +3,7 @@ import * as React from 'react';
 import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow } from '@/components/ui';
 
 type Product = { id: string; skuCode: string; name: string; fullName?: string | null; groupId?: string | null; waterType?: string | null; minStock: number; currentStock: number; reserved?: number | null; price: string | number; priceDiscount?: string | number | null; costPrice?: string | number | null };
 type Movement = { id: string; skuCode?: string | null; productName?: string | null; moveType: string; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; comment?: string | null; author?: string | null; moveDate?: string | null; certId?: string | null; financeGroup?: string | null; purchaseGroup?: string | null; reversedAt?: string | null };
@@ -355,7 +355,7 @@ export default function WarehousePage() {
         </Field>
         <div className="erp-form-row">
           <Field label="Количество" required><Input type="number" min={1} max={move.mode === 'OUT' && moveProduct ? free(moveProduct) : undefined} value={move.qty} onChange={e => setMove(m => ({ ...m, qty: e.target.value }))} /></Field>
-          {move.mode === 'IN' && <Field label="Цена за ед. (₸)"><Input type="number" min={0} value={move.price} onChange={e => setMove(m => ({ ...m, price: e.target.value }))} /></Field>}
+          {move.mode === 'IN' && <Field label="Цена за ед. (₸)"><MoneyInput value={move.price} onValue={v => setMove(m => ({ ...m, price: v }))} placeholder="0" /></Field>}
           {move.mode === 'OUT' && <Field label="Причина списания" required><Select value={move.reason} onChange={e => setMove(m => ({ ...m, reason: e.target.value }))}>{REASONS.map(r => <option key={r}>{r}</option>)}</Select></Field>}
         </div>
         <div className="erp-form-row">
@@ -380,10 +380,10 @@ export default function WarehousePage() {
           <Field label="Тип воды"><Select value={set.waterType} onChange={e => setSet(s => ({ ...s, waterType: e.target.value }))}><option value="">—</option><option>х/в</option><option>г/в</option></Select></Field>
         </div>
         <div className="erp-form-row">
-          <Field label="Цена продажи (₸)"><Input type="number" min={0} value={set.price} onChange={e => setSet(s => ({ ...s, price: e.target.value }))} /></Field>
-          <Field label="Цена со скидкой (₸)"><Input type="number" min={0} value={set.priceDiscount} onChange={e => setSet(s => ({ ...s, priceDiscount: e.target.value }))} /></Field>
+          <Field label="Цена продажи (₸)"><MoneyInput value={set.price} onValue={v => setSet(s => ({ ...s, price: v }))} placeholder="0" /></Field>
+          <Field label="Цена со скидкой (₸)"><MoneyInput value={set.priceDiscount} onValue={v => setSet(s => ({ ...s, priceDiscount: v }))} placeholder="0" /></Field>
         </div>
-        <Field label="Себестоимость (₸)"><Input type="number" min={0} value={set.cost} onChange={e => setSet(s => ({ ...s, cost: e.target.value }))} /><div className="erp-muted" style={{ fontSize: 11, marginTop: 4 }}>Обновляется автоматически при приходе (последняя цена закупки).</div></Field>
+        <Field label="Себестоимость (₸)"><MoneyInput value={set.cost} onValue={v => setSet(s => ({ ...s, cost: v }))} placeholder="0" /><div className="erp-muted" style={{ fontSize: 11, marginTop: 4 }}>Обновляется автоматически при приходе (последняя цена закупки).</div></Field>
         <Field label="Фактический остаток (ревизия по товару)"><Input type="number" value={set.actual} onChange={e => setSet(s => ({ ...s, actual: e.target.value }))} /></Field>
         <div className="erp-muted" style={{ fontSize: 11 }}>Остаток нельзя менять напрямую — изменение проведётся ревизией (REV±).</div>
       </Modal>

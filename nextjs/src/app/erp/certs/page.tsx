@@ -4,7 +4,7 @@ import { formatDate } from '@/lib/format';
 import { useSearchParams } from 'next/navigation';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
+import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow, DateRange } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
 import ClientPicker from '@/components/erp/ClientPicker';
 import { getRecent, pushRecent, removeRecent, type RecentItem } from '@/lib/recent';
@@ -620,7 +620,7 @@ function CertsInner() {
           <>
             <div className="cert-sec-lbl">💳 Оплата (доход)</div>
             <div className="erp-form-row">
-              <Field label="Цена, ₸"><Input type="number" value={form.amount} onChange={e => { setPayTouched(true); setForm({ ...form, amount: e.target.value }); }} placeholder="0" /></Field>
+              <Field label="Цена, ₸"><MoneyInput value={form.amount} onValue={v => { setPayTouched(true); setForm({ ...form, amount: v }); }} placeholder="0" /></Field>
               <div />
             </div>
             {form.payStatus === 'Оплачено' && (
@@ -632,7 +632,7 @@ function CertsInner() {
                       <option value="">{secAccounts.length ? '— счёт —' : '— нет счетов раздела —'}</option>
                       {secAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
                     </Select>
-                    <Input type="number" min={0} value={p.amount} onChange={e => setPay(rs => rs.map((r, j) => j === i ? { ...r, amount: e.target.value } : r))} placeholder="сумма" style={{ textAlign: 'right' }} />
+                    <MoneyInput value={p.amount} onValue={v => setPay(rs => rs.map((r, j) => j === i ? { ...r, amount: v } : r))} placeholder="сумма" style={{ textAlign: 'right' }} />
                     <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => setPay(rs => rs.length > 1 ? rs.filter((_, j) => j !== i) : rs)} title="Убрать">✕</button>
                   </div>
                 ))}
@@ -662,7 +662,7 @@ function CertsInner() {
 
         <div className="cert-sec-lbl">💳 Оплата (доход)</div>
         <div className="erp-form-row">
-          <Field label="Цена за сертификат, ₸"><Input type="number" min={0} value={pcPrice} onChange={e => setPcPrice(e.target.value)} placeholder="0" autoFocus /></Field>
+          <Field label="Цена за сертификат, ₸"><MoneyInput value={pcPrice} onValue={setPcPrice} placeholder="0" autoFocus /></Field>
           <Field label="Итого к оплате"><Input value={`${fmtNum(pcIncomeTotal)} ₸`} readOnly style={{ background: '#f8fafc', fontWeight: 700 }} /></Field>
         </div>
         <div className="sale-pay" style={{ marginTop: 0 }}>
@@ -673,7 +673,7 @@ function CertsInner() {
                 <option value="">{secAccounts.length ? '— счёт —' : '— нет счетов раздела —'}</option>
                 {secAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
               </Select>
-              <Input type="number" min={0} value={p.amount} onChange={e => setPcRows(rs => rs.map((r, j) => j === i ? { ...r, amount: e.target.value } : r))} placeholder="сумма" style={{ textAlign: 'right' }} />
+              <MoneyInput value={p.amount} onValue={v => setPcRows(rs => rs.map((r, j) => j === i ? { ...r, amount: v } : r))} placeholder="сумма" style={{ textAlign: 'right' }} />
               <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => setPcRows(rs => rs.length > 1 ? rs.filter((_, j) => j !== i) : rs)} title="Убрать">✕</button>
             </div>
           ))}
@@ -692,7 +692,7 @@ function CertsInner() {
         {pcCommOn && (
           <>
             <div className="erp-form-row">
-              <Field label="Комиссия за сертификат, ₸"><Input type="number" min={0} value={pcCommPer} onChange={e => setPcCommPer(e.target.value)} placeholder="200" /></Field>
+              <Field label="Комиссия за сертификат, ₸"><MoneyInput value={pcCommPer} onValue={setPcCommPer} placeholder="200" /></Field>
               <Field label="Со счёта"><Select value={pcCommAcct} onChange={e => setPcCommAcct(e.target.value)}><option value="">— счёт —</option>{allAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}</Select></Field>
             </div>
             <div className="sale-pay-state">

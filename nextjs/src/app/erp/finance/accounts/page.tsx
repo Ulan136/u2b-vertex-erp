@@ -3,7 +3,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow } from '@/components/ui';
 
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; category?: string | null; balance?: string | number | null; sortOrder?: number | null };
 
@@ -101,7 +101,7 @@ export default function AccountsBindingPage() {
         </div>
         <div className="erp-form-row">
           <Field label="Иконка"><Input value={addM.icon} onChange={e => setAddM({ ...addM, icon: e.target.value })} /></Field>
-          <Field label="Начальный остаток (₸)"><Input type="number" value={addM.balance} onChange={e => setAddM({ ...addM, balance: e.target.value })} /></Field>
+          <Field label="Начальный остаток (₸)"><MoneyInput value={addM.balance} onValue={v => setAddM({ ...addM, balance: v })} placeholder="0" /></Field>
         </div>
       </Modal>
 

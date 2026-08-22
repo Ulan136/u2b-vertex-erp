@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
+import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow } from '@/components/ui';
 import ClientPicker from '@/components/erp/ClientPicker';
 
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; category?: string | null; sortOrder?: number | null };
@@ -128,7 +128,7 @@ function InvoicesInner() {
           <ClientPicker clients={clients || []} kind="client" placeholder="— из клиентов или впишите —" onPick={c => setF(s => ({ ...s, name: c.name }))} onCreated={() => mutateClients()} />
           <Input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder={sec.key === 'other' ? 'Проект / Тендер / Услуга…' : 'ФИО / название'} style={{ marginTop: 6 }} />
         </Field>
-        <div className="erp-form-row"><Field label="Сумма (₸)" required><Input type="number" value={f.amount} onChange={e => setF({ ...f, amount: e.target.value })} /></Field><Field label="Дата"><Input type="date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field></div>
+        <div className="erp-form-row"><Field label="Сумма (₸)" required><MoneyInput value={f.amount} onValue={v => setF({ ...f, amount: v })} placeholder="0" /></Field><Field label="Дата"><Input type="date" value={f.date} onChange={e => setF({ ...f, date: e.target.value })} /></Field></div>
         <Field label="Счёт зачисления (банк)" required><Select value={f.accountId} onChange={e => setF({ ...f, accountId: e.target.value })}><option value="">— выберите —</option>{accounts.map((a, i) => <option key={a.id} value={a.id}>№{i + 1} {a.icon} {a.name} · {BANK_LABEL[a.category || 'other']}</option>)}</Select></Field>
         <Field label="Комментарий"><Input value={f.comment} onChange={e => setF({ ...f, comment: e.target.value })} /></Field>
       </Modal>

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { Card, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
+import { Card, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow, DateRange } from '@/components/ui';
 import { isRealIncome, isRealExpense } from '@/server/dto/finance.dto';
 import { opIcon, opName, opSign, opAmountColor, isReversed, isReversal } from '@/lib/opDisplay';
 import { purchaseDebts, pendingReceivables, type MoveLite, type SaleLite, type CertLite } from '@/lib/pending';
@@ -220,7 +220,7 @@ export default function FinancePage() {
         </Field>
         {op.type === 'Перевод' && <Field label="На счёт" required><AccountPicker accounts={accounts} value={op.toAccountId} onChange={id => setOp(o => ({ ...o, toAccountId: id }))} /></Field>}
         <div className="erp-form-row">
-          <Field label="Сумма (₸)" required><Input type="number" min={0} value={op.amount} onChange={e => setOp(o => ({ ...o, amount: e.target.value }))} /></Field>
+          <Field label="Сумма (₸)" required><MoneyInput value={op.amount} onValue={v => setOp(o => ({ ...o, amount: v }))} placeholder="0" /></Field>
           <Field label="Дата"><Input type="date" value={op.date} onChange={e => setOp(o => ({ ...o, date: e.target.value }))} /></Field>
         </div>
         <Field label="Назначение"><Input value={op.name} onChange={e => setOp(o => ({ ...o, name: e.target.value }))} placeholder="комментарий" /></Field>
@@ -236,7 +236,7 @@ export default function FinancePage() {
         </div>
         <div className="erp-form-row">
           <Field label="Иконка"><Input value={acc.icon} onChange={e => setAcc(a => ({ ...a, icon: e.target.value }))} /></Field>
-          <Field label="Начальный остаток (₸)"><Input type="number" value={acc.balance} onChange={e => setAcc(a => ({ ...a, balance: e.target.value }))} /></Field>
+          <Field label="Начальный остаток (₸)"><MoneyInput value={acc.balance} onValue={v => setAcc(a => ({ ...a, balance: v }))} placeholder="0" /></Field>
         </div>
       </Modal>
     </div>
