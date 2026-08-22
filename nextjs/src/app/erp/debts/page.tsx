@@ -104,6 +104,11 @@ export default function DebtsPage() {
   const [pay, setPay] = React.useState({ open: false, debt: null as Debt | null, rows: [{ accountId: '', amount: '' }] as PayRow[], date: today(), comment: '', err: '', saving: false });
   const payTotal = pay.rows.reduce((s, r) => s + num(r.amount), 0);
   function openPay(d: Debt) { setPay({ open: true, debt: d, rows: [{ accountId: d.accountId || '', amount: String(remaining(d)) }], date: today(), comment: '', err: '', saving: false }); }
+  // Погашение через список: открыть без выбранного долга — выберут в модалке.
+  function openPayPicker() { setPay({ open: true, debt: null, rows: [{ accountId: '', amount: '' }], date: today(), comment: '', err: '', saving: false }); }
+  function pickDebt(id: string) { const d = (all || []).find(x => x.id === id) || null; setPay(p => ({ ...p, debt: d, rows: d ? [{ accountId: d.accountId || '', amount: String(remaining(d)) }] : [{ accountId: '', amount: '' }] })); }
+  // Долги, которые можно гасить (открытые/частичные с остатком) — для списка в модалке.
+  const payableDebts = React.useMemo(() => (all || []).filter(d => d.status !== 'closed' && remaining(d) > 0), [all]);
   function setRowAcc(i: number, accountId: string) {
     setPay(p => { const rem = p.debt ? remaining(p.debt) : 0; const others = p.rows.reduce((a, r, j) => a + (j === i ? 0 : num(r.amount)), 0); const left = Math.max(0, Math.round((rem - others) * 100) / 100); return { ...p, rows: p.rows.map((r, j) => j === i ? { ...r, accountId, amount: r.amount || (left ? String(left) : '') } : r) }; });
   }
@@ -151,7 +156,7 @@ export default function DebtsPage() {
 
   return (
     <div>
-      <PageTitle title="Долги" sub="Кредиторка и дебиторка — по остаткам" action={<Button onClick={openNew}>+ Долг</Button>} />
+      <PageTitle title="Долги" sub="Кредиторка и дебиторка — по остаткам" action={<div style={{ display: 'flex', gap: 8 }}><Button variant="outline" onClick={openPayPicker}>💵 Погасить</Button><Button onClick={openNew}>+ Долг</Button></div>} />
 
       <div className="erp-kpi-grid">
         <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">📤</span><span className="erp-kpi-label">Мы должны (всего)</span></div><div className="erp-kpi-val" style={{ color: '#dc2626' }}>{fmt(sumRem('credit') + supDebt.total)}</div><div className="erp-kpi-sub">реестр {fmt(sumRem('credit'))} + поставщики {fmt(supDebt.total)}</div></div>
@@ -295,28 +300,45 @@ export default function DebtsPage() {
         <div className="erp-muted" style={{ fontSize: 11, marginTop: -4 }}>Стартовое «погашено» — исторический факт (деньги уходили до системы): операция в Финансах НЕ создаётся.{num(form.amount) > 0 && ` Остаток: ${fmt(Math.max(0, num(form.amount) - num(form.paidNow)))}.`}{catFilter ? ' Категория подставится из выбранного фильтра.' : ''}</div>
       </Modal>
 
-      {/* Погашение — с нескольких счетов, как в расходах */}
-      <Modal open={pay.open} onClose={() => setPay(p => ({ ...p, open: false }))} title={`💵 Погашение — ${pay.debt ? counterparty(pay.debt) : ''}`}
-        footer={<><Button onClick={savePay} disabled={pay.saving}>{pay.saving ? 'Проведение…' : `Провести ${payTotal > 0 ? fmt(payTotal) : ''}`}</Button><Button variant="outline" onClick={() => setPay(p => ({ ...p, open: false }))}>Отмена</Button></>}>
+      {/* Погашение — выбор долга из списка + оплата с нескольких счетов (как в расходах) */}
+      <Modal open={pay.open} onClose={() => setPay(p => ({ ...p, open: false }))} title="💵 Погашение долга"
+        footer={<><Button onClick={savePay} disabled={pay.saving || !pay.debt}>{pay.saving ? 'Проведение…' : `Провести ${payTotal > 0 ? fmt(payTotal) : ''}`}</Button><Button variant="outline" onClick={() => setPay(p => ({ ...p, open: false }))}>Отмена</Button></>}>
         {pay.err && <div className="erp-form-err">{pay.err}</div>}
-        {pay.debt && <div className="erp-muted" style={{ fontSize: 12, marginBottom: 10 }}>Остаток: <b>{fmt(remaining(pay.debt))}</b> · {pay.debt.type === 'credit' ? 'спишется со счёта (Расход)' : 'поступит на счёт (Приход)'}</div>}
-        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>С каких счетов гасим</div>
-        {pay.rows.map((r, i) => (
-          <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-            <Select value={r.accountId} onChange={e => setRowAcc(i, e.target.value)} style={{ flex: 3 }}>
-              <option value="">— счёт —</option>
-              {SECTIONS.map(([sk, sl]) => { const secAccs = accounts.filter(a => (a.section || 'other') === sk); return secAccs.length ? <optgroup key={sk} label={sl}>{secAccs.map(a => <option key={a.id} value={a.id}>{accLabel(a)}</option>)}</optgroup> : null; })}
-            </Select>
-            <Input type="number" min={0} value={r.amount} onChange={e => setRowAmt(i, e.target.value)} placeholder="сумма" style={{ flex: 1, minWidth: 90 }} />
-            <button className="erp-icon-btn" title="Убрать счёт" style={{ color: '#dc2626', opacity: pay.rows.length > 1 ? 1 : .3 }} onClick={() => removeRow(i)} disabled={pay.rows.length <= 1}>✕</button>
-          </div>
-        ))}
-        <button className="erp-chip" style={{ marginBottom: 10 }} onClick={addRow}>➕ ещё счёт</button>
-        {pay.debt && <div className="erp-muted" style={{ fontSize: 12, marginBottom: 10 }}>Итого к погашению: <b>{fmt(payTotal)}</b> из остатка {fmt(remaining(pay.debt))}{payTotal > remaining(pay.debt) + 0.005 ? ' — больше остатка!' : ''}</div>}
-        <div className="erp-form-row">
-          <Field label="Дата"><Input type="date" value={pay.date} onChange={e => setPay(p => ({ ...p, date: e.target.value }))} /></Field>
-          <Field label="Комментарий"><Input value={pay.comment} onChange={e => setPay(p => ({ ...p, comment: e.target.value }))} /></Field>
-        </div>
+        <Field label="Какой долг гасим" required>
+          <Select value={pay.debt?.id || ''} onChange={e => pickDebt(e.target.value)}>
+            <option value="">{payableDebts.length ? '— выберите долг из списка —' : '— нет долгов с остатком —'}</option>
+            <optgroup label="📤 Мы должны">
+              {payableDebts.filter(d => d.type === 'credit').map(d => <option key={d.id} value={d.id}>{counterparty(d)}{d.categoryName ? ` · ${d.categoryName}` : ''} · остаток {fmt(remaining(d))}</option>)}
+            </optgroup>
+            <optgroup label="📥 Нам должны">
+              {payableDebts.filter(d => d.type === 'debit').map(d => <option key={d.id} value={d.id}>{counterparty(d)} · остаток {fmt(remaining(d))}</option>)}
+            </optgroup>
+          </Select>
+        </Field>
+        {!pay.debt ? (
+          <div className="erp-muted" style={{ fontSize: 12, marginTop: 8 }}>Выберите долг из списка выше — появятся счета и суммы. Долги поставщиков по закупам гасятся в разделе «Закупки» (кнопка 💵).</div>
+        ) : (
+          <>
+            <div className="erp-muted" style={{ fontSize: 12, margin: '8px 0 10px' }}>Остаток: <b>{fmt(remaining(pay.debt))}</b> · {pay.debt.type === 'credit' ? 'спишется со счёта (Расход)' : 'поступит на счёт (Приход)'}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>{pay.debt.type === 'credit' ? 'С каких счетов гасим' : 'На какие счета зачислить'}</div>
+            {pay.rows.map((r, i) => (
+              <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                <Select value={r.accountId} onChange={e => setRowAcc(i, e.target.value)} style={{ flex: 3 }}>
+                  <option value="">— счёт —</option>
+                  {SECTIONS.map(([sk, sl]) => { const secAccs = accounts.filter(a => (a.section || 'other') === sk); return secAccs.length ? <optgroup key={sk} label={sl}>{secAccs.map(a => <option key={a.id} value={a.id}>{accLabel(a)}</option>)}</optgroup> : null; })}
+                </Select>
+                <Input type="number" min={0} value={r.amount} onChange={e => setRowAmt(i, e.target.value)} placeholder="сумма" style={{ flex: 1, minWidth: 90 }} />
+                <button className="erp-icon-btn" title="Убрать счёт" style={{ color: '#dc2626', opacity: pay.rows.length > 1 ? 1 : .3 }} onClick={() => removeRow(i)} disabled={pay.rows.length <= 1}>✕</button>
+              </div>
+            ))}
+            <button className="erp-chip" style={{ marginBottom: 10 }} onClick={addRow}>➕ ещё счёт</button>
+            <div className="erp-muted" style={{ fontSize: 12, marginBottom: 10 }}>Итого к погашению: <b>{fmt(payTotal)}</b> из остатка {fmt(remaining(pay.debt))}{payTotal > remaining(pay.debt) + 0.005 ? ' — больше остатка!' : ''}</div>
+            <div className="erp-form-row">
+              <Field label="Дата"><Input type="date" value={pay.date} onChange={e => setPay(p => ({ ...p, date: e.target.value }))} /></Field>
+              <Field label="Комментарий"><Input value={pay.comment} onChange={e => setPay(p => ({ ...p, comment: e.target.value }))} /></Field>
+            </div>
+          </>
+        )}
       </Modal>
 
       {/* Управление категориями долгов */}
