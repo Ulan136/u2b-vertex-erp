@@ -102,4 +102,12 @@ export const employeesRepo = {
     const [row] = await exec.insert(salaryPayments).values(data as unknown as PaymentInsert).returning();
     return row;
   },
+
+  // Выплата зарплаты по её финоперации (для удаления зарплатного расхода из журнала).
+  async findPaymentByOpId(financeOpId: string, exec: Executor = db) {
+    const [row] = await exec.select().from(salaryPayments).where(eq(salaryPayments.financeOpId, financeOpId)).limit(1);
+    return row ?? null;
+  },
+  removePayment: (id: string, exec: Executor = db) =>
+    exec.delete(salaryPayments).where(eq(salaryPayments.id, id)),
 };

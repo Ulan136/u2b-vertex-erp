@@ -153,8 +153,12 @@ export default function ExpensesPage() {
     } catch (e) { setF(s => ({ ...s, err: (e as Error).message, saving: false })); }
   }
   async function del(o: Op) {
-    if (!confirm(`Удалить расход «${o.name}»?\nБудет отмена — сумма вернётся на счёт.`)) return;
-    try { await apiSend(`/api/v2/expenses/${o.id}/reverse`, 'POST'); await mutate(); toast('↩️ Операция отменена'); }
+    const salary = o.source === 'Зарплата';
+    const msg = salary
+      ? `Удалить выплату зарплаты «${o.name}»?\nДеньги вернутся на счёт, а выплата уберётся из кадров (остаток по сотруднику пересчитается).`
+      : `Удалить расход «${o.name}»?\nБудет отмена — сумма вернётся на счёт.`;
+    if (!confirm(msg)) return;
+    try { await apiSend(`/api/v2/expenses/${o.id}/reverse`, 'POST'); await mutate(); toast(salary ? '↩️ Выплата отменена (деньги вернулись, кадры обновлены)' : '↩️ Операция отменена'); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
   async function addCat() { if (!newCat.trim()) return; const icon = newCatIcon || suggestIcon(newCat); try { await apiSend('/api/v2/expense-categories', 'POST', { name: newCat.trim(), icon }); setNewCat(''); setNewCatIcon(''); await mutateCats(); toast('✅ Категория добавлена'); } catch (e) { toast('⚠️ ' + (e as Error).message); } }
@@ -224,9 +228,9 @@ export default function ExpensesPage() {
                           <td className="col-status"><Badge tone={st === 'Оплачен' ? 'ok' : st === 'Отменён' ? 'err' : 'warn'}>{st}</Badge></td>
                           <td className="erp-muted col-author">{o.createdByName || '—'}</td>
                           <td className="col-actions" style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
-                            {!salary && <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(o)}>✏️</button>}
-                            {!salary && <button className="erp-icon-btn" title="Удалить (отмена)" style={{ color: '#dc2626' }} onClick={() => del(o)}>🗑️</button>}
-                            {salary && <span className="erp-muted" style={{ fontSize: 11 }}>кадры</span>}
+                            <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(o)}>✏️</button>
+                            <button className="erp-icon-btn" title={salary ? 'Удалить выплату (вернёт деньги + уберёт из кадров)' : 'Удалить (отмена)'} style={{ color: '#dc2626' }} onClick={() => del(o)}>🗑️</button>
+                            {salary && <a href="/erp/staff" className="erp-muted" style={{ fontSize: 11, marginLeft: 4, textDecoration: 'none' }} title="Открыть кадры">кадры</a>}
                           </td>
                         </tr>
                       );

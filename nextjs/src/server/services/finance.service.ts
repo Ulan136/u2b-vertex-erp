@@ -1,6 +1,7 @@
 import { db, type Executor } from '@/db';
 import { financeRepo } from '@/server/repositories/finance.repo';
 import { expenseCategoriesRepo } from '@/server/repositories/expenseCategories.repo';
+import { employeesRepo } from '@/server/repositories/employees.repo';
 import { permissionsRepo } from '@/server/repositories/permissions.repo';
 import { isCategoryVisible } from '@/server/dto/permissions.dto';
 import { randomUUID } from 'crypto';
@@ -166,6 +167,14 @@ async function reverseExpense(id: string, actorId?: string | null) {
     const targets = op.expenseGroupId
       ? (await financeRepo.findByGroup(op.expenseGroupId, tx)).filter(o => !o.reversedAt && !o.reverses)
       : [op];
+    // Зарплата: удалить связанную запись выплаты в кадрах (иначе «выплачено»
+    // останется висеть, хотя деньги вернулись). Удаляем ДО сторно операций.
+    for (const t of targets) {
+      if (t.source === 'Зарплата') {
+        const pay = await employeesRepo.findPaymentByOpId(t.id as string, tx);
+        if (pay) await employeesRepo.removePayment(pay.id, tx);
+      }
+    }
     const done = [];
     for (const t of targets) done.push(await reverseOperation(t.id, actorId ?? null, tx));
     return { ok: true, reversed: done.filter(Boolean).length };
