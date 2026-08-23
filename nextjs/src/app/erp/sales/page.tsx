@@ -70,15 +70,18 @@ export default function SalesPage() {
   const [fFrom, setFFrom] = React.useState('');
   const [fTo, setFTo] = React.useState('');
   const [q, setQ] = React.useState('');
+  const [fPay, setFPay] = React.useState('');   // фильтр статуса оплаты
   const inRange = (d?: string | null) => { const x = (d || '').slice(0, 10); if (fFrom && x < fFrom) return false; if (fTo && x > fTo) return false; return true; };
-  // Поиск по товару/SKU: ищем и в основном товаре, и во всех позициях мультипродажи.
-  const matchProduct = (s: Sale) => {
+  // Умный поиск: по № продажи, клиенту, товару, SKU (и по всем позициям мультипродажи).
+  // Каждое слово запроса ищется отдельно (AND) — «kaz 15» находит «KAZMETER … 15».
+  const matchSearch = (s: Sale) => {
     const qn = q.trim().toLowerCase();
     if (!qn) return true;
-    const hay = [s.productName || '', s.skuCode || '', ...(s.items || []).flatMap(it => [it.productName || '', it.skuCode || ''])];
-    return hay.some(h => h.toLowerCase().includes(qn));
+    const hay = [s.saleNo || '', s.clientName || '', s.productName || '', s.skuCode || '', ...(s.items || []).flatMap(it => [it.productName || '', it.skuCode || ''])].join(' ').toLowerCase();
+    return qn.split(/\s+/).every(w => hay.includes(w));
   };
-  const visible = list.filter(s => inRange(s.saleDate) && matchProduct(s));   // фильтр по дням + поиску (влияет на таблицу, KPI, экспорт)
+  const matchPay = (s: Sale) => !fPay || (s.cancelledAt ? 'Отменена' : (s.payStatus || 'Ожидает')) === fPay;
+  const visible = list.filter(s => inRange(s.saleDate) && matchSearch(s) && matchPay(s));   // фильтр по дням + поиску + оплате (влияет на таблицу, KPI, экспорт)
   const active = visible.filter(x => !x.cancelledAt);
   const total = active.reduce((s, x) => s + num(x.totalSum), 0);
   const paidSum = active.reduce((s, x) => s + num(x.paidSum), 0);
@@ -269,9 +272,16 @@ export default function SalesPage() {
       <Card className="erp-filters" style={{ flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
         <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
         <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-          <Input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Поиск по товару или SKU" style={{ width: 240, paddingRight: q ? 26 : undefined }} />
+          <Input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Поиск: клиент, № продажи, товар, SKU" style={{ width: 300, paddingRight: q ? 26 : undefined }} />
           {q && <button type="button" className="erp-icon-btn" onClick={() => setQ('')} title="Очистить" style={{ position: 'absolute', right: 2, color: '#94a3b8' }}>✕</button>}
         </div>
+        <Select value={fPay} onChange={e => setFPay(e.target.value)} title="Фильтр по оплате" style={{ width: 170 }}>
+          <option value="">Оплата: все</option>
+          <option value="Оплачено">✓ Оплачено</option>
+          <option value="Частично">⚖ Частично</option>
+          <option value="Ожидает">⏳ Ожидает</option>
+          <option value="Отменена">✕ Отменена</option>
+        </Select>
         <span style={{ marginLeft: 'auto', fontSize: 12 }} className="erp-muted">Показано: <b>{visible.length}</b> · Итого: <b>{fmt(total)} ₸</b></span>
       </Card>
 
