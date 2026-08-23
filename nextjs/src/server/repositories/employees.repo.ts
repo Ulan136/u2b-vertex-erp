@@ -110,4 +110,6 @@ export const employeesRepo = {
   },
   removePayment: (id: string, exec: Executor = db) =>
     exec.delete(salaryPayments).where(eq(salaryPayments.id, id)),
+  updatePayment: (id: string, data: Record<string, unknown>, exec: Executor = db) =>
+    exec.update(salaryPayments).set(data as Partial<PaymentInsert>).where(eq(salaryPayments.id, id)),
 };

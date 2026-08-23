@@ -198,12 +198,51 @@ async function overview(from?: string | null, to?: string | null, role?: string 
   return { ...data, operations };
 }
 
+// Сменить счёт списания у расхода (при ошибочной отправке). Безопасно: сторно
+// старой операции (деньги вернутся на прежний счёт) + новая операция на нужном
+// счёте с теми же данными. Для зарплаты перепривязываем запись выплаты в кадрах.
+// Смешанный расход (несколько счетов) — не поддерживаем (менять удалением/вводом).
+async function changeExpenseAccount(opId: string, newAccountId: string, actorId?: string | null) {
+  if (!opId) throw badRequest('id обязателен');
+  if (!newAccountId) throw badRequest('Выберите новый счёт');
+  return db.transaction(async (tx) => {
+    const op = await financeRepo.findOperation(opId, tx);
+    if (!op) throw notFound('Операция не найдена');
+    if (op.opType !== 'Расход') throw badRequest('Смена счёта — только для расходов');
+    // Только настоящие расходы/зарплата. Долг/закуп/продажа тоже видны как Расход,
+    // но у них свои связанные записи — их счёт меняют на их экране.
+    if (op.source !== 'Расходы' && op.source !== 'Зарплата') throw badRequest('Смена счёта доступна для расходов и зарплаты. Для оплаты долга/закупа/продажи — меняйте на их экране (удалить и провести заново).');
+    if (op.reversedAt || op.reverses) throw badRequest('Операция уже отменена');
+    if (op.expenseGroupId) {
+      const group = (await financeRepo.findByGroup(op.expenseGroupId, tx)).filter(o => !o.reversedAt && !o.reverses);
+      if (group.length > 1) throw badRequest('Расход с нескольких счетов — смените удалением и повторным вводом');
+    }
+    if (op.accountId === newAccountId) return { ok: true, unchanged: true };
+    const acc = await financeRepo.findAccount(newAccountId, tx);
+    if (!acc) throw badRequest('Новый счёт не найден');
+    await reverseOperation(op.id, actorId ?? null, tx);   // сторно старой (деньги назад)
+    const newOp = await createOperation({
+      opType: 'Расход', accountId: newAccountId, amount: op.amount, name: op.name, accountName: acc.name,
+      source: op.source ?? undefined, opDate: op.opDate ?? undefined, comment: op.comment ?? undefined,
+      expenseCat: op.expenseCat ?? undefined, subCategory: op.subCategory ?? undefined, supplier: op.supplier ?? undefined,
+      docNo: op.docNo ?? undefined, status: op.status ?? undefined, orderId: op.orderId ?? undefined,
+      expenseGroupId: op.expenseGroupId ?? undefined, saleId: op.saleId ?? undefined, certId: op.certId ?? undefined,
+    }, actorId ?? null, tx);
+    if (op.source === 'Зарплата') {   // перепривязать запись выплаты в кадрах
+      const pay = await employeesRepo.findPaymentByOpId(op.id, tx);
+      if (pay) await employeesRepo.updatePayment(pay.id, { accountId: newAccountId, financeOpId: newOp?.id ?? null }, tx);
+    }
+    return { ok: true, newOpId: newOp?.id ?? null };
+  });
+}
+
 export const financeService = {
   overview,
   createOperation,
   createExpense,
   reverseOperation,
   reverseExpense,
+  changeExpenseAccount,
   updateOperationMeta,
   createAccount,
   updateAccount,

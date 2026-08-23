@@ -13,3 +13,6 @@ export const POST = withApi(async (req: NextRequest, ctx) => created(await finan
 export const PATCH = withApi(async (req: NextRequest, ctx) => financeService.updateOperationMeta(ctx.params!.id, await req.json()));
 // POST /api/v2/expenses/[id]/reverse — отмена расхода (сторно всей группы).
 export const REVERSE = withApi(async (_req: NextRequest, ctx) => financeService.reverseExpense(ctx.params!.id, ctx.user?.id ?? null));
+// POST /api/v2/expenses/[id]/account — сменить счёт списания (сторно + новая операция).
+export const CHANGE_ACCOUNT = withApi(async (req: NextRequest, ctx) =>
+  financeService.changeExpenseAccount(ctx.params!.id, (await req.json())?.accountId, ctx.user?.id ?? null));

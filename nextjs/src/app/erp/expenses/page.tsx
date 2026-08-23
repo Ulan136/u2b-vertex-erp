@@ -93,7 +93,7 @@ export default function ExpensesPage() {
   const [newCatIcon, setNewCatIcon] = React.useState('');   // '' → авто по названию
   const [iconEdit, setIconEdit] = React.useState<string | null>(null);   // catId, у которого открыта палитра
   const [ordQ, setOrdQ] = React.useState('');
-  const emptyF = () => ({ editId: '', catId: catList[0]?.id || '', subName: '', amount: '', payments: [{ accountId: '', amount: '' }], desc: '', supplier: '', docNo: '', status: 'Оплачен', orderId: '', comment: '', employeeId: '', date: today(), err: '', saving: false });
+  const emptyF = () => ({ editId: '', origAcc: '', catId: catList[0]?.id || '', subName: '', amount: '', payments: [{ accountId: '', amount: '' }], desc: '', supplier: '', docNo: '', status: 'Оплачен', orderId: '', comment: '', employeeId: '', date: today(), err: '', saving: false });
   const [f, setF] = React.useState(emptyF());
   const cat = catList.find(c => c.id === f.catId);
   const isSalary = cat?.name === 'Зарплата';
@@ -113,7 +113,7 @@ export default function ExpensesPage() {
   function open() { setF(emptyF()); setModal(true); }
   function openEdit(o: Op) {
     const c = catList.find(x => x.name === catOf(o));
-    setF({ editId: o.id, catId: c?.id || catList[0]?.id || '', subName: subOf(o), amount: String(num(o.amount)), payments: [{ accountId: o.accountId, amount: String(num(o.amount)) }], desc: (o.name || '').replace(/^[^:]*:\s*/, ''), supplier: o.supplier || '', docNo: o.docNo || '', status: statusOf(o), orderId: o.orderId || '', comment: o.comment || '', employeeId: '', date: (o.opDate || '').slice(0, 10) || today(), err: '', saving: false });
+    setF({ editId: o.id, origAcc: o.accountId, catId: c?.id || catList[0]?.id || '', subName: subOf(o), amount: String(num(o.amount)), payments: [{ accountId: o.accountId, amount: String(num(o.amount)) }], desc: (o.name || '').replace(/^[^:]*:\s*/, ''), supplier: o.supplier || '', docNo: o.docNo || '', status: statusOf(o), orderId: o.orderId || '', comment: o.comment || '', employeeId: '', date: (o.opDate || '').slice(0, 10) || today(), err: '', saving: false });
     setModal(true);
   }
 
@@ -126,8 +126,13 @@ export default function ExpensesPage() {
     // ── правка: только метаданные (сумма/счета не трогаем — балансы защищены) ──
     if (f.editId) {
       setF(s => ({ ...s, saving: true, err: '' }));
-      try { await apiSend(`/api/v2/expenses/${f.editId}`, 'PATCH', { name, opDate: f.date, comment: f.comment || null, ...meta }); setModal(false); await mutate(); toast('✅ Расход обновлён'); }
-      catch (e) { setF(s => ({ ...s, err: (e as Error).message, saving: false })); }
+      const newAcc = f.payments[0]?.accountId;
+      const accChanged = !!newAcc && newAcc !== f.origAcc;
+      try {
+        await apiSend(`/api/v2/expenses/${f.editId}`, 'PATCH', { name, opDate: f.date, comment: f.comment || null, ...meta });
+        if (accChanged) await apiSend(`/api/v2/expenses/${f.editId}/account`, 'POST', { accountId: newAcc });
+        setModal(false); await mutate(); toast(accChanged ? '✅ Обновлено, счёт списания изменён' : '✅ Расход обновлён');
+      } catch (e) { setF(s => ({ ...s, err: (e as Error).message, saving: false })); }
       return;
     }
     if (amount <= 0) { setF(s => ({ ...s, err: 'Укажите сумму больше 0' })); return; }
@@ -268,7 +273,7 @@ export default function ExpensesPage() {
         <div className="sale-pay" style={{ marginTop: 0 }}>
           {f.payments.map((p, i) => (
             <div className="sale-pay-row" key={i}>
-              <Select value={p.accountId} onChange={e => setPayAccount(i, e.target.value)} disabled={!!f.editId}>
+              <Select value={p.accountId} onChange={e => setPayAccount(i, e.target.value)}>
                 <option value="">— выберите счёт —</option>
                 {accGroups.map(g => g.accs.length === 0 ? null : (
                   <optgroup key={g.key} label={`№${g.no} ${g.label}`}>
@@ -295,7 +300,7 @@ export default function ExpensesPage() {
           <Field label="№ документа"><Input value={f.docNo} onChange={e => setF({ ...f, docNo: e.target.value })} placeholder="СЧ-2026-001" /></Field>
         </div>
         <Field label="Комментарий"><Input value={f.comment} onChange={e => setF({ ...f, comment: e.target.value })} placeholder="Доп. информация…" /></Field>
-        <div className="erp-muted" style={{ fontSize: 11, marginTop: 6 }}>Ответственный: <b>{respName}</b> (текущий пользователь).{f.editId ? ' Сумму и счёт при правке не меняем — балансы защищены (для смены — удалите и создайте заново).' : (isSalary ? ' Выплата идёт через кадры (контроль переплаты).' : '')}</div>
+        <div className="erp-muted" style={{ fontSize: 11, marginTop: 6 }}>Ответственный: <b>{respName}</b> (текущий пользователь).{f.editId ? ' Сумму при правке не меняем; счёт списания можно сменить (безопасно — старая операция сторнируется, деньги вернутся на прежний счёт, новая пройдёт с выбранного).' : (isSalary ? ' Выплата идёт через кадры (контроль переплаты).' : '')}</div>
       </Modal>
 
       <Modal open={catModal} onClose={() => { setCatModal(false); setIconEdit(null); }} title="🏷 Категории расходов" width={460} footer={<Button variant="outline" onClick={() => setCatModal(false)}>Закрыть</Button>}>
