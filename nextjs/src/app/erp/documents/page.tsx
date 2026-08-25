@@ -112,7 +112,7 @@ export default function DocumentsPage() {
           <Input placeholder="🔍 Товар со склада" value={prodQ} onChange={e => setProdQ(e.target.value)} />
           {prodHits.length > 0 && <div style={{ position: 'absolute', zIndex: 20, left: 0, right: 0, background: '#fff', border: '1px solid #d1d5db', borderRadius: 8, boxShadow: '0 6px 20px rgba(0,0,0,.12)' }}>{prodHits.map(p => <div key={p.id} style={{ padding: 8, cursor: 'pointer', fontSize: 12 }} onClick={() => { setItems([...items, { name: p.name, sku: p.skuCode, qty: 1, unit: 'шт', price: Number(p.price) || 0 }]); setProdQ(''); }}><b>{p.name}</b> · {p.skuCode} · {fmt(p.price)}</div>)}</div>}
         </div>
-        <table className="erp-table" style={{ fontSize: 12 }}><thead><tr><th>Наименование</th><th style={{ width: 60 }}>Кол-во</th><th style={{ width: 90 }}>Цена</th><th style={{ width: 90 }}>Сумма</th><th style={{ width: 30 }}></th></tr></thead>
+        <table className="erp-table" style={{ fontSize: 12 }}><thead><tr><th>Наименование</th><th style={{ width: 80 }}>Кол-во</th><th style={{ width: 90 }}>Цена</th><th style={{ width: 90 }}>Сумма</th><th style={{ width: 30 }}></th></tr></thead>
           <tbody>{items.map((it, i) => <tr key={i}>
             <td><Input value={it.name} onChange={e => { const n = [...items]; n[i] = { ...it, name: e.target.value }; setItems(n); }} style={{ padding: '4px 6px' }} /></td>
             <td><Input type="number" value={String(it.qty)} onChange={e => { const n = [...items]; n[i] = { ...it, qty: Number(e.target.value) || 0 }; setItems(n); }} style={{ padding: 4, textAlign: 'center' }} /></td>

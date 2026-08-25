@@ -358,7 +358,7 @@ export default function SalesPage() {
 
         <Field label="Товары" required>
           <table className="erp-table" style={{ fontSize: 12 }}>
-            <thead><tr><th style={{ textAlign: 'left' }}>Товар</th><th style={{ width: 66 }}>Кол-во</th><th style={{ width: 96 }}>Цена</th><th style={{ width: 96 }}>Сумма</th><th style={{ width: 30 }}></th></tr></thead>
+            <thead><tr><th style={{ textAlign: 'left' }}>Товар</th><th style={{ width: 84 }}>Кол-во</th><th style={{ width: 96 }}>Цена</th><th style={{ width: 96 }}>Сумма</th><th style={{ width: 30 }}></th></tr></thead>
             <tbody>
               {form.items.map((it, i) => {
                 const p = (products || []).find(x => x.id === it.productId);

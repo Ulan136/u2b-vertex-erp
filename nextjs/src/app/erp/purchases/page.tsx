@@ -182,7 +182,7 @@ export default function PurchasesPage() {
 
         <Field label="Позиции закупа" required>
           <table className="erp-table" style={{ fontSize: 12 }}>
-            <thead><tr><th style={{ textAlign: 'left' }}>Товар</th><th style={{ width: 66 }}>Кол-во</th><th style={{ width: 110 }}>Цена закупа</th><th style={{ width: 92 }}>Сумма</th><th style={{ width: 30 }}></th></tr></thead>
+            <thead><tr><th style={{ textAlign: 'left' }}>Товар</th><th style={{ width: 84 }}>Кол-во</th><th style={{ width: 110 }}>Цена закупа</th><th style={{ width: 92 }}>Сумма</th><th style={{ width: 30 }}></th></tr></thead>
             <tbody>
               {f.items.map((it, i) => (
                 <tr key={i}>
