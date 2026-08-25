@@ -26,11 +26,30 @@ export function PageTitle({ title, sub, action }: { title: string; sub?: string;
   );
 }
 
-export function Modal({ open, onClose, title, children, footer, width = 520 }: { open: boolean; onClose: () => void; title: React.ReactNode; children: React.ReactNode; footer?: React.ReactNode; width?: number }) {
+export function Modal({ open, onClose, title, children, footer, width = 560 }: { open: boolean; onClose: () => void; title: React.ReactNode; children: React.ReactNode; footer?: React.ReactNode; width?: number }) {
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  // Enter в поле → переход к следующему полю (быстрый ввод). В textarea — перенос
+  // строки; на последнем поле Enter нажимает главную кнопку внизу (сабмит).
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    const t = e.target as HTMLElement;
+    const tag = t.tagName;
+    if (tag === 'TEXTAREA' || tag === 'BUTTON' || tag === 'A') return;
+    if (tag !== 'INPUT' && tag !== 'SELECT') return;
+    if ((t as HTMLInputElement).type === 'checkbox' || (t as HTMLInputElement).type === 'radio') return;
+    e.preventDefault();
+    const root = rootRef.current; if (!root) return;
+    const fields = Array.from(root.querySelectorAll<HTMLElement>('.ui-modal-body input, .ui-modal-body select, .ui-modal-body textarea'))
+      .filter(el => !(el as HTMLInputElement).disabled && el.offsetParent !== null && (el as HTMLInputElement).type !== 'hidden');
+    const i = fields.indexOf(t);
+    const next = fields[i + 1];
+    if (next) next.focus();
+    else (root.querySelector('.ui-modal-foot .ui-btn-primary') as HTMLButtonElement | null)?.click();
+  }
   if (!open) return null;
   return (
     <div className="ui-modal-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="ui-modal" style={{ width }}>
+      <div className="ui-modal" style={{ width }} ref={rootRef} onKeyDown={onKeyDown}>
         <div className="ui-modal-head"><h3>{title}</h3><button className="ui-modal-close" onClick={onClose} aria-label="Закрыть">✕</button></div>
         <div className="ui-modal-body">{children}</div>
         {footer && <div className="ui-modal-foot">{footer}</div>}
