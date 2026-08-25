@@ -61,18 +61,18 @@ export function Modal({ open, onClose, title, children, footer, width = 560 }: {
 export function Field({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) {
   return <label className="ui-field"><span className="ui-field-label">{label}{required && ' *'}</span>{children}</label>;
 }
-export const Input = (p: React.InputHTMLAttributes<HTMLInputElement>) => <input className="ui-input" {...p} />;
+export const Input = ({ className = '', ...p }: React.InputHTMLAttributes<HTMLInputElement>) => <input className={`ui-input ${className}`} {...p} />;
 // Поле суммы: показывает число с разделением тысяч (300 000), а хранит «сырую»
 // числовую строку (300000). onValue отдаёт сырое значение (только цифры + точка).
-export function MoneyInput({ value, onValue, ...rest }: { value: string | number | null | undefined; onValue: (v: string) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'>) {
+export function MoneyInput({ value, onValue, className = '', ...rest }: { value: string | number | null | undefined; onValue: (v: string) => void; className?: string } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type' | 'className'>) {
   const raw = value == null ? '' : String(value);
   const n = raw.replace(/\s/g, '');
   const display = n === '' ? '' : (n.includes('.') ? n : (Number(n) || 0).toLocaleString('ru-RU'));
-  return <input className="ui-input" type="text" inputMode="decimal" value={display}
+  return <input className={`ui-input ${className}`} type="text" inputMode="decimal" value={display}
     onChange={e => onValue(e.target.value.replace(/[^\d.]/g, ''))} {...rest} />;
 }
-export const Textarea = (p: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea className="ui-input ui-textarea" {...p} />;
-export const Select = (p: React.SelectHTMLAttributes<HTMLSelectElement>) => <select className="ui-input" {...p} />;
+export const Textarea = ({ className = '', ...p }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea className={`ui-input ui-textarea ${className}`} {...p} />;
+export const Select = ({ className = '', ...p }: React.SelectHTMLAttributes<HTMLSelectElement>) => <select className={`ui-input ${className}`} {...p} />;
 
 export function EmptyRow({ children }: { children: React.ReactNode }) {
   // aria-live: скринридер озвучивает смену состояния (загрузка/пусто/ошибка). P3-2.

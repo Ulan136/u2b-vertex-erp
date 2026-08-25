@@ -200,6 +200,13 @@
 .ui-input:hover:not(:focus):not(:disabled) { border-color: #b9c0cc; }
 .ui-input:focus { outline: none; border-color: var(--erp-blue); box-shadow: 0 0 0 3px rgba(37,99,235,.14); }
 .ui-input:disabled { background: #f3f5f8; color: #94a3b8; }
+/* Модалки: поля крупнее и с мягким фоном (читаемость для менеджеров) */
+.ui-modal .ui-input { font-size: 15px; padding: 11px 13px; border-width: 1.5px; background: #f6f8fb; }
+.ui-modal .ui-input:focus { background: #fff; }
+.ui-modal .ui-input:disabled { background: #eef1f5; }
+/* Крупные читаемые цифры в таблицах позиций (Кол-во / Цена / Сумма) */
+.ui-modal .erp-num { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ui-modal .erp-sum { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
 /* P1-4: единый вид всех полей дат (включая нативные), чтобы не выпадали из макета */
 .ui-input[type="date"] { font-family: inherit; }
 .ui-input[type="date"]::-webkit-calendar-picker-indicator { opacity: .55; cursor: pointer; }

@@ -181,8 +181,8 @@ export default function PurchasesPage() {
         {f.err && <div className="erp-form-err">{f.err}</div>}
 
         <Field label="Позиции закупа" required>
-          <table className="erp-table" style={{ fontSize: 12 }}>
-            <thead><tr><th style={{ textAlign: 'left' }}>Товар</th><th style={{ width: 84 }}>Кол-во</th><th style={{ width: 110 }}>Цена закупа</th><th style={{ width: 92 }}>Сумма</th><th style={{ width: 30 }}></th></tr></thead>
+          <table className="erp-table">
+            <thead><tr><th style={{ textAlign: 'left' }}>Товар</th><th style={{ width: 92, textAlign: 'center' }}>Кол-во</th><th style={{ width: 130, textAlign: 'right' }}>Цена закупа</th><th style={{ width: 124, textAlign: 'right' }}>Сумма</th><th style={{ width: 34 }}></th></tr></thead>
             <tbody>
               {f.items.map((it, i) => (
                 <tr key={i}>
@@ -200,9 +200,9 @@ export default function PurchasesPage() {
                       </div>
                     )}
                   </td>
-                  <td><Input type="number" min={1} value={it.qty} onChange={e => setItemField(i, 'qty', e.target.value)} style={{ padding: '4px 6px', textAlign: 'center' }} /></td>
-                  <td><MoneyInput value={it.price} onValue={v => setItemField(i, 'price', v)} style={{ padding: '4px 6px', textAlign: 'right' }} /></td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(num(it.qty) * num(it.price))}</td>
+                  <td><Input type="number" min={1} value={it.qty} onChange={e => setItemField(i, 'qty', e.target.value)} className="erp-num" style={{ textAlign: 'center' }} /></td>
+                  <td><MoneyInput value={it.price} onValue={v => setItemField(i, 'price', v)} className="erp-num" style={{ textAlign: 'right' }} /></td>
+                  <td className="erp-sum" style={{ textAlign: 'right' }}>{fmt(num(it.qty) * num(it.price))}</td>
                   <td style={{ textAlign: 'center' }}><button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => removeItem(i)} title="Убрать позицию" disabled={f.items.length <= 1}>✕</button></td>
                 </tr>
               ))}

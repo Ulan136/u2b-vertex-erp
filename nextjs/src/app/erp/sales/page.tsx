@@ -357,8 +357,8 @@ export default function SalesPage() {
         </Field>
 
         <Field label="Товары" required>
-          <table className="erp-table" style={{ fontSize: 12 }}>
-            <thead><tr><th style={{ textAlign: 'left' }}>Товар</th><th style={{ width: 84 }}>Кол-во</th><th style={{ width: 96 }}>Цена</th><th style={{ width: 96 }}>Сумма</th><th style={{ width: 30 }}></th></tr></thead>
+          <table className="erp-table">
+            <thead><tr><th style={{ textAlign: 'left' }}>Товар</th><th style={{ width: 92, textAlign: 'center' }}>Кол-во</th><th style={{ width: 124, textAlign: 'right' }}>Цена</th><th style={{ width: 124, textAlign: 'right' }}>Сумма</th><th style={{ width: 34 }}></th></tr></thead>
             <tbody>
               {form.items.map((it, i) => {
                 const p = (products || []).find(x => x.id === it.productId);
@@ -371,9 +371,9 @@ export default function SalesPage() {
                       </Select>
                       {p && !form.id && num(it.qty) > num(p.currentStock) && <div style={{ color: '#dc2626', fontSize: 11, marginTop: 2 }}>⚠ доступно {p.currentStock} — нельзя больше</div>}
                     </td>
-                    <td><Input type="number" min={1} value={it.qty} onChange={e => setItemField(i, 'qty', e.target.value)} style={{ padding: '4px 6px', textAlign: 'center' }} /></td>
-                    <td><MoneyInput value={it.price} onValue={v => setItemField(i, 'price', v)} style={{ padding: '4px 6px', textAlign: 'right' }} /></td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(num(it.qty) * num(it.price))}</td>
+                    <td><Input type="number" min={1} value={it.qty} onChange={e => setItemField(i, 'qty', e.target.value)} className="erp-num" style={{ textAlign: 'center' }} /></td>
+                    <td><MoneyInput value={it.price} onValue={v => setItemField(i, 'price', v)} className="erp-num" style={{ textAlign: 'right' }} /></td>
+                    <td className="erp-sum" style={{ textAlign: 'right' }}>{fmt(num(it.qty) * num(it.price))}</td>
                     <td style={{ textAlign: 'center' }}><button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => removeItem(i)} title="Убрать">✕</button></td>
                   </tr>
                 );
