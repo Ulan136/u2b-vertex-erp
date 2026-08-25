@@ -71,6 +71,7 @@ export default function SalesPage() {
   const [fTo, setFTo] = React.useState('');
   const [q, setQ] = React.useState('');
   const [fPay, setFPay] = React.useState('');   // фильтр статуса оплаты
+  const [fAcc, setFAcc] = React.useState('');   // фильтр по счёту оплаты
   const inRange = (d?: string | null) => { const x = (d || '').slice(0, 10); if (fFrom && x < fFrom) return false; if (fTo && x > fTo) return false; return true; };
   // Умный поиск: по № продажи, клиенту, товару, SKU (и по всем позициям мультипродажи).
   // Каждое слово запроса ищется отдельно (AND) — «kaz 15» находит «KAZMETER … 15».
@@ -81,7 +82,10 @@ export default function SalesPage() {
     return qn.split(/\s+/).every(w => hay.includes(w));
   };
   const matchPay = (s: Sale) => !fPay || (s.cancelledAt ? 'Отменена' : (s.payStatus || 'Ожидает')) === fPay;
-  const visible = list.filter(s => inRange(s.saleDate) && matchSearch(s) && matchPay(s));   // фильтр по дням + поиску + оплате (влияет на таблицу, KPI, экспорт)
+  const matchAcc = (s: Sale) => !fAcc || (s.payments || []).some(p => (p.accountName || '') === fAcc);
+  // Список счетов для фильтра — из реальных оплат в журнале (учитывает и старые/переименованные счета).
+  const accOptions = React.useMemo(() => Array.from(new Set(list.flatMap(s => (s.payments || []).map(p => p.accountName || '').filter(Boolean)))).sort((a, b) => a.localeCompare(b, 'ru')), [list]);
+  const visible = list.filter(s => inRange(s.saleDate) && matchSearch(s) && matchPay(s) && matchAcc(s));   // фильтр по дням + поиску + оплате + счёту (влияет на таблицу, KPI, экспорт)
   const active = visible.filter(x => !x.cancelledAt);
   const total = active.reduce((s, x) => s + num(x.totalSum), 0);
   const paidSum = active.reduce((s, x) => s + num(x.paidSum), 0);
@@ -281,6 +285,10 @@ export default function SalesPage() {
           <option value="Частично">⚖ Частично</option>
           <option value="Ожидает">⏳ Ожидает</option>
           <option value="Отменена">✕ Отменена</option>
+        </Select>
+        <Select value={fAcc} onChange={e => setFAcc(e.target.value)} title="Фильтр по счёту" style={{ width: 160 }}>
+          <option value="">Счёт: все</option>
+          {accOptions.map(a => <option key={a} value={a}>{a}</option>)}
         </Select>
         <span style={{ marginLeft: 'auto', fontSize: 12 }} className="erp-muted">Показано: <b>{visible.length}</b> · Итого: <b>{fmt(total)} ₸</b></span>
       </Card>
