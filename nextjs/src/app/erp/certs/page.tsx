@@ -10,6 +10,7 @@ import ClientPicker from '@/components/erp/ClientPicker';
 import { getRecent, pushRecent, removeRecent, type RecentItem } from '@/lib/recent';
 import { payTone } from '@/lib/status';   // единый тон статуса оплаты (P1-5)
 import { useCols, ColumnMenu } from '@/components/erp/ColumnMenu';
+import { useRowFocus } from '@/lib/useRowFocus';
 
 // Колонки реестра сертификатов для попапа «Колонки» (№/ФИО/Действия всегда видны).
 const CERT_COLS = [
@@ -235,6 +236,7 @@ function CertsInner() {
     // ВНИЗ, порядковый № (индекс+1) продолжается. Печать/экспорт идут в том же
     // порядке и нумеруются 1,2,3… сверху вниз.
     .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+  useRowFocus(list.length);   // переход к строке по ?focus=<id> (из Финансов/дашборда)
 
   // Блоки 2–4 (по полному списку направления).
   const waiting = all.filter(c => c.payStatus !== 'Оплачено');
@@ -458,7 +460,7 @@ function CertsInner() {
               </tr></thead>
               <tbody>
                 {list.map((c, i) => (
-                  <tr key={c.id} className={isTTE(c) ? 'cert-hot' : ''}>
+                  <tr key={c.id} data-focus-id={c.id} className={isTTE(c) ? 'cert-hot' : ''}>
                     <td className="erp-muted col-no" style={{ fontSize: 11 }}>{i + 1}</td>
                     <td className="erp-td-main col-fio">{c.fio}</td>
                     <td className="col-address" style={{ fontSize: 11, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.address || '—'}</td>
@@ -495,7 +497,7 @@ function CertsInner() {
               </tr></thead>
               <tbody>
                 {list.map((c, i) => (
-                  <tr key={c.id} className={isTTE(c) ? 'cert-hot' : ''}>
+                  <tr key={c.id} data-focus-id={c.id} className={isTTE(c) ? 'cert-hot' : ''}>
                     <td className="erp-muted" style={{ fontSize: 11 }}>{i + 1}</td>
                     <td className="erp-td-main">{c.fio}</td>
                     <td style={{ fontSize: 11 }}>{c.address || '—'}</td>

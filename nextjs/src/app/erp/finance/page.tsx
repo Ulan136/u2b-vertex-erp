@@ -17,10 +17,10 @@ type Op = { id: string; opType: string; accountId: string; accountName?: string 
 const canReverseOp = (o: Op) => !isReversed(o) && !isReversal(o) && o.opType !== 'Перевод' && o.source !== 'Старт' && !o.saleId && !o.certId;
 // Ссылка на исходный документ операции (чтобы не искать вручную).
 const sourceLink = (o: Op): string | null =>
-  o.saleId ? '/erp/sales' : o.certId ? '/erp/certs'
+  o.saleId ? `/erp/sales?focus=${o.saleId}` : o.certId ? `/erp/certs?focus=${o.certId}`
   : o.source === 'Закуп' ? '/erp/purchases'
   : o.source === 'Зарплата' ? '/erp/staff'
-  : (o.source === 'Расходы' || (o.opType === 'Расход' && o.source !== 'Старт')) ? '/erp/expenses'
+  : (o.source === 'Расходы' || (o.opType === 'Расход' && o.source !== 'Старт')) ? `/erp/expenses?focus=${o.id}`
   : null;
 
 const SECTIONS = [

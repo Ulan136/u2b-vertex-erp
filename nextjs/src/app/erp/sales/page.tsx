@@ -7,6 +7,7 @@ import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select
 import EntityHistory from '@/components/erp/EntityHistory';
 import { getRecent, pushRecent, removeRecent, type RecentItem } from '@/lib/recent';
 import { useCols, ColumnMenu } from '@/components/erp/ColumnMenu';
+import { useRowFocus } from '@/lib/useRowFocus';
 
 // Колонки журнала продаж для попапа «Колонки» (№/Сумма/Действия — всегда видны).
 const SALES_COLS = [
@@ -86,6 +87,7 @@ export default function SalesPage() {
   // Список счетов для фильтра — из реальных оплат в журнале (учитывает и старые/переименованные счета).
   const accOptions = React.useMemo(() => Array.from(new Set(list.flatMap(s => (s.payments || []).map(p => p.accountName || '').filter(Boolean)))).sort((a, b) => a.localeCompare(b, 'ru')), [list]);
   const visible = list.filter(s => inRange(s.saleDate) && matchSearch(s) && matchPay(s) && matchAcc(s));   // фильтр по дням + поиску + оплате + счёту (влияет на таблицу, KPI, экспорт)
+  useRowFocus(visible.length);   // переход к строке по ?focus=<id> (из Финансов/дашборда)
   const active = visible.filter(x => !x.cancelledAt);
   const total = active.reduce((s, x) => s + num(x.totalSum), 0);
   const paidSum = active.reduce((s, x) => s + num(x.paidSum), 0);
@@ -306,7 +308,7 @@ export default function SalesPage() {
                   const st = s.payStatus || 'Ожидает';
                   const canTopup = !cancelled && (st === 'Ожидает' || st === 'Частично');
                   return (
-                    <tr key={s.id} style={cancelled ? { opacity: 0.55 } : undefined}>
+                    <tr key={s.id} data-focus-id={s.id} style={cancelled ? { opacity: 0.55 } : undefined}>
                       <td className="erp-muted col-no" style={{ fontSize: 12 }}>{s.saleNo}</td>
                       <td className="erp-muted col-date" style={{ fontSize: 12 }}>{dmy(s.saleDate)}</td>
                       <td className="erp-td-main col-client">{s.clientName ? <span className="sale-client-link" title="История продаж клиента" onClick={() => setClientHist(s.clientName!)}>{s.clientName}</span> : '—'}</td>

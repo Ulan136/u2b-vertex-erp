@@ -30,6 +30,13 @@ export const certUpsertSchema = z.object({
   payStatus: z.string().optional(),
   invoiceType: z.string().optional(),
   isArchived: z.boolean().optional(),   // в архив / из архива
+  // Реквизиты для е-КТРМ. ИИН/БИН — ровно 12 цифр, пустая строка допустима
+  // (в разобранных сертификатах поле часто не заполнено).
+  accuracyClass: z.string().nullish(),
+  ownerKind: z.enum(['физлицо', 'юрлицо']).optional(),
+  ownerTaxId: z.string().regex(/^(\d{12})?$/, 'ИИН/БИН — 12 цифр').nullish(),
+  addressKz: z.string().nullish(),
+  verifier: z.string().nullish(),
   // Оплата прямого сертификата/извещения (смешанная): строки {счёт, сумма}.
   // Пусто/не передано → приход на счёт раздела по умолчанию (при «Оплачено»).
   payments: z.array(z.object({ accountId: z.string().uuid(), amount: z.coerce.number().nonnegative() })).optional(),

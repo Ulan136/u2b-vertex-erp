@@ -86,6 +86,13 @@ export const certificates = pgTable('certificates', {
   ktrmRegNo     : varchar('ktrm_reg_no', { length: 50 }),
   ktrmDoneAt    : timestamp('ktrm_done_at', { withTimezone: true }),
   ktrmError     : text('ktrm_error'),
+  // Реквизиты, которых требует карточка е-КТРМ, а у нас их не было.
+  accuracyClass : varchar('accuracy_class', { length: 40 }),            // «По классу», напр. «±5; ±2»
+  ownerKind     : varchar('owner_kind', { length: 10 }).default('физлицо'),
+  ownerTaxId    : varchar('owner_tax_id', { length: 12 }),              // ИИН для физлица, БИН для юрлица
+  addressKz     : text('address_kz'),
+  verifier      : varchar('verifier', { length: 120 }),                 // поверитель, строго из справочника
+  ktrmBatchId   : uuid('ktrm_batch_id'),                                // пачка выгрузки — защита от повторной отправки
   amount        : numeric('amount', { precision: 12, scale: 2 }).default('0'),
   isArchived    : boolean('is_archived').default(false),
   archivedAt    : timestamp('archived_at', { withTimezone: true }),
@@ -507,6 +514,34 @@ export const deviceTypes = pgTable('device_types', {
   usageCount : integer('usage_count').notNull().default(0),
   lastUsedAt : timestamp('last_used_at', { withTimezone: true }),
   createdAt  : timestamp('created_at', { withTimezone: true }).defaultNow(),
+  // Привязка к е-КТРМ. «Выбор шаблона» там разворачивает наименование СИ,
+  // модель, диапазон, методику и изготовителя — держим соответствие здесь.
+  ktrmTemplate        : varchar('ktrm_template', { length: 200 }),     // напр. «БЕТАР, СГВ-15»
+  ktrmModel           : varchar('ktrm_model', { length: 200 }),        // напр. «СГВ (СГВ-15), Бетар»
+  ktrmSiName          : varchar('ktrm_si_name', { length: 200 }),
+  ktrmSiNameKz        : varchar('ktrm_si_name_kz', { length: 200 }),
+  ktrmRegistryNo      : varchar('ktrm_registry_no', { length: 50 }),   // номер в реестре утверждённых типов
+  ktrmMethod          : varchar('ktrm_method', { length: 300 }),       // методика поверки
+  ktrmRange           : varchar('ktrm_range', { length: 160 }),        // диапазон измерений
+  manufacturer        : varchar('manufacturer', { length: 200 }),
+  manufacturerCountry : varchar('manufacturer_country', { length: 80 }),
+  // Межповерочный интервал раздельно: госреестр даёт разные сроки
+  // холодной и горячей воде, а е-КТРМ этого различия не видит.
+  intervalYearsCold   : smallint('interval_years_cold'),
+  intervalYearsHot    : smallint('interval_years_hot'),
+});
+
+// Пачка выгрузки в е-КТРМ: одна кнопка «Создать» и одна подпись на всю пачку.
+export const ktrmBatches = pgTable('ktrm_batches', {
+  id         : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  status     : varchar('status', { length: 20 }).notNull().default('Подготовлена'),
+  certCount  : integer('cert_count').notNull().default(0),
+  fileName   : varchar('file_name', { length: 200 }),
+  error      : text('error'),
+  createdBy  : uuid('created_by').references(() => users.id),
+  createdAt  : timestamp('created_at', { withTimezone: true }).defaultNow(),
+  importedAt : timestamp('imported_at', { withTimezone: true }),
+  signedAt   : timestamp('signed_at', { withTimezone: true }),
 });
 export const deviceTypeAliases = pgTable('device_type_aliases', {
   id           : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
@@ -533,6 +568,8 @@ export type Task             = typeof tasks.$inferSelect;
 export type RolePermission   = typeof rolePermissions.$inferSelect;
 export type Comment          = typeof comments.$inferSelect;
 export type Notification     = typeof notifications.$inferSelect;
+export type DeviceType       = typeof deviceTypes.$inferSelect;
+export type KtrmBatch        = typeof ktrmBatches.$inferSelect;
 
 export type NewCertificate = typeof certificates.$inferInsert;
 export type NewClient         = typeof clients.$inferInsert;

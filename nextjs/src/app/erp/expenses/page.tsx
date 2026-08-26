@@ -5,6 +5,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow, DateRange } from '@/components/ui';
 import { useCols, ColumnMenu } from '@/components/erp/ColumnMenu';
+import { useRowFocus } from '@/lib/useRowFocus';
 
 // Колонки журнала расходов для попапа «Колонки» (№/Сумма/Действия всегда видны).
 const EXPENSE_COLS = [
@@ -85,6 +86,7 @@ export default function ExpensesPage() {
     return true;
   });
   const listSum = list.reduce((s, o) => s + num(o.amount), 0);
+  useRowFocus(list.length);   // переход к строке по ?focus=<id> (из Финансов/дашборда)
 
   // ── модалка расхода ──
   const [modal, setModal] = React.useState(false);
@@ -220,7 +222,7 @@ export default function ExpensesPage() {
                       const salary = o.source === 'Зарплата';
                       const st = statusOf(o);
                       return (
-                        <tr key={o.id}>
+                        <tr key={o.id} data-focus-id={o.id}>
                           <td className="erp-muted col-no">{i + 1}</td>
                           <td className="erp-muted col-date">{dmy(o.opDate)}</td>
                           <td className="col-category">{salary ? '👤 ' : ''}{catOf(o)}</td>

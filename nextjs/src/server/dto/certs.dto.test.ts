@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanCertFields, isCertPaid, sectionForCertSource, certIncomePosts } from './certs.dto';
+import { cleanCertFields, isCertPaid, sectionForCertSource, certIncomePosts, certUpsertSchema } from './certs.dto';
 import { sealMarker } from './products.dto';
 
 test('sectionForCertSource: Астана → branch, прочие → poverka', () => {
@@ -58,4 +58,21 @@ test('sealFor: поверка «В ожидании» → НЕ списывае�
 });
 test('sealFor: оплаченное извещение → НЕ списываем (не поверка)', () => {
   assert.equal(sealFor({ docType: 'izv', sealType: 'СЛ', payStatus: 'Оплачено' }), null);
+});
+
+// ── Реквизиты для е-КТРМ ──────────────────────────────────────
+test('certUpsertSchema: ИИН/БИН — ровно 12 цифр либо пусто', () => {
+  assert.equal(certUpsertSchema.safeParse({ ownerTaxId: '901231300123' }).success, true);
+  assert.equal(certUpsertSchema.safeParse({ ownerTaxId: '' }).success, true);          // в е-КТРМ поле часто пустое
+  assert.equal(certUpsertSchema.safeParse({ ownerTaxId: '12345' }).success, false);
+  assert.equal(certUpsertSchema.safeParse({ ownerTaxId: '90123130012a' }).success, false);
+});
+test('certUpsertSchema: владелец — только физлицо или юрлицо', () => {
+  assert.equal(certUpsertSchema.safeParse({ ownerKind: 'физлицо' }).success, true);
+  assert.equal(certUpsertSchema.safeParse({ ownerKind: 'юрлицо' }).success, true);
+  assert.equal(certUpsertSchema.safeParse({ ownerKind: 'ИП' }).success, false);
+});
+test('certUpsertSchema: поверитель, класс точности и казахский адрес принимаются', () => {
+  const r = certUpsertSchema.safeParse({ verifier: 'Болегенов А.', accuracyClass: '±5; ±2', addressKz: 'Тараз қ.' });
+  assert.equal(r.success, true);
 });

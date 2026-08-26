@@ -13,10 +13,10 @@ type Acct = { id: string; name: string; section?: string | null; balance?: strin
 type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; saleId?: string | null; certId?: string | null };
 // Экран исходного документа операции (клик по строке ведёт туда же, что и в Финансах).
 const opLink = (o: Op): string | null =>
-  o.saleId ? '/erp/sales' : o.certId ? '/erp/certs'
+  o.saleId ? `/erp/sales?focus=${o.saleId}` : o.certId ? `/erp/certs?focus=${o.certId}`
   : o.source === 'Закуп' ? '/erp/purchases'
   : o.source === 'Зарплата' ? '/erp/staff'
-  : (o.source === 'Расходы' || (o.opType === 'Расход' && o.source !== 'Старт')) ? '/erp/expenses'
+  : (o.source === 'Расходы' || (o.opType === 'Расход' && o.source !== 'Старт')) ? `/erp/expenses?focus=${o.id}`
   : null;
 type Debt = { type: string; amount: string | number; paidAmount: string | number; status: string; dueDate?: string | null };
 type Task = { id: string; title: string; status?: string | null; completedAt?: string | null; assigneeName?: string | null; dueDate?: string | null };
