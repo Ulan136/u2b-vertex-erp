@@ -59,6 +59,7 @@ export default function FinancePage() {
   const [cat, setCat] = React.useState('all');
   const [from, setFrom] = React.useState('');
   const [to, setTo] = React.useState('');
+  const [fAcc, setFAcc] = React.useState('');   // фильтр по конкретному счёту
   const qs = new URLSearchParams(); if (from) qs.set('from', from); if (to) qs.set('to', to);
   const { data, error, isLoading, mutate } = useApi<{ accounts: Acct[]; operations: Op[] }>('/api/v2/finance' + (qs.toString() ? '?' + qs : ''));
   // Вычисляемые долги (ожидаемые поступления + долг поставщикам) — сводкой, без реестра.
@@ -79,8 +80,11 @@ export default function FinancePage() {
 
   const sortAccs = (list: Acct[]) => [...list].sort((a, b) => (Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)) || String(a.name).localeCompare(String(b.name)));
 
-  const visAccs = accounts.filter(a => cats.includes(a.section || 'other'));
-  const visOps = ops.filter(o => cats.includes(secOf(o.accountId)));
+  // Сброс выбранного счёта, если он не входит в текущий раздел (сменили чип).
+  React.useEffect(() => { if (fAcc && !accounts.some(a => a.id === fAcc && cats.includes(a.section || 'other'))) setFAcc(''); }, [cat, accounts]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const matchAcc = (accountId: string) => !fAcc || accountId === fAcc;
+  const visAccs = accounts.filter(a => cats.includes(a.section || 'other') && matchAcc(a.id));
+  const visOps = ops.filter(o => cats.includes(secOf(o.accountId)) && matchAcc(o.accountId));
   const cash = visAccs.reduce((s, a) => s + (Number(a.balance) || 0), 0);
   const income = visOps.filter(isRealIncome).reduce((s, o) => s + (Number(o.amount) || 0), 0);
   const expense = visOps.filter(isRealExpense).reduce((s, o) => s + (Number(o.amount) || 0), 0);
@@ -135,6 +139,13 @@ export default function FinancePage() {
           {SECTIONS.map(s => <button key={s.key} className={`erp-chip${cat === s.key ? ' on' : ''}`} style={cat === s.key ? { background: s.color, borderColor: s.color, color: '#fff' } : undefined} onClick={() => setCat(s.key)}>№{s.no} {s.icon} {s.label}</button>)}
         </div>
         <DateRange from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
+        <Select value={fAcc} onChange={e => setFAcc(e.target.value)} title="Фильтр по счёту" style={{ width: 190 }}>
+          <option value="">Счёт: все</option>
+          {SECTIONS.filter(s => cats.includes(s.key)).map(s => {
+            const accs = sortAccs(accounts.filter(a => (a.section || 'other') === s.key));
+            return accs.length ? <optgroup key={s.key} label={`№${s.no} ${s.label}`}>{accs.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}</optgroup> : null;
+          })}
+        </Select>
       </Card>
 
       <div className="erp-kpi-grid" style={{ marginTop: 12 }}>
@@ -174,9 +185,11 @@ export default function FinancePage() {
           {cats.map(c => {
             const sec = SECTIONS.find(s => s.key === c)!;
             const accs = sortAccs(accounts.filter(a => (a.section || 'other') === c));
-            const accNoById = new Map(accs.map((a, i) => [a.id, i + 1]));   // № счёта внутри раздела
-            const total = accs.reduce((s, a) => s + (Number(a.balance) || 0), 0);
-            const movs = ops.filter(o => secOf(o.accountId) === c).sort((a, b) => String(b.opDate).localeCompare(String(a.opDate)));
+            const accNoById = new Map(accs.map((a, i) => [a.id, i + 1]));   // № счёта внутри раздела (по всем счетам раздела)
+            if (fAcc && !accs.some(a => a.id === fAcc)) return null;        // выбран счёт другого раздела — колонку скрываем
+            const accsShown = fAcc ? accs.filter(a => a.id === fAcc) : accs;
+            const total = accsShown.reduce((s, a) => s + (Number(a.balance) || 0), 0);
+            const movs = ops.filter(o => secOf(o.accountId) === c && (!fAcc || o.accountId === fAcc)).sort((a, b) => String(b.opDate).localeCompare(String(a.opDate)));
             // связь отменённой пары: исходная ↔ её сторно (для подсказки «связана с …»)
             const revByOrig = new Map(ops.filter(o => o.reverses).map(o => [o.reverses as string, o]));
             const opById = new Map(ops.map(o => [o.id, o]));
@@ -185,8 +198,8 @@ export default function FinancePage() {
               <div className="erp-fin-col" key={c}>
                 <div className="erp-fin-head" style={{ background: sec.color }}><span>№{sec.no} {sec.icon} {sec.label}</span><span>{fmt(total)}</span></div>
                 <div className="erp-fin-accs">
-                  {accs.length === 0 ? <div className="erp-muted" style={{ fontSize: 12, padding: 6 }}>Нет счетов</div> : accs.map((a, i) => (
-                    <div className="erp-fin-acc" key={a.id}><span><b>№{i + 1}</b> {a.icon} {a.name}</span><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{fmt(a.balance || 0)}<button className="erp-icon-btn" title="Изменить счёт / начальный остаток" style={{ fontSize: 13 }} onClick={() => editAcct(a)}>✏️</button></span></div>
+                  {accsShown.length === 0 ? <div className="erp-muted" style={{ fontSize: 12, padding: 6 }}>Нет счетов</div> : accsShown.map((a) => (
+                    <div className="erp-fin-acc" key={a.id}><span><b>№{accNoById.get(a.id)}</b> {a.icon} {a.name}</span><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{fmt(a.balance || 0)}<button className="erp-icon-btn" title="Изменить счёт / начальный остаток" style={{ fontSize: 13 }} onClick={() => editAcct(a)}>✏️</button></span></div>
                   ))}
                 </div>
                 <div className="erp-fin-movs">

@@ -91,6 +91,14 @@ export const financeRepo = {
       .set({ balance: sql`${financeAccounts.balance} + ${delta}` })
       .where(eq(financeAccounts.id, id)),
 
+  // Максимальный sortOrder внутри раздела — новый счёт встаёт следующим (в конец).
+  async maxSortOrder(section: string, exec: Executor = db) {
+    const [row] = await exec.select({ m: sql<number>`coalesce(max(${financeAccounts.sortOrder}), 0)` })
+      .from(financeAccounts)
+      .where(eq(financeAccounts.section, section as typeof financeAccounts.section.enumValues[number]));
+    return Number(row?.m ?? 0);
+  },
+
   async createAccount(data: Record<string, unknown>, exec: Executor = db) {
     const [row] = await exec.insert(financeAccounts).values(data as unknown as AccInsert).returning();
     return row;

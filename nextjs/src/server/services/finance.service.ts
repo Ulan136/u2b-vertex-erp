@@ -87,8 +87,11 @@ async function reverseOperation(id: string, actorId?: string | null, exec?: Exec
 async function createAccount(input: unknown, actorId?: string | null) {
   const d = accountCreateSchema.parse(input);
   return db.transaction(async (tx) => {
+    // Новый счёт всегда становится последним в своём разделе (sort_order = max+1),
+    // независимо от названия — иначе tiebreaker по имени мог поставить его первым.
+    const nextOrder = (await financeRepo.maxSortOrder(d.section, tx)) + 1;
     const acc = await financeRepo.createAccount({
-      name: d.name, category: d.category, section: d.section, icon: d.icon || '💳', balance: '0',
+      name: d.name, category: d.category, section: d.section, icon: d.icon || '💳', balance: '0', sortOrder: nextOrder,
     }, tx);
     const start = Number(d.balance) || 0;
     if (start > 0 && acc) {
