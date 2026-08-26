@@ -209,7 +209,11 @@ export default function FinancePage() {
                       <span style={{ flexShrink: 0 }}>{opIcon(o)}</span>
                       <span className="erp-fin-movd">{dmy(o.opDate)}</span>
                       <span title={o.accountName || ''} style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, color: '#475569', background: '#eef2f7', borderRadius: 5, padding: '0 5px' }}>№{accNoById.get(o.accountId) ?? '?'}</span>
-                      <span className="erp-fin-movt" style={isReversed(o) ? { textDecoration: 'line-through', opacity: .55 } : undefined}>{opName(o)}{o.createdByName ? <span className="erp-muted" style={{ marginLeft: 6, fontSize: 10 }}>· {o.createdByName}</span> : null}</span>
+                      <span className="erp-fin-movt" style={isReversed(o) ? { textDecoration: 'line-through', opacity: .55 } : undefined}>
+                        {sourceLink(o)
+                          ? <Link href={sourceLink(o)!} className="fin-mov-link" title="Открыть исходный документ">{opName(o)}</Link>
+                          : opName(o)}
+                        {o.createdByName ? <span className="erp-muted" style={{ marginLeft: 6, fontSize: 10 }}>· {o.createdByName}</span> : null}</span>
                       <span style={{ color: opAmountColor(o), fontWeight: 700, whiteSpace: 'nowrap' }}>{opSign(o)}{fmt(o.amount)}</span>
                       {sourceLink(o) && <Link href={sourceLink(o)!} title="Открыть исходный документ" className="erp-icon-btn" style={{ flexShrink: 0, fontSize: 12, padding: '0 4px', lineHeight: 1, textDecoration: 'none' }}>🔗</Link>}
                       {canReverseOp(o) && <button className="erp-icon-btn" title="Отменить операцию (сторно)" style={{ color: '#dc2626', flexShrink: 0, fontSize: 12, padding: '0 4px', lineHeight: 1 }} onClick={() => reverseOp(o)}>↩️</button>}

@@ -161,6 +161,10 @@
 .erp-list { display: flex; flex-direction: column; }
 .erp-list-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
 .erp-list-row:last-child { border-bottom: none; }
+.erp-list-link { display: block; text-decoration: none; color: inherit; }
+.erp-list-link:hover .erp-list-main { color: #2563eb; }
+.erp-list-link:hover .erp-list-row { background: #f8fafc; }
+.erp-list-link:last-child .erp-list-row { border-bottom: none; }
 .erp-list-ico { width: 18px; text-align: center; color: #94a3b8; }
 .erp-list-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .erp-list-main { overflow: hidden; }
@@ -251,6 +255,8 @@
 .erp-fin-mov:last-child { border-bottom: none; }
 .erp-fin-movd { color: var(--erp-muted); white-space: nowrap; }
 .erp-fin-movt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fin-mov-link { color: inherit; text-decoration: none; cursor: pointer; border-bottom: 1px dashed transparent; }
+.fin-mov-link:hover { color: #2563eb; border-bottom-color: #2563eb; }
 
 /* ── Фон и колокол (палитра старого интерфейса) ── */
 .erp-content { background: #f5f6fa; min-height: calc(100vh - 54px); }

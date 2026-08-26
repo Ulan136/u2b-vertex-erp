@@ -10,7 +10,14 @@ import { payColor } from '@/lib/status';
 import { purchaseDebts, pendingReceivables, type MoveLite } from '@/lib/pending';
 
 type Acct = { id: string; name: string; section?: string | null; balance?: string | number | null; icon?: string | null };
-type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null };
+type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; saleId?: string | null; certId?: string | null };
+// Экран исходного документа операции (клик по строке ведёт туда же, что и в Финансах).
+const opLink = (o: Op): string | null =>
+  o.saleId ? '/erp/sales' : o.certId ? '/erp/certs'
+  : o.source === 'Закуп' ? '/erp/purchases'
+  : o.source === 'Зарплата' ? '/erp/staff'
+  : (o.source === 'Расходы' || (o.opType === 'Расход' && o.source !== 'Старт')) ? '/erp/expenses'
+  : null;
 type Debt = { type: string; amount: string | number; paidAmount: string | number; status: string; dueDate?: string | null };
 type Task = { id: string; title: string; status?: string | null; completedAt?: string | null; assigneeName?: string | null; dueDate?: string | null };
 type Order = { status?: string | null };
@@ -206,13 +213,17 @@ export default function Dashboard() {
           <h3>🧾 Последние операции</h3>
           {fin.error ? <p className="erp-muted">—</p> : recentOps.length === 0 ? <p className="erp-muted">Пока нет операций.</p> : (
             <div className="erp-list">
-              {recentOps.map(o => (
-                <div className="erp-list-row" key={o.id}>
-                  <span className="erp-list-ico">{opIcon(o)}</span>
-                  <span className="erp-list-main" style={isReversed(o) ? { textDecoration: 'line-through', opacity: .6 } : undefined}>{opName(o)}<span className="erp-list-sub">{o.accountName || ''} · {dmy(o.opDate)}</span></span>
-                  <span className="erp-list-val" style={{ color: opAmountColor(o) }}>{opSign(o)}{money(o.amount)}</span>
-                </div>
-              ))}
+              {recentOps.map(o => {
+                const href = opLink(o);
+                const row = (
+                  <div className="erp-list-row" key={o.id} style={href ? { cursor: 'pointer' } : undefined}>
+                    <span className="erp-list-ico">{opIcon(o)}</span>
+                    <span className="erp-list-main" style={isReversed(o) ? { textDecoration: 'line-through', opacity: .6 } : undefined}>{opName(o)}<span className="erp-list-sub">{o.accountName || ''} · {dmy(o.opDate)}</span></span>
+                    <span className="erp-list-val" style={{ color: opAmountColor(o) }}>{opSign(o)}{money(o.amount)}</span>
+                  </div>
+                );
+                return href ? <Link key={o.id} href={href} className="erp-list-link" title="Открыть исходный документ">{row}</Link> : row;
+              })}
             </div>
           )}
         </Card>
