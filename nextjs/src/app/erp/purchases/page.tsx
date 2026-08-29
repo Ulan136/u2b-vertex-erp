@@ -10,6 +10,7 @@ type Product = { id: string; skuCode: string; name: string; price: string | numb
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; sortOrder?: number | null; balance?: string | number | null };
 type Pay = { accountId: string; amount: string };
 type Item = { mode: 'existing' | 'new'; productId: string; newSku: string; newName: string; newMin: string; qty: string; price: string };
+type Client = { id: string; name: string; kind?: string | null };
 
 const SECTIONS = [{ key: 'poverka', no: 1, label: 'Поверка' }, { key: 'sale', no: 2, label: 'Продажа' }, { key: 'other', no: 3, label: 'Прочие операции' }, { key: 'branch', no: 4, label: 'Филиал Астана' }, { key: 'branch_almaty', no: 5, label: 'Филиал Алматы' }];
 const num = (v: unknown) => Number(v) || 0;
@@ -17,13 +18,20 @@ const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU');
 const dmy = (d?: string | null) => formatDate(d);
 const today = () => new Date().toISOString().slice(0, 10);
 const emptyItem = (): Item => ({ mode: 'existing', productId: '', newSku: '', newName: '', newMin: '5', qty: '1', price: '' });
-const emptyForm = () => ({ open: false, items: [emptyItem()], supplier: '', docNo: '', date: today(), payMode: 'pay' as 'pay' | 'debt', payments: [{ accountId: '', amount: '' }] as Pay[], err: '', saving: false });
+const emptyForm = () => ({ open: false, items: [emptyItem()], supplier: '', docNo: '', date: today(), payMode: 'pay' as 'pay' | 'debt', payments: [{ accountId: '', amount: '' }] as Pay[], err: '', saving: false,
+  // Режим перекупки (транзит): товар не идёт на склад, создаются два долга.
+  transit: false, tCost: '', tPrice: '', tItem: '', customerClientId: '', customerName: '' });
 
 export default function PurchasesPage() {
   const { data: buys, error, isLoading, mutate } = useApi<Movement[]>('/api/v2/products/movements?type=IN&limit=200');
   const { data: products, mutate: mutateProducts } = useApi<Product[]>('/api/v2/products');
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
+  const { data: clientsData } = useApi<Client[]>('/api/v2/clients');
   const accounts = fin?.accounts || [];
+  const clients = clientsData || [];
+  // Справочники для перекупки: прошлые поставщики (из закупов) + клиенты по имени.
+  const supplierNames = React.useMemo(() => Array.from(new Set((buys || []).map(b => (b.supplier || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ru')), [buys]);
+  const clientByName = React.useMemo(() => { const m = new Map<string, string>(); for (const c of clients) m.set(c.name.trim().toLowerCase(), c.id); return m; }, [clients]);
   const accGroups = SECTIONS.map(s => ({ ...s, accs: accounts.filter(a => (a.section || 'other') === s.key).sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)) }));
 
   const [q, setQ] = React.useState('');
@@ -62,7 +70,28 @@ export default function PurchasesPage() {
   const removePay = (i: number) => setF(s => ({ ...s, payments: s.payments.length > 1 ? s.payments.filter((_, j) => j !== i) : [{ accountId: '', amount: '' }] }));
 
   function openNew() { setF({ ...emptyForm(), open: true }); }
+
+  // Перекупка (транзит): без склада — POST /api/v2/transit создаёт пару долгов.
+  async function saveTransit() {
+    const cost = num(f.tCost), price = num(f.tPrice);
+    if (!f.supplier.trim()) { setF(s => ({ ...s, err: 'Укажите поставщика (у кого берём)' })); return; }
+    if (cost <= 0) { setF(s => ({ ...s, err: 'Укажите себестоимость (сколько мы должны поставщику)' })); return; }
+    if (!f.customerName.trim()) { setF(s => ({ ...s, err: 'Укажите заказчика (кому продаём)' })); return; }
+    if (price <= 0) { setF(s => ({ ...s, err: 'Укажите цену продажи заказчику' })); return; }
+    setF(s => ({ ...s, saving: true, err: '' }));
+    try {
+      await apiSend('/api/v2/transit', 'POST', {
+        supplierName: f.supplier.trim(), cost,
+        customerClientId: f.customerClientId || null, customerName: f.customerName.trim(), price,
+        itemText: f.tItem.trim() || null, date: f.date || null,
+      });
+      setF(s => ({ ...s, open: false }));
+      toast('🔀 Перекупка проведена: долг поставщику и долг заказчика — в разделе «Долги»');
+    } catch (e) { setF(s => ({ ...s, err: (e as Error).message, saving: false })); }
+  }
+
   async function save() {
+    if (f.transit) return saveTransit();
     // позиции → тело + валидация
     const items: Array<Record<string, unknown>> = [];
     for (const it of f.items) {
@@ -176,10 +205,48 @@ export default function PurchasesPage() {
           )}
       </Card>
 
-      <Modal open={f.open} onClose={() => setF(s => ({ ...s, open: false }))} title="📥 Новая закупка" width={680}
-        footer={<><Button onClick={save} disabled={f.saving}>{f.saving ? 'Сохранение…' : 'Провести закупку'}</Button><Button variant="outline" onClick={() => setF(s => ({ ...s, open: false }))}>Отмена</Button></>}>
+      <Modal open={f.open} onClose={() => setF(s => ({ ...s, open: false }))} title={f.transit ? '🔀 Перекупка (транзит)' : '📥 Новая закупка'} width={680}
+        footer={<><Button onClick={save} disabled={f.saving}>{f.saving ? 'Проведение…' : (f.transit ? 'Провести перекупку' : 'Провести закупку')}</Button><Button variant="outline" onClick={() => setF(s => ({ ...s, open: false }))}>Отмена</Button></>}>
         {f.err && <div className="erp-form-err">{f.err}</div>}
 
+        <div className="erp-chips" style={{ marginBottom: 12 }}>
+          <button type="button" className={`erp-chip${!f.transit ? ' on' : ''}`} onClick={() => setF(s => ({ ...s, transit: false, err: '' }))}>📥 Закупка на склад</button>
+          <button type="button" className={`erp-chip${f.transit ? ' on' : ''}`} onClick={() => setF(s => ({ ...s, transit: true, err: '' }))}>🔀 Перекупка (без склада)</button>
+        </div>
+
+        {f.transit && (
+          <>
+            <div className="erp-muted" style={{ fontSize: 12, marginBottom: 10 }}>
+              Товар идёт от поставщика сразу заказчику, <b>минуя склад</b>. Создадутся два долга: <b>мы должны поставщику</b> (себестоимость) и <b>заказчик должен нам</b> (цена продажи). Прибыль (маржа) появится, когда обе стороны рассчитаются — гасить в разделе «Долги».
+            </div>
+            <div className="erp-form-row">
+              <Field label="Поставщик — у кого берём" required>
+                <Input list="transit-suppliers" value={f.supplier} onChange={e => setF(s => ({ ...s, supplier: e.target.value }))} placeholder="напр. Базар Нип" />
+                <datalist id="transit-suppliers">{supplierNames.map(n => <option key={n} value={n} />)}</datalist>
+              </Field>
+              <Field label="Себестоимость — мы должны, ₸" required>
+                <MoneyInput value={f.tCost} onValue={v => setF(s => ({ ...s, tCost: v }))} className="erp-num" style={{ textAlign: 'right' }} placeholder="0" />
+              </Field>
+            </div>
+            <div className="erp-form-row">
+              <Field label="Заказчик — кому продаём" required>
+                <Input list="transit-clients" value={f.customerName}
+                  onChange={e => { const v = e.target.value; setF(s => ({ ...s, customerName: v, customerClientId: clientByName.get(v.trim().toLowerCase()) || '' })); }}
+                  placeholder="напр. Машон" />
+                <datalist id="transit-clients">{clients.map(c => <option key={c.id} value={c.name} />)}</datalist>
+                <div className="erp-muted" style={{ fontSize: 11, marginTop: 2 }}>{f.customerClientId ? '🔗 привязан к клиенту из справочника' : 'новое имя — долг заведётся по тексту'}</div>
+              </Field>
+              <Field label="Цена заказчику — нам должны, ₸" required>
+                <MoneyInput value={f.tPrice} onValue={v => setF(s => ({ ...s, tPrice: v }))} className="erp-num" style={{ textAlign: 'right' }} placeholder="0" />
+              </Field>
+            </div>
+            <Field label="Товар (описание, справочно)"><Input value={f.tItem} onChange={e => setF(s => ({ ...s, tItem: e.target.value }))} placeholder="напр. Насос XYZ ×2" /></Field>
+            <Field label="Дата"><Input type="date" value={f.date} onChange={e => setF(s => ({ ...s, date: e.target.value }))} /></Field>
+            <div style={{ textAlign: 'right', marginTop: 10, fontSize: 15 }}>Маржа: <b style={{ color: num(f.tPrice) - num(f.tCost) >= 0 ? '#16a34a' : '#dc2626' }}>{fmt(num(f.tPrice) - num(f.tCost))} ₸</b> <span className="erp-muted" style={{ fontSize: 11 }}>(появится при полном расчёте)</span></div>
+          </>
+        )}
+
+        {!f.transit && (<>
         <Field label="Позиции закупа" required>
           <table className="erp-table">
             <thead><tr><th style={{ textAlign: 'left' }}>Товар</th><th style={{ width: 92, textAlign: 'center' }}>Кол-во</th><th style={{ width: 130, textAlign: 'right' }}>Цена закупа</th><th style={{ width: 124, textAlign: 'right' }}>Сумма</th><th style={{ width: 34 }}></th></tr></thead>
@@ -251,6 +318,7 @@ export default function PurchasesPage() {
             <div className="erp-muted" style={{ fontSize: 11 }}>Одна строка без суммы — спишется вся стоимость закупа с выбранного счёта. Каждая строка = свой расход в Финансах (source «Закуп»). Отмена/удаление закупа вернёт и товар, и деньги.</div>
           </div>
         )}
+        </>)}
       </Modal>
 
       {/* Редактирование закупа: дата / поставщик / № документа */}
