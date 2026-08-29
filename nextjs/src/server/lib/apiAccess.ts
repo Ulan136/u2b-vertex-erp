@@ -39,7 +39,6 @@ export function apiScreenFor(method: string, pathname: string, searchParams: URL
   if (pathname.startsWith('/api/v2/sales')) return 'sales';
   if (pathname.startsWith('/api/v2/products')) return 'warehouse';
   if (pathname.startsWith('/api/v2/purchases')) return 'warehouse';   // закуп → раздел «Склад»
-  if (pathname.startsWith('/api/v2/transit')) return 'warehouse';     // перекупка (транзит) — из карточки Закупки
   if (pathname.startsWith('/api/v2/role-permissions')) return 'settings';
   if (pathname.startsWith('/api/v2/roles')) return 'settings';   // создание/правка ролей — «Настройки»
   // Филиалы: GET открыт всем вошедшим (селекты «Филиал»), запись — «Настройки».
