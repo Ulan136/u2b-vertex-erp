@@ -57,8 +57,9 @@ test('isScreenAllowed: denial is scoped to the exact role + screen', () => {
 });
 
 // ── menu filtering ───────────────────────────────────────────
-test('visibleScreenKeys: admin sees every screen', () => {
-  assert.deepEqual(visibleScreenKeys('admin', [{ role: 'admin', screenKey: 'settings', allowed: false }]), [...SCREEN_KEYS]);
+test('visibleScreenKeys: admin sees every screen (кроме branch_finance — он только для филиала)', () => {
+  assert.deepEqual(visibleScreenKeys('admin', [{ role: 'admin', screenKey: 'settings', allowed: false }]),
+    SCREEN_KEYS.filter(k => k !== 'branch_finance'));
 });
 test('visibleScreenKeys: a denied screen is dropped from the menu', () => {
   const perms: PermRow[] = [
@@ -69,7 +70,12 @@ test('visibleScreenKeys: a denied screen is dropped from the menu', () => {
   assert.equal(vis.includes('settings'), false);
   assert.equal(vis.includes('debts'), false);
   assert.equal(vis.includes('warehouse'), true);
-  assert.equal(vis.length, SCREEN_KEYS.length - 2);
+  assert.equal(vis.includes('branch_finance'), false);   // экран филиала мастеру не виден
+  assert.equal(vis.length, SCREEN_KEYS.length - 2 - 1);   // −2 запрет, −1 branch_finance
+});
+test('visibleScreenKeys: филиал видит только свои экраны', () => {
+  const vis = visibleScreenKeys('branch', []);
+  assert.deepEqual([...vis].sort(), ['branch_finance', 'orders_field', 'poverka_field'].sort());
 });
 
 // ── upsert validation ────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // ── Roles (latin keys stored in DB, Russian labels shown in UI) ──
-export const ROLES = ['admin', 'director', 'accountant', 'manager', 'master'] as const;
+export const ROLES = ['admin', 'director', 'accountant', 'manager', 'master', 'branch'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const ROLE_LABELS_RU: Record<Role, string> = {
@@ -10,6 +10,7 @@ export const ROLE_LABELS_RU: Record<Role, string> = {
   accountant: 'Бухгалтер',
   manager: 'Менеджер',
   master: 'Мастер',
+  branch: 'Филиал',
 };
 
 // ── Screen catalog (one key per screen/section of the app) ────
@@ -20,6 +21,7 @@ export const SCREEN_KEYS = [
   'sales', 'other_ops', 'expenses', 'accounting', 'finance', 'debts', 'tasks',
   'warehouse', 'purchases', 'staff', 'clients', 'invoices', 'database',
   'reports', 'handbook', 'settings',
+  'branch_finance',   // кабинет филиала: свой счёт + расходы + переводы (изолировано по разделу)
 ] as const;
 export type ScreenKey = (typeof SCREEN_KEYS)[number];
 
@@ -32,7 +34,15 @@ export const SCREEN_LABELS: Record<ScreenKey, string> = {
   sales: 'Продажа', other_ops: 'Прочие операции', expenses: 'Расходы', accounting: 'Бухгалтерия',
   finance: 'Финансы', debts: 'Долги', tasks: 'Задачи', warehouse: 'Склад', purchases: 'Закупки', staff: 'Сотрудники',
   clients: 'Клиенты', invoices: 'Счета', database: 'База данных', reports: 'Отчёт', handbook: 'Справочник', settings: 'Настройки',
+  branch_finance: 'Финансы филиала',
 };
+
+// ── Роль «Филиал» (branch) — кабинет с жёстким белым списком экранов ──
+// В отличие от остальных ролей (default = разрешено), филиал видит ТОЛЬКО эти
+// экраны: свои выездные заявки/сертификаты/извещения (скоуп по branchId) и свои
+// финансы (скоуп по разделу). Всё остальное закрыто — и в меню, и на API-гейте.
+export const BRANCH_ROLE = 'branch';
+export const BRANCH_SCREENS = ['orders_field', 'poverka_field', 'branch_finance'] as const;
 
 // ── Pure helpers (no DB) — unit-testable ──────────────────────
 
@@ -41,7 +51,7 @@ export const SCREEN_LABELS: Record<ScreenKey, string> = {
 //   anything unexpected falls back to manager.
 export function migrateRole(old: string): Role {
   switch (old) {
-    case 'admin': case 'director': case 'accountant': case 'manager': case 'master':
+    case 'admin': case 'director': case 'accountant': case 'manager': case 'master': case 'branch':
       return old;
     case 'warehouse': case 'field':
       return 'master';
@@ -59,7 +69,17 @@ export type PermRow = { role: string; screenKey: string; allowed: boolean };
 //   - no record for (role, screen) ⇒ allowed (default),
 //   - otherwise the record's `allowed` flag decides.
 export function isScreenAllowed(role: string, screenKey: string, perms: PermRow[]): boolean {
+  // Экран кабинета филиала — только для роли 'branch' (даже Админу не показываем
+  // в меню: у головного офиса нет филиального раздела).
+  if (screenKey === 'branch_finance') return role === BRANCH_ROLE;
   if (role === 'admin') return true;
+  // Филиал — жёсткий белый список: ничего, кроме BRANCH_SCREENS (матрица «Доступы»
+  // может только СУЗИТЬ, но не расширить этот набор).
+  if (role === BRANCH_ROLE) {
+    if (!(BRANCH_SCREENS as readonly string[]).includes(screenKey)) return false;
+    const rec = perms.find(p => p.role === role && p.screenKey === screenKey);
+    return rec ? rec.allowed : true;
+  }
   const rec = perms.find(p => p.role === role && p.screenKey === screenKey);
   return rec ? rec.allowed : true;
 }
@@ -97,6 +117,7 @@ export const START_SCREEN_BY_ROLE: Record<string, string> = {
   manager: 'orders_field',
   master: 'orders_field',
   accountant: 'sales',
+  branch: 'orders_field',   // филиал приземляется на свои Заявки
 };
 
 export function startScreenKey(role: string, perms: PermRow[], keys: readonly string[] = SCREEN_KEYS): string {
