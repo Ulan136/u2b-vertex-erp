@@ -134,6 +134,7 @@ export const employeesService = {
         const op = await financeService.createOperation({
           opDate: opSpec.opDate, name: opSpec.name, accountId: opSpec.accountId, opType: opSpec.opType,
           amount: money(opSpec.amount), source: opSpec.source, comment: opSpec.comment, expenseGroupId: groupId,
+          expenseCat: opSpec.expenseCat, subCategory: opSpec.subCategory,
         }, actor?.id ?? null, tx);
         if (!firstOpId) firstOpId = op?.id ?? null;
       }

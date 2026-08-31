@@ -149,7 +149,7 @@ export default function ExpensesPage() {
     try {
       if (isSalary) {
         const url = `/api/v2/employees/${f.employeeId}/payments`;
-        const body: Record<string, unknown> = { amount, payments: pays, kind: 'salary', comment: f.desc || null, confirmOverpay: false };
+        const body: Record<string, unknown> = { amount, payments: pays, kind: 'salary', comment: f.desc || null, confirmOverpay: false, payDate: f.date, expenseCat: cat?.name || 'Зарплата', subCategory: f.subName || null };
         let r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if (r.status === 409) { const e = await r.json().catch(() => ({})); if (!confirm((e.error || 'Оклад выплачен.') + '\n\nПровести как аванс?')) { setF(s => ({ ...s, saving: false })); return; } body.confirmOverpay = true; r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
         if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error || ('HTTP ' + r.status)); }

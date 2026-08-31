@@ -19,6 +19,10 @@ export const salaryPaymentSchema = z.object({
   payDate: z.string().nullish(),
   kind: z.enum(['salary', 'advance']).default('salary'),
   comment: z.string().nullish(),
+  // Категория/подкатегория расхода — чтобы выплата в журнале расходов сохраняла
+  // выбранную подкатегорию (а не теряла её).
+  expenseCat: z.string().nullish(),
+  subCategory: z.string().nullish(),
   // явное подтверждение переплаты («деньги следующего месяца»)
   confirmOverpay: z.boolean().optional().default(false),
 });
@@ -123,11 +127,11 @@ export function overpayInfo(
 // Каждая выплата = реальный Расход в финансах, видимый отдельной строкой.
 export function buildSalaryFinanceOp(
   emp: { name?: string | null },
-  data: { accountId: string; amount: number | string; payDate?: string | null; kind?: string; comment?: string | null },
-): { opDate?: string; name: string; accountId: string; opType: string; amount: number; source: string; comment?: string } {
+  data: { accountId: string; amount: number | string; payDate?: string | null; kind?: string; comment?: string | null; expenseCat?: string | null; subCategory?: string | null },
+): { opDate?: string; name: string; accountId: string; opType: string; amount: number; source: string; comment?: string; expenseCat?: string; subCategory?: string } {
   const isAdvance = data.kind === 'advance';
   const who = emp.name || 'сотрудник';
-  const spec: { opDate?: string; name: string; accountId: string; opType: string; amount: number; source: string; comment?: string } = {
+  const spec: { opDate?: string; name: string; accountId: string; opType: string; amount: number; source: string; comment?: string; expenseCat?: string; subCategory?: string } = {
     name: `Зарплата: ${who}${isAdvance ? ' (аванс)' : ''}`,
     accountId: data.accountId,
     opType: 'Расход',
@@ -136,5 +140,7 @@ export function buildSalaryFinanceOp(
   };
   if (data.payDate) spec.opDate = data.payDate;
   if (data.comment) spec.comment = data.comment;
+  if (data.expenseCat) spec.expenseCat = data.expenseCat;
+  if (data.subCategory) spec.subCategory = data.subCategory;
   return spec;
 }
