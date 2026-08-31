@@ -123,10 +123,8 @@ function OrdersInner() {
           <Field label="Кол-во приборов"><Input type="number" min={1} value={form.qty} onChange={e => setForm({ ...form, qty: e.target.value })} /></Field>
           <Field label="Вода"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option>х/в</option><option>г/в</option></Select></Field>
         </div>
-        <div className="erp-form-row">
-          <Field label="Филиал"><Select value={form.branchId} onChange={e => setForm({ ...form, branchId: e.target.value })}><option value="">— головной ({(branches || []).find(b => b.isHead)?.name || 'головной'}) —</option>{(branches || []).filter(b => !b.isHead).map(b => <option key={b.id} value={b.id}>{b.name} - Филиал</option>)}</Select></Field>
-          <Field label="Статус"><Select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>{STATUSES.map(s => <option key={s}>{s}</option>)}</Select></Field>
-        </div>
+        {/* Филиал не выбираем — заявка привязывается к филиалу пользователя автоматически (бэкенд: create по branchOf). */}
+        <Field label="Статус"><Select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>{STATUSES.map(s => <option key={s}>{s}</option>)}</Select></Field>
         <Field label="Комментарий"><Input value={form.comment} onChange={e => setForm({ ...form, comment: e.target.value })} /></Field>
         {form.id && <EntityHistory entityType="order" entityId={form.id} />}
       </Modal>
