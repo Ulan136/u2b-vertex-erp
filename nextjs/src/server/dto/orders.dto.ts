@@ -83,20 +83,14 @@ export function orderInBranch(
 }
 
 // Что видит пользователь на экране заявок / в кабинете мастера:
-//   - Админ и Директор — все филиалы (или выбранный branchFilter);
-//   - остальные — только свой филиал (userBranchId);
-//   - если филиал у пользователя не задан — видит всё (правило кабинета мастера).
+//   - КАЖДЫЙ видит только свой филиал (головной офис → Тараз, филиал → свой);
+//   - если филиал у пользователя не задан — видит всё (спец-случай, напр.
+//     служебная учётка / кабинет мастера без привязки).
+// Ручного выбора филиала больше нет: разделение строго по филиалу пользователя.
 export function scopeOrdersByBranch<T extends { branchId?: string | null }>(
   rows: T[],
   opts: { role?: string | null; userBranchId?: string | null; headBranchId: string | null; branchFilter?: string | null },
 ): T[] {
-  const seesAll = opts.role === 'admin' || opts.role === 'director';
-  if (seesAll) {
-    if (opts.branchFilter && opts.branchFilter !== 'all') {
-      return rows.filter(o => orderInBranch(o, opts.branchFilter as string, opts.headBranchId));
-    }
-    return rows;
-  }
   if (!opts.userBranchId) return rows;                       // филиал не задан → всё
   return rows.filter(o => orderInBranch(o, opts.userBranchId as string, opts.headBranchId));
 }

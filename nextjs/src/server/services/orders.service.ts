@@ -26,11 +26,12 @@ export const ordersService = {
   // Заявки разделяются по филиалу: Админ/Директор видят все (или branchFilter),
   // остальные — только свой филиал; заявки без филиала считаются головным.
   async list(source?: string | null, actor?: SessionUser | null, branchFilter?: string | null) {
+    void branchFilter;   // ручной выбор филиала убран — скоуп строго по филиалу пользователя
     const rows = await ordersRepo.list();
     const headBranchId = await branchesRepo.headId();
-    const isPriv = actor?.role === 'admin' || actor?.role === 'director';
-    const userBranchId = actor && !isPriv ? await usersRepo.branchOf(actor.id) : null;
-    const scoped = scopeOrdersByBranch(rows, { role: actor?.role, userBranchId, headBranchId, branchFilter });
+    // Каждый видит только свой филиал (включая головной офис = Тараз).
+    const userBranchId = actor ? await usersRepo.branchOf(actor.id) : null;
+    const scoped = scopeOrdersByBranch(rows, { role: actor?.role, userBranchId, headBranchId });
     const s = asSource(source);
     return s ? filterOrdersBySource(scoped, s) : scoped;
   },

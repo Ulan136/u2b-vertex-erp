@@ -16,17 +16,15 @@ test('orderInBranch: NULL филиал считается головным', () 
   assert.equal(orderInBranch({ branchId: AST }, AST, HEAD), true);
 });
 
-// ── админ/директор видят все филиалы ─────────────────────────
-test('scopeOrdersByBranch: admin и director видят всё', () => {
-  assert.equal(scopeOrdersByBranch(rows, { role: 'admin', headBranchId: HEAD }).length, 3);
-  assert.equal(scopeOrdersByBranch(rows, { role: 'director', headBranchId: HEAD }).length, 3);
+// ── каждый видит только свой филиал (включая головной офис) ───
+test('scopeOrdersByBranch: сотрудник головного (Тараз) видит Тараз + заявки без филиала', () => {
+  const r = scopeOrdersByBranch(rows, { role: 'admin', userBranchId: HEAD, headBranchId: HEAD });
+  assert.deepEqual(r.map(o => o.branchId).sort(), [HEAD, null].sort());
 });
 
-test('scopeOrdersByBranch: админ может отфильтровать по филиалу', () => {
-  const ast = scopeOrdersByBranch(rows, { role: 'admin', headBranchId: HEAD, branchFilter: AST });
-  assert.deepEqual(ast.map(o => o.branchId), [AST]);
-  const alm = scopeOrdersByBranch(rows, { role: 'admin', headBranchId: HEAD, branchFilter: HEAD });
-  assert.deepEqual(alm.map(o => o.branchId).sort(), [HEAD, null].sort());  // включая заявки без филиала
+test('scopeOrdersByBranch: админ/директор больше НЕ видят все филиалы — только свой', () => {
+  const r = scopeOrdersByBranch(rows, { role: 'director', userBranchId: AST, headBranchId: HEAD });
+  assert.deepEqual(r.map(o => o.branchId), [AST]);
 });
 
 // ── остальные — только свой филиал ───────────────────────────

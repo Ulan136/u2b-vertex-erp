@@ -8,9 +8,6 @@ import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, 
 import EntityHistory from '@/components/erp/EntityHistory';
 
 type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null; createdByName?: string | null };
-type Branch = { id: string; name: string; isHead?: boolean };
-// Подпись филиала «— Головной / — Филиал» выводим из флага isHead (не из имени).
-const branchLabel = (b: Branch) => `${b.name} - ${b.isHead ? 'Головной' : 'Филиал'}`;
 
 const SOURCES = [{ key: 'field_check', label: '🚗 Выездная' }, { key: 'tec', label: '⚡ ТЭЦ' }];
 const STATUSES = ['В работе', 'Готова', 'Отменён'];
@@ -22,15 +19,13 @@ function OrdersInner() {
   const sp = useSearchParams();
   const initial = sp.get('source');
   const [source, setSource] = React.useState(initial === 'tec' ? 'tec' : 'field_check');
-  const [branch, setBranch] = React.useState('all');
   const [q, setQ] = React.useState('');
   const [fFrom, setFFrom] = React.useState('');
   const [fTo, setFTo] = React.useState('');
   const [fWater, setFWater] = React.useState('');   // фильтр «Вода»: х/в / г/в
-  const qs = new URLSearchParams({ source }); if (branch !== 'all') qs.set('branch', branch);
+  // Филиал больше не выбирается вручную: каждый видит только свой (голова → Тараз).
+  const qs = new URLSearchParams({ source });
   const { data: orders, error, isLoading, mutate } = useApi<Order[]>('/api/v2/orders?' + qs);
-  const { data: branches } = useApi<Branch[]>('/api/v2/branches');
-  const branchName = (id?: string | null) => (branches || []).find(b => b.id === id)?.name;
 
   const [modal, setModal] = React.useState(false);
   const [form, setForm] = React.useState<typeof EMPTY>(EMPTY);
@@ -75,7 +70,6 @@ function OrdersInner() {
 
       <Card className="erp-filters">
         <div className="erp-chips">{SOURCES.map(s => <button key={s.key} className={`erp-chip${source === s.key ? ' on' : ''}`} onClick={() => setSource(s.key)}>{s.label}</button>)}</div>
-        <Select value={branch} onChange={e => setBranch(e.target.value)}><option value="all">Все филиалы</option>{(branches || []).map(b => <option key={b.id} value={b.id}>{branchLabel(b)}</option>)}</Select>
         <Input placeholder="🔍 №, клиент, адрес, телефон" value={q} onChange={e => setQ(e.target.value)} />
         <Select value={fWater} onChange={e => setFWater(e.target.value)} title="Тип воды"><option value="">Вода: все</option><option value="х/в">🔵 х/в (холодная)</option><option value="г/в">🔴 г/в (горячая)</option></Select>
         <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
@@ -86,7 +80,7 @@ function OrdersInner() {
           : list.length === 0 ? <EmptyRow>Заявок нет. Нажмите «+ Заявка».</EmptyRow>
           : (
             <table className="erp-table">
-              <thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Адрес</th><th>Тел.</th><th style={{ textAlign: 'right' }}>Кол-во</th><th>Филиал</th><th>Статус</th><th>Автор</th><th style={{ textAlign: 'right' }}></th></tr></thead>
+              <thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Адрес</th><th>Тел.</th><th style={{ textAlign: 'right' }}>Кол-во</th><th>Статус</th><th>Автор</th><th style={{ textAlign: 'right' }}></th></tr></thead>
               <tbody>
                 {list.map(o => (
                   <tr key={o.id}>
@@ -96,7 +90,6 @@ function OrdersInner() {
                     <td style={{ fontSize: 12 }}>{o.address || '—'}</td>
                     <td style={{ fontSize: 12 }}>{o.phone || '—'}</td>
                     <td style={{ textAlign: 'right' }}>{o.qty ?? '—'}</td>
-                    <td style={{ fontSize: 12 }}>{branchName(o.branchId) || '—'}</td>
                     <td><Badge tone={statusTone(o.status)}>{o.status}</Badge></td>
                     <td className="erp-muted" style={{ fontSize: 12 }}>{o.createdByName || '—'}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -123,7 +116,6 @@ function OrdersInner() {
           <Field label="Кол-во приборов"><Input type="number" min={1} value={form.qty} onChange={e => setForm({ ...form, qty: e.target.value })} /></Field>
           <Field label="Вода"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option>х/в</option><option>г/в</option></Select></Field>
         </div>
-        {/* Филиал не выбираем — заявка привязывается к филиалу пользователя автоматически (бэкенд: create по branchOf). */}
         <Field label="Статус"><Select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>{STATUSES.map(s => <option key={s}>{s}</option>)}</Select></Field>
         <Field label="Комментарий"><Input value={form.comment} onChange={e => setForm({ ...form, comment: e.target.value })} /></Field>
         {form.id && <EntityHistory entityType="order" entityId={form.id} />}
