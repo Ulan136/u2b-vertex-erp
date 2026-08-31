@@ -5,7 +5,8 @@ import { CORS_HEADERS } from './cors';
 import { currentUser, type SessionUser } from './session';
 import { isCabinetPublicApi, apiScreenFor, financeWriteAllowed } from './apiAccess';
 import { permissionsRepo } from '@/server/repositories/permissions.repo';
-import { isScreenAllowed } from '@/server/dto/permissions.dto';
+import { isScreenAllowed, BRANCH_ROLE } from '@/server/dto/permissions.dto';
+import { branchApiAllowed } from './branchScope';
 import { presenceService } from '@/server/services/presence.service';
 import { recordMutation, type AuditDraft } from './audit';
 import { clientIp } from './rateLimit';
@@ -52,6 +53,13 @@ export function withApi(handler: Handler) {
           if (!isScreenAllowed(user.role, screen, perms)) {
             return json({ error: 'Нет доступа к разделу' }, 403);
           }
+        }
+        // Кабинет филиала: жёсткая изоляция на уровне API. Роль 'branch' может
+        // дёргать только свои эндпоинты (белый список), «компанейские» закрыты —
+        // даже session-only (напр. общий /api/v2/finance). Экранный гейт выше это
+        // не ловит, т.к. такие пути не привязаны к экрану.
+        if (user.role === BRANCH_ROLE && path.startsWith('/api/v2/') && !branchApiAllowed(path)) {
+          return json({ error: 'Кабинет филиала: доступ ограничен' }, 403);
         }
       } else if (user) {
         await presenceService.touch(user.id);    // ERP user on a public route — keep presence fresh

@@ -5,14 +5,14 @@ import { certsService } from '@/server/services/certs.service';
 export const OPTIONS = optionsHandler;
 
 // collection: /api/v2/certs
-export const GET = withApi(async (req: NextRequest) => {
+export const GET = withApi(async (req: NextRequest, ctx) => {
   const sp = new URL(req.url).searchParams;
   return certsService.list({
     source: sp.get('source'),
     archived: sp.get('archived') === 'true',
     type: sp.get('type'),
     orderId: sp.get('orderId'),
-  });
+  }, ctx.user ? { id: ctx.user.id, role: ctx.user.role } : null);
 });
 export const POST = withApi(async (req: NextRequest, ctx) => created(await certsService.create(await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null)));
 

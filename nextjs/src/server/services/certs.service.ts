@@ -6,6 +6,8 @@ import { productsService } from '@/server/services/products.service';
 import { financeService } from '@/server/services/finance.service';
 import { financeRepo } from '@/server/repositories/finance.repo';
 import { sealMarker } from '@/server/dto/products.dto';
+import { usersRepo } from '@/server/repositories/users.repo';
+import { BRANCH_ROLE } from '@/server/dto/permissions.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
 const m2 = (n: unknown) => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
@@ -63,12 +65,15 @@ async function syncCertIncome(cert: CertRow, payments: PayLine[] | undefined, ac
 }
 
 export const certsService = {
-  list(q: CertQuery) {
+  async list(q: CertQuery, viewer?: { id: string; role?: string | null } | null) {
+    // Роль 'branch' видит только сертификаты/извещения своего филиала (скоуп по branchId).
+    const branchId = viewer?.role === BRANCH_ROLE ? await usersRepo.branchOf(viewer.id) : null;
     return certsRepo.list({
       source: q.source ?? null,
       archived: q.archived ?? false,
       type: q.orderId ? null : (q.type || 'cert'),   // по заявке — все её сертификаты, без фильтра по типу
       orderId: q.orderId ?? null,
+      branchId,   // null у обычных ролей → без фильтра по филиалу (как было)
     });
   },
 
@@ -81,6 +86,9 @@ export const certsService = {
     fields.address ??= '';
     // Автор сертификата — для аналитики по сотрудникам (раньше не сохранялся).
     if (actor?.id) fields.createdBy = actor.id;
+    // Филиал сертификата — из филиала создателя (для скоупа кабинета филиала),
+    // если явно не задан. У головного офиса → его филиал (Тараз).
+    if (fields.branchId == null && actor?.id) fields.branchId = await usersRepo.branchOf(actor.id);
     // Сертификат + списание клейма + доход (если «Оплачено», не Выездная) — одной
     // транзакцией. Всё считаем по сохранённой строке (итоговое состояние).
     const row = await db.transaction(async (tx) => {

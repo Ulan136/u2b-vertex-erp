@@ -59,6 +59,11 @@ export const ERP_NAV: NavSection[] = [
     { label: '🛠 Услуга', screenKey: 'other_ops', href: '/erp/invoices?section=other&kind=Услуга' },
   ] },
 
+  // ── Кабинет филиала (видит только роль «Филиал») ──
+  { title: 'Финансы филиала', icon: '💳', zone: 'income', items: [
+    { label: 'Мой счёт и расходы', screenKey: 'branch_finance', href: '/erp/branch-finance' },
+  ] },
+
   // ── Зона «Операции и учёт» (sky) · под-раздел «Операционные» ──
   { title: 'Расходы', icon: '💸', zone: 'ops', divider: 'Операционные', items: [
     { label: 'Журнал расходов', screenKey: 'expenses', href: '/erp/expenses' },
