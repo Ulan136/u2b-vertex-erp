@@ -18,7 +18,7 @@ const CERT_COLS = [
   { key: 'meter', label: 'Тип прибора' }, { key: 'serial', label: 'Заводской номер' }, { key: 'checkdate', label: 'Дата поверки' },
   { key: 'nextdate', label: 'Очередная поверка' }, { key: 'stamp', label: 'Номер клейма' }, { key: 'readings', label: 'Показания м³' },
   { key: 'water', label: 'Вода' }, { key: 'year', label: 'Год' }, { key: 'note', label: 'Прим.' },
-  { key: 'phone', label: 'Телефон' }, { key: 'client', label: 'Клиент' }, { key: 'oper', label: 'Операция' },
+  { key: 'phone', label: 'Телефон' }, { key: 'client', label: 'Клиент' }, { key: 'sum', label: 'Сумма' }, { key: 'oper', label: 'Операция' },
   { key: 'pay', label: 'Оплата' }, { key: 'invoice', label: 'Счёт' }, { key: 'author', label: 'Автор' },
   { key: 'actions', label: 'Действия', locked: true },
 ];
@@ -456,7 +456,7 @@ function CertsInner() {
                 <th className="col-no">№</th><th className="col-fio">ФИО абонента</th><th className="col-address">Адрес абонента</th><th className="col-meter">Тип прибора</th><th className="col-serial">Заводской номер</th>
                 <th className="col-checkdate">Дата поверки</th><th className="col-nextdate">Очередная поверка</th><th className="col-stamp">Номер клейма</th><th className="col-readings" style={{ textAlign: 'right' }}>Показания м³</th>
                 <th className="col-water">Вода</th><th className="col-year">Год</th><th className="col-note">Прим.</th><th className="col-phone">Телефон</th><th className="col-client">Клиент</th>
-                <th className="col-oper">🔄 Операция</th><th className="col-pay">💳 Оплата</th><th className="col-invoice">🧾 Счёт</th><th className="col-author">Автор</th><th className="col-actions" style={{ textAlign: 'center' }}>Действия</th>
+                <th className="col-sum" style={{ textAlign: 'right' }}>💰 Сумма</th><th className="col-oper">🔄 Операция</th><th className="col-pay">💳 Оплата</th><th className="col-invoice">🧾 Счёт</th><th className="col-author">Автор</th><th className="col-actions" style={{ textAlign: 'center' }}>Действия</th>
               </tr></thead>
               <tbody>
                 {list.map((c, i) => (
@@ -475,6 +475,7 @@ function CertsInner() {
                     <td className="col-note" style={{ fontSize: 11, color: '#c2410c', fontWeight: 700 }}>{c.note || ''}</td>
                     <td className="erp-muted col-phone" style={{ fontSize: 11 }}>{c.phone || '—'}</td>
                     <td className="col-client" style={{ fontSize: 11 }}>{c.client || '—'}</td>
+                    <td className="col-sum" style={{ textAlign: 'right', fontWeight: 700, fontSize: 12 }}>{num(c.amount) > 0 ? fmtNum(num(c.amount)) + ' ₸' : '—'}</td>
                     <td className="col-oper"><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
                     <td className="col-pay"><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
                     <td className="col-invoice"><SSel c={c} field="invoiceType" opts={INV} tone="neutral" /></td>
@@ -493,7 +494,7 @@ function CertsInner() {
             <table className="erp-table">
               <thead><tr>
                 <th>№</th><th>ФИО / Объект</th><th>Адрес</th><th>№ счётчика</th><th>Дата поверки</th><th>Плановая след.</th>
-                <th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th><th>📨 Отправлено</th><th>Автор</th><th style={{ textAlign: 'center' }}>Действия</th>
+                <th style={{ textAlign: 'right' }}>💰 Сумма</th><th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th><th>📨 Отправлено</th><th>Автор</th><th style={{ textAlign: 'center' }}>Действия</th>
               </tr></thead>
               <tbody>
                 {list.map((c, i) => (
@@ -504,6 +505,7 @@ function CertsInner() {
                     <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{c.serialNo || '—'}</td>
                     <td style={{ fontSize: 11 }}>{dmy(c.checkDate)}</td>
                     <td style={{ fontSize: 11 }}>{dmy(c.nextCheckDate)}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 12 }}>{num(c.amount) > 0 ? fmtNum(num(c.amount)) + ' ₸' : '—'}</td>
                     <td><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
                     <td><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
                     <td><SSel c={c} field="invoiceType" opts={INV} tone="neutral" /></td>
@@ -689,7 +691,14 @@ function CertsInner() {
             )}
           </>
         ) : (
-          <div className="erp-muted" style={{ fontSize: 12, marginTop: 10 }}>ℹ️ Выездная: доход проводится через приём оплаты заявки у мастера, не здесь.</div>
+          <>
+            <div className="cert-sec-lbl">💳 Оплата (выездная)</div>
+            <div className="erp-form-row">
+              <Field label="Сумма, ₸"><MoneyInput value={form.amount} onValue={v => setForm({ ...form, amount: v })} placeholder="0" /></Field>
+              <div />
+            </div>
+            <div className="erp-muted" style={{ fontSize: 11, marginTop: 4 }}>ℹ️ Сумма пришла из кабинета мастера (цена поверки). Приём денег проводит мастер — приход по заявке на выбранный им счёт. Здесь сумму можно поправить.</div>
+          </>
         )}
 
         {form.id && <EntityHistory entityType="certificate" entityId={form.id} />}
