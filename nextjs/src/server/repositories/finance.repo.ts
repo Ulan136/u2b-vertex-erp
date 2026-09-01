@@ -63,6 +63,10 @@ export const financeRepo = {
   findBySale: (saleId: string, exec: Executor = db) =>
     exec.select().from(financeOperations).where(eq(financeOperations.saleId, saleId)),
 
+  // Операции дохода, привязанные к заявке (приём оплаты выездной поверки).
+  findByOrder: (orderId: string, exec: Executor = db) =>
+    exec.select().from(financeOperations).where(eq(financeOperations.orderId, orderId)),
+
   // Операции дохода, привязанные к сертификату (для сверки/отката дохода).
   findByCert: (certId: string, exec: Executor = db) =>
     exec.select().from(financeOperations).where(eq(financeOperations.certId, certId)),

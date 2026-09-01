@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { db, type Executor } from '@/db';
 import { certsRepo } from '@/server/repositories/certs.repo';
 import { certUpsertSchema, certUpdateSchema, cleanCertFields, isCertPaid, poverkaPaymentSchema, payByClientSchema, sectionForCertSource, certIncomePosts, type CertQuery } from '@/server/dto/certs.dto';
@@ -74,6 +75,51 @@ export const certsService = {
       type: q.orderId ? null : (q.type || 'cert'),   // по заявке — все её сертификаты, без фильтра по типу
       orderId: q.orderId ?? null,
       branchId,   // null у обычных ролей → без фильтра по филиалу (как было)
+    });
+  },
+
+  // Текущий счёт оплаты сертификата. Для Выездной доход проведён на уровне
+  // ЗАЯВКИ (orderId), для прямых — на уровне серта (certId). Возвращает счета,
+  // на которых сейчас лежит приход, и сумму — для показа/смены в модалке.
+  async payInfo(certId: string) {
+    const cert = await certsRepo.findById(certId);
+    if (!cert) throw notFound('Сертификат не найден');
+    const ops = cert.orderId
+      ? await financeRepo.findByOrder(cert.orderId)
+      : await financeRepo.findByCert(certId);
+    const live = ops.filter(o => o.opType === 'Приход' && !o.reversedAt && !o.reverses);
+    const accounts = live.map(o => ({ accountId: o.accountId as string, accountName: (o.accountName as string) || null, amount: Number(o.amount) || 0 }));
+    const total = accounts.reduce((s, a) => s + a.amount, 0);
+    return { orderId: cert.orderId ?? null, byOrder: !!cert.orderId, accounts, total: m2(total) };
+  },
+
+  // Сменить счёт оплаты: сторнируем весь проведённый доход (по заявке или по
+  // серту) и заводим один приход на новый счёт на ту же сумму. Для Выездной это
+  // меняет счёт оплаты ВСЕЙ заявки (все её позиции). Всё одной транзакцией.
+  async changePayAccount(certId: string, input: unknown, actor?: { id: string; name?: string } | null) {
+    const { accountId } = z.object({ accountId: z.string().uuid('Выберите счёт') }).parse(input);
+    const cert = await certsRepo.findById(certId);
+    if (!cert) throw notFound('Сертификат не найден');
+    return db.transaction(async (tx) => {
+      const ops = cert.orderId
+        ? await financeRepo.findByOrder(cert.orderId, tx)
+        : await financeRepo.findByCert(certId, tx);
+      const live = ops.filter(o => o.opType === 'Приход' && !o.reversedAt && !o.reverses);
+      if (!live.length) throw badRequest('Нет проведённого дохода — счёт менять нечего (проверьте, что оплата принята)');
+      const total = live.reduce((s, o) => s + (Number(o.amount) || 0), 0);
+      const acc = await financeRepo.findAccount(accountId, tx);
+      if (!acc) throw badRequest('Счёт не найден');
+      const sameOnly = live.length === 1 && live[0].accountId === accountId;
+      if (sameOnly) return { ok: true, unchanged: true, account: acc.name, total: m2(total) };
+      const name = (live[0].name as string) || 'Поверка (выездная)';
+      const src = (live[0].source as string) || 'Поверка';
+      for (const o of live) await financeService.reverseOperation(o.id, actor?.id ?? null, tx);
+      await financeService.createOperation(
+        { opType: 'Приход', accountId, amount: m2(total), name, source: src, accountName: acc.name,
+          ...(cert.orderId ? { orderId: cert.orderId } : { certId }) },
+        actor?.id ?? null, tx,
+      );
+      return { ok: true, account: acc.name, total: m2(total) };
     });
   },
 

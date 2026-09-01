@@ -16,6 +16,10 @@ export const GET = withApi(async (req: NextRequest, ctx) => {
 });
 export const POST = withApi(async (req: NextRequest, ctx) => created(await certsService.create(await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null)));
 
+// pay-account: /api/v2/certs/[id]/pay-account (GET — текущий счёт оплаты; POST — сменить)
+export const PAY_INFO = withApi(async (_req: NextRequest, ctx) => certsService.payInfo(ctx.params!.id));
+export const PAY_ACCOUNT = withApi(async (req: NextRequest, ctx) => certsService.changePayAccount(ctx.params!.id, await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
+
 // item: /api/v2/certs/[id]
 export const PATCH = withApi(async (req: NextRequest, ctx) => certsService.update(ctx.params!.id, await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
 export const DELETE = withApi(async (req: NextRequest, ctx) => certsService.remove(ctx.params!.id, ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));

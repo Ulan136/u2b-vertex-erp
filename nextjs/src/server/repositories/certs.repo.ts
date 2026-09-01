@@ -21,6 +21,11 @@ export const certsRepo = {
       .where(and(...conds)).orderBy(desc(certificates.createdAt));
   },
 
+  async findById(id: string, exec: Executor = db) {
+    const [row] = await exec.select().from(certificates).where(eq(certificates.id, id)).limit(1);
+    return row ?? null;
+  },
+
   async create(data: Record<string, unknown>, exec: Executor = db) {
     const [row] = await exec.insert(certificates).values(data as unknown as CertInsert).returning();
     return row;
