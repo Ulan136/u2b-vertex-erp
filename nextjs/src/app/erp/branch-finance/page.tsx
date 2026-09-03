@@ -1,27 +1,33 @@
 'use client';
 import * as React from 'react';
-import { useApi } from '@/lib/api';
+import { useApi, apiSend } from '@/lib/api';
+import { toast } from '@/lib/toast';
 import { formatDate } from '@/lib/format';
-import { Card, PageTitle, EmptyRow, DateRange } from '@/components/ui';
+import { Card, PageTitle, EmptyRow, DateRange, Button, Modal, Field, Input, MoneyInput, Select } from '@/components/ui';
 import { opIcon, opName, opSign, opAmountColor, isReversed } from '@/lib/opDisplay';
 
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; balance?: string | number | null };
 type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; createdByName?: string | null };
-type Resp = { section: string; branchId: string; accounts: Acct[]; operations: Op[]; accountNo: Record<string, number>; total: number; income: number; expense: number };
+type Target = { id: string; name: string; icon?: string | null; own: boolean };
+type Resp = { section: string; branchId: string; accounts: Acct[]; operations: Op[]; accountNo: Record<string, number>; total: number; income: number; expense: number; transferTargets: Target[] };
 
 const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU');
+const num = (v: unknown) => Number(String(v ?? '').replace(/\s/g, '')) || 0;
 const dmy = (d?: string | null) => formatDate(d);
+const today = () => new Date().toISOString().slice(0, 10);
 
 // Кабинет филиала: только свой счёт, свои движения. Компанейские данные сюда не
-// приходят (изоляция на сервере — /api/v2/branch/finance отдаёт лишь свой раздел).
+// приходят (изоляция на сервере — /api/v2/branch/* отдаёт лишь свой раздел).
 export default function BranchFinancePage() {
   const [from, setFrom] = React.useState('');
   const [to, setTo] = React.useState('');
   const qs = new URLSearchParams(); if (from) qs.set('from', from); if (to) qs.set('to', to);
-  const { data, error, isLoading } = useApi<Resp>('/api/v2/branch/finance' + (qs.toString() ? '?' + qs : ''));
+  const { data, error, isLoading, mutate } = useApi<Resp>('/api/v2/branch/finance' + (qs.toString() ? '?' + qs : ''));
   const [tab, setTab] = React.useState<'all' | 'expense' | 'transfer' | 'income'>('all');
 
   const accounts = data?.accounts || [];
+  const targets = data?.transferTargets || [];
+  const defAcc = accounts[0]?.id || '';
   const ops = React.useMemo(() => (data?.operations || []).slice().sort((a, b) => String(b.opDate).localeCompare(String(a.opDate))), [data]);
   const accNo = data?.accountNo || {};
   const match = (o: Op) =>
@@ -37,9 +43,44 @@ export default function BranchFinancePage() {
     income: ops.filter(o => o.opType === 'Приход').length,
   };
 
+  // ── Расход ──
+  const emptyExp = () => ({ open: false, accountId: defAcc, amount: '', name: '', date: today(), comment: '', err: '', saving: false });
+  const [exp, setExp] = React.useState(emptyExp());
+  const openExp = () => setExp({ ...emptyExp(), accountId: defAcc, open: true });
+  async function saveExp() {
+    if (!exp.accountId) { setExp(s => ({ ...s, err: 'Выберите счёт' })); return; }
+    if (num(exp.amount) <= 0) { setExp(s => ({ ...s, err: 'Укажите сумму' })); return; }
+    if (!exp.name.trim()) { setExp(s => ({ ...s, err: 'Укажите назначение расхода' })); return; }
+    setExp(s => ({ ...s, saving: true, err: '' }));
+    try {
+      await apiSend('/api/v2/branch/expense', 'POST', { accountId: exp.accountId, amount: num(exp.amount), name: exp.name.trim(), date: exp.date || null, comment: exp.comment || null });
+      setExp(s => ({ ...s, open: false })); await mutate(); toast('💸 Расход проведён');
+    } catch (e) { setExp(s => ({ ...s, err: (e as Error).message, saving: false })); }
+  }
+
+  // ── Перевод ──
+  const emptyTr = () => ({ open: false, fromAccountId: defAcc, toAccountId: '', amount: '', name: '', date: today(), err: '', saving: false });
+  const [tr, setTr] = React.useState(emptyTr());
+  const openTr = () => setTr({ ...emptyTr(), fromAccountId: defAcc, open: true });
+  async function saveTr() {
+    if (!tr.fromAccountId) { setTr(s => ({ ...s, err: 'Выберите счёт-источник' })); return; }
+    if (!tr.toAccountId) { setTr(s => ({ ...s, err: 'Выберите счёт-получатель' })); return; }
+    if (tr.fromAccountId === tr.toAccountId) { setTr(s => ({ ...s, err: 'Счета должны отличаться' })); return; }
+    if (num(tr.amount) <= 0) { setTr(s => ({ ...s, err: 'Укажите сумму' })); return; }
+    setTr(s => ({ ...s, saving: true, err: '' }));
+    try {
+      await apiSend('/api/v2/branch/transfer', 'POST', { fromAccountId: tr.fromAccountId, toAccountId: tr.toAccountId, amount: num(tr.amount), name: tr.name || null, date: tr.date || null });
+      setTr(s => ({ ...s, open: false })); await mutate(); toast('🔁 Перевод проведён');
+    } catch (e) { setTr(s => ({ ...s, err: (e as Error).message, saving: false })); }
+  }
+
   return (
     <div>
-      <PageTitle title="Финансы филиала" sub="Ваш счёт, расходы и переводы — только по вашему филиалу" />
+      <PageTitle title="Финансы филиала" sub="Ваш счёт, расходы и переводы — только по вашему филиалу" action={
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button variant="outline" onClick={openTr} disabled={!accounts.length}>🔁 Перевод</Button>
+          <Button onClick={openExp} disabled={!accounts.length}>+ Расход</Button>
+        </div>} />
 
       <Card className="erp-filters" style={{ marginTop: 12 }}>
         <DateRange from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
@@ -95,8 +136,53 @@ export default function BranchFinancePage() {
       </Card>
 
       <p className="erp-muted" style={{ fontSize: 11, marginTop: 10 }}>
-        Показаны только операции вашего филиала. Входящие переводы от головного офиса отражаются в балансе; отдельной строкой они появятся после доработки (Этап 3).
+        Показаны только операции вашего филиала. Тратить и переводить можно только со своих счетов; перевести — на свой счёт или головному офису.
       </p>
+
+      {/* Модалка расхода */}
+      <Modal open={exp.open} onClose={() => setExp(s => ({ ...s, open: false }))} title="💸 Расход филиала"
+        footer={<><Button onClick={saveExp} disabled={exp.saving}>{exp.saving ? 'Проведение…' : 'Провести расход'}</Button><Button variant="outline" onClick={() => setExp(s => ({ ...s, open: false }))}>Отмена</Button></>}>
+        {exp.err && <div className="erp-form-err">{exp.err}</div>}
+        <div className="erp-form-row">
+          <Field label="Со счёта" required>
+            <Select value={exp.accountId} onChange={e => setExp(s => ({ ...s, accountId: e.target.value }))}>
+              {accounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name} · {fmt(a.balance || 0)} ₸</option>)}
+            </Select>
+          </Field>
+          <Field label="Сумма, ₸" required><MoneyInput value={exp.amount} onValue={v => setExp(s => ({ ...s, amount: v }))} placeholder="0" /></Field>
+        </div>
+        <Field label="Назначение" required><Input value={exp.name} onChange={e => setExp(s => ({ ...s, name: e.target.value }))} placeholder="напр. Аренда, ГСМ, канцелярия…" autoFocus /></Field>
+        <div className="erp-form-row">
+          <Field label="Дата"><Input type="date" value={exp.date} onChange={e => setExp(s => ({ ...s, date: e.target.value }))} /></Field>
+          <Field label="Комментарий"><Input value={exp.comment} onChange={e => setExp(s => ({ ...s, comment: e.target.value }))} placeholder="необязательно" /></Field>
+        </div>
+      </Modal>
+
+      {/* Модалка перевода */}
+      <Modal open={tr.open} onClose={() => setTr(s => ({ ...s, open: false }))} title="🔁 Перевод"
+        footer={<><Button onClick={saveTr} disabled={tr.saving}>{tr.saving ? 'Проведение…' : 'Провести перевод'}</Button><Button variant="outline" onClick={() => setTr(s => ({ ...s, open: false }))}>Отмена</Button></>}>
+        {tr.err && <div className="erp-form-err">{tr.err}</div>}
+        <div className="erp-form-row">
+          <Field label="Со счёта" required>
+            <Select value={tr.fromAccountId} onChange={e => setTr(s => ({ ...s, fromAccountId: e.target.value }))}>
+              {accounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name} · {fmt(a.balance || 0)} ₸</option>)}
+            </Select>
+          </Field>
+          <Field label="На счёт" required>
+            <Select value={tr.toAccountId} onChange={e => setTr(s => ({ ...s, toAccountId: e.target.value }))}>
+              <option value="">— выберите —</option>
+              <optgroup label="Мои счета">{targets.filter(t => t.own).map(t => <option key={t.id} value={t.id}>{t.icon || '💳'} {t.name}</option>)}</optgroup>
+              <optgroup label="Головной офис">{targets.filter(t => !t.own).map(t => <option key={t.id} value={t.id}>{t.icon || '💳'} {t.name}</option>)}</optgroup>
+            </Select>
+          </Field>
+        </div>
+        <div className="erp-form-row">
+          <Field label="Сумма, ₸" required><MoneyInput value={tr.amount} onValue={v => setTr(s => ({ ...s, amount: v }))} placeholder="0" /></Field>
+          <Field label="Дата"><Input type="date" value={tr.date} onChange={e => setTr(s => ({ ...s, date: e.target.value }))} /></Field>
+        </div>
+        <Field label="Комментарий"><Input value={tr.name} onChange={e => setTr(s => ({ ...s, name: e.target.value }))} placeholder="напр. возврат головному" /></Field>
+        <div className="erp-muted" style={{ fontSize: 11, marginTop: 4 }}>Перевод спишет сумму с вашего счёта и добавит на счёт-получатель. Переводить можно только со своих счетов.</div>
+      </Modal>
     </div>
   );
 }
