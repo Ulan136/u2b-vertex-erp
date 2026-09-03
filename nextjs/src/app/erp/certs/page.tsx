@@ -294,10 +294,16 @@ function CertsInner() {
   const pcQtyNum = pcQty === '' ? pcCount : Math.max(1, Math.min(Math.floor(num(pcQty)), pcCount));   // сколько оплачиваем
   const pcPriceNum = num(pcPrice);
   const pcIncomeTotal = Math.round(pcPriceNum * pcQtyNum * 100) / 100;
-  // Одна строка счёта без суммы = весь итог на этот счёт (как в продаже/закупе) —
-  // чтобы не приходилось вручную дублировать сумму (частая причина «не платится»).
-  const pcSingleAuto = pcRows.length === 1 && !!pcRows[0].accountId && num(pcRows[0].amount) <= 0 && pcIncomeTotal > 0;
-  const pcPayTotal = pcSingleAuto ? pcIncomeTotal : pcRows.reduce((s, p) => s + num(p.amount), 0);
+  // Распределение по счетам: заполненные строки берут свою сумму; ОДНА пустая
+  // строка (со счётом) сама добирает остаток до итога — не нужно вручную считать
+  // последнюю сумму (частая причина «не проходит»).
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const pcFilled = pcRows.filter(p => p.accountId && num(p.amount) > 0);
+  const pcFilledSum = r2(pcFilled.reduce((s, p) => s + num(p.amount), 0));
+  const pcEmptyAcc = pcRows.filter(p => p.accountId && num(p.amount) <= 0);
+  const pcRemainder = r2(pcIncomeTotal - pcFilledSum);                    // остаток к распределению
+  const pcAutoRow = pcEmptyAcc.length === 1 && pcRemainder > 0.001;       // пустая строка добирает остаток
+  const pcPayTotal = pcAutoRow ? pcIncomeTotal : pcFilledSum;
   const pcMismatch = pcPriceNum > 0 && Math.abs(pcPayTotal - pcIncomeTotal) > 0.01;
   const pcCommPerNum = num(pcCommPer);
   const pcCommTotal = pcCommOn ? Math.round(pcCommPerNum * pcQtyNum * 100) / 100 : 0;
@@ -316,9 +322,10 @@ function CertsInner() {
     try {
       await apiSend('/api/v2/certs/pay-by-client', 'POST', {
         source, docType, client: fClient, pricePerCert: pcPriceNum, count: pcQtyNum,
-        payments: pcSingleAuto
-          ? [{ accountId: pcRows[0].accountId, amount: pcIncomeTotal }]
-          : pcRows.filter(p => p.accountId && num(p.amount) > 0).map(p => ({ accountId: p.accountId, amount: num(p.amount) })),
+        payments: [
+          ...pcFilled.map(p => ({ accountId: p.accountId, amount: num(p.amount) })),
+          ...(pcAutoRow ? [{ accountId: pcEmptyAcc[0].accountId, amount: pcRemainder }] : []),
+        ],
         commission: pcCommOn && pcCommPerNum > 0 ? { perCert: pcCommPerNum, accountId: pcCommAcct } : null,
       });
       setPcOpen(false); await mutate();
@@ -770,7 +777,7 @@ function CertsInner() {
           <Field label="Итого к оплате"><Input value={`${fmtNum(pcIncomeTotal)} ₸`} readOnly style={{ background: '#f8fafc', fontWeight: 700 }} /></Field>
         </div>
         <div className="sale-pay" style={{ marginTop: 0 }}>
-          <div className="erp-muted" style={{ fontSize: 11, marginBottom: 6 }}>Счета раздела «{certSection === 'branch' ? '№4 Филиал Астана' : '№1 Поверка'}». Одна строка — весь итог на один счёт; можно разбить (смешанная).</div>
+          <div className="erp-muted" style={{ fontSize: 11, marginBottom: 6 }}>Счета раздела «{certSection === 'branch' ? '№4 Филиал Астана' : '№1 Поверка'}». Одна строка — весь итог на один счёт; можно разбить. Оставьте ОДНУ строку без суммы — она сама доберёт остаток.</div>
           {pcRows.map((p, i) => (
             <div className="sale-pay-row" key={i}>
               <Select value={p.accountId} onChange={e => setPcRows(rs => rs.map((r, j) => j === i ? { ...r, accountId: e.target.value } : r))}>
@@ -783,9 +790,10 @@ function CertsInner() {
           ))}
           <Button variant="outline" onClick={() => setPcRows(rs => [...rs, { accountId: defaultAcc?.id || '', amount: '' }])} style={{ fontSize: 12 }}>+ ещё счёт</Button>
           <div className="sale-pay-state">
-            <span>Внесено: <b style={{ color: pcMismatch ? '#b45309' : '#16a34a' }}>{fmtNum(pcPayTotal)} ₸</b></span>
+            <span>Внесено: <b style={{ color: pcMismatch ? '#b45309' : '#16a34a' }}>{fmtNum(pcPayTotal)} ₸</b>{pcAutoRow ? <span className="erp-muted" style={{ fontSize: 11 }}> (остаток {fmtNum(pcRemainder)} ₸ — автоматически)</span> : null}</span>
             <span>Итог: <b>{fmtNum(pcIncomeTotal)} ₸</b></span>
           </div>
+          {pcMismatch && !pcAutoRow && <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>Осталось распределить: <b>{fmtNum(pcRemainder)} ₸</b> — впишите в строку или оставьте одну строку пустой.</div>}
         </div>
 
         <div className="cert-sec-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
