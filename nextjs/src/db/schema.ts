@@ -190,6 +190,9 @@ export const financeOperations = pgTable('finance_operations', {
   name        : varchar('name', { length: 200 }).notNull(),
   accountId   : uuid('account_id').references(() => financeAccounts.id).notNull(),
   accountName : varchar('account_name', { length: 100 }),
+  // Перевод: счёт-получатель (source = accountId). Раньше НЕ хранился (баланс
+  // двигался, но входящий перевод не был виден строкой у получателя). Nullable.
+  toAccountId : uuid('to_account_id'),
   opType      : financeOpEnum('op_type').notNull(),
   amount      : numeric('amount', { precision: 14, scale: 2 }).notNull(),
   source      : varchar('source', { length: 50 }),

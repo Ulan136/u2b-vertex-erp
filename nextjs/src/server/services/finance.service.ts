@@ -53,6 +53,7 @@ async function createOperation(input: unknown, actorId?: string | null, exec?: E
   if (data.status) insert.status = data.status;
   if (data.orderId) insert.orderId = data.orderId;
   if (data.expenseGroupId) insert.expenseGroupId = data.expenseGroupId;
+  if (data.toAccountId) insert.toAccountId = data.toAccountId;   // перевод: счёт-получатель (для показа входящих)
 
   const run = (e: Executor) => insertOperation(insert, data.opType, data.amount, data.accountId, data.toAccountId, e);
   return exec ? run(exec) : db.transaction(run);

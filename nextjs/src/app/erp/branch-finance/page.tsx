@@ -11,7 +11,7 @@ import { opIcon, opName, opSign, opAmountColor, isReversed } from '@/lib/opDispl
 const BRANCH_LABEL: Record<string, string> = { astana: 'Астана', almaty: 'Алматы' };
 
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; balance?: string | number | null };
-type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; createdByName?: string | null };
+type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; createdByName?: string | null; incoming?: boolean };
 type Target = { id: string; name: string; icon?: string | null; own: boolean };
 type Resp = { section: string; branchId: string; accounts: Acct[]; operations: Op[]; accountNo: Record<string, number>; total: number; income: number; expense: number; transferTargets: Target[] };
 
@@ -134,8 +134,8 @@ function BranchFinanceInner() {
                   <tr key={o.id}>
                     <td className="erp-muted col-date" style={{ fontSize: 12 }}>{dmy(o.opDate)}</td>
                     <td className="erp-muted col-account" style={{ fontSize: 12 }}>№{accNo[o.accountId] ?? '?'} {o.accountName || ''}</td>
-                    <td style={isReversed(o) ? { textDecoration: 'line-through', opacity: .55 } : undefined}>{opIcon(o)} {opName(o)}{o.createdByName ? <span className="erp-muted" style={{ marginLeft: 6, fontSize: 11 }}>· {o.createdByName}</span> : null}</td>
-                    <td style={{ textAlign: 'right', color: opAmountColor(o), fontWeight: 700, whiteSpace: 'nowrap' }}>{opSign(o)}{fmt(o.amount)} ₸</td>
+                    <td style={isReversed(o) ? { textDecoration: 'line-through', opacity: .55 } : undefined}>{o.incoming ? '📥' : opIcon(o)} {o.incoming ? 'Перевод (входящий)' : opName(o)}{o.createdByName ? <span className="erp-muted" style={{ marginLeft: 6, fontSize: 11 }}>· {o.createdByName}</span> : null}</td>
+                    <td style={{ textAlign: 'right', color: o.incoming ? '#16a34a' : opAmountColor(o), fontWeight: 700, whiteSpace: 'nowrap' }}>{o.incoming ? '+' : opSign(o)}{fmt(o.amount)} ₸</td>
                   </tr>
                 ))}
               </tbody>

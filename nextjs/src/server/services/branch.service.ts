@@ -66,15 +66,24 @@ export const branchService = {
     const { section, branchId } = await resolveSection(viewer, requested);
     const { accounts, operations } = await financeRepo.overview(from, to);
     const scoped = scopeFinance(accounts, operations, { section, from, to });
+    // Входящие переводы: перевод, где счёт-ПОЛУЧАТЕЛЬ (toAccountId) — наш, а
+    // источник чужой (головной). Строка живёт на счёте-источнике, поэтому в
+    // scoped.movs её нет — добавляем как «+» на наш счёт-получатель.
+    const sectionIds = new Set(scoped.visAccts.map(a => a.id));
+    const acctName = new Map(accounts.map(a => [a.id, a.name]));
+    const incoming = operations
+      .filter(o => o.opType === 'Перевод' && o.toAccountId && sectionIds.has(o.toAccountId as string) && !sectionIds.has(o.accountId) && !o.reversedAt && !o.reverses)
+      .map(o => ({ ...o, accountId: o.toAccountId as string, accountName: acctName.get(o.toAccountId as string) ?? null, incoming: true }));
+    const incomingSum = incoming.reduce((s, o) => s + (Number(o.amount) || 0), 0);
     const transferTargets = accounts
       .filter(a => (a.section || '') === section || HEAD_TRANSFER_SECTIONS.includes(a.section || ''))
       .map(a => ({ id: a.id, name: a.name, icon: a.icon ?? null, own: (a.section || '') === section }));
     return {
       section, branchId,
       accounts: scoped.visAccts,
-      operations: scoped.movs,
+      operations: [...scoped.movs, ...incoming],
       accountNo: numberAccounts(scoped.visAccts),   // № счёта внутри раздела
-      total: scoped.total, income: scoped.income, expense: scoped.expense,
+      total: scoped.total, income: scoped.income + incomingSum, expense: scoped.expense,
       transferTargets,
     };
   },
