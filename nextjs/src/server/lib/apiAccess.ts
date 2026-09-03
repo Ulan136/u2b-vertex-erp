@@ -39,7 +39,9 @@ export function apiScreenFor(method: string, pathname: string, searchParams: URL
   if (pathname.startsWith('/api/v2/sales')) return 'sales';
   if (pathname.startsWith('/api/v2/products')) return 'warehouse';
   if (pathname.startsWith('/api/v2/purchases')) return 'warehouse';   // закуп → раздел «Склад»
-  if (pathname.startsWith('/api/v2/branch')) return 'branch_finance';  // кабинет филиала (свой финансовый раздел)
+  // /api/v2/branch/* — session-only: гейт делает branch.service (роль branch → свой
+  // раздел; admin → указанный ?branch=; иначе 403). Экраном не гейтим, т.к.
+  // branch_finance виден только роли branch, а сюда ходит и admin.
   if (pathname.startsWith('/api/v2/role-permissions')) return 'settings';
   if (pathname.startsWith('/api/v2/roles')) return 'settings';   // создание/правка ролей — «Настройки»
   // Филиалы: GET открыт всем вошедшим (селекты «Филиал»), запись — «Настройки».

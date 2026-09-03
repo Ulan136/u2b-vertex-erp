@@ -126,5 +126,7 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Клиенты', screenKey: 'clients', href: '/erp/clients' },
     { label: '📱 Кабинет мастера', screenKey: 'settings', href: '/master', external: true },
     { label: '📱 Кабинет директора', screenKey: 'settings', href: '/director', external: true },
+    { label: '🏢 Кабинет филиала · Астана', screenKey: 'settings', href: '/erp/branch-finance?branch=astana' },
+    { label: '🏢 Кабинет филиала · Алматы', screenKey: 'settings', href: '/erp/branch-finance?branch=almaty' },
   ] },
 ];

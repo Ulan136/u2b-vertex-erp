@@ -1,10 +1,14 @@
 'use client';
 import * as React from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { formatDate } from '@/lib/format';
 import { Card, PageTitle, EmptyRow, DateRange, Button, Modal, Field, Input, MoneyInput, Select } from '@/components/ui';
 import { opIcon, opName, opSign, opAmountColor, isReversed } from '@/lib/opDisplay';
+
+const BRANCH_LABEL: Record<string, string> = { astana: 'Астана', almaty: 'Алматы' };
 
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; balance?: string | number | null };
 type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; createdByName?: string | null };
@@ -18,10 +22,13 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 // Кабинет филиала: только свой счёт, свои движения. Компанейские данные сюда не
 // приходят (изоляция на сервере — /api/v2/branch/* отдаёт лишь свой раздел).
-export default function BranchFinancePage() {
+function BranchFinanceInner() {
+  const sp = useSearchParams();
+  const branch = sp.get('branch') || '';   // admin — конкретный филиал; branch-роль — игнорируется сервером
+  const branchQ = branch ? `branch=${encodeURIComponent(branch)}` : '';
   const [from, setFrom] = React.useState('');
   const [to, setTo] = React.useState('');
-  const qs = new URLSearchParams(); if (from) qs.set('from', from); if (to) qs.set('to', to);
+  const qs = new URLSearchParams(); if (from) qs.set('from', from); if (to) qs.set('to', to); if (branch) qs.set('branch', branch);
   const { data, error, isLoading, mutate } = useApi<Resp>('/api/v2/branch/finance' + (qs.toString() ? '?' + qs : ''));
   const [tab, setTab] = React.useState<'all' | 'expense' | 'transfer' | 'income'>('all');
 
@@ -53,7 +60,7 @@ export default function BranchFinancePage() {
     if (!exp.name.trim()) { setExp(s => ({ ...s, err: 'Укажите назначение расхода' })); return; }
     setExp(s => ({ ...s, saving: true, err: '' }));
     try {
-      await apiSend('/api/v2/branch/expense', 'POST', { accountId: exp.accountId, amount: num(exp.amount), name: exp.name.trim(), date: exp.date || null, comment: exp.comment || null });
+      await apiSend('/api/v2/branch/expense' + (branchQ ? '?' + branchQ : ''), 'POST', { accountId: exp.accountId, amount: num(exp.amount), name: exp.name.trim(), date: exp.date || null, comment: exp.comment || null });
       setExp(s => ({ ...s, open: false })); await mutate(); toast('💸 Расход проведён');
     } catch (e) { setExp(s => ({ ...s, err: (e as Error).message, saving: false })); }
   }
@@ -69,15 +76,16 @@ export default function BranchFinancePage() {
     if (num(tr.amount) <= 0) { setTr(s => ({ ...s, err: 'Укажите сумму' })); return; }
     setTr(s => ({ ...s, saving: true, err: '' }));
     try {
-      await apiSend('/api/v2/branch/transfer', 'POST', { fromAccountId: tr.fromAccountId, toAccountId: tr.toAccountId, amount: num(tr.amount), name: tr.name || null, date: tr.date || null });
+      await apiSend('/api/v2/branch/transfer' + (branchQ ? '?' + branchQ : ''), 'POST', { fromAccountId: tr.fromAccountId, toAccountId: tr.toAccountId, amount: num(tr.amount), name: tr.name || null, date: tr.date || null });
       setTr(s => ({ ...s, open: false })); await mutate(); toast('🔁 Перевод проведён');
     } catch (e) { setTr(s => ({ ...s, err: (e as Error).message, saving: false })); }
   }
 
   return (
     <div>
-      <PageTitle title="Финансы филиала" sub="Ваш счёт, расходы и переводы — только по вашему филиалу" action={
+      <PageTitle title={`Финансы филиала${branch && BRANCH_LABEL[branch] ? ' · ' + BRANCH_LABEL[branch] : ''}`} sub="Счёт, расходы и переводы — только по этому филиалу" action={
         <div style={{ display: 'flex', gap: 8 }}>
+          <Link href="/master" className="ui-btn ui-btn-outline" title="Открыть кабинет мастера филиала">📱 Кабинет мастера</Link>
           <Button variant="outline" onClick={openTr} disabled={!accounts.length}>🔁 Перевод</Button>
           <Button onClick={openExp} disabled={!accounts.length}>+ Расход</Button>
         </div>} />
@@ -184,5 +192,13 @@ export default function BranchFinancePage() {
         <div className="erp-muted" style={{ fontSize: 11, marginTop: 4 }}>Перевод спишет сумму с вашего счёта и добавит на счёт-получатель. Переводить можно только со своих счетов.</div>
       </Modal>
     </div>
+  );
+}
+
+export default function BranchFinancePage() {
+  return (
+    <React.Suspense fallback={<div className="erp-muted" style={{ padding: 20 }}>Загрузка…</div>}>
+      <BranchFinanceInner />
+    </React.Suspense>
   );
 }

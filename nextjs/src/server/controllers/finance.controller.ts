@@ -7,7 +7,7 @@ export const OPTIONS = optionsHandler;
 // GET /api/v2/finance?from=YYYY-MM-DD&to=YYYY-MM-DD — { accounts, operations }
 export const GET = withApi(async (req: NextRequest, ctx) => {
   const sp = new URL(req.url).searchParams;
-  return financeService.overview(sp.get('from'), sp.get('to'), ctx.user?.role);
+  return financeService.overview(sp.get('from'), sp.get('to'), ctx.user?.role, ctx.user?.id ?? null);
 });
 // POST /api/v2/finance — создать операцию; при наличии payments[] — расход с
 // нескольких счетов (несколько операций одной группой), createdBy из сессии.

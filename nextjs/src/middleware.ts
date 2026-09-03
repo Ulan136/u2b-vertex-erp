@@ -60,7 +60,7 @@ export default auth((req) => {
       return NextResponse.redirect(url);
     }
     const allowed = isMasterCab
-      ? (role === 'master' || role === 'admin')
+      ? (role === 'master' || role === 'admin' || role === 'branch')   // филиал ведёт свою выездную через кабинет мастера
       : (role === 'director' || role === 'admin');
     if (!allowed) return NextResponse.rewrite(new URL('/no_access.html', req.nextUrl));
     return NextResponse.next();

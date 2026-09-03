@@ -19,8 +19,12 @@ export function branchFinanceSection(branch: { name?: string | null; city?: stri
 // типы приборов, филиалы, реквизиты — только чтение общих справочников).
 const BRANCH_API_ALLOW: readonly string[] = [
   '/api/v2/branch',            // ← весь скоуп-кабинет филиала (финансы/расходы/переводы)
+  '/api/v2/finance',           // счета — для кабинета мастера (ОТСКОПЛЕНО до раздела филиала
+                               //   в overview; запись всё равно закрыта financeWriteAllowed)
   '/api/v2/orders',            // свои заявки (скоуп по branchId в orders.service)
   '/api/v2/certs',             // свои серт/извещения (скоуп по branchId)
+  '/api/v2/comments',          // комментарии к заявкам (кабинет мастера)
+  '/api/v2/me',                // «кто я» (кабинет мастера)
   '/api/v2/device-types',      // справочник типов приборов (форма серта)
   '/api/v2/clients',           // клиенты/покупатели (общий справочник, нужен формам)
   '/api/v2/client-categories',
@@ -30,9 +34,8 @@ const BRANCH_API_ALLOW: readonly string[] = [
 ];
 
 // Явно закрытые для филиала «компанейские» эндпоинты (даже если session-only,
-// т.е. не имеют экранного гейта — напр. /api/v2/finance). Приоритетнее allow.
+// т.е. не имеют экранного гейта). Приоритетнее allow.
 const BRANCH_API_DENY: readonly string[] = [
-  '/api/v2/finance',           // общие счета/операции ВСЕЙ компании → только через /api/v2/branch/*
   '/api/v2/sales', '/api/v2/purchases', '/api/v2/products', '/api/v2/expenses',
   '/api/v2/debts', '/api/v2/reports', '/api/v2/staff', '/api/v2/employees',
   '/api/v2/documents', '/api/v2/invoices', '/api/v2/tasks', '/api/v2/accounting',

@@ -3,11 +3,14 @@ import { financeRepo } from '@/server/repositories/finance.repo';
 import { expenseCategoriesRepo } from '@/server/repositories/expenseCategories.repo';
 import { employeesRepo } from '@/server/repositories/employees.repo';
 import { permissionsRepo } from '@/server/repositories/permissions.repo';
-import { isCategoryVisible } from '@/server/dto/permissions.dto';
+import { isCategoryVisible, BRANCH_ROLE } from '@/server/dto/permissions.dto';
+import { usersRepo } from '@/server/repositories/users.repo';
+import { branchesRepo } from '@/server/repositories/branches.repo';
+import { branchFinanceSection } from '@/server/lib/branchScope';
 import { randomUUID } from 'crypto';
 import {
   financeOperationSchema, financeOpMetaSchema, expenseCreateSchema, expensePaymentsTotal,
-  accountCreateSchema, accountUpdateSchema, balanceDeltas,
+  accountCreateSchema, accountUpdateSchema, balanceDeltas, scopeFinance,
 } from '@/server/dto/finance.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 import { formatDate } from '@/lib/format';
@@ -188,9 +191,18 @@ async function reverseExpense(id: string, actorId?: string | null) {
 const opCategory = (o: { expenseCat?: string | null; source?: string | null; name?: string | null }) =>
   o.expenseCat || (o.source === 'Зарплата' ? 'Зарплата' : (o.name || '').split(':')[0].trim() || 'Прочие');
 
-async function overview(from?: string | null, to?: string | null, role?: string | null) {
+async function overview(from?: string | null, to?: string | null, role?: string | null, userId?: string | null) {
   const data = await financeRepo.overview(from, to);
   if (role === 'admin') return data;   // Админ всегда видит всё
+  // Роль «Филиал»: даже общий /api/v2/finance (нужен кабинету мастера для счетов
+  // приёма оплаты) отдаёт ТОЛЬКО раздел филиала — компанейские счета не видны.
+  if (role === BRANCH_ROLE && userId) {
+    const branchId = await usersRepo.branchOf(userId);
+    const section = branchId ? branchFinanceSection(await branchesRepo.get(branchId)) : null;
+    if (!section) return { accounts: [], operations: [] };
+    const scoped = scopeFinance(data.accounts, data.operations, { section, from, to });
+    return { accounts: scoped.visAccts, operations: scoped.movs };
+  }
   // Видимость категорий расходов — по ролям (карта «Настройки → Доступы»);
   // для незаданных явно категорий действует legacy-флаг managerHidden.
   const [perms, cats] = await Promise.all([permissionsRepo.list(), expenseCategoriesRepo.listAll()]);

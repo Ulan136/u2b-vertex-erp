@@ -12,16 +12,27 @@ import { badRequest, forbidden } from '@/server/lib/errors';
 // головной офис (раздел poverka — «вернуть головному»). Больше никуда.
 const HEAD_TRANSFER_SECTIONS = ['poverka'];
 
-// Кабинет филиала: строго свой финансовый раздел. Доступен только роли 'branch'
-// (и admin — для проверки). Раздел выводится из филиала пользователя.
-async function resolveSection(viewer: { id: string; role?: string | null }): Promise<{ section: string; branchId: string }> {
-  if (viewer.role !== BRANCH_ROLE && viewer.role !== 'admin') throw forbidden('Кабинет филиала доступен только роли «Филиал»');
-  const branchId = await usersRepo.branchOf(viewer.id);
-  if (!branchId) throw forbidden('Пользователь не привязан к филиалу');
-  const branch = await branchesRepo.get(branchId);
-  const section = branchFinanceSection(branch);
-  if (!section) throw forbidden('У вашего филиала нет финансового раздела');
-  return { section, branchId };
+// Раздел филиала по ключу (для админского просмотра конкретного филиала).
+const SECTION_BY_KEY: Record<string, string> = { astana: 'branch', almaty: 'branch_almaty', branch: 'branch', branch_almaty: 'branch_almaty' };
+
+// Кабинет филиала: строго свой раздел.
+//   - роль 'branch' → ВСЕГДА свой филиал (параметр игнорируется — безопасность);
+//   - admin → может смотреть указанный филиал (?branch=astana|almaty), т.к. у
+//     головного офиса своего филиального раздела нет.
+async function resolveSection(viewer: { id: string; role?: string | null }, requested?: string | null): Promise<{ section: string; branchId: string | null }> {
+  if (viewer.role === BRANCH_ROLE) {
+    const branchId = await usersRepo.branchOf(viewer.id);
+    if (!branchId) throw forbidden('Пользователь не привязан к филиалу');
+    const section = branchFinanceSection(await branchesRepo.get(branchId));
+    if (!section) throw forbidden('У вашего филиала нет финансового раздела');
+    return { section, branchId };
+  }
+  if (viewer.role === 'admin') {
+    const section = requested ? SECTION_BY_KEY[requested] : null;
+    if (!section) throw badRequest('Укажите филиал (?branch=astana|almaty)');
+    return { section, branchId: null };
+  }
+  throw forbidden('Кабинет филиала доступен только роли «Филиал»');
 }
 
 // Проверка: счёт принадлежит разделу филиала (иначе тратить/переводить нельзя).
@@ -51,8 +62,8 @@ export const branchService = {
   // Финансы филиала: только счета его раздела + движения по ним (расходы,
   // приходы, переводы). Компанейские разделы не отдаются. transferTargets —
   // куда можно перевести (свои счета + головной), без остатков.
-  async finance(viewer: { id: string; role?: string | null }, from?: string | null, to?: string | null) {
-    const { section, branchId } = await resolveSection(viewer);
+  async finance(viewer: { id: string; role?: string | null }, from?: string | null, to?: string | null, requested?: string | null) {
+    const { section, branchId } = await resolveSection(viewer, requested);
     const { accounts, operations } = await financeRepo.overview(from, to);
     const scoped = scopeFinance(accounts, operations, { section, from, to });
     const transferTargets = accounts
@@ -69,8 +80,8 @@ export const branchService = {
   },
 
   // Расход филиала — только со своего счёта. Обычный Расход в финледжере.
-  async createExpense(viewer: { id: string; role?: string | null }, input: unknown, actorId?: string | null) {
-    const { section } = await resolveSection(viewer);
+  async createExpense(viewer: { id: string; role?: string | null }, input: unknown, actorId?: string | null, requested?: string | null) {
+    const { section } = await resolveSection(viewer, requested);
     const d = expenseSchema.parse(input);
     const acc = await ownAccount(d.accountId, section);
     return financeService.createOperation({
@@ -81,8 +92,8 @@ export const branchService = {
   },
 
   // Перевод — строго со своего счёта; получатель = свой счёт или головной.
-  async createTransfer(viewer: { id: string; role?: string | null }, input: unknown, actorId?: string | null) {
-    const { section } = await resolveSection(viewer);
+  async createTransfer(viewer: { id: string; role?: string | null }, input: unknown, actorId?: string | null, requested?: string | null) {
+    const { section } = await resolveSection(viewer, requested);
     const d = transferSchema.parse(input);
     if (d.fromAccountId === d.toAccountId) throw badRequest('Счёт-источник и получатель должны отличаться');
     const from = await ownAccount(d.fromAccountId, section);
