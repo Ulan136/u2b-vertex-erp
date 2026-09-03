@@ -80,6 +80,7 @@ export const payByClientSchema = z.object({
   docType: z.enum(['cert', 'izv']).optional(),
   client: z.string().min(1, 'Укажите клиента'),
   pricePerCert: z.coerce.number().positive('Укажите цену за сертификат'),
+  count: z.coerce.number().int().positive().optional(),   // сколько сертификатов оплачиваем (из ожидающих); нет → все
   payments: z.array(z.object({
     accountId: z.string().uuid(),
     amount: z.coerce.number().positive(),

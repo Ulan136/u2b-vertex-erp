@@ -131,6 +131,7 @@ function CertsInner() {
   const [fClient, setFClient] = React.useState('');               // фильтр по клиенту
   const [pcOpen, setPcOpen] = React.useState(false);              // модалка оплаты по клиенту
   const [pcPrice, setPcPrice] = React.useState('');              // цена за сертификат
+  const [pcQty, setPcQty] = React.useState('');                  // сколько сертификатов оплачиваем (из ожидающих)
   const [pcRows, setPcRows] = React.useState<Array<{ accountId: string; amount: string }>>([{ accountId: '', amount: '' }]);
   const [pcCommOn, setPcCommOn] = React.useState(true);          // выплачивать комиссию клиенту?
   const [pcCommPer, setPcCommPer] = React.useState('200');       // комиссия за сертификат, ₸
@@ -289,17 +290,21 @@ function CertsInner() {
   const clientsInDir = React.useMemo(() => Array.from(new Set(all.map(c => (c.client || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ru')), [all]);
   const allAccounts = React.useMemo(() => (fin?.accounts || []).filter(a => a.isActive !== false), [fin]);
   const pcAwaiting = React.useMemo(() => fClient ? all.filter(c => (c.client || '') === fClient && c.payStatus !== 'Оплачено') : [], [all, fClient]);
-  const pcCount = pcAwaiting.length;
+  const pcCount = pcAwaiting.length;   // всего в ожидании (максимум)
+  const pcQtyNum = pcQty === '' ? pcCount : Math.max(1, Math.min(Math.floor(num(pcQty)), pcCount));   // сколько оплачиваем
   const pcPriceNum = num(pcPrice);
-  const pcIncomeTotal = Math.round(pcPriceNum * pcCount * 100) / 100;
-  const pcPayTotal = pcRows.reduce((s, p) => s + num(p.amount), 0);
+  const pcIncomeTotal = Math.round(pcPriceNum * pcQtyNum * 100) / 100;
+  // Одна строка счёта без суммы = весь итог на этот счёт (как в продаже/закупе) —
+  // чтобы не приходилось вручную дублировать сумму (частая причина «не платится»).
+  const pcSingleAuto = pcRows.length === 1 && !!pcRows[0].accountId && num(pcRows[0].amount) <= 0 && pcIncomeTotal > 0;
+  const pcPayTotal = pcSingleAuto ? pcIncomeTotal : pcRows.reduce((s, p) => s + num(p.amount), 0);
   const pcMismatch = pcPriceNum > 0 && Math.abs(pcPayTotal - pcIncomeTotal) > 0.01;
   const pcCommPerNum = num(pcCommPer);
-  const pcCommTotal = pcCommOn ? Math.round(pcCommPerNum * pcCount * 100) / 100 : 0;
+  const pcCommTotal = pcCommOn ? Math.round(pcCommPerNum * pcQtyNum * 100) / 100 : 0;
   function openPayClient() {
     if (!fClient) { toast('Сначала выберите клиента в фильтре'); return; }
     if (pcCount === 0) { toast('У клиента нет сертификатов в ожидании'); return; }
-    setPcErr(''); setPcPrice(''); setPcRows([{ accountId: defaultAcc?.id || '', amount: '' }]);
+    setPcErr(''); setPcPrice(''); setPcQty(String(pcCount)); setPcRows([{ accountId: defaultAcc?.id || '', amount: '' }]);
     setPcCommOn(true); setPcCommPer('200'); setPcCommAcct(allAccounts.find(a => a.category === 'nalichka')?.id || defaultAcc?.id || allAccounts[0]?.id || '');
     setPcOpen(true);
   }
@@ -310,12 +315,14 @@ function CertsInner() {
     setPcSaving(true); setPcErr('');
     try {
       await apiSend('/api/v2/certs/pay-by-client', 'POST', {
-        source, docType, client: fClient, pricePerCert: pcPriceNum,
-        payments: pcRows.filter(p => p.accountId && num(p.amount) > 0).map(p => ({ accountId: p.accountId, amount: num(p.amount) })),
+        source, docType, client: fClient, pricePerCert: pcPriceNum, count: pcQtyNum,
+        payments: pcSingleAuto
+          ? [{ accountId: pcRows[0].accountId, amount: pcIncomeTotal }]
+          : pcRows.filter(p => p.accountId && num(p.amount) > 0).map(p => ({ accountId: p.accountId, amount: num(p.amount) })),
         commission: pcCommOn && pcCommPerNum > 0 ? { perCert: pcCommPerNum, accountId: pcCommAcct } : null,
       });
       setPcOpen(false); await mutate();
-      toast(`✅ Оплачено ${pcCount} серт. на ${fmtNum(pcIncomeTotal)} ₸${pcCommTotal > 0 ? ` · комиссия ${fmtNum(pcCommTotal)} ₸` : ''}`);
+      toast(`✅ Оплачено ${pcQtyNum} серт. на ${fmtNum(pcIncomeTotal)} ₸${pcCommTotal > 0 ? ` · комиссия ${fmtNum(pcCommTotal)} ₸` : ''}`);
     } catch (e) { setPcErr((e as Error).message); } finally { setPcSaving(false); }
   }
 
@@ -753,11 +760,12 @@ function CertsInner() {
         footer={<><Button onClick={payClientSubmit} disabled={pcSaving || pcMismatch || pcPriceNum <= 0} title={pcMismatch ? 'Сумма оплат ≠ итогу' : undefined}>{pcSaving ? 'Проведение…' : pcMismatch ? '⚠ Оплата ≠ итогу' : '💾 Провести оплату'}</Button><Button variant="outline" onClick={() => setPcOpen(false)}>Отмена</Button></>}>
         {pcErr && <div className="erp-form-err">{pcErr}</div>}
         <div className="erp-muted" style={{ fontSize: 13, marginBottom: 4 }}>
-          Сертификатов в ожидании: <b style={{ color: '#b45309' }}>{pcCount}</b> · итог = цена × {pcCount} = <b style={{ color: '#16a34a' }}>{fmtNum(pcIncomeTotal)} ₸</b>
+          В ожидании: <b style={{ color: '#b45309' }}>{pcCount}</b> · оплачиваем: <b style={{ color: '#2563eb' }}>{pcQtyNum}</b> · итог = цена × {pcQtyNum} = <b style={{ color: '#16a34a' }}>{fmtNum(pcIncomeTotal)} ₸</b>
         </div>
 
         <div className="cert-sec-lbl">💳 Оплата (доход)</div>
-        <div className="erp-form-row">
+        <div className="erp-form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+          <Field label={`Кол-во серт. (из ${pcCount})`}><Input type="number" min={1} max={pcCount} value={pcQty} onChange={e => setPcQty(e.target.value)} /></Field>
           <Field label="Цена за сертификат, ₸"><MoneyInput value={pcPrice} onValue={setPcPrice} placeholder="0" autoFocus /></Field>
           <Field label="Итого к оплате"><Input value={`${fmtNum(pcIncomeTotal)} ₸`} readOnly style={{ background: '#f8fafc', fontWeight: 700 }} /></Field>
         </div>
@@ -792,7 +800,7 @@ function CertsInner() {
               <Field label="Со счёта"><Select value={pcCommAcct} onChange={e => setPcCommAcct(e.target.value)}><option value="">— счёт —</option>{allAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}</Select></Field>
             </div>
             <div className="sale-pay-state">
-              <span className="erp-muted">Выплата = {fmtNum(pcCommPerNum)} × {pcCount}</span>
+              <span className="erp-muted">Выплата = {fmtNum(pcCommPerNum)} × {pcQtyNum}</span>
               <span>К выплате: <b style={{ color: '#dc2626' }}>−{fmtNum(pcCommTotal)} ₸</b></span>
             </div>
           </>

@@ -220,16 +220,18 @@ export const certsService = {
   // сертификатам. Плюс опциональная выплата комиссии клиенту (Расход). Всё —
   // одной транзакцией.
   async payByClient(input: unknown, actor?: { id: string; name?: string } | null) {
-    const { source, docType, client, pricePerCert, payments, commission } = payByClientSchema.parse(input);
+    const { source, docType, client, pricePerCert, count: wantCount, payments, commission } = payByClientSchema.parse(input);
     if (source === 'Выездная') throw badRequest('Для Выездной оплата идёт через заявку мастера, не здесь');
     const round2 = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
     const price = round2(pricePerCert);
     if (price <= 0) throw badRequest('Укажите цену за сертификат');
 
     const rows = await certsRepo.list({ source, archived: false, type: docType || 'cert' });
-    const targets = rows.filter(c => (c.client || '') === client && !isCertPaid(c.payStatus));
-    if (!targets.length) throw badRequest('У клиента нет сертификатов в ожидании оплаты');
-    const count = targets.length;
+    const awaiting = rows.filter(c => (c.client || '') === client && !isCertPaid(c.payStatus));
+    if (!awaiting.length) throw badRequest('У клиента нет сертификатов в ожидании оплаты');
+    // Оплачиваем указанное число (первые N ожидающих) или все, если не задано.
+    const count = wantCount ? Math.min(wantCount, awaiting.length) : awaiting.length;
+    const targets = awaiting.slice(0, count);
 
     const incomeTotal = round2(price * count);
     const paid = payments.reduce((s, p) => s + round2(p.amount), 0);
