@@ -404,7 +404,10 @@ function CertsInner() {
     const body = exportRows(arr).map(r => `<tr>${r.map((x, i) => `<td style="text-align:${i === 1 || i === 2 ? 'left' : 'center'}">${esc(x)}</td>`).join('')}</tr>`).join('');
     const lines = registryLines(arr);
     const header = `<h2>${esc(lines[0])}</h2><div class="sub">${lines.slice(1).map(esc).join('<br>')}</div>`;
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(lines[0])} — ${esc(source)}</title><style>@page{size:A4 landscape;margin:9mm}body{font-family:'Times New Roman',serif;font-size:10.5px}h2{text-align:center;margin:0 0 2px;font-size:16px;letter-spacing:1px}.sub{text-align:center;font-size:12.5px;margin-bottom:6px;line-height:1.35}table{width:100%;border-collapse:collapse;margin-top:6px}td,th{border:1px solid #000;padding:3px 4px}th{background:#eee}</style></head><body>${header}<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><script>window.onload=function(){window.print()}<\/script></body></html>`;
+    // Пустой <title> — чтобы браузер НЕ печатал бегущий заголовок «РЕЕСТР — …»
+    // над страницей (он берёт его из title). Дату/URL убирает сам пользователь
+    // в диалоге печати («Верхние и нижние колонтитулы»).
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title> </title><style>@page{size:A4 landscape;margin:9mm}body{font-family:'Times New Roman',serif;font-size:10.5px}h2{text-align:center;margin:0 0 2px;font-size:16px;letter-spacing:1px}.sub{text-align:center;font-size:12.5px;margin-bottom:6px;line-height:1.35}table{width:100%;border-collapse:collapse;margin-top:6px}td,th{border:1px solid #000;padding:3px 4px}th{background:#eee}</style></head><body>${header}<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><script>window.onload=function(){window.print()}<\/script></body></html>`;
     const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); } else toast('⚠️ Разрешите всплывающие окна для печати');
   }
   // Единый spec для Word/Excel (11 колонок). ФИО/Адрес — шире и по левому краю.

@@ -40,6 +40,8 @@ export const ordersService = {
     if (!data.orderNo) {
       data.orderNo = await ordersRepo.nextOrderNo(data.source);   // номер из секвенса БД
     }
+    // Дата заявки: если не указана — сегодня (иначе в журнале колонка «Дата» пустая).
+    if (!data.orderDate) data.orderDate = new Date().toISOString().slice(0, 10);
     // филиал: из ERP — филиал создателя, из внешнего кабинета — головной (Тараз)
     if (data.branchId == null) {
       const fromUser = actor ? await usersRepo.branchOf(actor.id) : null;

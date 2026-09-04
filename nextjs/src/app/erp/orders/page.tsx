@@ -7,7 +7,7 @@ import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
 
-type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null; createdByName?: string | null };
+type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null; createdByName?: string | null; createdAt?: string | null };
 type Branch = { id: string; name: string; isHead?: boolean };
 // Подпись филиала «— Головной / — Филиал» выводим из флага isHead (не из имени).
 const branchLabel = (b: Branch) => `${b.name} - ${b.isHead ? 'Головной' : 'Филиал'}`;
@@ -39,7 +39,7 @@ function OrdersInner() {
 
   const list = (orders || []).filter(o => {
     if (q.trim() && !`${o.orderNo} ${o.clientName} ${o.address} ${o.phone}`.toLowerCase().includes(q.toLowerCase())) return false;
-    const d = (o.orderDate || '').slice(0, 10);
+    const d = (o.orderDate || o.createdAt || '').slice(0, 10);
     if (fFrom && d < fFrom) return false;   // фильтр по дате заявки
     if (fTo && d > fTo) return false;
     if (fWater && (o.waterType || '') !== fWater) return false;
@@ -91,7 +91,7 @@ function OrdersInner() {
                 {list.map(o => (
                   <tr key={o.id}>
                     <td className="erp-muted" style={{ fontSize: 12 }}>{o.orderNo}</td>
-                    <td className="erp-muted" style={{ fontSize: 12 }}>{dmy(o.orderDate)}</td>
+                    <td className="erp-muted" style={{ fontSize: 12 }}>{dmy(o.orderDate || o.createdAt)}</td>
                     <td className="erp-td-main">{o.clientName || '—'}</td>
                     <td style={{ fontSize: 12 }}>{o.address || '—'}</td>
                     <td style={{ fontSize: 12 }}>{o.phone || '—'}</td>
