@@ -1,6 +1,6 @@
 import {
   pgTable, pgEnum, uuid, varchar, text, boolean,
-  timestamp, date, numeric, integer, smallint, jsonb
+  timestamp, date, numeric, integer, smallint, jsonb, doublePrecision
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
@@ -276,6 +276,8 @@ export const orgSettings = pgTable('org_settings', {
   naklTemplateB64   : text('nakl_template_b64'),
   aktTemplateB64    : text('akt_template_b64'),
   kpTemplateB64     : text('kp_template_b64'),
+  // Публичный JS-ключ Яндекс.Карт (ограничен доменом) — карта выбора адреса в заявках.
+  yandexMapsKey     : varchar('yandex_maps_key', { length: 120 }),
   updatedAt    : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
@@ -345,6 +347,9 @@ export const orders = pgTable('orders', {
   // филиал создателя, из внешнего кабинета — головной.
   branchId  : uuid('branch_id').references(() => branches.id),
   comment   : text('comment'),
+  // Координаты адреса заявки (выбор на Яндекс.Карте) — для маршрута мастера. Nullable.
+  lat       : doublePrecision('lat'),
+  lng       : doublePrecision('lng'),
   status    : varchar('status', { length: 20 }).default('В работе'),   // 'В работе' | 'Готова' | 'Отменён'
   // origin channel: 'field_check' (Выездная поверка) | 'tec' (ТЭЦ). Separate order streams + numbering.
   source    : orderSourceEnum('source').notNull().default('field_check'),

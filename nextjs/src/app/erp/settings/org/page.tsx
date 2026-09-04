@@ -5,7 +5,7 @@ import { toast } from '@/lib/toast';
 import { Card, Button, PageTitle, Field, Input } from '@/components/ui';
 
 type Bank = { key: string; name: string; iik: string; bik: string; kbe?: string };
-type Org = { companyName?: string; companyFull?: string; bin?: string; address?: string; phone?: string; directorName?: string; banks?: Bank[]; logoB64?: string; stampB64?: string; signB64?: string };
+type Org = { companyName?: string; companyFull?: string; bin?: string; address?: string; phone?: string; directorName?: string; banks?: Bank[]; logoB64?: string; stampB64?: string; signB64?: string; yandexMapsKey?: string };
 
 export default function OrgSettingsPage() {
   const { data, mutate } = useApi<Org>('/api/v2/org');
@@ -13,7 +13,7 @@ export default function OrgSettingsPage() {
   React.useEffect(() => { if (data) setO({ ...data, banks: data.banks || [] }); }, [data]);
 
   async function save() {
-    try { await apiSend('/api/v2/org', 'PATCH', { companyName: o.companyName, companyFull: o.companyFull, bin: o.bin, address: o.address, phone: o.phone, directorName: o.directorName, banks: o.banks }); await mutate(); toast('✅ Реквизиты сохранены'); }
+    try { await apiSend('/api/v2/org', 'PATCH', { companyName: o.companyName, companyFull: o.companyFull, bin: o.bin, address: o.address, phone: o.phone, directorName: o.directorName, banks: o.banks, yandexMapsKey: o.yandexMapsKey }); await mutate(); toast('✅ Реквизиты сохранены'); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
   function upload(field: 'logoB64' | 'stampB64' | 'signB64', file?: File) {
@@ -38,6 +38,7 @@ export default function OrgSettingsPage() {
         <div className="erp-form-row"><Field label="Директор"><Input value={o.directorName || ''} onChange={e => setO({ ...o, directorName: e.target.value })} /></Field><Field label="Телефон"><Input value={o.phone || ''} onChange={e => setO({ ...o, phone: e.target.value })} /></Field></div>
         <Field label="Полное название"><Input value={o.companyFull || ''} onChange={e => setO({ ...o, companyFull: e.target.value })} /></Field>
         <Field label="Адрес"><Input value={o.address || ''} onChange={e => setO({ ...o, address: e.target.value })} /></Field>
+        <Field label="🗺️ Ключ Яндекс.Карт (JS API)"><Input value={o.yandexMapsKey || ''} onChange={e => setO({ ...o, yandexMapsKey: e.target.value })} placeholder="напр. a1b2c3d4-… (получить: developer.tech.yandex.ru → JavaScript API и HTTP Геокодер)" /></Field>
         <h3 style={{ marginTop: 14 }}>🏦 Банковские счета</h3>
         {(o.banks || []).map((b, i) => (
           <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.6fr 1fr 70px', gap: 8, marginBottom: 8 }}>

@@ -6,8 +6,9 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
+import YandexAddressPicker from '@/components/erp/YandexAddressPicker';
 
-type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null; createdByName?: string | null; createdAt?: string | null };
+type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null; createdByName?: string | null; createdAt?: string | null; lat?: number | null; lng?: number | null };
 type Branch = { id: string; name: string; isHead?: boolean };
 // Подпись филиала «— Головной / — Филиал» выводим из флага isHead (не из имени).
 const branchLabel = (b: Branch) => `${b.name} - ${b.isHead ? 'Головной' : 'Филиал'}`;
@@ -16,7 +17,9 @@ const SOURCES = [{ key: 'field_check', label: '🚗 Выездная' }, { key: 
 const STATUSES = ['В работе', 'Готова', 'Отменён'];
 const dmy = (d?: string | null) => formatDate(d) || '—';
 const statusTone = (s?: string | null): 'ok' | 'warn' | 'err' | 'neutral' => s === 'Готова' ? 'ok' : s === 'Отменён' ? 'err' : 'warn';
-const EMPTY = { id: '', clientName: '', phone: '', address: '', qty: '1', waterType: 'х/в', branchId: '', status: 'В работе', comment: '' };
+const EMPTY = { id: '', clientName: '', phone: '', address: '', qty: '1', waterType: 'х/в', branchId: '', status: 'В работе', comment: '', lat: null as number | null, lng: null as number | null };
+// Ссылка «в Навигатор»: мобильное приложение Яндекс.Навигатор (deep link), иначе — веб-карты.
+const naviUrl = (lat: number, lng: number) => `https://yandex.ru/maps/?rtext=~${lat},${lng}&rtt=auto`;
 
 function OrdersInner() {
   const sp = useSearchParams();
@@ -29,6 +32,8 @@ function OrdersInner() {
   const [fWater, setFWater] = React.useState('');   // фильтр «Вода»: х/в / г/в
   const qs = new URLSearchParams({ source }); if (branch !== 'all') qs.set('branch', branch);
   const { data: orders, error, isLoading, mutate } = useApi<Order[]>('/api/v2/orders?' + qs);
+  const { data: org } = useApi<{ yandexMapsKey?: string | null }>('/api/v2/org');
+  const mapsKey = org?.yandexMapsKey || '';
   const { data: branches } = useApi<Branch[]>('/api/v2/branches');
   const branchName = (id?: string | null) => (branches || []).find(b => b.id === id)?.name;
 
@@ -47,12 +52,12 @@ function OrdersInner() {
   });
 
   const openNew = () => { setForm(EMPTY); setErr(''); setModal(true); };
-  const openEdit = (o: Order) => { setForm({ id: o.id, clientName: o.clientName || '', phone: o.phone || '', address: o.address || '', qty: o.qty ? String(o.qty) : '1', waterType: o.waterType || 'х/в', branchId: o.branchId || '', status: o.status || 'В работе', comment: o.comment || '' }); setErr(''); setModal(true); };
+  const openEdit = (o: Order) => { setForm({ id: o.id, clientName: o.clientName || '', phone: o.phone || '', address: o.address || '', qty: o.qty ? String(o.qty) : '1', waterType: o.waterType || 'х/в', branchId: o.branchId || '', status: o.status || 'В работе', comment: o.comment || '', lat: o.lat ?? null, lng: o.lng ?? null }); setErr(''); setModal(true); };
 
   async function save() {
     if (!form.clientName.trim()) { setErr('Укажите клиента'); return; }
     setSaving(true); setErr('');
-    const body = { source, clientName: form.clientName.trim(), phone: form.phone || null, address: form.address || null, qty: Number(form.qty) || 1, waterType: form.waterType, branchId: form.branchId || null, status: form.status, comment: form.comment || null };
+    const body = { source, clientName: form.clientName.trim(), phone: form.phone || null, address: form.address || null, qty: Number(form.qty) || 1, waterType: form.waterType, branchId: form.branchId || null, status: form.status, comment: form.comment || null, lat: form.lat, lng: form.lng };
     try {
       if (form.id) await apiSend(`/api/v2/orders/${form.id}`, 'PATCH', body);
       else await apiSend('/api/v2/orders', 'POST', body);
@@ -100,6 +105,7 @@ function OrdersInner() {
                     <td><Badge tone={statusTone(o.status)}>{o.status}</Badge></td>
                     <td className="erp-muted" style={{ fontSize: 12 }}>{o.createdByName || '—'}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {o.lat != null && o.lng != null && <a className="erp-icon-btn" href={naviUrl(o.lat, o.lng)} target="_blank" rel="noopener noreferrer" title="🧭 Маршрут в Яндекс.Навигаторе" style={{ textDecoration: 'none', color: '#2563eb' }}>🧭</a>}
                       {o.status === 'В работе' && <Button variant="outline" onClick={() => setStatus(o, 'Готова')} style={{ fontSize: 12, padding: '4px 8px' }}>Готова</Button>}
                       <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(o)}>✏️</button>
                       <button className="erp-icon-btn" title="Удалить" style={{ color: '#dc2626' }} onClick={() => remove(o)}>🗑️</button>
@@ -118,7 +124,7 @@ function OrdersInner() {
           <Field label="Клиент" required><Input value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} autoFocus /></Field>
           <Field label="Телефон"><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></Field>
         </div>
-        <Field label="Адрес"><Input value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} /></Field>
+        <Field label="Адрес"><YandexAddressPicker apiKey={mapsKey} address={form.address} lat={form.lat} lng={form.lng} onChange={v => setForm({ ...form, address: v.address, lat: v.lat, lng: v.lng })} /></Field>
         <div className="erp-form-row">
           <Field label="Кол-во приборов"><Input type="number" min={1} value={form.qty} onChange={e => setForm({ ...form, qty: e.target.value })} /></Field>
           <Field label="Вода"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option>х/в</option><option>г/в</option></Select></Field>

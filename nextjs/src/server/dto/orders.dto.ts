@@ -31,6 +31,9 @@ export const orderCreateSchema = z.object({
   photos: z.array(z.string()).optional(),
   // филиал заявки (nullable). Обычно проставляется сервером (создатель/кабинет).
   branchId: z.string().uuid().nullish(),
+  // координаты адреса (выбор на Яндекс.Карте) — для маршрута мастера
+  lat: z.coerce.number().nullish(),
+  lng: z.coerce.number().nullish(),
   comment: z.string().nullish(),
   status: z.string().optional().default('В работе'),
   // determined by which external cabinet the order came from; defaults keep the

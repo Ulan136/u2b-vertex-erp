@@ -1,6 +1,6 @@
 import { orgRepo } from '@/server/repositories/org.repo';
 
-const FIELDS = ['companyName', 'companyFull', 'bin', 'address', 'phone', 'directorName', 'banks', 'logoB64', 'stampB64', 'signB64'] as const;
+const FIELDS = ['companyName', 'companyFull', 'bin', 'address', 'phone', 'directorName', 'banks', 'logoB64', 'stampB64', 'signB64', 'yandexMapsKey'] as const;
 
 export const orgService = {
   get: () => orgRepo.get(),
