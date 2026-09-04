@@ -61,7 +61,7 @@ export function apiScreenFor(method: string, pathname: string, searchParams: URL
     const map: Record<string, string> = {
       'САМИ': 'poverka_sami', 'ВДК': 'poverka_vdk', 'ТЭЦ': 'poverka_tec',
       'Выездная': 'poverka_field', 'Первичная-КМ': 'poverka_primary',
-      'Первичная-АК': 'poverka_primary', 'Астана': 'poverka_astana',
+      'Первичная-АК': 'poverka_primary', 'Астана': 'poverka_astana', 'Районы': 'poverka_districts',
     };
     return (s && map[s]) || null;
   }

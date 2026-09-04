@@ -36,7 +36,7 @@ type Product = { id: string; skuCode: string; name: string };
 type Client = { id: string; name: string };
 type DeviceTypeHit = { id: string; name: string; usageCount: number };
 
-const SOURCES = ['САМИ', 'ВДК', 'ТЭЦ', 'Выездная', 'Первичная-КМ', 'Первичная-АК', 'Астана'];
+const SOURCES = ['САМИ', 'ВДК', 'ТЭЦ', 'Выездная', 'Первичная-КМ', 'Первичная-АК', 'Астана', 'Районы'];
 const OPER = ['В работе', 'Готова к КТРМ', 'Внести в КТРМ', 'КТРМ 70%', 'Внесён в КТРМ'];
 const PAY = ['В ожидании', 'Оплачено', 'Бесплатно'];
 const INV = ['Каспи', 'БЦК', 'Наличка'];

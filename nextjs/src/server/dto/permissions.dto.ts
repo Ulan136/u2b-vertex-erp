@@ -16,7 +16,7 @@ export const ROLE_LABELS_RU: Record<Role, string> = {
 // ── Screen catalog (one key per screen/section of the app) ────
 export const SCREEN_KEYS = [
   'dashboard',
-  'poverka_sami', 'poverka_vdk', 'poverka_tec', 'poverka_field', 'poverka_primary', 'poverka_astana',
+  'poverka_sami', 'poverka_vdk', 'poverka_tec', 'poverka_field', 'poverka_primary', 'poverka_astana', 'poverka_districts',
   'orders_field', 'orders_tec',
   'sales', 'other_ops', 'expenses', 'accounting', 'finance', 'debts', 'tasks',
   'warehouse', 'purchases', 'staff', 'clients', 'invoices', 'database',
@@ -29,7 +29,7 @@ export type ScreenKey = (typeof SCREEN_KEYS)[number];
 export const SCREEN_LABELS: Record<ScreenKey, string> = {
   dashboard: 'Рабочий стол',
   poverka_sami: 'Поверка · САМИ', poverka_vdk: 'Поверка · ВДК', poverka_tec: 'Поверка · ТЭЦ',
-  poverka_field: 'Поверка · Выездная', poverka_primary: 'Поверка · Первичная', poverka_astana: 'Поверка · Астана (филиал)',
+  poverka_field: 'Поверка · Выездная', poverka_primary: 'Поверка · Первичная', poverka_astana: 'Поверка · Астана (филиал)', poverka_districts: 'Поверка · Районы',
   orders_field: 'Заявки · Выездная', orders_tec: 'Заявки · ТЭЦ',
   sales: 'Продажа', other_ops: 'Прочие операции', expenses: 'Расходы', accounting: 'Бухгалтерия',
   finance: 'Финансы', debts: 'Долги', tasks: 'Задачи', warehouse: 'Склад', purchases: 'Закупки', staff: 'Сотрудники',
