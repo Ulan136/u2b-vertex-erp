@@ -110,6 +110,7 @@ function CertsInner() {
   const { data: products } = useApi<Product[]>('/api/v2/products');
   const { data: clients, mutate: mutateClients } = useApi<Client[]>('/api/v2/clients');
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
+  const { data: org } = useApi<{ companyName?: string | null }>('/api/v2/org');
   // Оплата прямых сертификатов: счета раздела источника (Астана→branch, иначе poverka).
   const isDirect = source !== 'Выездная';
   const certSection = source === 'Астана' ? 'branch' : 'poverka';
@@ -387,30 +388,41 @@ function CertsInner() {
   // Счёт/Автор. Формы: PDF (печать), CSV, Word.
   const exportRows = (arr: Cert[]) => arr.map((c, i) => [String(i + 1), c.fio || '', c.address || '', c.meterType || '', c.serialNo || '', dmy(c.checkDate), isCert ? dmy(c.nextCheckDate) : '', c.stampNo || '', c.readings != null ? String(c.readings) : '', c.waterType || '', c.yearMade ? String(c.yearMade) : '']);
   const EXP_HEAD = ['№', 'ФИО/объект', 'Адрес', 'Тип', 'Зав.№', 'Поверка', 'Очередная', 'Клеймо', 'Показания', 'Вода', 'Год'];
+  // Шапка реестра (как в утверждённом шаблоне): РЕЕСТР / вид СИ / прошедших
+  // поверку в <организация> / за <год> год. Организация — из настроек (org),
+  // год — из даты поверки первой записи или текущий.
+  const company = (org?.companyName || 'ТОО «VERTEX SERVICE»').trim();
+  function registryLines(arr: Cert[]): string[] {
+    const y = (arr.find(c => c.checkDate)?.checkDate || '').slice(0, 4) || String(new Date().getFullYear());
+    const kind = isCert ? 'средств измерений (счетчики воды)' : 'извещений о непригодности (счетчики воды)';
+    return ['РЕЕСТР', kind, `прошедших поверку в ${company}`, `за ${y} год`];
+  }
   // PDF = печать таблицы (браузер → «Сохранить как PDF»); сервер PDF не генерит.
-  function printPdf(arr: Cert[], title: string) {
+  function printPdf(arr: Cert[]) {
     const esc = (v: unknown) => String(v ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
     const head = EXP_HEAD.map(h => `<th>${esc(h)}</th>`).join('');
     const body = exportRows(arr).map(r => `<tr>${r.map((x, i) => `<td style="text-align:${i === 1 || i === 2 ? 'left' : 'center'}">${esc(x)}</td>`).join('')}</tr>`).join('');
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(title)}</title><style>@page{size:A4 landscape;margin:9mm}body{font-family:'Times New Roman',serif;font-size:10.5px}h2{text-align:center;margin:0 0 3px;font-size:15px}table{width:100%;border-collapse:collapse;margin-top:6px}td,th{border:1px solid #000;padding:3px 4px}th{background:#eee}</style></head><body><h2>${esc(title)}</h2><div style="text-align:center;margin-bottom:4px">Направление: ${esc(source)} · записей: ${arr.length}</div><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><script>window.onload=function(){window.print()}<\/script></body></html>`;
+    const lines = registryLines(arr);
+    const header = `<h2>${esc(lines[0])}</h2><div class="sub">${lines.slice(1).map(esc).join('<br>')}</div>`;
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${esc(lines[0])} — ${esc(source)}</title><style>@page{size:A4 landscape;margin:9mm}body{font-family:'Times New Roman',serif;font-size:10.5px}h2{text-align:center;margin:0 0 2px;font-size:16px;letter-spacing:1px}.sub{text-align:center;font-size:12.5px;margin-bottom:6px;line-height:1.35}table{width:100%;border-collapse:collapse;margin-top:6px}td,th{border:1px solid #000;padding:3px 4px}th{background:#eee}</style></head><body>${header}<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table><script>window.onload=function(){window.print()}<\/script></body></html>`;
     const w = window.open('', '_blank'); if (w) { w.document.write(html); w.document.close(); } else toast('⚠️ Разрешите всплывающие окна для печати');
   }
   // Единый spec для Word/Excel (11 колонок). ФИО/Адрес — шире и по левому краю.
-  const expSpec = (arr: Cert[], title: string, name: string) => ({
-    titleLines: [title], subtitle: `Направление: ${source} · записей: ${arr.length}`, orientation: 'landscape',
+  const expSpec = (arr: Cert[], name: string) => ({
+    titleLines: registryLines(arr), subtitle: `Направление: ${source} · записей: ${arr.length}`, orientation: 'landscape',
     columns: EXP_HEAD.map((h, i) => ({ header: h, width: i === 1 || i === 2 ? 22 : 10, align: i === 1 || i === 2 ? 'left' : 'center' })),
     rows: exportRows(arr), filename: name,
   });
-  async function exportDoc(endpoint: string, arr: Cert[], title: string, name: string) {
+  async function exportDoc(endpoint: string, arr: Cert[], name: string) {
     try {
-      const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(expSpec(arr, title, name)) });
+      const r = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(expSpec(arr, name)) });
       if (!r.ok) throw new Error('Ошибка выгрузки');
       const b = await r.blob(); const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(b), download: name });
       a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     } catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
-  const exportExcel = (arr: Cert[], title: string, name: string) => exportDoc('/api/v2/xlsx', arr, title, name);
-  const exportWord = (arr: Cert[], title: string, name: string) => exportDoc('/api/v2/docx', arr, title, name);
+  const exportExcel = (arr: Cert[], name: string) => exportDoc('/api/v2/xlsx', arr, name);
+  const exportWord = (arr: Cert[], name: string) => exportDoc('/api/v2/docx', arr, name);
 
   const Mic = ({ k, h }: { k: keyof typeof EMPTY; h: string }) => <button type="button" className="cert-mic" title={`🎤 ${h}`} onClick={() => voiceField(k, h)}>🎤</button>;
   // Копирование значения поля в буфер — для ручной вставки на сайт е-КТРМ.
@@ -443,9 +455,9 @@ function CertsInner() {
       <PageTitle title={`Поверка — ${isCert ? 'сертификаты' : 'извещения'}`} sub={`Направление: ${source} · записей: ${list.length}`} action={
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {isCert && <ColumnMenu ctl={cols} />}
-          <Button variant="outline" onClick={() => printPdf(list, `${isCert ? 'Сертификаты' : 'Извещения'} — ${source}`)}>🖨 PDF</Button>
-          <Button variant="outline" onClick={() => exportExcel(list, `${isCert ? 'Сертификаты' : 'Извещения'} — ${source}`, `${isCert ? 'Сертификаты' : 'Извещения'}_${source}.xlsx`)}>⬇ Excel</Button>
-          <Button variant="outline" onClick={() => exportWord(list, `${isCert ? 'Сертификаты' : 'Извещения'} — ${source}`, `${isCert ? 'Сертификаты' : 'Извещения'}_${source}.docx`)}>⬇ Word</Button>
+          <Button variant="outline" onClick={() => printPdf(list)}>🖨 PDF</Button>
+          <Button variant="outline" onClick={() => exportExcel(list, `Реестр_${isCert ? 'сертификаты' : 'извещения'}_${source}.xlsx`)}>⬇ Excel</Button>
+          <Button variant="outline" onClick={() => exportWord(list, `Реестр_${isCert ? 'сертификаты' : 'извещения'}_${source}.docx`)}>⬇ Word</Button>
           <Button onClick={openNew}>+ {isCert ? 'Сертификат' : 'Извещение'}</Button>
         </div>} />
 
@@ -569,8 +581,8 @@ function CertsInner() {
         {/* Блок 3 · Извещение о непригодности */}
         <div className="cert-sec-lbl" style={{ marginTop: 22, display: 'flex', alignItems: 'center' }}>📄 Блок 3 · Извещение о непригодности <span className="erp-muted">· {unfit.length}</span>
           <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <Button variant="outline" onClick={() => exportExcel(unfit, `Извещение о непригодности — ${source}`, `Непригодность_${source}.xlsx`)}>⬇ Excel извещения</Button>
-            <Button variant="outline" onClick={() => exportWord(unfit, `Извещение о непригодности — ${source}`, `Непригодность_${source}.docx`)}>⬇ Word</Button>
+            <Button variant="outline" onClick={() => exportExcel(unfit, `Непригодность_${source}.xlsx`)}>⬇ Excel извещения</Button>
+            <Button variant="outline" onClick={() => exportWord(unfit, `Непригодность_${source}.docx`)}>⬇ Word</Button>
           </span>
         </div>
         <Card><CertAccordion items={unfit} empty="Непригодных счётчиков нет." /></Card>
