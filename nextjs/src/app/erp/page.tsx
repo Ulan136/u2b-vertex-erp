@@ -73,7 +73,7 @@ export default function Dashboard() {
   const payableOverdue = debtList.some(d => d.type === 'credit' && d.status !== 'closed' && d.dueDate && String(d.dueDate).slice(0, 10) < today);
 
   // Вычисляемые долги (не из ручного реестра): закупы «В долг» + ожидаемые поступления.
-  const supDebt = purchaseDebts(movements.data || []);
+  const supDebt = purchaseDebts(movements.data || [], fin.data?.operations || []);
   const pend = pendingReceivables(sales.data || [], certs.data || []);
   const payableAll = payable + supDebt.total;      // мы должны = реестр + долг поставщикам
   const receivableAll = receivable + pend.total;   // нам должны = реестр + ожидают оплаты

@@ -166,10 +166,20 @@ export const productsService = {
         if (cur + undo < 0) throw badRequest(`Нельзя отменить: остаток «${mv.productName}» уйдёт в минус (товар уже израсходован/продан)`);
         if (sign) await productsRepo.adjustStock(mv.productId, undo, tx);
       }
-      // 2. вернуть деньги: сторнировать связанную группу расходов (один раз на весь закуп)
-      if (m.financeGroup) {
-        const ops = await financeRepo.findByGroup(m.financeGroup, tx);
-        for (const op of ops) if (!op.reversedAt && !op.reverses) await financeService.reverseOperation(op.id, actor?.id ?? null, tx);
+      // 2. вернуть деньги: сторнировать связанные расходы. Оплата «сразу» лежит под
+      //    m.financeGroup (случайный id); частичные/полные погашения долга — под
+      //    debtKey (purchaseGroup||id). Собираем обе группы (dedup) и сторнируем.
+      const debtKey = m.purchaseGroup || m.id;
+      const groupIds = new Set<string>([debtKey]);
+      if (m.financeGroup) groupIds.add(m.financeGroup);
+      const seen = new Set<string>();
+      for (const gid of Array.from(groupIds)) {
+        const ops = await financeRepo.findByGroup(gid, tx);
+        for (const op of ops) {
+          if (seen.has(op.id) || op.reversedAt || op.reverses) continue;
+          seen.add(op.id);
+          await financeService.reverseOperation(op.id, actor?.id ?? null, tx);
+        }
       }
       // 3. пометить/удалить строки
       for (const mv of group) {
@@ -231,20 +241,31 @@ export const productsService = {
       const live = group.filter(mv => !mv.reversedAt);
       const cost = Math.round(live.reduce((s, mv) => s + (Number(mv.totalSum) || (Number(mv.qty) || 0) * (Number(mv.price) || 0)), 0) * 100) / 100;
       if (cost <= 0) throw badRequest('У закупа нулевая стоимость');
+      // ЧАСТИЧНОЕ погашение: все оплаты долга делят стабильный ключ debtKey
+      // (purchaseGroup или id движения) в expense_group_id. Уже оплачено = сумма
+      // прошлых Расход-операций «Закуп» по этому ключу. Разрешаем платить до остатка.
+      const debtKey = m.purchaseGroup || m.id;
+      const prior = (await financeRepo.findByGroup(debtKey, tx)).filter(o => o.opType === 'Расход' && !o.reversedAt && !o.reverses);
+      const paidSoFar = Math.round(prior.reduce((s, o) => s + (Number(o.amount) || 0), 0) * 100) / 100;
+      const remaining = Math.round((cost - paidSoFar) * 100) / 100;
+      if (remaining <= 0.01) throw badRequest('Долг уже погашен');
       const paid = Math.round(payments.reduce((s, p) => s + (Number(p.amount) || 0), 0) * 100) / 100;
-      if (Math.abs(paid - cost) > 0.01) throw badRequest(`Сумма оплат (${money(paid)}) должна равняться долгу (${money(cost)})`);
-      const financeGroup = randomUUID();
+      if (paid <= 0) throw badRequest('Укажите сумму погашения');
+      if (paid - remaining > 0.01) throw badRequest(`Сумма оплат (${money(paid)}) больше остатка долга (${money(remaining)})`);
       const first = live[0]?.productName || '';
-      const name = (live.length > 1 ? `Погашение долга: ${first} +${live.length - 1} поз.` : `Погашение долга: ${first} ×${live[0]?.qty ?? ''}`).slice(0, 200);
+      const partial = paid + 0.01 < remaining;   // не покрывает остаток → частичное
+      const tag = partial ? 'Погашение долга (частично)' : 'Погашение долга';
+      const name = (live.length > 1 ? `${tag}: ${first} +${live.length - 1} поз.` : `${tag}: ${first} ×${live[0]?.qty ?? ''}`).slice(0, 200);
       for (const p of payments) {
         await financeService.createOperation({
           opType: 'Расход', accountId: p.accountId, amount: money(p.amount),
           name, source: 'Закуп', supplier: m.supplier || undefined, docNo: m.docNo || undefined,
-          opDate: payDate || undefined, expenseGroupId: financeGroup,
+          opDate: payDate || undefined, expenseGroupId: debtKey,
         }, actor?.id ?? null, tx);
       }
-      for (const mv of live) await productsRepo.updateMovement(mv.id, { financeGroup }, tx);
-      return { ok: true, cost: money(cost) };
+      // Полностью погашен → помечаем движения finance_group = debtKey (уходит из «В долг»).
+      if (!partial) for (const mv of live) await productsRepo.updateMovement(mv.id, { financeGroup: debtKey }, tx);
+      return { ok: true, cost: money(cost), paid: money(paid), remaining: money(Math.max(0, remaining - paid)), fullyPaid: !partial };
     });
   },
 

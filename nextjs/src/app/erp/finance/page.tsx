@@ -66,7 +66,7 @@ export default function FinancePage() {
   const movements = useApi<MoveLite[]>('/api/v2/products/movements?type=IN&limit=500');
   const salesData = useApi<SaleLite[]>('/api/v2/sales');
   const certsData = useApi<CertLite[]>('/api/v2/certs');
-  const supDebt = purchaseDebts(movements.data || []);
+  const supDebt = purchaseDebts(movements.data || [], data?.operations || []);
   const pend = pendingReceivables(salesData.data || [], certsData.data || []);
   const accounts = data?.accounts || [];
   const ops = data?.operations || [];

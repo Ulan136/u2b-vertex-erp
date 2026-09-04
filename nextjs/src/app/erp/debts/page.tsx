@@ -5,7 +5,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import Link from 'next/link';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow, DateRange } from '@/components/ui';
-import { purchaseDebts, pendingReceivables, type MoveLite, type SaleLite, type CertLite } from '@/lib/pending';
+import { purchaseDebts, pendingReceivables, type MoveLite, type SaleLite, type CertLite, type OpLite } from '@/lib/pending';
 
 type Debt = { id: string; type: string; amount: string | number; paidAmount: string | number; status: string; clientName?: string | null; counterpartyName?: string | null; accountId?: string | null; accountName?: string | null; dueDate?: string | null; comment?: string | null; createdByName?: string | null; categoryId?: string | null; categoryName?: string | null; categoryIcon?: string | null };
 type Payment = { id: string; amount: string | number; payDate?: string | null; accountId?: string | null; comment?: string | null; financeOpId?: string | null };
@@ -38,13 +38,13 @@ export default function DebtsPage() {
   const qs = new URLSearchParams(); if (tab === 'debit' || tab === 'credit') qs.set('type', tab); if (q.trim()) qs.set('q', q.trim());
   const { data: debts, error, isLoading, mutate } = useApi<Debt[]>(!isJournal ? '/api/v2/debts' + (qs.toString() ? '?' + qs : '') : null);
   const { data: all } = useApi<Debt[]>('/api/v2/debts');
-  const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
+  const { data: fin } = useApi<{ accounts: Acct[]; operations?: OpLite[] }>('/api/v2/finance');
   const { data: cats, mutate: mutateCats } = useApi<Cat[]>('/api/v2/debt-categories');
   // Авто-долги (не в реестре): закупы «В долг» → мы должны; продажи/поверки в ожидании → нам должны.
   const { data: movs } = useApi<MoveLite[]>('/api/v2/products/movements?type=IN&limit=500');
   const { data: salesD } = useApi<SaleLite[]>('/api/v2/sales');
   const { data: certsD } = useApi<CertLite[]>('/api/v2/certs');
-  const supDebt = purchaseDebts(movs || []);
+  const supDebt = purchaseDebts(movs || [], fin?.operations || []);
   const pend = pendingReceivables(salesD || [], certsD || []);
   const accounts = React.useMemo(() => (fin?.accounts || []).slice().sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)), [fin]);
   const catList = cats || [];

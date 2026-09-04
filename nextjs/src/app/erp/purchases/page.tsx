@@ -22,14 +22,24 @@ const emptyForm = () => ({ open: false, items: [emptyItem()], supplier: '', docN
 export default function PurchasesPage() {
   const { data: buys, error, isLoading, mutate } = useApi<Movement[]>('/api/v2/products/movements?type=IN&limit=200');
   const { data: products, mutate: mutateProducts } = useApi<Product[]>('/api/v2/products');
-  const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
+  const { data: fin } = useApi<{ accounts: Acct[]; operations?: Array<{ opType?: string | null; source?: string | null; expenseGroupId?: string | null; amount?: string | number; reversedAt?: string | null; reverses?: string | null }> }>('/api/v2/finance');
   const accounts = fin?.accounts || [];
+  // Уже оплачено по каждому долгу-закупу (частичные погашения) — ключ = debtKey.
+  const paidByKey = React.useMemo(() => {
+    const p: Record<string, number> = {};
+    for (const o of fin?.operations || []) {
+      if (o.opType !== 'Расход' || o.source !== 'Закуп' || o.reversedAt || o.reverses) continue;
+      const g = o.expenseGroupId; if (!g) continue; p[g] = (p[g] || 0) + num(o.amount);
+    }
+    return p;
+  }, [fin]);
+  const debtKeyOf = (b: Movement) => b.purchaseGroup || b.id;
   const accGroups = SECTIONS.map(s => ({ ...s, accs: accounts.filter(a => (a.section || 'other') === s.key).sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)) }));
 
   const [q, setQ] = React.useState('');
   const [f, setF] = React.useState(emptyForm());
   const [edit, setEdit] = React.useState<{ id: string; moveDate: string; supplier: string; docNo: string; saving: boolean; err: string } | null>(null);
-  const [pay, setPay] = React.useState<{ id: string; cost: number; count: number; payDate: string; rows: Pay[]; saving: boolean; err: string } | null>(null);
+  const [pay, setPay] = React.useState<{ id: string; cost: number; paid: number; remaining: number; count: number; payDate: string; rows: Pay[]; saving: boolean; err: string } | null>(null);
 
   // Закупки = только настоящие закупы. Возвраты товара из продаж (правка/отмена
   // продажи) — это тоже приход (IN), но НЕ закуп: их место в «Журнале склада»,
@@ -107,7 +117,10 @@ export default function PurchasesPage() {
   function openPayDebt(b: Movement) {
     const g = (buys || []).filter(x => !x.reversedAt && (b.purchaseGroup ? x.purchaseGroup === b.purchaseGroup : x.id === b.id));
     const cost = Math.round(g.reduce((s, x) => s + num(x.totalSum), 0) * 100) / 100;
-    setPay({ id: b.id, cost, count: g.length, payDate: today(), rows: [{ accountId: '', amount: String(cost) }], saving: false, err: '' });
+    const already = Math.round((paidByKey[debtKeyOf(b)] || 0) * 100) / 100;
+    const remaining = Math.max(0, Math.round((cost - already) * 100) / 100);
+    // По умолчанию — весь остаток долга (можно уменьшить для частичной оплаты).
+    setPay({ id: b.id, cost, paid: already, remaining, count: g.length, payDate: today(), rows: [{ accountId: '', amount: String(remaining) }], saving: false, err: '' });
   }
   async function savePayDebt() {
     if (!pay) return;
@@ -159,7 +172,13 @@ export default function PurchasesPage() {
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(b.qty)}</td>
                       <td style={{ textAlign: 'right' }}>{fmt(b.price || 0)}</td>
                       <td style={{ textAlign: 'right', fontWeight: 700 }}>{num(b.totalSum) ? fmt(b.totalSum!) + ' ₸' : '—'}</td>
-                      <td>{rev ? <Badge tone="err">✕ Отменён</Badge> : b.financeGroup ? <Badge tone="ok">💳 Оплачен</Badge> : <Badge tone="warn">⏳ В долг</Badge>}</td>
+                      <td>{(() => {
+                        if (rev) return <Badge tone="err">✕ Отменён</Badge>;
+                        if (b.financeGroup) return <Badge tone="ok">💳 Оплачен</Badge>;
+                        const already = paidByKey[debtKeyOf(b)] || 0;
+                        if (already > 0.005) return <span title={`Оплачено ${fmt(already)} ₸`}><Badge tone="info">◑ Частично</Badge></span>;
+                        return <Badge tone="warn">⏳ В долг</Badge>;
+                      })()}</td>
                       <td style={{ fontSize: 12 }}>{b.docNo || '—'}</td>
                       <td className="erp-muted" style={{ fontSize: 12 }}>{b.author || '—'}</td>
                       <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
@@ -269,7 +288,13 @@ export default function PurchasesPage() {
       <Modal open={!!pay} onClose={() => setPay(null)} title="💵 Погасить долг" width={480}
         footer={<><Button onClick={savePayDebt} disabled={pay?.saving}>{pay?.saving ? 'Проведение…' : '💳 Погасить'}</Button><Button variant="outline" onClick={() => setPay(null)}>Отмена</Button></>}>
         {pay?.err && <div className="erp-form-err">{pay.err}</div>}
-        <div className="erp-muted" style={{ fontSize: 13, marginBottom: 8 }}>Долг: <b style={{ color: '#b45309' }}>{fmt(pay?.cost || 0)} ₸</b>{pay && pay.count > 1 ? ` · ${pay.count} поз.` : ''}. Оплата проведётся выбранной датой (по умолчанию — сегодня; сам закуп остаётся своей датой).</div>
+        <div className="erp-muted" style={{ fontSize: 13, marginBottom: 8 }}>
+          Долг: <b>{fmt(pay?.cost || 0)} ₸</b>{pay && pay.count > 1 ? ` · ${pay.count} поз.` : ''}
+          {pay && pay.paid > 0 ? <> · оплачено: <b style={{ color: '#16a34a' }}>{fmt(pay.paid)} ₸</b> · остаток: <b style={{ color: '#b45309' }}>{fmt(pay.remaining)} ₸</b></> : null}
+          <br />Можно погасить <b>частично</b> — впишите сумму меньше остатка, долг закроется постепенно. Дата — по умолчанию сегодня (сам закуп остаётся своей датой).
+        </div>
+        {pay && (() => { const entered = pay.rows.reduce((s, r) => s + num(r.amount), 0); const over = entered - pay.remaining > 0.01;
+          return <div style={{ fontSize: 12, marginBottom: 6, color: over ? '#dc2626' : '#475569' }}>К оплате сейчас: <b>{fmt(entered)} ₸</b> из остатка {fmt(pay.remaining)} ₸{over ? ' — больше остатка!' : (pay.remaining - entered > 0.01 ? ` · останется ${fmt(pay.remaining - entered)} ₸` : ' — долг закроется полностью')}</div>; })()}
         <Field label="Дата оплаты"><Input type="date" value={pay?.payDate || ''} onChange={e => setPay(s => s && { ...s, payDate: e.target.value })} /></Field>
         <div className="cert-sec-lbl">🧾 С каких счетов списать</div>
         <div className="sale-pay" style={{ marginTop: 0 }}>
