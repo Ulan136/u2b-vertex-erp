@@ -81,6 +81,8 @@ export const payByClientSchema = z.object({
   client: z.string().min(1, 'Укажите клиента'),
   pricePerCert: z.coerce.number().positive('Укажите цену за сертификат'),
   count: z.coerce.number().int().positive().optional(),   // сколько сертификатов оплачиваем (из ожидающих); нет → все
+  dateFrom: z.string().nullish(),   // диапазон дат поверки (checkDate): с
+  dateTo: z.string().nullish(),     // диапазон дат поверки (checkDate): по
   payments: z.array(z.object({
     accountId: z.string().uuid(),
     amount: z.coerce.number().positive(),

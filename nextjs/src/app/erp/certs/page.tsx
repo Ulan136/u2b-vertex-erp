@@ -133,6 +133,8 @@ function CertsInner() {
   const [pcOpen, setPcOpen] = React.useState(false);              // модалка оплаты по клиенту
   const [pcPrice, setPcPrice] = React.useState('');              // цена за сертификат
   const [pcQty, setPcQty] = React.useState('');                  // сколько сертификатов оплачиваем (из ожидающих)
+  const [pcFrom, setPcFrom] = React.useState('');                // диапазон дат поверки: с
+  const [pcTo, setPcTo] = React.useState('');                    // диапазон дат поверки: по
   const [pcRows, setPcRows] = React.useState<Array<{ accountId: string; amount: string }>>([{ accountId: '', amount: '' }]);
   const [pcCommOn, setPcCommOn] = React.useState(true);          // выплачивать комиссию клиенту?
   const [pcCommPer, setPcCommPer] = React.useState('200');       // комиссия за сертификат, ₸
@@ -290,9 +292,19 @@ function CertsInner() {
   // ── Оплата по клиенту: данные ──
   const clientsInDir = React.useMemo(() => Array.from(new Set(all.map(c => (c.client || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ru')), [all]);
   const allAccounts = React.useMemo(() => (fin?.accounts || []).filter(a => a.isActive !== false), [fin]);
-  const pcAwaiting = React.useMemo(() => fClient ? all.filter(c => (c.client || '') === fClient && c.payStatus !== 'Оплачено') : [], [all, fClient]);
-  const pcCount = pcAwaiting.length;   // всего в ожидании (максимум)
-  const pcQtyNum = pcQty === '' ? pcCount : Math.max(1, Math.min(Math.floor(num(pcQty)), pcCount));   // сколько оплачиваем
+  // Ожидающие сертификаты клиента, отфильтрованные по диапазону дат поверки (если задан).
+  const pcAwaiting = React.useMemo(() => {
+    if (!fClient) return [];
+    return all.filter(c => {
+      if ((c.client || '') !== fClient || c.payStatus === 'Оплачено') return false;
+      const d = iso(c.checkDate);
+      if (pcFrom && d < pcFrom) return false;
+      if (pcTo && d > pcTo) return false;
+      return true;
+    });
+  }, [all, fClient, pcFrom, pcTo]);
+  const pcCount = pcAwaiting.length;   // в ожидании (в диапазоне дат) — максимум
+  const pcQtyNum = pcCount === 0 ? 0 : (pcQty === '' ? pcCount : Math.max(1, Math.min(Math.floor(num(pcQty)), pcCount)));   // сколько оплачиваем
   const pcPriceNum = num(pcPrice);
   const pcIncomeTotal = Math.round(pcPriceNum * pcQtyNum * 100) / 100;
   // Распределение по счетам: заполненные строки берут свою сумму; ОДНА пустая
@@ -308,10 +320,12 @@ function CertsInner() {
   const pcMismatch = pcPriceNum > 0 && Math.abs(pcPayTotal - pcIncomeTotal) > 0.01;
   const pcCommPerNum = num(pcCommPer);
   const pcCommTotal = pcCommOn ? Math.round(pcCommPerNum * pcQtyNum * 100) / 100 : 0;
+  // При смене диапазона дат (модалка открыта) — кол-во по умолчанию = все в диапазоне.
+  React.useEffect(() => { if (pcOpen) setPcQty(String(pcCount)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pcFrom, pcTo]);
   function openPayClient() {
     if (!fClient) { toast('Сначала выберите клиента в фильтре'); return; }
     if (pcCount === 0) { toast('У клиента нет сертификатов в ожидании'); return; }
-    setPcErr(''); setPcPrice(''); setPcQty(String(pcCount)); setPcRows([{ accountId: defaultAcc?.id || '', amount: '' }]);
+    setPcErr(''); setPcPrice(''); setPcFrom(''); setPcTo(''); setPcQty(String(pcCount)); setPcRows([{ accountId: defaultAcc?.id || '', amount: '' }]);
     setPcCommOn(true); setPcCommPer('200'); setPcCommAcct(allAccounts.find(a => a.category === 'nalichka')?.id || defaultAcc?.id || allAccounts[0]?.id || '');
     setPcOpen(true);
   }
@@ -323,6 +337,7 @@ function CertsInner() {
     try {
       await apiSend('/api/v2/certs/pay-by-client', 'POST', {
         source, docType, client: fClient, pricePerCert: pcPriceNum, count: pcQtyNum,
+        dateFrom: pcFrom || null, dateTo: pcTo || null,
         payments: [
           ...pcFilled.map(p => ({ accountId: p.accountId, amount: num(p.amount) })),
           ...(pcAutoRow ? [{ accountId: pcEmptyAcc[0].accountId, amount: pcRemainder }] : []),
@@ -779,10 +794,18 @@ function CertsInner() {
       {/* Модалка «Оплата по клиенту» */}
       <Modal open={pcOpen} onClose={() => setPcOpen(false)} width={560}
         title={<span>💳 Оплата по клиенту — {fClient}</span>}
-        footer={<><Button onClick={payClientSubmit} disabled={pcSaving || pcMismatch || pcPriceNum <= 0} title={pcMismatch ? 'Сумма оплат ≠ итогу' : undefined}>{pcSaving ? 'Проведение…' : pcMismatch ? '⚠ Оплата ≠ итогу' : '💾 Провести оплату'}</Button><Button variant="outline" onClick={() => setPcOpen(false)}>Отмена</Button></>}>
+        footer={<><Button onClick={payClientSubmit} disabled={pcSaving || pcMismatch || pcPriceNum <= 0 || pcQtyNum <= 0} title={pcQtyNum <= 0 ? 'Нет сертификатов за период' : pcMismatch ? 'Сумма оплат ≠ итогу' : undefined}>{pcSaving ? 'Проведение…' : pcQtyNum <= 0 ? 'Нет за период' : pcMismatch ? '⚠ Оплата ≠ итогу' : '💾 Провести оплату'}</Button><Button variant="outline" onClick={() => setPcOpen(false)}>Отмена</Button></>}>
         {pcErr && <div className="erp-form-err">{pcErr}</div>}
+
+        <div className="cert-sec-lbl">📅 Период (дата поверки) — необязательно</div>
+        <div className="erp-form-row">
+          <Field label="С даты"><Input type="date" value={pcFrom} max={pcTo || undefined} onChange={e => setPcFrom(e.target.value)} /></Field>
+          <Field label="По дату"><Input type="date" value={pcTo} min={pcFrom || undefined} onChange={e => setPcTo(e.target.value)} /></Field>
+        </div>
+        {(pcFrom || pcTo) && <div style={{ marginBottom: 6 }}><button type="button" className="erp-chip" onClick={() => { setPcFrom(''); setPcTo(''); }}>× сбросить период</button></div>}
+
         <div className="erp-muted" style={{ fontSize: 13, marginBottom: 4 }}>
-          В ожидании: <b style={{ color: '#b45309' }}>{pcCount}</b> · оплачиваем: <b style={{ color: '#2563eb' }}>{pcQtyNum}</b> · итог = цена × {pcQtyNum} = <b style={{ color: '#16a34a' }}>{fmtNum(pcIncomeTotal)} ₸</b>
+          В ожидании{(pcFrom || pcTo) ? ' за период' : ''}: <b style={{ color: '#b45309' }}>{pcCount}</b> · оплачиваем: <b style={{ color: '#2563eb' }}>{pcQtyNum}</b> · итог = цена × {pcQtyNum} = <b style={{ color: '#16a34a' }}>{fmtNum(pcIncomeTotal)} ₸</b>
         </div>
 
         <div className="cert-sec-lbl">💳 Оплата (доход)</div>

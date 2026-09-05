@@ -220,15 +220,22 @@ export const certsService = {
   // сертификатам. Плюс опциональная выплата комиссии клиенту (Расход). Всё —
   // одной транзакцией.
   async payByClient(input: unknown, actor?: { id: string; name?: string } | null) {
-    const { source, docType, client, pricePerCert, count: wantCount, payments, commission } = payByClientSchema.parse(input);
+    const { source, docType, client, pricePerCert, count: wantCount, dateFrom, dateTo, payments, commission } = payByClientSchema.parse(input);
     if (source === 'Выездная') throw badRequest('Для Выездной оплата идёт через заявку мастера, не здесь');
     const round2 = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
     const price = round2(pricePerCert);
     if (price <= 0) throw badRequest('Укажите цену за сертификат');
 
     const rows = await certsRepo.list({ source, archived: false, type: docType || 'cert' });
-    const awaiting = rows.filter(c => (c.client || '') === client && !isCertPaid(c.payStatus));
-    if (!awaiting.length) throw badRequest('У клиента нет сертификатов в ожидании оплаты');
+    const isoDate = (d: unknown) => (d ? String(d).slice(0, 10) : '');
+    const awaiting = rows.filter(c => {
+      if ((c.client || '') !== client || isCertPaid(c.payStatus)) return false;
+      const d = isoDate(c.checkDate);
+      if (dateFrom && d < dateFrom) return false;   // диапазон дат поверки
+      if (dateTo && d > dateTo) return false;
+      return true;
+    });
+    if (!awaiting.length) throw badRequest('Нет сертификатов в ожидании за выбранный период');
     // Оплачиваем указанное число (первые N ожидающих) или все, если не задано.
     const count = wantCount ? Math.min(wantCount, awaiting.length) : awaiting.length;
     const targets = awaiting.slice(0, count);
