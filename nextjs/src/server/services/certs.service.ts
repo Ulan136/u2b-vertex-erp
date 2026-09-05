@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { db, type Executor } from '@/db';
 import { certsRepo } from '@/server/repositories/certs.repo';
-import { certUpsertSchema, certUpdateSchema, cleanCertFields, isCertPaid, poverkaPaymentSchema, payByClientSchema, sectionForCertSource, certIncomePosts, type CertQuery } from '@/server/dto/certs.dto';
+import { certUpsertSchema, certUpdateSchema, cleanCertFields, isCertPaid, poverkaPaymentSchema, payByClientSchema, commissionPaySchema, sectionForCertSource, certIncomePosts, certIncomeAmount, type CertQuery } from '@/server/dto/certs.dto';
 import { deviceTypesService } from '@/server/services/deviceTypes.service';
 import { productsService } from '@/server/services/products.service';
 import { financeService } from '@/server/services/finance.service';
@@ -20,7 +20,7 @@ function sealFor(cert: { docType?: string | null; sealType?: string | null; payS
 }
 
 // ── Доход прямого сертификата/извещения (смешанная оплата → приход на счета) ──
-type CertRow = { id: string; source?: string | null; payStatus?: string | null; amount?: unknown; docType?: string | null; serialNo?: string | null };
+type CertRow = { id: string; source?: string | null; payStatus?: string | null; amount?: unknown; paidAmount?: unknown; commissionPaidAt?: unknown; docType?: string | null; serialNo?: string | null; checkDate?: unknown; client?: string | null };
 type PayLine = { accountId: string; amount: number };
 
 // Сторнируем действующий доход сертификата (обратной операцией, баланс к нулю).
@@ -31,8 +31,9 @@ async function reverseCertIncome(certId: string, actor: { id: string; name?: str
 }
 
 // Раскладка дохода: явные строки оплаты или (пусто) весь доход на счёт раздела.
+// Цель = фактически внесённая сумма (полная цена или частичная — см. certIncomeAmount).
 async function resolveCertAlloc(cert: CertRow, payments: PayLine[] | undefined, tx: Executor): Promise<PayLine[]> {
-  const amount = Math.round((Number(cert.amount) || 0) * 100) / 100;
+  const amount = certIncomeAmount(cert);
   let alloc = (payments || []).map(p => ({ accountId: String(p.accountId), amount: Math.round((Number(p.amount) || 0) * 100) / 100 })).filter(p => p.accountId && p.amount > 0);
   if (!alloc.length) {
     const acc = await financeRepo.defaultAccount(sectionForCertSource(cert.source), tx);
@@ -40,7 +41,7 @@ async function resolveCertAlloc(cert: CertRow, payments: PayLine[] | undefined, 
     alloc = [{ accountId: acc.id, amount }];
   }
   const sum = alloc.reduce((s, p) => s + p.amount, 0);
-  if (Math.abs(sum - amount) > 0.01) throw badRequest(`Сумма оплат (${m2(sum)}) должна равняться цене (${m2(amount)})`);
+  if (Math.abs(sum - amount) > 0.01) throw badRequest(`Сумма оплат (${m2(sum)}) должна равняться внесённой сумме (${m2(amount)})`);
   return alloc;
 }
 
@@ -50,6 +51,13 @@ async function resolveCertAlloc(cert: CertRow, payments: PayLine[] | undefined, 
 async function syncCertIncome(cert: CertRow, payments: PayLine[] | undefined, actor: { id: string; name?: string } | null | undefined, tx: Executor) {
   const existing = (await financeRepo.findByCert(cert.id, tx)).filter(o => o.opType === 'Приход' && !o.reversedAt && !o.reverses);
   if (!certIncomePosts(cert)) { if (existing.length) await reverseCertIncome(cert.id, actor, tx); return; }
+  // Оплату не меняли (payments не переданы) и уже проведён доход на нужную сумму —
+  // не трогаем (сохраняем разбивку по счетам, вкл. частичные/смешанные оплаты).
+  const target = certIncomeAmount(cert);
+  if ((!payments || !payments.length) && existing.length) {
+    const have = Math.round(existing.reduce((s, o) => s + (Number(o.amount) || 0), 0) * 100) / 100;
+    if (Math.abs(have - target) <= 0.01) return;
+  }
   const alloc = await resolveCertAlloc(cert, payments, tx);
   const norm = (arr: PayLine[]) => arr.map(p => `${p.accountId}:${p.amount.toFixed(2)}`).sort().join('|');
   if (existing.length && norm(existing.map(o => ({ accountId: o.accountId as string, amount: Number(o.amount) }))) === norm(alloc)) return;
@@ -220,7 +228,7 @@ export const certsService = {
   // сертификатам. Плюс опциональная выплата комиссии клиенту (Расход). Всё —
   // одной транзакцией.
   async payByClient(input: unknown, actor?: { id: string; name?: string } | null) {
-    const { source, docType, client, pricePerCert, count: wantCount, dateFrom, dateTo, payments, commission } = payByClientSchema.parse(input);
+    const { source, docType, client, pricePerCert, count: wantCount, dateFrom, dateTo, payments } = payByClientSchema.parse(input);
     if (source === 'Выездная') throw badRequest('Для Выездной оплата идёт через заявку мастера, не здесь');
     const round2 = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
     const price = round2(pricePerCert);
@@ -239,41 +247,112 @@ export const certsService = {
     // Оплачиваем указанное число (первые N ожидающих) или все, если не задано.
     const count = wantCount ? Math.min(wantCount, awaiting.length) : awaiting.length;
     const targets = awaiting.slice(0, count);
+    // «Долг» каждого сертификата: свежий (В ожидании) — по введённой цене; уже
+    // частично оплаченный («Есть остаток») — по своему остатку (amount − paidAmount).
+    const dueOf = (c: CertRow) => {
+      const amt = round2(c.amount); const paidC = round2(c.paidAmount);
+      return amt > 0 ? round2(amt - paidC) : price;   // amt=0 → свежий, берём цену
+    };
+    const priceOf = (c: CertRow) => (round2(c.amount) > 0 ? round2(c.amount) : price);
 
-    const incomeTotal = round2(price * count);
-    const paid = payments.reduce((s, p) => s + round2(p.amount), 0);
-    if (Math.abs(paid - incomeTotal) > 0.01) throw badRequest(`Сумма оплат (${m2(paid)}) должна равняться итогу (${m2(incomeTotal)})`);
-
-    const commPer = commission ? round2(commission.perCert) : 0;
-    const commTotal = round2(commPer * count);
+    const incomeTotal = round2(targets.reduce((s, c) => s + dueOf(c), 0));   // итог к оплате (остаток по выбранным)
+    const paid = round2(payments.reduce((s, p) => s + round2(p.amount), 0)); // сколько реально приняли
+    if (paid <= 0) throw badRequest('Укажите принятую сумму');
+    if (paid - incomeTotal > 0.01) throw badRequest(`Принято (${m2(paid)}) больше итога (${m2(incomeTotal)})`);
 
     return db.transaction(async (tx) => {
-      // Пул оплаты: раскидываем по сертификатам по порядку (каждому — его цену).
+      // Пул принятых денег: закрываем сертификаты ПО ПОРЯДКУ. Полностью закрытый →
+      // «Оплачено»; один недокрытый → «Есть остаток» (доход = внесённая часть);
+      // остальные не трогаем (остаются «В ожидании»).
       const pool = payments.map(p => ({ accountId: String(p.accountId), left: round2(p.amount) }));
-      let pi = 0;
+      let pi = 0; let closed = 0; let partialId: string | null = null;
       for (const c of targets) {
-        const upd = await certsRepo.update(c.id, { amount: String(price), payStatus: 'Оплачено' }, tx);
-        await productsService.syncCertSeal({ id: upd.id, serialNo: upd.serialNo }, sealFor(upd), actor, tx);
-        // Раскладка дохода этого сертификата = его цена, набранная из пула счетов.
-        let need = price;
-        const alloc: PayLine[] = [];
+        const due = dueOf(c);
+        if (due <= 0.005) continue;
+        // сколько можем внести в этот серт из пула
+        let take = 0; const alloc: PayLine[] = [];
+        let need = due;
         while (need > 0.001 && pi < pool.length) {
-          const take = round2(Math.min(need, pool[pi].left));
-          if (take > 0) { alloc.push({ accountId: pool[pi].accountId, amount: take }); pool[pi].left = round2(pool[pi].left - take); need = round2(need - take); }
+          const t = round2(Math.min(need, pool[pi].left));
+          if (t > 0) { alloc.push({ accountId: pool[pi].accountId, amount: t }); pool[pi].left = round2(pool[pi].left - t); need = round2(need - t); take = round2(take + t); }
           if (pool[pi].left <= 0.001) pi++;
         }
-        await syncCertIncome(upd, alloc, actor, tx);
+        if (take <= 0.005) break;   // деньги кончились — остальные оставляем «В ожидании»
+        const full = take + 0.005 >= due;
+        const newPaid = round2(priceOf(c) === due ? take : round2(round2(c.paidAmount) + take)); // накопительно для «Есть остаток»
+        const upd = await certsRepo.update(c.id, {
+          amount: String(priceOf(c)),
+          paidAmount: String(full ? priceOf(c) : newPaid),
+          payStatus: full ? 'Оплачено' : 'Есть остаток',
+        }, tx);
+        await productsService.syncCertSeal({ id: upd.id, serialNo: upd.serialNo }, sealFor(upd), actor, tx);
+        // Доход этого сертификата за эту оплату = внесённая часть (alloc), привязан к certId.
+        const src = sectionForCertSource(upd.source) === 'branch' ? 'Филиал' : 'Поверка';
+        for (const p of alloc) {
+          const acc = await financeRepo.findAccount(p.accountId, tx);
+          if (!acc) throw badRequest('Счёт оплаты не найден');
+          await financeService.createOperation(
+            { opType: 'Приход', accountId: p.accountId, amount: m2(p.amount), name: `${upd.docType === 'izv' ? 'Извещение' : 'Сертификат'} ${upd.source || ''}${upd.serialNo ? ' №' + upd.serialNo : ''}`.slice(0, 200), source: src, certId: upd.id, accountName: acc.name },
+            actor?.id ?? null, tx,
+          );
+        }
+        if (full) closed++; else { partialId = upd.id; break; }
       }
-      // Выплата комиссии клиенту — один Расход с выбранного счёта.
-      if (commTotal > 0 && commission) {
-        const acc = await financeRepo.findAccount(commission.accountId, tx);
-        if (!acc) throw badRequest('Счёт для выплаты комиссии не найден');
-        await financeService.createOperation(
-          { opType: 'Расход', accountId: commission.accountId, amount: m2(commTotal), name: `Комиссия клиенту — ${client}`.slice(0, 200), source: 'Расходы', accountName: acc.name },
-          actor?.id ?? null, tx,
-        );
-      }
-      return { ok: true, count, incomeTotal: m2(incomeTotal), commissionTotal: m2(commTotal) };
+      return { ok: true, closed, partial: !!partialId, paid: m2(paid) };
+    });
+  },
+
+  // Выплата комиссии клиенту за сертификаты ТЭЦ (наш долг перед клиентом).
+  // Отмечает выбранные сертификаты commission_paid_at + один Расход на сумму.
+  async payCommission(input: unknown, actor?: { id: string; name?: string } | null) {
+    const { dateFrom, dateTo, perCert, accountId, count: wantCount } = commissionPaySchema.parse(input);
+    const round2 = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
+    const per = round2(perCert);
+    if (per <= 0) throw badRequest('Укажите комиссию за сертификат');
+    if (!accountId) throw badRequest('Выберите счёт для выплаты комиссии');
+    const isoDate = (d: unknown) => (d ? String(d).slice(0, 10) : '');
+    // Комиссия — только ТЭЦ; берём сертификаты без отметки о выплате в периоде.
+    const rows = await certsRepo.list({ source: 'ТЭЦ', archived: false, type: 'cert' });
+    const pending = rows.filter(c => {
+      if (c.commissionPaidAt) return false;
+      const d = isoDate(c.checkDate);
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    });
+    if (!pending.length) throw badRequest('Нет сертификатов ТЭЦ без выплаченной комиссии за период');
+    const count = wantCount ? Math.min(wantCount, pending.length) : pending.length;
+    const targets = pending.slice(0, count);
+    const total = round2(per * count);
+    return db.transaction(async (tx) => {
+      const acc = await financeRepo.findAccount(accountId, tx);
+      if (!acc) throw badRequest('Счёт для выплаты комиссии не найден');
+      const op = await financeService.createOperation(
+        { opType: 'Расход', accountId, amount: m2(total), name: `Комиссия клиенту (ТЭЦ) — ${count} серт.`.slice(0, 200), source: 'Расходы', expenseCat: 'Комиссия клиенту', accountName: acc.name },
+        actor?.id ?? null, tx,
+      );
+      const when = op?.opDate ? new Date(op.opDate as unknown as string) : new Date();
+      for (const c of targets) await certsRepo.update(c.id, { commissionPaidAt: when }, tx);
+      return { ok: true, count, total: m2(total) };
+    });
+  },
+
+  // Отметить комиссию выплаченной задним числом (без денег) — напр. прошлый месяц.
+  async markCommissionPaid(input: unknown) {
+    const { dateFrom, dateTo } = commissionPaySchema.pick({ dateFrom: true, dateTo: true }).parse(input);
+    const isoDate = (d: unknown) => (d ? String(d).slice(0, 10) : '');
+    const rows = await certsRepo.list({ source: 'ТЭЦ', archived: false, type: 'cert' });
+    const targets = rows.filter(c => {
+      if (c.commissionPaidAt) return false;
+      const d = isoDate(c.checkDate);
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      return true;
+    });
+    return db.transaction(async (tx) => {
+      const when = new Date();
+      for (const c of targets) await certsRepo.update(c.id, { commissionPaidAt: when }, tx);
+      return { ok: true, count: targets.length };
     });
   },
 };

@@ -34,3 +34,10 @@ export const payOrder = withApi(async (req: NextRequest, ctx) =>
 // опциональная выплата комиссии клиенту (Расход).
 export const payByClient = withApi(async (req: NextRequest, ctx) =>
   certsService.payByClient(await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
+
+// POST /api/v2/certs/commission — выплата комиссии клиенту (ТЭЦ) за период.
+export const payCommission = withApi(async (req: NextRequest, ctx) =>
+  certsService.payCommission(await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
+// POST /api/v2/certs/commission/mark — отметить комиссию выплаченной задним числом.
+export const markCommission = withApi(async (req: NextRequest) =>
+  certsService.markCommissionPaid(await req.json()));

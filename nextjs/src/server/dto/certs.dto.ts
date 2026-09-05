@@ -47,10 +47,19 @@ export const certUpsertSchema = z.object({
 export function sectionForCertSource(source?: string | null): 'poverka' | 'branch' {
   return source === 'Астана' ? 'branch' : 'poverka';
 }
-// Доход по сертификату проводим только: оплачено + не Выездная (там доход через
-// заявку мастера) + указана цена (>0). Иначе — не проводим/сторнируем.
-export function certIncomePosts(cert: { source?: string | null; payStatus?: string | null; amount?: unknown }): boolean {
-  return isCertPaid(cert.payStatus) && cert.source !== 'Выездная' && (Number(cert.amount) || 0) > 0;
+// Доход по сертификату = фактически внесённая сумма (не Выездная — там доход
+// через заявку мастера): «Оплачено» → вся цена (amount), «Есть остаток» →
+// внесённая часть (paidAmount), иначе 0.
+export function certIncomeAmount(cert: { source?: string | null; payStatus?: string | null; amount?: unknown; paidAmount?: unknown }): number {
+  if (cert.source === 'Выездная') return 0;
+  const v = cert.payStatus === 'Оплачено' ? Number(cert.amount)
+    : cert.payStatus === 'Есть остаток' ? Number(cert.paidAmount)
+    : 0;
+  return Math.round((v || 0) * 100) / 100;
+}
+// Доход проводим, когда фактически внесено > 0.
+export function certIncomePosts(cert: { source?: string | null; payStatus?: string | null; amount?: unknown; paidAmount?: unknown }): boolean {
+  return certIncomeAmount(cert) > 0;
 }
 
 export const certUpdateSchema = certUpsertSchema.partial();
@@ -91,6 +100,17 @@ export const payByClientSchema = z.object({
     perCert: z.coerce.number().nonnegative(),
     accountId: z.string().uuid(),
   }).nullish(),
+});
+
+// Выплата комиссии клиенту (только ТЭЦ): комиссия за сертификат × кол-во
+// сертификатов без отметки о выплате в периоде. dateFrom/dateTo — для отметки
+// задним числом (markCommissionPaid) — там perCert/accountId не нужны.
+export const commissionPaySchema = z.object({
+  dateFrom: z.string().nullish(),
+  dateTo: z.string().nullish(),
+  perCert: z.coerce.number().positive('Укажите комиссию за сертификат').optional(),
+  accountId: z.string().uuid('Выберите счёт').optional(),
+  count: z.coerce.number().int().positive().optional(),
 });
 
 // Подготовка полей к вставке/апдейту: undefined убираем (→ дефолт БД / без изменения),

@@ -7,7 +7,7 @@ import { sql } from 'drizzle-orm';
 // ── ENUMS ─────────────────────────────────────────────────────
 export const userRoleEnum    = pgEnum('user_role',        ['admin','director','accountant','manager','master']);
 export const operStatusEnum  = pgEnum('oper_status',      ['В работе','Готова к КТРМ','Внести в КТРМ','КТРМ 70%','Внесён в КТРМ']);
-export const payStatusEnum   = pgEnum('pay_status',       ['В ожидании','Оплачено','Бесплатно']);
+export const payStatusEnum   = pgEnum('pay_status',       ['В ожидании','Оплачено','Бесплатно','Есть остаток']);
 export const invoiceTypeEnum = pgEnum('invoice_type',     ['Каспи','БЦК','Наличка','Каспи Голд']);
 export const waterTypeEnum   = pgEnum('water_type',       ['х/в','г/в']);
 export const certSourceEnum  = pgEnum('cert_source',      ['САМИ','ВДК','ТЭЦ','Выездная','Первичная','Астана','Первичная-КМ','Первичная-АК','Районы']);
@@ -87,6 +87,10 @@ export const certificates = pgTable('certificates', {
   ktrmDoneAt    : timestamp('ktrm_done_at', { withTimezone: true }),
   ktrmError     : text('ktrm_error'),
   amount        : numeric('amount', { precision: 12, scale: 2 }).default('0'),
+  // Частичная оплата: сколько уже внесено (< amount → статус «Есть остаток»).
+  paidAmount    : numeric('paid_amount', { precision: 12, scale: 2 }).default('0'),
+  // Комиссия клиенту выплачена (ТЭЦ): когда. null → не выплачена (наш долг).
+  commissionPaidAt: timestamp('commission_paid_at', { withTimezone: true }),
   isArchived    : boolean('is_archived').default(false),
   archivedAt    : timestamp('archived_at', { withTimezone: true }),
   createdBy     : uuid('created_by').references(() => users.id),
