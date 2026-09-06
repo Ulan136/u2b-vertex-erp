@@ -1,6 +1,6 @@
 import { db, type Executor } from '@/db';
 import { products, stockMovements } from '@/db/schema';
-import { and, asc, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 
 type MovementInsert = typeof stockMovements.$inferInsert;
 
@@ -42,6 +42,23 @@ export const productsRepo = {
   async createMovement(data: Record<string, unknown>, exec: Executor = db) {
     const [row] = await exec.insert(stockMovements).values(data as unknown as MovementInsert).returning();
     return row;
+  },
+
+  // Цена ПОСЛЕДНЕГО действующего прихода товара (по дате закупа move_date, при равной
+  // дате — по времени внесения). Источник себестоимости products.cost_price.
+  // Отменённые (reversed_at) и приходы без цены (price = 0) игнорируются.
+  // Возвращает null, если действующих приходов с ценой нет.
+  async latestInPrice(productId: string, exec: Executor = db): Promise<number | null> {
+    const [row] = await exec.select({ price: stockMovements.price }).from(stockMovements)
+      .where(and(
+        eq(stockMovements.productId, productId),
+        eq(stockMovements.moveType, 'IN'),
+        isNull(stockMovements.reversedAt),
+        sql`${stockMovements.price} > 0`,
+      ))
+      .orderBy(desc(stockMovements.moveDate), desc(stockMovements.createdAt))
+      .limit(1);
+    return row ? Number(row.price) : null;
   },
 
   // Расходник клейма по маркеру (СЛ/ПЛ): активный товар-расходник, в названии

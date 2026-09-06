@@ -20,7 +20,12 @@ async function doMovement(input: unknown, actor: { id: string; name?: string } |
   if (qty <= 0) throw badRequest('Количество должно быть больше 0');
   const sign = STOCK_SIGN[data.moveType] ?? 0;
   if (!sign) throw badRequest('Неизвестный тип движения');
-  const price = Number(data.price ?? product.price ?? 0);
+  // Приход БЕЗ явной цены НЕ подставляет розничную (иначе себестоимость скакала бы к
+  // цене продажи). Такой приход пишется с ценой 0 и в расчёте себестоимости не участвует.
+  // Для расхода/ревизии прежний дефолт (цена товара) сохраняем.
+  const price = data.moveType === 'IN'
+    ? Number(data.price ?? 0)
+    : Number(data.price ?? product.price ?? 0);
 
   // Запрет отрицательного остатка: списание не может увести current_stock ниже 0.
   const current = Number(product.currentStock) || 0;
@@ -44,11 +49,19 @@ async function doMovement(input: unknown, actor: { id: string; name?: string } |
     createdBy: actor?.id ?? null,
   }, exec);
   await productsRepo.adjustStock(product.id, sign * qty, exec);
-  // Приход обновляет себестоимость товара (последняя цена закупки).
-  if (data.moveType === 'IN' && price > 0) {
-    await productsRepo.update(product.id, { costPrice: money(price) }, exec);
-  }
+  // Себестоимость = цена ПОСЛЕДНЕГО действующего прихода по дате закупа (не просто
+  // «последняя проведённая операция»): задним числом внесённый старый закуп цену не
+  // собьёт. Пересчитываем после каждого прихода из журнала движений.
+  if (data.moveType === 'IN') await recomputeCost(product.id, exec);
   return movement;
+}
+
+// Пересчёт себестоимости товара из журнала приходов: cost_price = цена последнего
+// действующего прихода по дате (или 0, если приходов с ценой не осталось — напр. после
+// отмены единственного закупа). Идемпотентно; вызывается при приходе/отмене/правке даты.
+async function recomputeCost(productId: string, exec: Executor) {
+  const last = await productsRepo.latestInPrice(productId, exec);
+  await productsRepo.update(productId, { costPrice: money(last ?? 0) }, exec);
 }
 
 export const productsService = {
@@ -186,6 +199,9 @@ export const productsService = {
         if (opts.hard) await productsRepo.deleteMovement(mv.id, tx);
         else if (!mv.reversedAt) await productsRepo.markMovementReversed(mv.id, tx);
       }
+      // 4. восстановить себестоимость: отменённый приход больше не действует, поэтому
+      //    cost_price откатывается к цене предыдущего действующего закупа (или 0).
+      for (const pid of Array.from(new Set(group.map(mv => mv.productId)))) await recomputeCost(pid, tx);
       return { ok: true, count: group.length };
     });
   },
@@ -209,6 +225,9 @@ export const productsService = {
       if (docNo !== undefined) patch.docNo = docNo || null;
       if (Object.keys(patch).length) {
         for (const mv of group) if (!mv.reversedAt) await productsRepo.updateMovement(mv.id, patch, tx);
+        // Правка даты закупа могла сменить, какой приход теперь «последний» → пересчитать
+        // себестоимость по каждому затронутому товару.
+        if (moveDate !== undefined) for (const pid of Array.from(new Set(group.map(mv => mv.productId)))) await recomputeCost(pid, tx);
       }
       // Поставщик/№ — обновить и в связанных расходах (дату оплаты не трогаем).
       if (m.financeGroup && (supplier !== undefined || docNo !== undefined)) {
