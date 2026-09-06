@@ -112,6 +112,10 @@ function CertsInner() {
   const { data: clients, mutate: mutateClients } = useApi<Client[]>('/api/v2/clients');
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
   const { data: org } = useApi<{ companyName?: string | null }>('/api/v2/org');
+  // Комиссия — наш долг перед клиентом за сертификаты ТЭЦ. Блок «Выплата комиссий»
+  // живёт на экране ВДК, но считает по ТЭЦ-сертам, поэтому грузим их отдельно (только
+  // когда блок доступен: экран ВДК + сертификаты).
+  const { data: tecCerts, mutate: mutateTec } = useApi<Cert[]>(source === 'ВДК' && docType === 'cert' ? `/api/v2/certs?source=${encodeURIComponent('ТЭЦ')}&archived=false&type=cert` : null);
   // Оплата прямых сертификатов: счета раздела источника (Астана→branch, иначе poverka).
   const isDirect = source !== 'Выездная';
   const certSection = source === 'Астана' ? 'branch' : 'poverka';
@@ -325,8 +329,9 @@ function CertsInner() {
   const pcPayTotal = pcAutoRow ? pcIncomeTotal : pcFilledSum;
   const pcOver = pcPriceNum > 0 && pcPayTotal - pcIncomeTotal > 0.01;        // переплата — нельзя
   const pcLeftover = r2(pcIncomeTotal - pcPayTotal);                        // остаток (недоплата) — станет «Есть остаток»
-  // Комиссия (ВДК): сертификаты без отметки о выплате в периоде.
-  const commPending = React.useMemo(() => all.filter(c => source === 'ВДК' && !c.commissionPaidAt && (() => { const d = iso(c.checkDate); if (commFrom && d < commFrom) return false; if (commTo && d > commTo) return false; return true; })()), [all, source, commFrom, commTo]);
+  // Комиссия — по сертификатам ТЭЦ (наш долг клиенту), без отметки о выплате в периоде.
+  // Считаем по отдельно загруженным tecCerts (блок открыт на экране ВДК).
+  const commPending = React.useMemo(() => (tecCerts || []).filter(c => !c.commissionPaidAt && (() => { const d = iso(c.checkDate); if (commFrom && d < commFrom) return false; if (commTo && d > commTo) return false; return true; })()), [tecCerts, commFrom, commTo]);
   const commCount = commPending.length;
   const commPerNum = num(commPer);
   const commTotal = Math.round(commPerNum * commCount * 100) / 100;
@@ -348,11 +353,11 @@ function CertsInner() {
   async function payCommissionSubmit() {
     if (commPerNum <= 0) { setCommErr('Укажите комиссию за сертификат'); return; }
     if (!commAcct) { setCommErr('Выберите счёт'); return; }
-    if (commCount === 0) { setCommErr('Нет сертификатов ВДК без выплаченной комиссии за период'); return; }
+    if (commCount === 0) { setCommErr('Нет сертификатов ТЭЦ без выплаченной комиссии за период'); return; }
     setCommSaving(true); setCommErr('');
     try {
       await apiSend('/api/v2/certs/commission', 'POST', { dateFrom: commFrom || null, dateTo: commTo || null, perCert: commPerNum, accountId: commAcct });
-      setPcOpen(false); await mutate(); toast(`✅ Комиссия выплачена: ${commCount} серт. · ${fmtNum(commTotal)} ₸`);
+      setPcOpen(false); await Promise.all([mutate(), mutateTec()]); toast(`✅ Комиссия выплачена: ${commCount} серт. · ${fmtNum(commTotal)} ₸`);
     } catch (e) { setCommErr((e as Error).message); } finally { setCommSaving(false); }
   }
   async function markCommissionPaid() {
@@ -361,7 +366,7 @@ function CertsInner() {
     setCommSaving(true); setCommErr('');
     try {
       await apiSend('/api/v2/certs/commission/mark', 'POST', { dateFrom: commFrom || null, dateTo: commTo || null });
-      setPcOpen(false); await mutate(); toast(`✅ Отмечено «комиссия выплачена»: ${commCount} серт.`);
+      setPcOpen(false); await Promise.all([mutate(), mutateTec()]); toast(`✅ Отмечено «комиссия выплачена»: ${commCount} серт.`);
     } catch (e) { setCommErr((e as Error).message); } finally { setCommSaving(false); }
   }
   async function payClientSubmit() {
@@ -536,7 +541,7 @@ function CertsInner() {
         <Select value={fWater} onChange={e => setFWater(e.target.value)} title="Тип воды"><option value="">Вода: все</option><option value="х/в">🔵 х/в (холодная)</option><option value="г/в">🔴 г/в (горячая)</option></Select>
         {!isCert && <Select value={fSent} onChange={e => setFSent(e.target.value)}><option value="">Отправка: все</option>{SENT.map(o => <option key={o}>{o}</option>)}</Select>}
         <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
-        {isDirect && <Button onClick={openPay} title={hasComm ? 'Оплата сертификата и/или выплата комиссий клиенту (ВДК)' : (!fClient ? 'Сначала выберите клиента в фильтре «Клиент»' : pcCount === 0 ? 'Нет сертификатов в ожидании' : `Принять оплату за ${pcCount} серт.`)}>{hasComm ? '🧾 Оплата сертификата / выплата комиссий' : '🧾 Приём оплаты сертификата'}</Button>}
+        {isDirect && <Button onClick={openPay} title={hasComm ? 'Приём оплаты сертификата (ВДК) и/или выплата комиссий клиенту за сертификаты ТЭЦ' : (!fClient ? 'Сначала выберите клиента в фильтре «Клиент»' : pcCount === 0 ? 'Нет сертификатов в ожидании' : `Принять оплату за ${pcCount} серт.`)}>{hasComm ? '🧾 Оплата сертификата / выплата комиссий' : '🧾 Приём оплаты сертификата'}</Button>}
       </Card>
 
       {isDirect && fClient && (
@@ -579,7 +584,7 @@ function CertsInner() {
                     <td className="col-sum" style={{ textAlign: 'right', fontWeight: 700, fontSize: 12 }}>
                       {num(c.amount) > 0 ? fmtNum(num(c.amount)) + ' ₸' : '—'}
                       {c.payStatus === 'Есть остаток' && <div style={{ fontSize: 10, color: '#b45309', fontWeight: 600 }} title="Остаток к доплате">ост. {fmtNum(num(c.amount) - num(c.paidAmount))} ₸</div>}
-                      {c.source === 'ВДК' && c.commissionPaidAt && <span title="Комиссия выплачена" style={{ marginLeft: 4, color: '#16a34a' }}>✓💵</span>}
+                      {c.source === 'ТЭЦ' && c.commissionPaidAt && <span title="Комиссия выплачена" style={{ marginLeft: 4, color: '#16a34a' }}>✓💵</span>}
                     </td>
                     <td className="col-oper"><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
                     <td className="col-pay"><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
@@ -613,7 +618,7 @@ function CertsInner() {
                     <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 12 }}>
                       {num(c.amount) > 0 ? fmtNum(num(c.amount)) + ' ₸' : '—'}
                       {c.payStatus === 'Есть остаток' && <div style={{ fontSize: 10, color: '#b45309', fontWeight: 600 }} title="Остаток к доплате">ост. {fmtNum(num(c.amount) - num(c.paidAmount))} ₸</div>}
-                      {c.source === 'ВДК' && c.commissionPaidAt && <span title="Комиссия выплачена" style={{ marginLeft: 4, color: '#16a34a' }}>✓💵</span>}
+                      {c.source === 'ТЭЦ' && c.commissionPaidAt && <span title="Комиссия выплачена" style={{ marginLeft: 4, color: '#16a34a' }}>✓💵</span>}
                     </td>
                     <td><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
                     <td><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
@@ -889,9 +894,9 @@ function CertsInner() {
         {/* ── Блок 2 · Выплата комиссий клиенту (только ВДК) ── */}
         {hasComm && (<>
           <div style={{ borderTop: '1px solid var(--erp-border, #e5e7eb)', margin: '14px 0' }} />
-          <div className="cert-sec-lbl" style={{ fontSize: 14, fontWeight: 700 }}>2 · 💵 Выплата комиссий клиенту — ВДК</div>
+          <div className="cert-sec-lbl" style={{ fontSize: 14, fontWeight: 700 }}>2 · 💵 Выплата комиссий клиенту — ТЭЦ</div>
           {commErr && <div className="erp-form-err">{commErr}</div>}
-          <div className="erp-muted" style={{ fontSize: 12, marginBottom: 8 }}>Комиссия клиенту за сертификаты ВДК, по которым она ещё не выплачена (наш долг). Выберите период — покажется кол-во и сумма.</div>
+          <div className="erp-muted" style={{ fontSize: 12, marginBottom: 8 }}>Комиссия клиенту за сертификаты ТЭЦ, по которым она ещё не выплачена (наш долг). Выберите период — покажется кол-во и сумма.</div>
           <div className="cert-sec-lbl">📅 Период (дата поверки)</div>
           <div className="erp-form-row">
             <Field label="С даты"><Input type="date" value={commFrom} max={commTo || undefined} onChange={e => setCommFrom(e.target.value)} /></Field>

@@ -302,7 +302,8 @@ export const certsService = {
     });
   },
 
-  // Выплата комиссии клиенту за сертификаты ВДК (наш долг перед клиентом).
+  // Выплата комиссии клиенту за сертификаты ТЭЦ (наш долг перед клиентом).
+  // Кнопка/блок живёт на экране ВДК, но комиссия считается по ТЭЦ-сертам.
   // Отмечает выбранные сертификаты commission_paid_at + один Расход на сумму.
   async payCommission(input: unknown, actor?: { id: string; name?: string } | null) {
     const { dateFrom, dateTo, perCert, accountId, count: wantCount } = commissionPaySchema.parse(input);
@@ -311,8 +312,8 @@ export const certsService = {
     if (per <= 0) throw badRequest('Укажите комиссию за сертификат');
     if (!accountId) throw badRequest('Выберите счёт для выплаты комиссии');
     const isoDate = (d: unknown) => (d ? String(d).slice(0, 10) : '');
-    // Комиссия — только ВДК; берём сертификаты без отметки о выплате в периоде.
-    const rows = await certsRepo.list({ source: 'ВДК', archived: false, type: 'cert' });
+    // Комиссия — только ТЭЦ; берём сертификаты без отметки о выплате в периоде.
+    const rows = await certsRepo.list({ source: 'ТЭЦ', archived: false, type: 'cert' });
     const pending = rows.filter(c => {
       if (c.commissionPaidAt) return false;
       const d = isoDate(c.checkDate);
@@ -320,7 +321,7 @@ export const certsService = {
       if (dateTo && d > dateTo) return false;
       return true;
     });
-    if (!pending.length) throw badRequest('Нет сертификатов ВДК без выплаченной комиссии за период');
+    if (!pending.length) throw badRequest('Нет сертификатов ТЭЦ без выплаченной комиссии за период');
     const count = wantCount ? Math.min(wantCount, pending.length) : pending.length;
     const targets = pending.slice(0, count);
     const total = round2(per * count);
@@ -328,7 +329,7 @@ export const certsService = {
       const acc = await financeRepo.findAccount(accountId, tx);
       if (!acc) throw badRequest('Счёт для выплаты комиссии не найден');
       const op = await financeService.createOperation(
-        { opType: 'Расход', accountId, amount: m2(total), name: `Комиссия клиенту (ВДК) — ${count} серт.`.slice(0, 200), source: 'Расходы', expenseCat: 'Комиссия клиенту', accountName: acc.name },
+        { opType: 'Расход', accountId, amount: m2(total), name: `Комиссия клиенту (ТЭЦ) — ${count} серт.`.slice(0, 200), source: 'Расходы', expenseCat: 'Комиссия клиенту', accountName: acc.name },
         actor?.id ?? null, tx,
       );
       const when = op?.opDate ? new Date(op.opDate as unknown as string) : new Date();
@@ -341,7 +342,7 @@ export const certsService = {
   async markCommissionPaid(input: unknown) {
     const { dateFrom, dateTo } = commissionPaySchema.pick({ dateFrom: true, dateTo: true }).parse(input);
     const isoDate = (d: unknown) => (d ? String(d).slice(0, 10) : '');
-    const rows = await certsRepo.list({ source: 'ВДК', archived: false, type: 'cert' });
+    const rows = await certsRepo.list({ source: 'ТЭЦ', archived: false, type: 'cert' });
     const targets = rows.filter(c => {
       if (c.commissionPaidAt) return false;
       const d = isoDate(c.checkDate);
