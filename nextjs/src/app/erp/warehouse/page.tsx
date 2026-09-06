@@ -383,7 +383,7 @@ export default function WarehousePage() {
           <Field label="Цена продажи (₸)"><MoneyInput value={set.price} onValue={v => setSet(s => ({ ...s, price: v }))} placeholder="0" /></Field>
           <Field label="Цена со скидкой (₸)"><MoneyInput value={set.priceDiscount} onValue={v => setSet(s => ({ ...s, priceDiscount: v }))} placeholder="0" /></Field>
         </div>
-        <Field label="Себестоимость (₸)"><MoneyInput value={set.cost} onValue={v => setSet(s => ({ ...s, cost: v }))} placeholder="0" /><div className="erp-muted" style={{ fontSize: 11, marginTop: 4 }}>Обновляется автоматически при приходе (последняя цена закупки).</div></Field>
+        <Field label="Себестоимость (₸)"><MoneyInput value={set.cost} onValue={v => setSet(s => ({ ...s, cost: v }))} placeholder="0" /><div className="erp-muted" style={{ fontSize: 11, marginTop: 4 }}>Автоматически = последняя цена закупки по приходу. Если задать вручную — приход её больше не меняет (очистите поле, чтобы вернуть авто).</div></Field>
         <Field label="Фактический остаток (ревизия по товару)"><Input type="number" value={set.actual} onChange={e => setSet(s => ({ ...s, actual: e.target.value }))} /></Field>
         <div className="erp-muted" style={{ fontSize: 11 }}>Остаток нельзя менять напрямую — изменение проведётся ревизией (REV±).</div>
       </Modal>

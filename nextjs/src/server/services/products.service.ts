@@ -59,7 +59,10 @@ async function doMovement(input: unknown, actor: { id: string; name?: string } |
 // Пересчёт себестоимости товара из журнала приходов: cost_price = цена последнего
 // действующего прихода по дате (или 0, если приходов с ценой не осталось — напр. после
 // отмены единственного закупа). Идемпотентно; вызывается при приходе/отмене/правке даты.
+// Если админ задал себестоимость ВРУЧНУЮ (cost_price_manual) — приход её не трогает.
 async function recomputeCost(productId: string, exec: Executor) {
+  const p = await productsRepo.findById(productId, exec);
+  if (p?.costPriceManual) return;
   const last = await productsRepo.latestInPrice(productId, exec);
   await productsRepo.update(productId, { costPrice: money(last ?? 0) }, exec);
 }
@@ -90,11 +93,24 @@ export const productsService = {
     if (d.minStock !== undefined) patch.minStock = d.minStock;
     if (d.price !== undefined) patch.price = money(Number(d.price) || 0);
     if (d.priceDiscount !== undefined) patch.priceDiscount = money(Number(d.priceDiscount) || 0);
-    if (d.costPrice !== undefined) patch.costPrice = money(Number(d.costPrice) || 0);
+    // Ручная себестоимость в приоритете: если админ изменил cost_price в карточке —
+    // взводим cost_price_manual (приход её больше не перезапишет). Форма всегда шлёт
+    // costPrice, поэтому флаг ставим ТОЛЬКО когда значение реально изменилось. Если поле
+    // очищено (0) — снимаем флаг и возвращаем авто-цену по последнему приходу.
+    let releaseToAuto = false;
+    if (d.costPrice !== undefined) {
+      const val = Number(d.costPrice) || 0;
+      patch.costPrice = money(val);
+      const cur = await productsRepo.findById(id);
+      if (val <= 0) { patch.costPriceManual = false; releaseToAuto = true; }
+      else if (!cur || Number(cur.costPrice) !== val) patch.costPriceManual = true;
+    }
     if (d.waterType !== undefined) patch.waterType = d.waterType || null;
     if (d.groupId !== undefined) patch.groupId = d.groupId || null;
     const row = await productsRepo.update(id, patch);
     if (!row) throw notFound('Товар не найден');
+    // Поле очищено → сразу подставить себестоимость из истории приходов (если есть).
+    if (releaseToAuto) return (await recomputeCost(id, db), await productsRepo.findById(id)) ?? row;
     return row;
   },
 
