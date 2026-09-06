@@ -139,8 +139,7 @@ function CertsInner() {
   const [pcRows, setPcRows] = React.useState<Array<{ accountId: string; amount: string }>>([{ accountId: '', amount: '' }]);
   const [pcSaving, setPcSaving] = React.useState(false);
   const [pcErr, setPcErr] = React.useState('');
-  // ── Выплата комиссии клиенту (только ВДК) — отдельная модалка ──
-  const [commOpen, setCommOpen] = React.useState(false);
+  // ── Выплата комиссии клиенту (только ВДК) — блок 2 общей модалки оплаты ──
   const [commFrom, setCommFrom] = React.useState('');
   const [commTo, setCommTo] = React.useState('');
   const [commPer, setCommPer] = React.useState('200');           // комиссия за сертификат
@@ -250,6 +249,7 @@ function CertsInner() {
   function voiceStop() { try { recog.current?.abort(); } catch { /* noop */ } setVoice({ open: false, hint: '', transcript: '', listening: false }); }
 
   const isCert = docType === 'cert';
+  const hasComm = source === 'ВДК' && isCert;   // блок «Выплата комиссий» — только ВДК
   const all = React.useMemo(() => certs || [], [certs]);
   // Фильтры Блока 1 (у извещений — статус отправки вместо оплаты/счёта отдельным полем).
   const list = all.filter(c => {
@@ -332,17 +332,18 @@ function CertsInner() {
   const commTotal = Math.round(commPerNum * commCount * 100) / 100;
   // При смене диапазона дат (модалка открыта) — кол-во по умолчанию = все в диапазоне.
   React.useEffect(() => { if (pcOpen) setPcQty(String(pcCount)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pcFrom, pcTo]);
-  function openPayClient() {
-    if (!fClient) { toast('Сначала выберите клиента в фильтре'); return; }
-    if (pcCount === 0) { toast('У клиента нет сертификатов в ожидании'); return; }
+  // Общая модалка «Оплата сертификата / выплата комиссий» (2 блока). На экранах без
+  // комиссии (не ВДК) — только блок 1, поэтому там по-прежнему требуем выбранного клиента.
+  function openPay() {
+    if (!hasComm && !fClient) { toast('Сначала выберите клиента в фильтре'); return; }
+    // Блок 1 — приём оплаты (если клиент не выбран, блок покажет подсказку).
     setPcErr(''); setPcPrice(''); setPcFrom(''); setPcTo(''); setPcQty(String(pcCount)); setPcRows([{ accountId: defaultAcc?.id || '', amount: '' }]);
+    // Блок 2 — комиссия (только ВДК).
+    if (hasComm) {
+      setCommErr(''); setCommFrom(''); setCommTo(''); setCommPer('200');
+      setCommAcct(allAccounts.find(a => a.category === 'nalichka')?.id || defaultAcc?.id || allAccounts[0]?.id || '');
+    }
     setPcOpen(true);
-  }
-  // ── Комиссия (ВДК) ──
-  function openCommission() {
-    setCommErr(''); setCommFrom(''); setCommTo(''); setCommPer('200');
-    setCommAcct(allAccounts.find(a => a.category === 'nalichka')?.id || defaultAcc?.id || allAccounts[0]?.id || '');
-    setCommOpen(true);
   }
   async function payCommissionSubmit() {
     if (commPerNum <= 0) { setCommErr('Укажите комиссию за сертификат'); return; }
@@ -351,7 +352,7 @@ function CertsInner() {
     setCommSaving(true); setCommErr('');
     try {
       await apiSend('/api/v2/certs/commission', 'POST', { dateFrom: commFrom || null, dateTo: commTo || null, perCert: commPerNum, accountId: commAcct });
-      setCommOpen(false); await mutate(); toast(`✅ Комиссия выплачена: ${commCount} серт. · ${fmtNum(commTotal)} ₸`);
+      setPcOpen(false); await mutate(); toast(`✅ Комиссия выплачена: ${commCount} серт. · ${fmtNum(commTotal)} ₸`);
     } catch (e) { setCommErr((e as Error).message); } finally { setCommSaving(false); }
   }
   async function markCommissionPaid() {
@@ -360,7 +361,7 @@ function CertsInner() {
     setCommSaving(true); setCommErr('');
     try {
       await apiSend('/api/v2/certs/commission/mark', 'POST', { dateFrom: commFrom || null, dateTo: commTo || null });
-      setCommOpen(false); await mutate(); toast(`✅ Отмечено «комиссия выплачена»: ${commCount} серт.`);
+      setPcOpen(false); await mutate(); toast(`✅ Отмечено «комиссия выплачена»: ${commCount} серт.`);
     } catch (e) { setCommErr((e as Error).message); } finally { setCommSaving(false); }
   }
   async function payClientSubmit() {
@@ -535,8 +536,7 @@ function CertsInner() {
         <Select value={fWater} onChange={e => setFWater(e.target.value)} title="Тип воды"><option value="">Вода: все</option><option value="х/в">🔵 х/в (холодная)</option><option value="г/в">🔴 г/в (горячая)</option></Select>
         {!isCert && <Select value={fSent} onChange={e => setFSent(e.target.value)}><option value="">Отправка: все</option>{SENT.map(o => <option key={o}>{o}</option>)}</Select>}
         <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
-        {isDirect && <Button onClick={openPayClient} title={!fClient ? 'Сначала выберите клиента в фильтре «Клиент»' : pcCount === 0 ? 'Нет сертификатов в ожидании' : `Принять оплату за ${pcCount} серт.`}>🧾 Приём оплаты сертификата</Button>}
-        {source === 'ВДК' && isCert && <Button variant="outline" onClick={openCommission} title="Выплата комиссии клиенту за сертификаты ВДК">💵 Оплата комиссий</Button>}
+        {isDirect && <Button onClick={openPay} title={hasComm ? 'Оплата сертификата и/или выплата комиссий клиенту (ВДК)' : (!fClient ? 'Сначала выберите клиента в фильтре «Клиент»' : pcCount === 0 ? 'Нет сертификатов в ожидании' : `Принять оплату за ${pcCount} серт.`)}>{hasComm ? '🧾 Оплата сертификата / выплата комиссий' : '🧾 Приём оплаты сертификата'}</Button>}
       </Card>
 
       {isDirect && fClient && (
@@ -544,7 +544,7 @@ function CertsInner() {
           <span>👤 <b>{fClient}</b></span>
           <span className="erp-muted">·</span>
           <span>В ожидании: <b style={{ color: pcCount ? '#b45309' : '#16a34a' }}>{pcCount}</b> из {all.filter(c => (c.client || '') === fClient).length}</span>
-          {pcCount > 0 && <Button variant="outline" onClick={openPayClient} style={{ marginLeft: 'auto', fontSize: 12 }}>🧾 Приём оплаты за {pcCount} серт.</Button>}
+          {pcCount > 0 && <Button variant="outline" onClick={openPay} style={{ marginLeft: 'auto', fontSize: 12 }}>🧾 Приём оплаты за {pcCount} серт.</Button>}
         </div>
       )}
 
@@ -833,70 +833,83 @@ function CertsInner() {
         {form.id && <EntityHistory entityType="certificate" entityId={form.id} />}
       </Modal>
 
-      {/* Модалка «Приём оплаты сертификата» */}
-      <Modal open={pcOpen} onClose={() => setPcOpen(false)} width={560}
-        title={<span>🧾 Приём оплаты сертификата — {fClient}</span>}
-        footer={<><Button onClick={payClientSubmit} disabled={pcSaving || pcOver || pcPriceNum <= 0 || pcQtyNum <= 0 || pcPayTotal <= 0} title={pcQtyNum <= 0 ? 'Нет сертификатов за период' : pcOver ? 'Принято больше итога' : undefined}>{pcSaving ? 'Проведение…' : pcQtyNum <= 0 ? 'Нет за период' : pcOver ? '⚠ Больше итога' : '💾 Принять оплату'}</Button><Button variant="outline" onClick={() => setPcOpen(false)}>Отмена</Button></>}>
-        {pcErr && <div className="erp-form-err">{pcErr}</div>}
+      {/* Модалка «Оплата сертификата / выплата комиссий» — 2 блока (комиссия только ВДК) */}
+      <Modal open={pcOpen} onClose={() => setPcOpen(false)} width={580}
+        title={<span>🧾 Оплата сертификата{hasComm ? ' / выплата комиссий' : ''}</span>}
+        footer={<Button variant="outline" onClick={() => setPcOpen(false)}>Закрыть</Button>}>
 
-        <div className="cert-sec-lbl">📅 Период (дата поверки) — необязательно</div>
-        <div className="erp-form-row">
-          <Field label="С даты"><Input type="date" value={pcFrom} max={pcTo || undefined} onChange={e => setPcFrom(e.target.value)} /></Field>
-          <Field label="По дату"><Input type="date" value={pcTo} min={pcFrom || undefined} onChange={e => setPcTo(e.target.value)} /></Field>
-        </div>
-        {(pcFrom || pcTo) && <div style={{ marginBottom: 6 }}><button type="button" className="erp-chip" onClick={() => { setPcFrom(''); setPcTo(''); }}>× сбросить период</button></div>}
-
-        <div className="erp-muted" style={{ fontSize: 13, marginBottom: 4 }}>
-          В ожидании{(pcFrom || pcTo) ? ' за период' : ''}: <b style={{ color: '#b45309' }}>{pcCount}</b> · оплачиваем: <b style={{ color: '#2563eb' }}>{pcQtyNum}</b> · итог = цена × {pcQtyNum} = <b style={{ color: '#16a34a' }}>{fmtNum(pcIncomeTotal)} ₸</b>
-        </div>
-
-        <div className="cert-sec-lbl">💳 Оплата (доход)</div>
-        <div className="erp-form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
-          <Field label={`Кол-во серт. (из ${pcCount})`}><Input type="number" min={1} max={pcCount} value={pcQty} onChange={e => setPcQty(e.target.value)} /></Field>
-          <Field label="Цена за сертификат, ₸"><MoneyInput value={pcPrice} onValue={setPcPrice} placeholder="0" autoFocus /></Field>
-          <Field label="Итого к оплате"><Input value={`${fmtNum(pcIncomeTotal)} ₸`} readOnly style={{ background: '#f8fafc', fontWeight: 700 }} /></Field>
-        </div>
-        <div className="sale-pay" style={{ marginTop: 0 }}>
-          <div className="erp-muted" style={{ fontSize: 11, marginBottom: 6 }}>Счета раздела «{certSection === 'branch' ? '№4 Филиал Астана' : '№1 Поверка'}». Впишите сколько реально <b>приняли</b> (можно с нескольких счетов). Если меньше итога — последний сертификат станет «Есть остаток». Одна пустая строка добирает до полного итога.</div>
-          {pcRows.map((p, i) => (
-            <div className="sale-pay-row" key={i}>
-              <Select value={p.accountId} onChange={e => setPcRows(rs => rs.map((r, j) => j === i ? { ...r, accountId: e.target.value } : r))}>
-                <option value="">{secAccounts.length ? '— счёт —' : '— нет счетов раздела —'}</option>
-                {secAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
-              </Select>
-              <MoneyInput value={p.amount} onValue={v => setPcRows(rs => rs.map((r, j) => j === i ? { ...r, amount: v } : r))} placeholder="сумма" style={{ textAlign: 'right' }} />
-              <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => setPcRows(rs => rs.length > 1 ? rs.filter((_, j) => j !== i) : rs)} title="Убрать">✕</button>
-            </div>
-          ))}
-          <Button variant="outline" onClick={() => setPcRows(rs => [...rs, { accountId: defaultAcc?.id || '', amount: '' }])} style={{ fontSize: 12 }}>+ ещё счёт</Button>
-          <div className="sale-pay-state">
-            <span>Принято: <b style={{ color: pcOver ? '#dc2626' : '#16a34a' }}>{fmtNum(pcPayTotal)} ₸</b>{pcAutoRow ? <span className="erp-muted" style={{ fontSize: 11 }}> (добор до итога)</span> : null}</span>
-            <span>Итог: <b>{fmtNum(pcIncomeTotal)} ₸</b> · Остаток: <b style={{ color: pcLeftover > 0.5 ? '#b45309' : '#16a34a' }}>{fmtNum(pcLeftover)} ₸</b></span>
+        {/* ── Блок 1 · Приём оплаты сертификата ── */}
+        <div className="cert-sec-lbl" style={{ fontSize: 14, fontWeight: 700, marginTop: 0 }}>1 · 🧾 Приём оплаты сертификата{fClient ? ` — ${fClient}` : ''}</div>
+        {!fClient ? (
+          <div className="erp-muted" style={{ fontSize: 13, margin: '4px 0 8px' }}>Выберите клиента в фильтре «Клиент» — тогда можно принять оплату по его сертификатам.</div>
+        ) : (<>
+          {pcErr && <div className="erp-form-err">{pcErr}</div>}
+          <div className="cert-sec-lbl">📅 Период (дата поверки) — необязательно</div>
+          <div className="erp-form-row">
+            <Field label="С даты"><Input type="date" value={pcFrom} max={pcTo || undefined} onChange={e => setPcFrom(e.target.value)} /></Field>
+            <Field label="По дату"><Input type="date" value={pcTo} min={pcFrom || undefined} onChange={e => setPcTo(e.target.value)} /></Field>
           </div>
-          {pcLeftover > 0.5 && !pcAutoRow && <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>Недоплата <b>{fmtNum(pcLeftover)} ₸</b> — последний покрытый сертификат станет «Есть остаток», остальные — «В ожидании».</div>}
-          {pcOver && <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4 }}>Принято больше итога на <b>{fmtNum(-pcLeftover)} ₸</b> — уменьшите сумму.</div>}
-        </div>
-      </Modal>
+          {(pcFrom || pcTo) && <div style={{ marginBottom: 6 }}><button type="button" className="erp-chip" onClick={() => { setPcFrom(''); setPcTo(''); }}>× сбросить период</button></div>}
 
-      {/* Модалка «Оплата комиссий» (только ВДК) */}
-      <Modal open={commOpen} onClose={() => setCommOpen(false)} width={520}
-        title={<span>💵 Оплата комиссий клиенту — ВДК</span>}
-        footer={<><Button onClick={payCommissionSubmit} disabled={commSaving || commCount === 0 || commPerNum <= 0 || !commAcct}>{commSaving ? 'Проведение…' : commCount === 0 ? 'Нет за период' : '💵 Выплатить комиссию'}</Button><Button variant="outline" onClick={markCommissionPaid} disabled={commSaving || commCount === 0} title="Отметить выплаченной без движения денег (прошлые периоды)">✓ Отметить (без денег)</Button><Button variant="outline" onClick={() => setCommOpen(false)}>Отмена</Button></>}>
-        {commErr && <div className="erp-form-err">{commErr}</div>}
-        <div className="erp-muted" style={{ fontSize: 12, marginBottom: 8 }}>Комиссия клиенту за сертификаты ВДК, по которым она ещё не выплачена (наш долг). Выберите период — покажется кол-во и сумма.</div>
-        <div className="cert-sec-lbl">📅 Период (дата поверки)</div>
-        <div className="erp-form-row">
-          <Field label="С даты"><Input type="date" value={commFrom} max={commTo || undefined} onChange={e => setCommFrom(e.target.value)} /></Field>
-          <Field label="По дату"><Input type="date" value={commTo} min={commFrom || undefined} onChange={e => setCommTo(e.target.value)} /></Field>
-        </div>
-        <div className="erp-form-row">
-          <Field label="Комиссия за сертификат, ₸"><MoneyInput value={commPer} onValue={setCommPer} placeholder="200" /></Field>
-          <Field label="Со счёта"><Select value={commAcct} onChange={e => setCommAcct(e.target.value)}><option value="">— счёт —</option>{allAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}</Select></Field>
-        </div>
-        <div className="sale-pay-state" style={{ marginTop: 6 }}>
-          <span>Не выплачено{(commFrom || commTo) ? ' за период' : ''}: <b style={{ color: commCount ? '#b45309' : '#16a34a' }}>{commCount}</b> серт.</span>
-          <span>К выплате: <b style={{ color: '#dc2626' }}>−{fmtNum(commTotal)} ₸</b></span>
-        </div>
+          <div className="erp-muted" style={{ fontSize: 13, marginBottom: 4 }}>
+            В ожидании{(pcFrom || pcTo) ? ' за период' : ''}: <b style={{ color: '#b45309' }}>{pcCount}</b> · оплачиваем: <b style={{ color: '#2563eb' }}>{pcQtyNum}</b> · итог = цена × {pcQtyNum} = <b style={{ color: '#16a34a' }}>{fmtNum(pcIncomeTotal)} ₸</b>
+          </div>
+
+          <div className="cert-sec-lbl">💳 Оплата (доход)</div>
+          <div className="erp-form-row" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+            <Field label={`Кол-во серт. (из ${pcCount})`}><Input type="number" min={1} max={pcCount} value={pcQty} onChange={e => setPcQty(e.target.value)} /></Field>
+            <Field label="Цена за сертификат, ₸"><MoneyInput value={pcPrice} onValue={setPcPrice} placeholder="0" autoFocus /></Field>
+            <Field label="Итого к оплате"><Input value={`${fmtNum(pcIncomeTotal)} ₸`} readOnly style={{ background: '#f8fafc', fontWeight: 700 }} /></Field>
+          </div>
+          <div className="sale-pay" style={{ marginTop: 0 }}>
+            <div className="erp-muted" style={{ fontSize: 11, marginBottom: 6 }}>Счета раздела «{certSection === 'branch' ? '№4 Филиал Астана' : '№1 Поверка'}». Впишите сколько реально <b>приняли</b> (можно с нескольких счетов). Если меньше итога — последний сертификат станет «Есть остаток». Одна пустая строка добирает до полного итога.</div>
+            {pcRows.map((p, i) => (
+              <div className="sale-pay-row" key={i}>
+                <Select value={p.accountId} onChange={e => setPcRows(rs => rs.map((r, j) => j === i ? { ...r, accountId: e.target.value } : r))}>
+                  <option value="">{secAccounts.length ? '— счёт —' : '— нет счетов раздела —'}</option>
+                  {secAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
+                </Select>
+                <MoneyInput value={p.amount} onValue={v => setPcRows(rs => rs.map((r, j) => j === i ? { ...r, amount: v } : r))} placeholder="сумма" style={{ textAlign: 'right' }} />
+                <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => setPcRows(rs => rs.length > 1 ? rs.filter((_, j) => j !== i) : rs)} title="Убрать">✕</button>
+              </div>
+            ))}
+            <Button variant="outline" onClick={() => setPcRows(rs => [...rs, { accountId: defaultAcc?.id || '', amount: '' }])} style={{ fontSize: 12 }}>+ ещё счёт</Button>
+            <div className="sale-pay-state">
+              <span>Принято: <b style={{ color: pcOver ? '#dc2626' : '#16a34a' }}>{fmtNum(pcPayTotal)} ₸</b>{pcAutoRow ? <span className="erp-muted" style={{ fontSize: 11 }}> (добор до итога)</span> : null}</span>
+              <span>Итог: <b>{fmtNum(pcIncomeTotal)} ₸</b> · Остаток: <b style={{ color: pcLeftover > 0.5 ? '#b45309' : '#16a34a' }}>{fmtNum(pcLeftover)} ₸</b></span>
+            </div>
+            {pcLeftover > 0.5 && !pcAutoRow && <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>Недоплата <b>{fmtNum(pcLeftover)} ₸</b> — последний покрытый сертификат станет «Есть остаток», остальные — «В ожидании».</div>}
+            {pcOver && <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4 }}>Принято больше итога на <b>{fmtNum(-pcLeftover)} ₸</b> — уменьшите сумму.</div>}
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <Button onClick={payClientSubmit} disabled={pcSaving || pcOver || pcPriceNum <= 0 || pcQtyNum <= 0 || pcPayTotal <= 0} title={pcQtyNum <= 0 ? 'Нет сертификатов за период' : pcOver ? 'Принято больше итога' : undefined}>{pcSaving ? 'Проведение…' : pcQtyNum <= 0 ? 'Нет за период' : pcOver ? '⚠ Больше итога' : '💾 Принять оплату'}</Button>
+          </div>
+        </>)}
+
+        {/* ── Блок 2 · Выплата комиссий клиенту (только ВДК) ── */}
+        {hasComm && (<>
+          <div style={{ borderTop: '1px solid var(--erp-border, #e5e7eb)', margin: '14px 0' }} />
+          <div className="cert-sec-lbl" style={{ fontSize: 14, fontWeight: 700 }}>2 · 💵 Выплата комиссий клиенту — ВДК</div>
+          {commErr && <div className="erp-form-err">{commErr}</div>}
+          <div className="erp-muted" style={{ fontSize: 12, marginBottom: 8 }}>Комиссия клиенту за сертификаты ВДК, по которым она ещё не выплачена (наш долг). Выберите период — покажется кол-во и сумма.</div>
+          <div className="cert-sec-lbl">📅 Период (дата поверки)</div>
+          <div className="erp-form-row">
+            <Field label="С даты"><Input type="date" value={commFrom} max={commTo || undefined} onChange={e => setCommFrom(e.target.value)} /></Field>
+            <Field label="По дату"><Input type="date" value={commTo} min={commFrom || undefined} onChange={e => setCommTo(e.target.value)} /></Field>
+          </div>
+          <div className="erp-form-row">
+            <Field label="Комиссия за сертификат, ₸"><MoneyInput value={commPer} onValue={setCommPer} placeholder="200" /></Field>
+            <Field label="Со счёта"><Select value={commAcct} onChange={e => setCommAcct(e.target.value)}><option value="">— счёт —</option>{allAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}</Select></Field>
+          </div>
+          <div className="sale-pay-state" style={{ marginTop: 6 }}>
+            <span>Не выплачено{(commFrom || commTo) ? ' за период' : ''}: <b style={{ color: commCount ? '#b45309' : '#16a34a' }}>{commCount}</b> серт.</span>
+            <span>К выплате: <b style={{ color: '#dc2626' }}>−{fmtNum(commTotal)} ₸</b></span>
+          </div>
+          <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <Button onClick={payCommissionSubmit} disabled={commSaving || commCount === 0 || commPerNum <= 0 || !commAcct}>{commSaving ? 'Проведение…' : commCount === 0 ? 'Нет за период' : '💵 Выплатить комиссию'}</Button>
+            <Button variant="outline" onClick={markCommissionPaid} disabled={commSaving || commCount === 0} title="Отметить выплаченной без движения денег (прошлые периоды)">✓ Отметить (без денег)</Button>
+          </div>
+        </>)}
       </Modal>
 
       {voice.open && (
