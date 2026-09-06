@@ -637,9 +637,7 @@ async function zaSaveHeader(){
   catch(e){ if(e.message!=='auth')toast('⚠️ '+e.message); }
 }
 
-// ── ОПЛАТА заявки: смешанная, счёт из ЛЮБОГО раздела (по умолчанию №1 Поверка) ──
-const SECTION_LABEL={poverka:'№1 Поверка',sale:'№2 Продажа',other:'№3 Прочие',branch:'№4 Филиал Астана',branch_almaty:'№5 Филиал Алматы'};
-const SECTION_ORDER=['poverka','sale','other','branch','branch_almaty'];
+// ── ОПЛАТА заявки: смешанная, ТОЛЬКО счета раздела «№1 Поверка», по умолчанию — пусто ──
 let payAccounts=[];
 async function loadPayAccounts(){
   try{ const r=await fetch('/api/v2/finance',{cache:'no-store'}); if(r.ok){ const d=await r.json(); payAccounts=d.accounts||[]; } }catch(e){}
@@ -647,13 +645,12 @@ async function loadPayAccounts(){
 function fmtSum(n){ return Number(n||0).toLocaleString('ru-RU'); }
 function zaTotal(){ return zaPositions.reduce((s,c)=>s+Number(c.amount||0),0); }
 function zaAccOptions(){
-  if(!payAccounts.length) return '<option value="">— нет счетов —</option>';
-  // Счета сгруппированы по разделам; «Поверка» (№1) идёт первой → выбрана по умолчанию.
-  return SECTION_ORDER.map(sec=>{
-    const accs=payAccounts.filter(a=>(a.section||'other')===sec);
-    if(!accs.length) return '';
-    return `<optgroup label="${SECTION_LABEL[sec]}">${accs.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</optgroup>`;
-  }).join('');
+  // Только счета раздела «№1 Поверка». Первый пункт пустой → счёт по умолчанию НЕ
+  // выбран: мастер обязан указать его явно (защита от «молча ушло на Каспи», в т.ч.
+  // при пересоздании строки оплаты после обновления позиций).
+  const accs=payAccounts.filter(a=>(a.section||'other')==='poverka');
+  if(!accs.length) return '<option value="">— нет счетов раздела «Поверка» —</option>';
+  return '<option value="">— выберите счёт —</option>'+accs.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
 }
 function zaPayRowNode(amount){
   const div=document.createElement('div'); div.className='za-pay-row';
@@ -673,8 +670,11 @@ function zaRenderPay(){
   const total=zaTotal();
   const tEl=document.getElementById('za-total'); if(tEl)tEl.textContent=fmtSum(total)+' ₸';
   const box=document.getElementById('za-pay-rows'); if(!box)return;
+  const prevAcc=box.querySelector('.za-pay-row select')?.value||'';   // сохранить уже выбранный счёт
   box.innerHTML='';
-  box.appendChild(zaPayRowNode(total>0?total:''));   // по умолчанию — весь итог на один счёт
+  const node=zaPayRowNode(total>0?total:'');                          // по умолчанию — весь итог на один счёт
+  if(prevAcc) node.querySelector('select').value=prevAcc;             // не терять выбор мастера при пересоздании
+  box.appendChild(node);
   zaRecalcPaySum();
 }
 async function zaAcceptPayment(){
