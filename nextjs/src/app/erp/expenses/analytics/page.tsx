@@ -77,9 +77,8 @@ export default function ExpenseAnalyticsPage() {
         <label className="erp-check">с <Input type="date" value={from} onChange={e => setFrom(e.target.value)} style={{ width: 150 }} /></label>
         <label className="erp-check">по <Input type="date" value={to} onChange={e => setTo(e.target.value)} style={{ width: 150 }} /></label>
         <Button variant="outline" onClick={() => { setFrom(today()); setTo(today()); }}>Сегодня</Button>
-        <Button variant="outline" onClick={() => { setFrom(shiftDays(6)); setTo(today()); }}>7 дней</Button>
-        <Button variant="outline" onClick={() => { setFrom(shiftDays(29)); setTo(today()); }}>30 дней</Button>
-        <Button variant="outline" onClick={() => { setFrom(monthStart()); setTo(today()); }}>Этот месяц</Button>
+        <Button variant="outline" onClick={() => { setFrom(shiftDays(1)); setTo(shiftDays(1)); }}>Вчера</Button>
+        <Button variant="outline" onClick={() => { setFrom(monthStart()); setTo(today()); }}>Текущий месяц</Button>
         <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
           <Input value={q} onChange={e => setQ(e.target.value)} placeholder="🔍 Сотрудник / категория / описание" style={{ width: 260, paddingRight: q ? 26 : undefined }} />
           {q && <button type="button" className="erp-icon-btn" onClick={() => setQ('')} title="Очистить" style={{ position: 'absolute', right: 2, color: '#94a3b8' }}>✕</button>}
