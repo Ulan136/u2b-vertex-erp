@@ -139,7 +139,7 @@ function CertsInner() {
   const [pcRows, setPcRows] = React.useState<Array<{ accountId: string; amount: string }>>([{ accountId: '', amount: '' }]);
   const [pcSaving, setPcSaving] = React.useState(false);
   const [pcErr, setPcErr] = React.useState('');
-  // ── Выплата комиссии клиенту (только ТЭЦ) — отдельная модалка ──
+  // ── Выплата комиссии клиенту (только ВДК) — отдельная модалка ──
   const [commOpen, setCommOpen] = React.useState(false);
   const [commFrom, setCommFrom] = React.useState('');
   const [commTo, setCommTo] = React.useState('');
@@ -325,8 +325,8 @@ function CertsInner() {
   const pcPayTotal = pcAutoRow ? pcIncomeTotal : pcFilledSum;
   const pcOver = pcPriceNum > 0 && pcPayTotal - pcIncomeTotal > 0.01;        // переплата — нельзя
   const pcLeftover = r2(pcIncomeTotal - pcPayTotal);                        // остаток (недоплата) — станет «Есть остаток»
-  // Комиссия (ТЭЦ): сертификаты без отметки о выплате в периоде.
-  const commPending = React.useMemo(() => all.filter(c => source === 'ТЭЦ' && !c.commissionPaidAt && (() => { const d = iso(c.checkDate); if (commFrom && d < commFrom) return false; if (commTo && d > commTo) return false; return true; })()), [all, source, commFrom, commTo]);
+  // Комиссия (ВДК): сертификаты без отметки о выплате в периоде.
+  const commPending = React.useMemo(() => all.filter(c => source === 'ВДК' && !c.commissionPaidAt && (() => { const d = iso(c.checkDate); if (commFrom && d < commFrom) return false; if (commTo && d > commTo) return false; return true; })()), [all, source, commFrom, commTo]);
   const commCount = commPending.length;
   const commPerNum = num(commPer);
   const commTotal = Math.round(commPerNum * commCount * 100) / 100;
@@ -338,7 +338,7 @@ function CertsInner() {
     setPcErr(''); setPcPrice(''); setPcFrom(''); setPcTo(''); setPcQty(String(pcCount)); setPcRows([{ accountId: defaultAcc?.id || '', amount: '' }]);
     setPcOpen(true);
   }
-  // ── Комиссия (ТЭЦ) ──
+  // ── Комиссия (ВДК) ──
   function openCommission() {
     setCommErr(''); setCommFrom(''); setCommTo(''); setCommPer('200');
     setCommAcct(allAccounts.find(a => a.category === 'nalichka')?.id || defaultAcc?.id || allAccounts[0]?.id || '');
@@ -347,7 +347,7 @@ function CertsInner() {
   async function payCommissionSubmit() {
     if (commPerNum <= 0) { setCommErr('Укажите комиссию за сертификат'); return; }
     if (!commAcct) { setCommErr('Выберите счёт'); return; }
-    if (commCount === 0) { setCommErr('Нет сертификатов ТЭЦ без выплаченной комиссии за период'); return; }
+    if (commCount === 0) { setCommErr('Нет сертификатов ВДК без выплаченной комиссии за период'); return; }
     setCommSaving(true); setCommErr('');
     try {
       await apiSend('/api/v2/certs/commission', 'POST', { dateFrom: commFrom || null, dateTo: commTo || null, perCert: commPerNum, accountId: commAcct });
@@ -536,7 +536,7 @@ function CertsInner() {
         {!isCert && <Select value={fSent} onChange={e => setFSent(e.target.value)}><option value="">Отправка: все</option>{SENT.map(o => <option key={o}>{o}</option>)}</Select>}
         <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
         {isDirect && <Button onClick={openPayClient} title={!fClient ? 'Сначала выберите клиента в фильтре «Клиент»' : pcCount === 0 ? 'Нет сертификатов в ожидании' : `Принять оплату за ${pcCount} серт.`}>🧾 Приём оплаты сертификата</Button>}
-        {source === 'ТЭЦ' && isCert && <Button variant="outline" onClick={openCommission} title="Выплата комиссии клиенту за сертификаты ТЭЦ">💵 Оплата комиссий</Button>}
+        {source === 'ВДК' && isCert && <Button variant="outline" onClick={openCommission} title="Выплата комиссии клиенту за сертификаты ВДК">💵 Оплата комиссий</Button>}
       </Card>
 
       {isDirect && fClient && (
@@ -579,7 +579,7 @@ function CertsInner() {
                     <td className="col-sum" style={{ textAlign: 'right', fontWeight: 700, fontSize: 12 }}>
                       {num(c.amount) > 0 ? fmtNum(num(c.amount)) + ' ₸' : '—'}
                       {c.payStatus === 'Есть остаток' && <div style={{ fontSize: 10, color: '#b45309', fontWeight: 600 }} title="Остаток к доплате">ост. {fmtNum(num(c.amount) - num(c.paidAmount))} ₸</div>}
-                      {c.source === 'ТЭЦ' && c.commissionPaidAt && <span title="Комиссия выплачена" style={{ marginLeft: 4, color: '#16a34a' }}>✓💵</span>}
+                      {c.source === 'ВДК' && c.commissionPaidAt && <span title="Комиссия выплачена" style={{ marginLeft: 4, color: '#16a34a' }}>✓💵</span>}
                     </td>
                     <td className="col-oper"><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
                     <td className="col-pay"><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
@@ -613,7 +613,7 @@ function CertsInner() {
                     <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 12 }}>
                       {num(c.amount) > 0 ? fmtNum(num(c.amount)) + ' ₸' : '—'}
                       {c.payStatus === 'Есть остаток' && <div style={{ fontSize: 10, color: '#b45309', fontWeight: 600 }} title="Остаток к доплате">ост. {fmtNum(num(c.amount) - num(c.paidAmount))} ₸</div>}
-                      {c.source === 'ТЭЦ' && c.commissionPaidAt && <span title="Комиссия выплачена" style={{ marginLeft: 4, color: '#16a34a' }}>✓💵</span>}
+                      {c.source === 'ВДК' && c.commissionPaidAt && <span title="Комиссия выплачена" style={{ marginLeft: 4, color: '#16a34a' }}>✓💵</span>}
                     </td>
                     <td><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
                     <td><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
@@ -878,12 +878,12 @@ function CertsInner() {
         </div>
       </Modal>
 
-      {/* Модалка «Оплата комиссий» (только ТЭЦ) */}
+      {/* Модалка «Оплата комиссий» (только ВДК) */}
       <Modal open={commOpen} onClose={() => setCommOpen(false)} width={520}
-        title={<span>💵 Оплата комиссий клиенту — ТЭЦ</span>}
+        title={<span>💵 Оплата комиссий клиенту — ВДК</span>}
         footer={<><Button onClick={payCommissionSubmit} disabled={commSaving || commCount === 0 || commPerNum <= 0 || !commAcct}>{commSaving ? 'Проведение…' : commCount === 0 ? 'Нет за период' : '💵 Выплатить комиссию'}</Button><Button variant="outline" onClick={markCommissionPaid} disabled={commSaving || commCount === 0} title="Отметить выплаченной без движения денег (прошлые периоды)">✓ Отметить (без денег)</Button><Button variant="outline" onClick={() => setCommOpen(false)}>Отмена</Button></>}>
         {commErr && <div className="erp-form-err">{commErr}</div>}
-        <div className="erp-muted" style={{ fontSize: 12, marginBottom: 8 }}>Комиссия клиенту за сертификаты ТЭЦ, по которым она ещё не выплачена (наш долг). Выберите период — покажется кол-во и сумма.</div>
+        <div className="erp-muted" style={{ fontSize: 12, marginBottom: 8 }}>Комиссия клиенту за сертификаты ВДК, по которым она ещё не выплачена (наш долг). Выберите период — покажется кол-во и сумма.</div>
         <div className="cert-sec-lbl">📅 Период (дата поверки)</div>
         <div className="erp-form-row">
           <Field label="С даты"><Input type="date" value={commFrom} max={commTo || undefined} onChange={e => setCommFrom(e.target.value)} /></Field>

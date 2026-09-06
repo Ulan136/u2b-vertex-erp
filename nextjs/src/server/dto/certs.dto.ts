@@ -102,7 +102,7 @@ export const payByClientSchema = z.object({
   }).nullish(),
 });
 
-// Выплата комиссии клиенту (только ТЭЦ): комиссия за сертификат × кол-во
+// Выплата комиссии клиенту (только ВДК): комиссия за сертификат × кол-во
 // сертификатов без отметки о выплате в периоде. dateFrom/dateTo — для отметки
 // задним числом (markCommissionPaid) — там perCert/accountId не нужны.
 export const commissionPaySchema = z.object({

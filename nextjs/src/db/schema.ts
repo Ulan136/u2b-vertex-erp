@@ -89,7 +89,7 @@ export const certificates = pgTable('certificates', {
   amount        : numeric('amount', { precision: 12, scale: 2 }).default('0'),
   // Частичная оплата: сколько уже внесено (< amount → статус «Есть остаток»).
   paidAmount    : numeric('paid_amount', { precision: 12, scale: 2 }).default('0'),
-  // Комиссия клиенту выплачена (ТЭЦ): когда. null → не выплачена (наш долг).
+  // Комиссия клиенту выплачена (ВДК): когда. null → не выплачена (наш долг).
   commissionPaidAt: timestamp('commission_paid_at', { withTimezone: true }),
   isArchived    : boolean('is_archived').default(false),
   archivedAt    : timestamp('archived_at', { withTimezone: true }),
