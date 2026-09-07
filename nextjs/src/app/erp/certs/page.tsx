@@ -151,6 +151,7 @@ function CertsInner() {
   const [commAcct, setCommAcct] = React.useState('');            // счёт выплаты
   const [commSaving, setCommSaving] = React.useState(false);
   const [commErr, setCommErr] = React.useState('');
+  const [commOffsetOn, setCommOffsetOn] = React.useState(true);   // учитывать комиссию во взаиморасчёте (Блок 1)
   // При открытии модалки — одна строка оплаты: счёт раздела по умолчанию + цена.
   React.useEffect(() => { if (modal) { setPayRows([{ accountId: defaultAcc?.id || '', amount: form.amount || '' }]); setPayTouched(false); } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [modal]);
   // Выездная: подгрузить текущий счёт оплаты заявки при открытии правки.
@@ -336,6 +337,11 @@ function CertsInner() {
   const commCount = commPending.length;
   const commPerNum = num(commPer);
   const commTotal = Math.round(commPerNum * commCount * 100) / 100;
+  // Взаиморасчёт (Блок 1): наш долг по комиссии (если галочка вкл. и есть что зачесть)
+  // вычитается из оплаты клиента. Зачёт возможен, только если долг ≤ итога.
+  const offsetComm = hasComm && commOffsetOn ? commTotal : 0;
+  const canOffset = offsetComm > 0 && offsetComm <= pcIncomeTotal + 0.01;
+  const settlementTotal = Math.round((pcIncomeTotal - (canOffset ? offsetComm : 0)) * 100) / 100;
   // При смене диапазона дат (модалка открыта) — кол-во по умолчанию = все в диапазоне.
   React.useEffect(() => { if (pcOpen) setPcQty(String(pcCount)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pcFrom, pcTo]);
   // Дата периода из Блока 1 (приём оплаты) автоматически подставляется в Блок 2
@@ -363,7 +369,7 @@ function CertsInner() {
     setPcErr(''); setPcPrice(''); setPcFrom(''); setPcTo(''); setPcQty(String(pcCount)); setPcRows([{ accountId: defaultAcc?.id || '', amount: '' }]);
     // Блок 2 — комиссия (только ВДК).
     if (hasComm) {
-      setCommErr(''); setCommFrom(''); setCommTo(''); setCommPer('200');
+      setCommErr(''); setCommFrom(''); setCommTo(''); setCommPer('200'); setCommOffsetOn(true);
       setCommAcct(allAccounts.find(a => a.category === 'nalichka')?.id || defaultAcc?.id || allAccounts[0]?.id || '');
     }
     setPcOpen(true);
@@ -403,6 +409,27 @@ function CertsInner() {
       });
       setPcOpen(false); await mutate();
       toast(`✅ Принято ${fmtNum(pcPayTotal)} ₸${pcLeftover > 0.5 ? ` · остаток ${fmtNum(pcLeftover)} ₸ (последний серт. → «Есть остаток»)` : ''}`);
+    } catch (e) { setPcErr((e as Error).message); } finally { setPcSaving(false); }
+  }
+  // Приём оплаты С ВЗАИМОРАСЧЁТОМ: клиент платит нетто (итог − комиссия). Полный доход
+  // по сертам + расход комиссии на ТОТ ЖЕ счёт (наличку отдельно не трогаем) — одной
+  // операцией на сервере. Один счёт (первый выбранный в строках оплаты).
+  async function payClientSettleSubmit() {
+    if (pcPriceNum <= 0) { setPcErr('Укажите цену за сертификат'); return; }
+    if (pcQtyNum <= 0) { setPcErr('Нет сертификатов за период'); return; }
+    if (!canOffset) { setPcErr('Долг по комиссии больше итога — взаиморасчёт невозможен'); return; }
+    const acc = pcRows.find(p => p.accountId)?.accountId || '';
+    if (!acc) { setPcErr('Выберите счёт'); return; }
+    setPcSaving(true); setPcErr('');
+    try {
+      await apiSend('/api/v2/certs/pay-by-client', 'POST', {
+        source, docType, client: fClient, pricePerCert: pcPriceNum, count: pcQtyNum,
+        dateFrom: pcFrom || null, dateTo: pcTo || null,
+        payments: [{ accountId: acc, amount: pcIncomeTotal }],   // полный доход по сертам на один счёт
+        settleCommission: { perCert: commPerNum, dateFrom: commFrom || null, dateTo: commTo || null, count: commCount, accountId: acc },
+      });
+      setPcOpen(false); await Promise.all([mutate(), mutateTec()]);
+      toast(`✅ Взаиморасчёт: получено ${fmtNum(settlementTotal)} ₸ (комиссия зачтена ${fmtNum(offsetComm)} ₸)`);
     } catch (e) { setPcErr((e as Error).message); } finally { setPcSaving(false); }
   }
 
@@ -903,8 +930,15 @@ function CertsInner() {
             {pcLeftover > 0.5 && !pcAutoRow && <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>Недоплата <b>{fmtNum(pcLeftover)} ₸</b> — последний покрытый сертификат станет «Есть остаток», остальные — «В ожидании».</div>}
             {pcOver && <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4 }}>Принято больше итога на <b>{fmtNum(-pcLeftover)} ₸</b> — уменьшите сумму.</div>}
           </div>
-          <div style={{ marginTop: 10 }}>
-            <Button onClick={payClientSubmit} disabled={pcSaving || pcOver || pcPriceNum <= 0 || pcQtyNum <= 0 || pcPayTotal <= 0} title={pcQtyNum <= 0 ? 'Нет сертификатов за период' : pcOver ? 'Принято больше итога' : undefined}>{pcSaving ? 'Проведение…' : pcQtyNum <= 0 ? 'Нет за период' : pcOver ? '⚠ Больше итога' : '💾 Принять оплату'}</Button>
+          {canOffset && (
+            <div className="sale-pay-state" style={{ marginTop: 6 }}>
+              <span>Сумма от комиссий: <b style={{ color: '#dc2626' }}>−{fmtNum(offsetComm)} ₸</b></span>
+              <span>Сумма взаиморасчёта: <b style={{ color: '#16a34a' }}>{fmtNum(settlementTotal)} ₸</b></span>
+            </div>
+          )}
+          <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {canOffset && <Button onClick={payClientSettleSubmit} disabled={pcSaving || pcPriceNum <= 0 || pcQtyNum <= 0 || !pcRows.some(p => p.accountId)} title={`Клиент платит ${fmtNum(settlementTotal)} ₸; комиссия ${fmtNum(offsetComm)} ₸ зачтена (наличку не трогаем)`}>{pcSaving ? 'Проведение…' : '💾 С взаиморасчётом'}</Button>}
+            <Button variant={canOffset ? 'outline' : undefined} onClick={payClientSubmit} disabled={pcSaving || pcOver || pcPriceNum <= 0 || pcQtyNum <= 0 || pcPayTotal <= 0} title={pcQtyNum <= 0 ? 'Нет сертификатов за период' : pcOver ? 'Принято больше итога' : undefined}>{pcSaving ? 'Проведение…' : pcQtyNum <= 0 ? 'Нет за период' : pcOver ? '⚠ Больше итога' : (canOffset ? '💾 Без взаиморасчёта (в долг)' : '💾 Принять оплату')}</Button>
           </div>
         </>)}
 
@@ -926,6 +960,12 @@ function CertsInner() {
             <span>Не выплачено{(commFrom || commTo) ? ' за период' : ''}: <b style={{ color: commCount ? '#b45309' : '#16a34a' }}>{commCount}</b> серт.</span>
             <span>К выплате: <b style={{ color: '#dc2626' }}>−{fmtNum(commTotal)} ₸</b></span>
           </div>
+          {commCount > 0 && (
+            <label style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', fontSize: 13 }}>
+              <input type="checkbox" checked={commOffsetOn} onChange={e => setCommOffsetOn(e.target.checked)} />
+              <span>Учесть во взаиморасчёте (Блок 1) — вычесть <b>{fmtNum(commTotal)} ₸</b> из оплаты клиента, наличку не трогаем</span>
+            </label>
+          )}
           <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Button onClick={payCommissionSubmit} disabled={commSaving || commCount === 0 || commPerNum <= 0 || !commAcct}>{commSaving ? 'Проведение…' : commCount === 0 ? 'Нет за период' : '💵 Выплатить комиссию'}</Button>
             <Button variant="outline" onClick={markCommissionPaid} disabled={commSaving || commCount === 0} title="Отметить выплаченной без движения денег (прошлые периоды)">✓ Отметить (без денег)</Button>

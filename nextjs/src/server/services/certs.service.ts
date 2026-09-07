@@ -228,7 +228,7 @@ export const certsService = {
   // сертификатам. Плюс опциональная выплата комиссии клиенту (Расход). Всё —
   // одной транзакцией.
   async payByClient(input: unknown, actor?: { id: string; name?: string } | null) {
-    const { source, docType, client, pricePerCert, count: wantCount, dateFrom, dateTo, payments } = payByClientSchema.parse(input);
+    const { source, docType, client, pricePerCert, count: wantCount, dateFrom, dateTo, payments, settleCommission } = payByClientSchema.parse(input);
     if (source === 'Выездная') throw badRequest('Для Выездной оплата идёт через заявку мастера, не здесь');
     const round2 = (n: unknown) => Math.round((Number(n) || 0) * 100) / 100;
     const price = round2(pricePerCert);
@@ -298,7 +298,36 @@ export const certsService = {
         }
         if (full) closed++; else { partialId = upd.id; break; }
       }
-      return { ok: true, closed, partial: !!partialId, paid: m2(paid) };
+      // ── ВЗАИМОРАСЧЁТ: гасим наш долг по комиссии ТЭЦ зачётом ──
+      // Расход комиссии проводится на ТОТ ЖЕ счёт, что и приход (итог на счёте = приход
+      // − комиссия). Отдельно наличку не трогаем. Комиссия — по сертификатам ТЭЦ.
+      let settledComm = 0; let settledSum = 0;
+      if (settleCommission) {
+        const per = round2(settleCommission.perCert);
+        const commRows = await certsRepo.list({ source: 'ТЭЦ', archived: false, type: 'cert' });
+        const pendingComm = commRows.filter(c => {
+          if (c.commissionPaidAt) return false;
+          const d = isoDate(c.checkDate);
+          if (settleCommission.dateFrom && d < settleCommission.dateFrom) return false;
+          if (settleCommission.dateTo && d > settleCommission.dateTo) return false;
+          return true;
+        });
+        const cCount = settleCommission.count ? Math.min(settleCommission.count, pendingComm.length) : pendingComm.length;
+        const cTargets = pendingComm.slice(0, cCount);
+        if (cTargets.length && per > 0) {
+          const cTotal = round2(per * cTargets.length);
+          const acc = await financeRepo.findAccount(settleCommission.accountId, tx);
+          if (!acc) throw badRequest('Счёт взаиморасчёта не найден');
+          const op = await financeService.createOperation(
+            { opType: 'Расход', accountId: settleCommission.accountId, amount: m2(cTotal), name: `Взаиморасчёт: комиссия (ТЭЦ) — ${cTargets.length} серт.`.slice(0, 200), source: 'Расходы', expenseCat: 'Комиссия клиенту', accountName: acc.name },
+            actor?.id ?? null, tx,
+          );
+          const when = op?.opDate ? new Date(op.opDate as unknown as string) : new Date();
+          for (const c of cTargets) await certsRepo.update(c.id, { commissionPaidAt: when }, tx);
+          settledComm = cTargets.length; settledSum = cTotal;
+        }
+      }
+      return { ok: true, closed, partial: !!partialId, paid: m2(paid), settledComm, settledSum: m2(settledSum) };
     });
   },
 

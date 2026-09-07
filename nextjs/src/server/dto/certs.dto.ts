@@ -96,8 +96,13 @@ export const payByClientSchema = z.object({
     accountId: z.string().uuid(),
     amount: z.coerce.number().positive(),
   })).min(1, 'Добавьте хотя бы одну оплату'),
-  commission: z.object({
-    perCert: z.coerce.number().nonnegative(),
+  // Взаиморасчёт: при приёме оплаты гасим наш долг по комиссии ТЭЦ зачётом —
+  // Расход на тот же счёт (деньги отдельно не выдаём). Период/кол-во комиссии.
+  settleCommission: z.object({
+    perCert: z.coerce.number().positive(),
+    dateFrom: z.string().nullish(),
+    dateTo: z.string().nullish(),
+    count: z.coerce.number().int().positive().optional(),
     accountId: z.string().uuid(),
   }).nullish(),
 });
