@@ -326,11 +326,6 @@ function CertsInner() {
   const pcFilled = pcRows.filter(p => p.accountId && num(p.amount) > 0);
   const pcFilledSum = r2(pcFilled.reduce((s, p) => s + num(p.amount), 0));
   const pcEmptyAcc = pcRows.filter(p => p.accountId && num(p.amount) <= 0);
-  const pcRemainder = r2(pcIncomeTotal - pcFilledSum);                    // остаток к распределению
-  const pcAutoRow = pcEmptyAcc.length === 1 && pcRemainder > 0.001;       // пустая строка добирает остаток
-  const pcPayTotal = pcAutoRow ? pcIncomeTotal : pcFilledSum;
-  const pcOver = pcPriceNum > 0 && pcPayTotal - pcIncomeTotal > 0.01;        // переплата — нельзя
-  const pcLeftover = r2(pcIncomeTotal - pcPayTotal);                        // остаток (недоплата) — станет «Есть остаток»
   // Комиссия — по сертификатам ТЭЦ (наш долг клиенту), без отметки о выплате в периоде.
   // Считаем по отдельно загруженным tecCerts (блок открыт на экране ВДК).
   const commPending = React.useMemo(() => (tecCerts || []).filter(c => !c.commissionPaidAt && (() => { const d = iso(c.checkDate); if (commFrom && d < commFrom) return false; if (commTo && d > commTo) return false; return true; })()), [tecCerts, commFrom, commTo]);
@@ -341,7 +336,18 @@ function CertsInner() {
   // вычитается из оплаты клиента. Зачёт возможен, только если долг ≤ итога.
   const offsetComm = hasComm && commOffsetOn ? commTotal : 0;
   const canOffset = offsetComm > 0 && offsetComm <= pcIncomeTotal + 0.01;
-  const settlementTotal = Math.round((pcIncomeTotal - (canOffset ? offsetComm : 0)) * 100) / 100;
+  // Распределение по счетам: заполненные строки берут свою сумму; ОДНА пустая строка
+  // добирает остаток. При взаиморасчёте цель добора = НЕТТО (итог − комиссия): клиент
+  // физически платит меньше на сумму зачёта.
+  const pcFillTarget = r2(pcIncomeTotal - (canOffset ? offsetComm : 0));
+  const pcRemainder = r2(pcFillTarget - pcFilledSum);                     // остаток к распределению (до нетто-цели)
+  const pcAutoRow = pcEmptyAcc.length === 1 && pcRemainder > 0.001;       // пустая строка добирает остаток
+  const pcPayTotal = pcAutoRow ? pcFillTarget : pcFilledSum;              // принятый кэш
+  const pcOver = pcPriceNum > 0 && pcPayTotal - pcIncomeTotal > 0.01;     // кэш больше полного итога — нельзя
+  const pcLeftover = r2(pcIncomeTotal - pcPayTotal);                      // итог − кэш (недоплата до зачёта)
+  // Разница после зачёта: кэш + взаиморасчёт против итога. ~0 → полностью покрыто;
+  // >0 → реальная недоплата (последний серт → «Есть остаток»); <0 → перебор.
+  const pcGap = r2(pcLeftover - (canOffset ? offsetComm : 0));
   // При смене диапазона дат (модалка открыта) — кол-во по умолчанию = все в диапазоне.
   React.useEffect(() => { if (pcOpen) setPcQty(String(pcCount)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pcFrom, pcTo]);
   // Дата периода из Блока 1 (приём оплаты) автоматически подставляется в Блок 2
@@ -393,43 +399,54 @@ function CertsInner() {
       setPcOpen(false); await Promise.all([mutate(), mutateTec()]); toast(`✅ Отмечено «комиссия выплачена»: ${commCount} серт.`);
     } catch (e) { setCommErr((e as Error).message); } finally { setCommSaving(false); }
   }
+  // Приём оплаты БЕЗ взаиморасчёта (в долг): клиент платит ПОЛНЫЙ итог, комиссия
+  // остаётся нашим долгом (Блок 2). Добор пустой строки — до полного итога (не нетто).
   async function payClientSubmit() {
     if (pcPriceNum <= 0) { setPcErr('Укажите цену за сертификат'); return; }
-    if (pcOver) { setPcErr(`Принято (${fmtNum(pcPayTotal)}) больше итога (${fmtNum(pcIncomeTotal)})`); return; }
-    if (pcPayTotal <= 0) { setPcErr('Укажите принятую сумму'); return; }
+    const remFull = r2(pcIncomeTotal - pcFilledSum);
+    const payments = [
+      ...pcFilled.map(p => ({ accountId: p.accountId, amount: num(p.amount) })),
+      ...(pcEmptyAcc.length === 1 && remFull > 0.001 ? [{ accountId: pcEmptyAcc[0].accountId, amount: remFull }] : []),
+    ];
+    const paidSum = r2(payments.reduce((s, p) => s + p.amount, 0));
+    if (paidSum <= 0) { setPcErr('Укажите принятую сумму'); return; }
+    if (paidSum - pcIncomeTotal > 0.01) { setPcErr(`Принято (${fmtNum(paidSum)}) больше итога (${fmtNum(pcIncomeTotal)})`); return; }
     setPcSaving(true); setPcErr('');
     try {
       await apiSend('/api/v2/certs/pay-by-client', 'POST', {
         source, docType, client: fClient, pricePerCert: pcPriceNum, count: pcQtyNum,
         dateFrom: pcFrom || null, dateTo: pcTo || null,
-        payments: [
-          ...pcFilled.map(p => ({ accountId: p.accountId, amount: num(p.amount) })),
-          ...(pcAutoRow ? [{ accountId: pcEmptyAcc[0].accountId, amount: pcRemainder }] : []),
-        ],
+        payments,
       });
       setPcOpen(false); await mutate();
-      toast(`✅ Принято ${fmtNum(pcPayTotal)} ₸${pcLeftover > 0.5 ? ` · остаток ${fmtNum(pcLeftover)} ₸ (последний серт. → «Есть остаток»)` : ''}`);
+      const leftover = r2(pcIncomeTotal - paidSum);
+      toast(`✅ Принято ${fmtNum(paidSum)} ₸${leftover > 0.5 ? ` · остаток ${fmtNum(leftover)} ₸ (последний серт. → «Есть остаток»)` : ''}`);
     } catch (e) { setPcErr((e as Error).message); } finally { setPcSaving(false); }
   }
-  // Приём оплаты С ВЗАИМОРАСЧЁТОМ: клиент платит нетто (итог − комиссия). Полный доход
-  // по сертам + расход комиссии на ТОТ ЖЕ счёт (наличку отдельно не трогаем) — одной
-  // операцией на сервере. Один счёт (первый выбранный в строках оплаты).
+  // Приём оплаты С ВЗАИМОРАСЧЁТОМ: клиент платит принятый кэш (строки оплаты), а недоплата
+  // покрывается зачётом нашего долга по комиссии ТЭЦ. На сервер шлём кэш-строки + строку
+  // зачёта (на счёт комиссии) — вместе покрывают итог, серты «Оплачено». Расход комиссии
+  // на тот же счёт зачёта → наличку физически не трогаем (доход и расход зачёта на нём = 0).
   async function payClientSettleSubmit() {
     if (pcPriceNum <= 0) { setPcErr('Укажите цену за сертификат'); return; }
     if (pcQtyNum <= 0) { setPcErr('Нет сертификатов за период'); return; }
-    if (!canOffset) { setPcErr('Долг по комиссии больше итога — взаиморасчёт невозможен'); return; }
-    const acc = pcRows.find(p => p.accountId)?.accountId || '';
-    if (!acc) { setPcErr('Выберите счёт'); return; }
+    if (!canOffset) { setPcErr('Нет комиссии для взаиморасчёта'); return; }
+    if (!commAcct) { setPcErr('Выберите счёт взаиморасчёта (Блок 2 «Со счёта»)'); return; }
+    if (pcGap < -0.01) { setPcErr(`Принято + взаиморасчёт больше итога на ${fmtNum(-pcGap)} ₸`); return; }
+    const cashRows = [
+      ...pcFilled.map(p => ({ accountId: p.accountId, amount: num(p.amount) })),
+      ...(pcAutoRow ? [{ accountId: pcEmptyAcc[0].accountId, amount: pcRemainder }] : []),
+    ];
     setPcSaving(true); setPcErr('');
     try {
       await apiSend('/api/v2/certs/pay-by-client', 'POST', {
         source, docType, client: fClient, pricePerCert: pcPriceNum, count: pcQtyNum,
         dateFrom: pcFrom || null, dateTo: pcTo || null,
-        payments: [{ accountId: acc, amount: pcIncomeTotal }],   // полный доход по сертам на один счёт
-        settleCommission: { perCert: commPerNum, dateFrom: commFrom || null, dateTo: commTo || null, count: commCount, accountId: acc },
+        payments: [...cashRows, { accountId: commAcct, amount: offsetComm }],   // кэш + зачёт (на счёт комиссии)
+        settleCommission: { perCert: commPerNum, dateFrom: commFrom || null, dateTo: commTo || null, count: commCount, accountId: commAcct },
       });
       setPcOpen(false); await Promise.all([mutate(), mutateTec()]);
-      toast(`✅ Взаиморасчёт: получено ${fmtNum(settlementTotal)} ₸ (комиссия зачтена ${fmtNum(offsetComm)} ₸)`);
+      toast(`✅ Взаиморасчёт: принято ${fmtNum(pcPayTotal)} ₸ + зачёт комиссии ${fmtNum(offsetComm)} ₸`);
     } catch (e) { setPcErr((e as Error).message); } finally { setPcSaving(false); }
   }
 
@@ -924,21 +941,25 @@ function CertsInner() {
             ))}
             <Button variant="outline" onClick={() => setPcRows(rs => [...rs, { accountId: defaultAcc?.id || '', amount: '' }])} style={{ fontSize: 12 }}>+ ещё счёт</Button>
             <div className="sale-pay-state">
-              <span>Принято: <b style={{ color: pcOver ? '#dc2626' : '#16a34a' }}>{fmtNum(pcPayTotal)} ₸</b>{pcAutoRow ? <span className="erp-muted" style={{ fontSize: 11 }}> (добор до итога)</span> : null}</span>
-              <span>Итог: <b>{fmtNum(pcIncomeTotal)} ₸</b> · Остаток: <b style={{ color: pcLeftover > 0.5 ? '#b45309' : '#16a34a' }}>{fmtNum(pcLeftover)} ₸</b></span>
+              <span>Принято: <b style={{ color: pcOver && !canOffset ? '#dc2626' : '#16a34a' }}>{fmtNum(pcPayTotal)} ₸</b>{pcAutoRow ? <span className="erp-muted" style={{ fontSize: 11 }}> (добор до итога)</span> : null}</span>
+              <span>Итог: <b>{fmtNum(pcIncomeTotal)} ₸</b> · Недоплата: <b style={{ color: pcLeftover > 0.5 ? '#b45309' : '#16a34a' }}>{fmtNum(Math.max(0, pcLeftover))} ₸</b></span>
             </div>
-            {pcLeftover > 0.5 && !pcAutoRow && <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>Недоплата <b>{fmtNum(pcLeftover)} ₸</b> — последний покрытый сертификат станет «Есть остаток», остальные — «В ожидании».</div>}
-            {pcOver && <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4 }}>Принято больше итога на <b>{fmtNum(-pcLeftover)} ₸</b> — уменьшите сумму.</div>}
+            {canOffset && (
+              <div className="sale-pay-state" style={{ marginTop: 4 }}>
+                <span>Сумма взаиморасчёта: <b style={{ color: '#2563eb' }}>{fmtNum(offsetComm)} ₸</b></span>
+                <span>Разница: <b style={{ color: Math.abs(pcGap) < 0.5 ? '#16a34a' : '#b45309' }}>{fmtNum(pcGap)} ₸</b></span>
+              </div>
+            )}
+            {/* Сообщения об остатке считаем ПОСЛЕ взаиморасчёта (pcGap) */}
+            {canOffset && Math.abs(pcGap) < 0.5 && pcPayTotal > 0 && <div style={{ fontSize: 12, color: '#16a34a', marginTop: 4 }}>✓ Полностью покрыто: принято {fmtNum(pcPayTotal)} + взаиморасчёт {fmtNum(offsetComm)} = итог {fmtNum(pcIncomeTotal)} ₸.</div>}
+            {canOffset && pcGap > 0.5 && <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>Недоплата <b>{fmtNum(pcGap)} ₸</b> и после взаиморасчёта — последний покрытый сертификат станет «Есть остаток», остальные — «В ожидании».</div>}
+            {canOffset && pcGap < -0.01 && <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4 }}>Принято + взаиморасчёт больше итога на <b>{fmtNum(-pcGap)} ₸</b> — уменьшите сумму.</div>}
+            {!canOffset && pcLeftover > 0.5 && !pcAutoRow && <div style={{ fontSize: 12, color: '#b45309', marginTop: 4 }}>Недоплата <b>{fmtNum(pcLeftover)} ₸</b> — последний покрытый сертификат станет «Есть остаток», остальные — «В ожидании».</div>}
+            {!canOffset && pcOver && <div style={{ fontSize: 12, color: '#dc2626', marginTop: 4 }}>Принято больше итога на <b>{fmtNum(-pcLeftover)} ₸</b> — уменьшите сумму.</div>}
           </div>
-          {canOffset && (
-            <div className="sale-pay-state" style={{ marginTop: 6 }}>
-              <span>Сумма от комиссий: <b style={{ color: '#dc2626' }}>−{fmtNum(offsetComm)} ₸</b></span>
-              <span>Сумма взаиморасчёта: <b style={{ color: '#16a34a' }}>{fmtNum(settlementTotal)} ₸</b></span>
-            </div>
-          )}
           <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {canOffset && <Button onClick={payClientSettleSubmit} disabled={pcSaving || pcPriceNum <= 0 || pcQtyNum <= 0 || !pcRows.some(p => p.accountId)} title={`Клиент платит ${fmtNum(settlementTotal)} ₸; комиссия ${fmtNum(offsetComm)} ₸ зачтена (наличку не трогаем)`}>{pcSaving ? 'Проведение…' : '💾 С взаиморасчётом'}</Button>}
-            <Button variant={canOffset ? 'outline' : undefined} onClick={payClientSubmit} disabled={pcSaving || pcOver || pcPriceNum <= 0 || pcQtyNum <= 0 || pcPayTotal <= 0} title={pcQtyNum <= 0 ? 'Нет сертификатов за период' : pcOver ? 'Принято больше итога' : undefined}>{pcSaving ? 'Проведение…' : pcQtyNum <= 0 ? 'Нет за период' : pcOver ? '⚠ Больше итога' : (canOffset ? '💾 Без взаиморасчёта (в долг)' : '💾 Принять оплату')}</Button>
+            {canOffset && <Button onClick={payClientSettleSubmit} disabled={pcSaving || pcPriceNum <= 0 || pcQtyNum <= 0 || pcGap > 0.5 || pcGap < -0.01} title={`Принято ${fmtNum(pcPayTotal)} ₸ + зачёт комиссии ${fmtNum(offsetComm)} ₸ = итог ${fmtNum(pcIncomeTotal)} ₸ (наличку не трогаем)`}>{pcSaving ? 'Проведение…' : '💾 С взаиморасчётом'}</Button>}
+            <Button variant={canOffset ? 'outline' : undefined} onClick={payClientSubmit} disabled={pcSaving || pcOver || pcPriceNum <= 0 || pcQtyNum <= 0} title={pcQtyNum <= 0 ? 'Нет сертификатов за период' : pcOver ? 'Принято больше итога' : canOffset ? `Клиент платит полный итог ${fmtNum(pcIncomeTotal)} ₸; комиссия остаётся нашим долгом (Блок 2)` : undefined}>{pcSaving ? 'Проведение…' : pcQtyNum <= 0 ? 'Нет за период' : pcOver ? '⚠ Больше итога' : (canOffset ? '💾 Без взаиморасчёта (в долг)' : '💾 Принять оплату')}</Button>
           </div>
         </>)}
 
