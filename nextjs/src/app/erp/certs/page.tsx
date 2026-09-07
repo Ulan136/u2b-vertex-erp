@@ -337,6 +337,9 @@ function CertsInner() {
   const commTotal = Math.round(commPerNum * commCount * 100) / 100;
   // При смене диапазона дат (модалка открыта) — кол-во по умолчанию = все в диапазоне.
   React.useEffect(() => { if (pcOpen) setPcQty(String(pcCount)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pcFrom, pcTo]);
+  // Дата периода из Блока 1 (приём оплаты) автоматически подставляется в Блок 2
+  // (комиссия). Блок 2 после этого можно поправить вручную — до следующей смены в Блоке 1.
+  React.useEffect(() => { setCommFrom(pcFrom); setCommTo(pcTo); }, [pcFrom, pcTo]);
   // Общая модалка «Оплата сертификата / выплата комиссий» (2 блока). На экранах без
   // комиссии (не ВДК) — только блок 1, поэтому там по-прежнему требуем выбранного клиента.
   function openPay() {
@@ -867,7 +870,6 @@ function CertsInner() {
             <Field label="Итого к оплате"><Input value={`${fmtNum(pcIncomeTotal)} ₸`} readOnly style={{ background: '#f8fafc', fontWeight: 700 }} /></Field>
           </div>
           <div className="sale-pay" style={{ marginTop: 0 }}>
-            <div className="erp-muted" style={{ fontSize: 11, marginBottom: 6 }}>Счета раздела «{certSection === 'branch' ? '№4 Филиал Астана' : '№1 Поверка'}». Впишите сколько реально <b>приняли</b> (можно с нескольких счетов). Если меньше итога — последний сертификат станет «Есть остаток». Одна пустая строка добирает до полного итога.</div>
             {pcRows.map((p, i) => (
               <div className="sale-pay-row" key={i}>
                 <Select value={p.accountId} onChange={e => setPcRows(rs => rs.map((r, j) => j === i ? { ...r, accountId: e.target.value } : r))}>
@@ -896,7 +898,6 @@ function CertsInner() {
           <div style={{ borderTop: '1px solid var(--erp-border, #e5e7eb)', margin: '14px 0' }} />
           <div className="cert-sec-lbl" style={{ fontSize: 14, fontWeight: 700 }}>2 · 💵 Выплата комиссий клиенту — ТЭЦ</div>
           {commErr && <div className="erp-form-err">{commErr}</div>}
-          <div className="erp-muted" style={{ fontSize: 12, marginBottom: 8 }}>Комиссия клиенту за сертификаты ТЭЦ, по которым она ещё не выплачена (наш долг). Выберите период — покажется кол-во и сумма.</div>
           <div className="cert-sec-lbl">📅 Период (дата поверки)</div>
           <div className="erp-form-row">
             <Field label="С даты"><Input type="date" value={commFrom} max={commTo || undefined} onChange={e => setCommFrom(e.target.value)} /></Field>
