@@ -135,6 +135,7 @@ function CertsInner() {
   const [err, setErr] = React.useState('');
   // ── Режим «Оплата по клиенту» (Блок 1, не Выездная) ──
   const [fClient, setFClient] = React.useState('');               // фильтр по клиенту
+  const clientDefaultRef = React.useRef<string | null>(null);     // для какого source уже проставлен дефолт клиента
   const [pcOpen, setPcOpen] = React.useState(false);              // модалка оплаты по клиенту
   const [pcPrice, setPcPrice] = React.useState('');              // цена за сертификат
   const [pcQty, setPcQty] = React.useState('');                  // сколько сертификатов оплачиваем (из ожидающих)
@@ -340,6 +341,20 @@ function CertsInner() {
   // Дата периода из Блока 1 (приём оплаты) автоматически подставляется в Блок 2
   // (комиссия). Блок 2 после этого можно поправить вручную — до следующей смены в Блоке 1.
   React.useEffect(() => { setCommFrom(pcFrom); setCommTo(pcTo); }, [pcFrom, pcTo]);
+  // Дефолт фильтра «Клиент» по source (один раз на каждый source): на ВДК — клиент «вдк»
+  // (чтобы блок приёма оплаты сразу работал), на прочих — «все». Пользователь может сменить.
+  React.useEffect(() => {
+    if (clientDefaultRef.current === source) return;             // уже дефолтили для этого source — не перетираем выбор
+    if (source === 'ВДК') {
+      if (!clientsInDir.length) return;                          // ждём загрузки списка клиентов
+      clientDefaultRef.current = source;
+      setFClient(clientsInDir.find(c => c.toLowerCase() === 'вдк') || '');
+    } else {
+      clientDefaultRef.current = source;
+      setFClient('');
+    }
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [source, clientsInDir]);
   // Общая модалка «Оплата сертификата / выплата комиссий» (2 блока). На экранах без
   // комиссии (не ВДК) — только блок 1, поэтому там по-прежнему требуем выбранного клиента.
   function openPay() {
