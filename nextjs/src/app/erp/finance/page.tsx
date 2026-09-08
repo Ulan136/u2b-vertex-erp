@@ -77,6 +77,10 @@ export default function FinancePage() {
   const [op, setOp] = React.useState({ type: 'Приход', accountId: '', toAccountId: '', amount: '', name: '', date: today(), err: '', saving: false });
   const [acctModal, setAcctModal] = React.useState(false);
   const [acc, setAcc] = React.useState({ id: '', name: '', category: 'kaspi', section: 'poverka', icon: '💳', balance: '', err: '', saving: false });
+  // Скрытые колонки-разделы (глазок): свернуть пустые/лишние, чтобы остальные
+  // растянулись и журнал операций читался в большом объёме.
+  const [hidden, setHidden] = React.useState<Set<string>>(new Set());
+  const toggleHidden = (k: string) => setHidden(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
   const sortAccs = (list: Acct[]) => [...list].sort((a, b) => (Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)) || String(a.name).localeCompare(String(b.name)));
 
@@ -180,9 +184,19 @@ export default function FinancePage() {
         </Card>
       </div>
 
+      {hidden.size > 0 && (
+        <div className="erp-chips" style={{ marginTop: 12, alignItems: 'center' }}>
+          <span className="erp-muted" style={{ fontSize: 12 }}>🙈 Скрыто:</span>
+          {SECTIONS.filter(s => hidden.has(s.key) && cats.includes(s.key)).map(s => (
+            <button key={s.key} className="erp-chip" onClick={() => toggleHidden(s.key)} title="Показать колонку">👁 №{s.no} {s.label}</button>
+          ))}
+          <button className="erp-chip" onClick={() => setHidden(new Set())}>Показать все</button>
+        </div>
+      )}
+
       {error ? <Card><EmptyRow>Нет доступа к финансам.</EmptyRow></Card> : isLoading ? <Card><EmptyRow>Загрузка…</EmptyRow></Card> : (
         <div className="erp-fin-cols">
-          {cats.map(c => {
+          {cats.filter(c => !hidden.has(c)).map(c => {
             const sec = SECTIONS.find(s => s.key === c)!;
             const accs = sortAccs(accounts.filter(a => (a.section || 'other') === c));
             const accNoById = new Map(accs.map((a, i) => [a.id, i + 1]));   // № счёта внутри раздела (по всем счетам раздела)
@@ -196,7 +210,7 @@ export default function FinancePage() {
             const pairTitle = (o: Op) => { const c2 = isReversal(o) ? opById.get(o.reverses as string) : isReversed(o) ? revByOrig.get(o.id) : null; return c2 ? `связана с: ${opName(c2)} (${dmy(c2.opDate)})` : undefined; };
             return (
               <div className="erp-fin-col" key={c}>
-                <div className="erp-fin-head" style={{ background: sec.color }}><span>№{sec.no} {sec.icon} {sec.label}</span><span>{fmt(total)}</span></div>
+                <div className="erp-fin-head" style={{ background: sec.color }}><span>№{sec.no} {sec.icon} {sec.label}</span><span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{fmt(total)}<button className="erp-icon-btn" title="Скрыть колонку (растянуть остальные)" style={{ color: '#fff', fontSize: 14, opacity: .85 }} onClick={() => toggleHidden(c)}>🙈</button></span></div>
                 <div className="erp-fin-accs">
                   {accsShown.length === 0 ? <div className="erp-muted" style={{ fontSize: 12, padding: 6 }}>Нет счетов</div> : accsShown.map((a) => (
                     <div className="erp-fin-acc" key={a.id}><span><b>№{accNoById.get(a.id)}</b> {a.icon} {a.name}</span><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{fmt(a.balance || 0)}<button className="erp-icon-btn" title="Изменить счёт / начальный остаток" style={{ fontSize: 13 }} onClick={() => editAcct(a)}>✏️</button></span></div>
