@@ -454,7 +454,11 @@ function CertsInner() {
     } catch (e) { setPcErr((e as Error).message); } finally { setPcSaving(false); }
   }
 
-  const openNew = () => { setForm(EMPTY); setCloneFrom(''); setErr(''); setModal(true); };
+  const openNew = () => {
+    // На странице ВДК клиент нового сертификата по умолчанию = «вдк» (как источник).
+    const vdkClient = source === 'ВДК' ? (clientsInDir.find(c => c.toLowerCase() === 'вдк') || 'вдк') : '';
+    setForm({ ...EMPTY, client: vdkClient }); setCloneFrom(''); setErr(''); setModal(true);
+  };
   const fillForm = (c: Cert): typeof EMPTY => ({ id: c.id, fio: c.fio || '', address: c.address || '', phone: c.phone || '', client: c.client || '', meterType: c.meterType || '', serialNo: c.serialNo || '', yearMade: c.yearMade ? String(c.yearMade) : '', waterType: c.waterType || 'х/в', checkDate: iso(c.checkDate), nextCheckDate: iso(c.nextCheckDate), stampNo: c.stampNo || '', sealType: c.sealType === 'ПЛ' ? 'ПЛ' : 'СЛ', readings: c.readings != null ? String(c.readings) : '', result: c.result || 'Годен', operStatus: c.operStatus || 'В работе', payStatus: c.payStatus || 'В ожидании', invoiceType: c.invoiceType || 'Каспи', sentStatus: c.sentStatus || 'Не отправлено', note: c.note || '', amount: c.amount != null ? String(c.amount) : '', accuracyClass: c.accuracyClass || '', ownerKind: c.ownerKind || 'физлицо', ownerTaxId: c.ownerTaxId || '', addressKz: c.addressKz || '', verifier: c.verifier || '' });
   const openEdit = (c: Cert) => { setForm(fillForm(c)); setCloneFrom(''); setErr(''); setModal(true); };
   const openClone = (c: Cert) => { setForm({ ...fillForm(c), id: '', checkDate: '', nextCheckDate: '' }); setCloneFrom(`${c.fio || ''}`); setErr(''); setModal(true); };
