@@ -81,6 +81,18 @@ export const financeRepo = {
     return rows.find(a => a.category === 'kaspi') ?? rows[0] ?? null;
   },
 
+  // Активный счёт раздела с заданной категорией (kaspi/nalichka/bck/…). Для маршрутизации
+  // дохода по выбранному счёту (поле invoiceType сертификата). null, если такого нет.
+  async accountBySectionCategory(section: string, category: string, exec: Executor = db) {
+    const [row] = await exec.select().from(financeAccounts)
+      .where(and(
+        eq(financeAccounts.section, section as typeof financeAccounts.section.enumValues[number]),
+        eq(financeAccounts.category, category as typeof financeAccounts.category.enumValues[number]),
+        eq(financeAccounts.isActive, true)))
+      .orderBy(asc(financeAccounts.sortOrder)).limit(1);
+    return row ?? null;
+  },
+
   // Операции одной группы расхода (смешанная оплата — для отмены всей группы).
   findByGroup: (groupId: string, exec: Executor = db) =>
     exec.select().from(financeOperations).where(eq(financeOperations.expenseGroupId, groupId)),
