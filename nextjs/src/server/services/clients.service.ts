@@ -30,7 +30,7 @@ export const clientsService = {
   // САМООБУЧЕНИЕ: имя из продажи. Нет записи (по имени+телефону) → создаём
   // (тип по чипу продажи). Дедуп: если телефон не задан — совпадение по имени;
   // если задан — по имени+телефону. Best-effort (не роняет продажу).
-  async touch(rawName: unknown, rawPhone: unknown, kind: 'client' | 'buyer', actorId?: string | null) {
+  async touch(rawName: unknown, rawPhone: unknown, kind: 'client' | 'buyer' | 'supplier', actorId?: string | null) {
     try {
       const name = normClientName(rawName);
       const key = clientNameKey(name);

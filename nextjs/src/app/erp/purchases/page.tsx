@@ -4,6 +4,7 @@ import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow } from '@/components/ui';
+import { purchaseDebts, type MoveLite, type OpLite } from '@/lib/pending';
 
 type Movement = { id: string; skuCode?: string | null; productName?: string | null; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; author?: string | null; moveDate?: string | null; comment?: string | null; financeGroup?: string | null; purchaseGroup?: string | null; reversedAt?: string | null };
 type Product = { id: string; skuCode: string; name: string; price: string | number; costPrice?: string | number | null; currentStock: number };
@@ -23,6 +24,7 @@ export default function PurchasesPage() {
   const { data: buys, error, isLoading, mutate } = useApi<Movement[]>('/api/v2/products/movements?type=IN&limit=200');
   const { data: products, mutate: mutateProducts } = useApi<Product[]>('/api/v2/products');
   const { data: fin } = useApi<{ accounts: Acct[]; operations?: Array<{ opType?: string | null; source?: string | null; expenseGroupId?: string | null; amount?: string | number; reversedAt?: string | null; reverses?: string | null }> }>('/api/v2/finance');
+  const { data: suppliers } = useApi<Array<{ id: string; name: string }>>('/api/v2/clients?kind=supplier');
   const accounts = fin?.accounts || [];
   // Уже оплачено по каждому долгу-закупу (частичные погашения) — ключ = debtKey.
   const paidByKey = React.useMemo(() => {
@@ -34,6 +36,9 @@ export default function PurchasesPage() {
     return p;
   }, [fin]);
   const debtKeyOf = (b: Movement) => b.purchaseGroup || b.id;
+  // Долг по каждому поставщику (мы должны) — по имени; для показа в форме закупа.
+  const supDebts = React.useMemo(() => purchaseDebts((buys || []) as MoveLite[], (fin?.operations || []) as OpLite[]).bySupplier, [buys, fin]);
+  const supDebtOf = (name: string) => { const k = (name || '').trim().toLowerCase(); return k ? (supDebts.find(s => s.supplier.trim().toLowerCase() === k)?.amount || 0) : 0; };
   const accGroups = SECTIONS.map(s => ({ ...s, accs: accounts.filter(a => (a.section || 'other') === s.key).sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)) }));
 
   const [q, setQ] = React.useState('');
@@ -233,7 +238,11 @@ export default function PurchasesPage() {
         </Field>
 
         <div className="erp-form-row">
-          <Field label="Поставщик"><Input value={f.supplier} onChange={e => setF(s => ({ ...s, supplier: e.target.value }))} /></Field>
+          <Field label="Поставщик">
+            <Input list="suppliers-dl" value={f.supplier} onChange={e => setF(s => ({ ...s, supplier: e.target.value }))} placeholder="выберите из списка или впишите нового" />
+            <datalist id="suppliers-dl">{(suppliers || []).map(s => <option key={s.id} value={s.name} />)}</datalist>
+            {supDebtOf(f.supplier) > 0 && <div className="erp-muted" style={{ fontSize: 12, marginTop: 4 }}>🏭 Долг этому поставщику: <b style={{ color: '#dc2626' }}>{fmt(supDebtOf(f.supplier))} ₸</b></div>}
+          </Field>
           <Field label="Дата"><Input type="date" value={f.date} onChange={e => setF(s => ({ ...s, date: e.target.value }))} /></Field>
         </div>
         <Field label="№ документа"><Input value={f.docNo} onChange={e => setF(s => ({ ...s, docNo: e.target.value }))} /></Field>
@@ -278,7 +287,10 @@ export default function PurchasesPage() {
         {edit?.err && <div className="erp-form-err">{edit.err}</div>}
         <div className="erp-form-row">
           <Field label="Дата закупа"><Input type="date" value={edit?.moveDate || ''} onChange={e => setEdit(s => s && { ...s, moveDate: e.target.value })} /></Field>
-          <Field label="Поставщик"><Input value={edit?.supplier || ''} onChange={e => setEdit(s => s && { ...s, supplier: e.target.value })} /></Field>
+          <Field label="Поставщик">
+            <Input list="suppliers-dl" value={edit?.supplier || ''} onChange={e => setEdit(s => s && { ...s, supplier: e.target.value })} placeholder="выберите из списка или впишите нового" />
+            {supDebtOf(edit?.supplier || '') > 0 && <div className="erp-muted" style={{ fontSize: 12, marginTop: 4 }}>🏭 Долг этому поставщику: <b style={{ color: '#dc2626' }}>{fmt(supDebtOf(edit?.supplier || ''))} ₸</b></div>}
+          </Field>
         </div>
         <Field label="№ документа"><Input value={edit?.docNo || ''} onChange={e => setEdit(s => s && { ...s, docNo: e.target.value })} /></Field>
         <div className="erp-muted" style={{ fontSize: 11, marginTop: 8 }}>Меняются дата/поставщик/№ у всех позиций этого закупа. Кол-во/цену/оплату здесь не правим — через отмену и повторный закуп (чтобы склад и деньги пересчитались корректно).</div>

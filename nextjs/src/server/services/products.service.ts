@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { productsRepo } from '@/server/repositories/products.repo';
 import { financeRepo } from '@/server/repositories/finance.repo';
 import { financeService } from '@/server/services/finance.service';
+import { clientsService } from '@/server/services/clients.service';
 import { stockMovementSchema, productUpdateSchema, purchaseCreateSchema, purchaseUpdateSchema, purchasePaySchema, STOCK_SIGN, canApplyStock } from '@/server/dto/products.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
@@ -127,7 +128,7 @@ export const productsService = {
   // (закуп в долг / бесплатно).
   async createPurchase(input: unknown, actor?: Actor) {
     const d = purchaseCreateSchema.parse(input);
-    return db.transaction(async (tx) => {
+    const res = await db.transaction(async (tx) => {
       const purchaseGroup = randomUUID();
       const financeGroup = d.payments.length ? randomUUID() : null;
       let firstName = '';
@@ -171,6 +172,10 @@ export const productsService = {
       }
       return { ok: true, count: d.items.length, purchaseGroup };
     });
+    // Самообучение справочника поставщиков: новый поставщик → в clients (kind='supplier').
+    // Best-effort (не роняет закуп).
+    if (d.supplier) await clientsService.touch(d.supplier, null, 'supplier', actor?.id ?? null);
+    return res;
   },
 
   // ── Отмена/удаление движения склада (закупа/прихода/расхода/ревизии) ──

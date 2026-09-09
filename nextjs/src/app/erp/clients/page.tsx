@@ -15,7 +15,7 @@ const dmy = (d?: string | null) => formatDate(d);
 const EMPTY = { id: '', name: '', phone: '', kind: 'client', categoryId: '' };
 
 export default function ClientsPage() {
-  const [tab, setTab] = React.useState<'client' | 'buyer'>('client');
+  const [tab, setTab] = React.useState<'client' | 'buyer' | 'supplier'>('client');
   const [cat, setCat] = React.useState('');
   const [q, setQ] = React.useState('');
   const [qd, setQd] = React.useState('');
@@ -37,6 +37,9 @@ export default function ClientsPage() {
   const { data: allSales } = useApi<Sale[]>(salesHist ? '/api/v2/sales' : null);
 
   const isBuyer = tab === 'buyer';
+  const isClient = tab === 'client';   // категории только у клиентов
+  const kindOne = tab === 'buyer' ? 'Покупатель' : tab === 'supplier' ? 'Поставщик' : 'Клиент';
+  const kindMany = tab === 'buyer' ? 'Покупатели' : tab === 'supplier' ? 'Поставщики' : 'Клиенты';
   const catName = (id?: string | null) => (cats || []).find(c => c.id === id)?.name;
   const list = clients || [];
   const histSales = React.useMemo(() => salesHist ? (allSales || []).filter(s => (s.clientName || '').trim().toLowerCase() === salesHist.trim().toLowerCase()) : [], [salesHist, allSales]);
@@ -51,7 +54,7 @@ export default function ClientsPage() {
     try {
       if (form.id) await apiSend(`/api/v2/clients/${form.id}`, 'PATCH', body);
       else await apiSend('/api/v2/clients', 'POST', body);
-      setModal(false); await mutate(); toast(form.id ? '✅ Обновлено' : (isBuyer ? '✅ Покупатель добавлен' : '✅ Клиент добавлен'));
+      setModal(false); await mutate(); toast(form.id ? '✅ Обновлено' : `✅ ${kindOne} добавлен`);
     } catch (e) { setErr((e as Error).message); } finally { setSaving(false); }
   }
   async function remove(c: Client) {
@@ -77,18 +80,19 @@ export default function ClientsPage() {
 
   return (
     <div>
-      <PageTitle title="Клиенты и покупатели" sub={`${isBuyer ? 'Покупатели' : 'Клиенты'}: ${list.length}`} action={
+      <PageTitle title="Клиенты и покупатели" sub={`${kindMany}: ${list.length}`} action={
         <div style={{ display: 'flex', gap: 8 }}>
-          {!isBuyer && <Button variant="outline" onClick={() => setCatModal(true)}>Категории</Button>}
-          <Button onClick={openNew}>+ {isBuyer ? 'Покупатель' : 'Клиент'}</Button>
+          {isClient && <Button variant="outline" onClick={() => setCatModal(true)}>Категории</Button>}
+          <Button onClick={openNew}>+ {kindOne}</Button>
         </div>} />
 
       <Card className="erp-filters">
         <div className="erp-chips">
           <button className={`erp-chip${tab === 'client' ? ' on' : ''}`} onClick={() => setTab('client')}>🤝 Клиенты</button>
           <button className={`erp-chip${tab === 'buyer' ? ' on' : ''}`} onClick={() => setTab('buyer')}>🛒 Покупатели</button>
+          <button className={`erp-chip${tab === 'supplier' ? ' on' : ''}`} onClick={() => setTab('supplier')}>🏭 Поставщики</button>
         </div>
-        {!isBuyer && (
+        {isClient && (
           <Select value={cat} onChange={e => setCat(e.target.value)}>
             <option value="">Все категории</option>
             <option value="none">Без категории</option>
@@ -98,7 +102,7 @@ export default function ClientsPage() {
         <Input placeholder="🔍 Имя или телефон" value={q} onChange={e => setQ(e.target.value)} />
       </Card>
 
-      {!isBuyer && (
+      {isClient && (
         <Card className="erp-filters" style={{ marginTop: 12 }}>
           <span className="erp-muted" style={{ fontSize: 12 }}>🏷 Категории:</span>
           {(cats || []).length === 0
@@ -116,19 +120,19 @@ export default function ClientsPage() {
       <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
         {error ? <EmptyRow>Нет доступа.</EmptyRow>
           : isLoading ? <EmptyRow>Загрузка…</EmptyRow>
-          : list.length === 0 ? <EmptyRow>{isBuyer ? 'Покупателей нет. Появятся сами при продажах или нажмите «+ Покупатель».' : 'Клиентов нет. Нажмите «+ Клиент».'}</EmptyRow>
+          : list.length === 0 ? <EmptyRow>{tab === 'supplier' ? 'Поставщиков нет. Нажмите «+ Поставщик» или заведутся сами при закупе.' : isBuyer ? 'Покупателей нет. Появятся сами при продажах или нажмите «+ Покупатель».' : 'Клиентов нет. Нажмите «+ Клиент».'}</EmptyRow>
           : (
             <table className="erp-table">
-              <thead><tr><th>Имя</th><th>Телефон</th>{!isBuyer && <th>Категория</th>}<th>Кто завёл</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
+              <thead><tr><th>Имя</th><th>Телефон</th>{isClient && <th>Категория</th>}<th>Кто завёл</th><th style={{ textAlign: 'right' }}>Действия</th></tr></thead>
               <tbody>
                 {list.map(c => (
                   <tr key={c.id}>
-                    <td className="erp-td-main">{isBuyer ? '🛒' : '🤝'} {c.name}</td>
+                    <td className="erp-td-main">{tab === 'supplier' ? '🏭' : isBuyer ? '🛒' : '🤝'} {c.name}</td>
                     <td style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 13 }}>{c.phone || '—'}</td>
-                    {!isBuyer && <td>{catName(c.categoryId) ? <Badge tone="info">{catName(c.categoryId)}</Badge> : <span className="erp-muted">—</span>}</td>}
+                    {isClient && <td>{catName(c.categoryId) ? <Badge tone="info">{catName(c.categoryId)}</Badge> : <span className="erp-muted">—</span>}</td>}
                     <td className="erp-muted" style={{ fontSize: 12 }}>{c.createdByName || '—'}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button className="erp-icon-btn" title="История продаж" onClick={() => setSalesHist(c.name)}>🧾</button>
+                      {tab !== 'supplier' && <button className="erp-icon-btn" title="История продаж" onClick={() => setSalesHist(c.name)}>🧾</button>}
                       <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(c)}>✏️</button>
                       <button className="erp-icon-btn" title="Удалить" style={{ color: '#dc2626' }} onClick={() => remove(c)}>🗑️</button>
                     </td>
@@ -144,12 +148,13 @@ export default function ClientsPage() {
         {err && <div className="erp-form-err">{err}</div>}
         <Field label="Имя / название" required><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} autoFocus /></Field>
         <div className="erp-form-row">
-          <Field label={isBuyer ? 'Телефон (необязательно)' : 'Телефон'}><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+7 7XX XXX XX XX" /></Field>
-          {!isBuyer && <Field label="Категория"><Select value={form.categoryId} onChange={e => setForm({ ...form, categoryId: e.target.value })}><option value="">— без категории —</option>{(cats || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>}
+          <Field label={form.kind === 'client' ? 'Телефон' : 'Телефон (необязательно)'}><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+7 7XX XXX XX XX" /></Field>
+          {form.kind === 'client' && <Field label="Категория"><Select value={form.categoryId} onChange={e => setForm({ ...form, categoryId: e.target.value })}><option value="">— без категории —</option>{(cats || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>}
         </div>
         <Field label="Тип записи"><div className="erp-chips">
           <button type="button" className={`erp-chip${form.kind === 'client' ? ' on' : ''}`} onClick={() => setForm({ ...form, kind: 'client' })}>🤝 Клиент (скидка)</button>
           <button type="button" className={`erp-chip${form.kind === 'buyer' ? ' on' : ''}`} onClick={() => setForm({ ...form, kind: 'buyer' })}>🛒 Покупатель</button>
+          <button type="button" className={`erp-chip${form.kind === 'supplier' ? ' on' : ''}`} onClick={() => setForm({ ...form, kind: 'supplier' })}>🏭 Поставщик</button>
         </div></Field>
       </Modal>
 

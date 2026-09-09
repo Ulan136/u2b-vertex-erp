@@ -43,8 +43,9 @@ export function pickClientDuplicate<T extends { phone?: string | null }>(sameNam
 }
 
 // ── Zod schemas ───────────────────────────────────────────────
-// Clients are organization-wide; grouping by category; kind = client|buyer.
-export const CLIENT_KINDS = ['client', 'buyer'] as const;
+// Clients are organization-wide; grouping by category; kind = client|buyer|supplier.
+// supplier — поставщик (для закупа): тот же справочник, отдельная вкладка.
+export const CLIENT_KINDS = ['client', 'buyer', 'supplier'] as const;
 export const clientCreateSchema = z.object({
   name: z.string().trim().min(1, 'Имя обязательно'),
   phone: z.string().nullish(),
