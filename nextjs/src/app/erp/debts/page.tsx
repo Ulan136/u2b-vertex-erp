@@ -345,6 +345,13 @@ export default function DebtsPage() {
           <Field label="Уже погашено на момент внесения"><MoneyInput value={form.paidNow} onValue={v => setForm(f => ({ ...f, paidNow: v }))} placeholder="0" /></Field>
         </div>
         <div className="erp-muted" style={{ fontSize: 11, marginTop: -4 }}>Стартовое «погашено» — исторический факт (деньги уходили до системы): операция в Финансах НЕ создаётся.{num(form.amount) > 0 && ` Остаток: ${fmt(Math.max(0, num(form.amount) - num(form.paidNow)))}.`}{catFilter ? ' Категория подставится из выбранного фильтра.' : ''}</div>
+        <Field label={form.type === 'credit' ? '🏦 Счёт списания (откуда будем платить долг)' : '🏦 Счёт зачисления (куда примем деньги)'}>
+          <Select value={form.accountId} onChange={e => setForm(f => ({ ...f, accountId: e.target.value }))}>
+            <option value="">— выберите счёт —</option>
+            {SECTIONS.map(([sk, sl]) => { const secAccs = accounts.filter(a => (a.section || 'other') === sk); return secAccs.length ? <optgroup key={sk} label={sl}>{secAccs.map(a => <option key={a.id} value={a.id}>{accLabel(a)}</option>)}</optgroup> : null; })}
+          </Select>
+        </Field>
+        <div className="erp-muted" style={{ fontSize: 11, marginTop: 4 }}>Счёт по умолчанию для погашений этого долга (подставится в модалке 💵). Можно оставить пустым и выбрать при погашении.</div>
       </Modal>
 
       {/* Погашение — выбор долга из списка + оплата с нескольких счетов (как в расходах) */}
