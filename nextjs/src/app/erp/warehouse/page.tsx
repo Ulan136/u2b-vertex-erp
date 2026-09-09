@@ -92,7 +92,8 @@ export default function WarehousePage() {
   const list = all.filter(p => !q.trim() || (p.name + ' ' + p.skuCode).toLowerCase().includes(q.toLowerCase()));
   const lowCount = all.filter(p => free(p) < num(p.minStock) && free(p) > 0).length;
   const emptyCount = all.filter(p => free(p) <= 0).length;
-  const stockValue = all.reduce((s, p) => s + num(p.currentStock) * num(p.price), 0);
+  // Стоимость склада — по СЕБЕСТОИМОСТИ (приходным ценам), не по рознице.
+  const stockValue = all.reduce((s, p) => s + num(p.currentStock) * num(p.costPrice), 0);
 
   // группировка остатков по группам товара
   const groups: Record<string, Product[]> = {};
@@ -165,8 +166,8 @@ export default function WarehousePage() {
 
   // ── экспорт остатков ──
   async function exportWord() {
-    const rows = all.map(p => [p.skuCode, p.name, fmt(p.currentStock), fmt(p.price), fmt(num(p.currentStock) * num(p.price))]);
-    const spec = { titleLines: ['Складская ведомость (остатки)'], subtitle: `Позиций: ${all.length} · стоимость: ${fmt(stockValue)} ₸`, orientation: 'portrait', columns: [{ header: 'SKU', width: 12 }, { header: 'Наименование', width: 40, align: 'left' }, { header: 'Остаток', width: 12, align: 'right' }, { header: 'Цена', width: 14, align: 'right' }, { header: 'Сумма', width: 16, align: 'right' }], rows, totalRow: ['', 'ИТОГО', '', '', fmt(stockValue)], signatures: ['Кладовщик', 'Директор'], filename: 'Склад_остатки.docx' };
+    const rows = all.map(p => [p.skuCode, p.name, fmt(p.currentStock), fmt(p.costPrice ?? 0), fmt(num(p.currentStock) * num(p.costPrice))]);
+    const spec = { titleLines: ['Складская ведомость (остатки)'], subtitle: `Позиций: ${all.length} · стоимость по себестоимости: ${fmt(stockValue)} ₸`, orientation: 'portrait', columns: [{ header: 'SKU', width: 12 }, { header: 'Наименование', width: 40, align: 'left' }, { header: 'Остаток', width: 12, align: 'right' }, { header: 'Себест.', width: 14, align: 'right' }, { header: 'Сумма', width: 16, align: 'right' }], rows, totalRow: ['', 'ИТОГО', '', '', fmt(stockValue)], signatures: ['Кладовщик', 'Директор'], filename: 'Склад_остатки.docx' };
     try {
       const r = await fetch('/api/v2/docx', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(spec) });
       if (!r.ok) throw new Error('Ошибка выгрузки');
@@ -174,8 +175,8 @@ export default function WarehousePage() {
     } catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
   function printInvoice() {
-    const rows = all.map((p, i) => `<tr><td>${i + 1}</td><td style="text-align:left">${p.skuCode} · ${p.name}</td><td>${fmt(p.currentStock)}</td><td style="text-align:right">${fmt(p.price)}</td><td style="text-align:right">${fmt(num(p.currentStock) * num(p.price))}</td></tr>`).join('');
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Складская ведомость</title><style>@page{size:A4;margin:14mm}body{font-family:'Times New Roman',serif;font-size:12px}h2{text-align:center;margin:0 0 6px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #000;padding:4px;text-align:center}</style></head><body><h2>Складская ведомость (остатки)</h2><div style="text-align:center;margin-bottom:6px">Позиций: ${all.length} · стоимость склада: ${fmt(stockValue)} ₸</div><table><thead><tr><th>№</th><th>Наименование</th><th>Остаток</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4" style="text-align:right"><b>Итого</b></td><td style="text-align:right"><b>${fmt(stockValue)} ₸</b></td></tr></tfoot></table><div style="margin-top:36px">Кладовщик _____________ / _____________ /</div><div style="margin-top:20px">Директор _____________ / М.Молдабаев /</div><script>window.onload=()=>window.print()<\/script></body></html>`;
+    const rows = all.map((p, i) => `<tr><td>${i + 1}</td><td style="text-align:left">${p.skuCode} · ${p.name}</td><td>${fmt(p.currentStock)}</td><td style="text-align:right">${fmt(p.costPrice ?? 0)}</td><td style="text-align:right">${fmt(num(p.currentStock) * num(p.costPrice))}</td></tr>`).join('');
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Складская ведомость</title><style>@page{size:A4;margin:14mm}body{font-family:'Times New Roman',serif;font-size:12px}h2{text-align:center;margin:0 0 6px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #000;padding:4px;text-align:center}</style></head><body><h2>Складская ведомость (остатки)</h2><div style="text-align:center;margin-bottom:6px">Позиций: ${all.length} · стоимость склада: ${fmt(stockValue)} ₸</div><table><thead><tr><th>№</th><th>Наименование</th><th>Остаток</th><th>Себест.</th><th>Сумма</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><td colspan="4" style="text-align:right"><b>Итого</b></td><td style="text-align:right"><b>${fmt(stockValue)} ₸</b></td></tr></tfoot></table><div style="margin-top:36px">Кладовщик _____________ / _____________ /</div><div style="margin-top:20px">Директор _____________ / М.Молдабаев /</div><script>window.onload=()=>window.print()<\/script></body></html>`;
     const b = new Blob([html], { type: 'text/html' }); const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(b), target: '_blank' }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
 
