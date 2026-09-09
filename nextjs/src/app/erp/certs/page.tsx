@@ -54,6 +54,14 @@ const operTone = (s?: string | null): 'ok' | 'warn' | 'info' | 'neutral' => s ==
 const sentTone = (s?: string | null): 'ok' | 'warn' | 'info' => s === 'Отправлено' ? 'ok' : s === 'Запланировано' ? 'info' : 'warn';
 const isTTE = (c: Cert) => /ттэ/i.test(c.note || '') || c.waterType === 'г/в';
 const EMPTY = { id: '', fio: '', address: '', phone: '', client: '', meterType: '', serialNo: '', yearMade: '', waterType: 'х/в', checkDate: '', nextCheckDate: '', stampNo: '', sealType: 'СЛ', readings: '', result: 'Годен', operStatus: 'В работе', payStatus: 'В ожидании', invoiceType: 'Каспи', sentStatus: 'Не отправлено', note: '', amount: '', accuracyClass: '', ownerKind: 'физлицо', ownerTaxId: '', addressKz: '', verifier: '' };
+// Дефолты нового сертификата по источнику: цена + тип воды (можно менять). САМИ — вода
+// пустая (выбрать вручную). Прочие источники — как в EMPTY (х/в, без цены).
+const SRC_DEF: Record<string, { amount: string; waterType: string }> = {
+  'ТЭЦ':    { amount: '3000', waterType: 'г/в' },
+  'Районы': { amount: '2000', waterType: 'г/в' },
+  'ВДК':    { amount: '3500', waterType: 'х/в' },
+  'САМИ':   { amount: '3000', waterType: '' },
+};
 
 // Поверители — строго списком. В е-КТРМ один и тот же человек уже попал
 // туда в разных написаниях («Болегенов А.» и «Болегенов Арслан»), и свободный
@@ -461,7 +469,9 @@ function CertsInner() {
   const openNew = () => {
     // На странице ВДК клиент нового сертификата по умолчанию = «вдк» (как источник).
     const vdkClient = source === 'ВДК' ? (clientsInDir.find(c => c.toLowerCase() === 'вдк') || 'вдк') : '';
-    setForm({ ...EMPTY, client: vdkClient }); setCloneFrom(''); setErr(''); setModal(true);
+    const d = SRC_DEF[source];   // цена + тип воды по источнику (можно изменить)
+    setForm({ ...EMPTY, client: vdkClient, ...(d ? { amount: d.amount, waterType: d.waterType } : {}) });
+    setCloneFrom(''); setErr(''); setModal(true);
   };
   const fillForm = (c: Cert): typeof EMPTY => ({ id: c.id, fio: c.fio || '', address: c.address || '', phone: c.phone || '', client: c.client || '', meterType: c.meterType || '', serialNo: c.serialNo || '', yearMade: c.yearMade ? String(c.yearMade) : '', waterType: c.waterType || 'х/в', checkDate: iso(c.checkDate), nextCheckDate: iso(c.nextCheckDate), stampNo: c.stampNo || '', sealType: c.sealType === 'ПЛ' ? 'ПЛ' : 'СЛ', readings: c.readings != null ? String(c.readings) : '', result: c.result || 'Годен', operStatus: c.operStatus || 'В работе', payStatus: c.payStatus || 'В ожидании', invoiceType: c.invoiceType || 'Каспи', sentStatus: c.sentStatus || 'Не отправлено', note: c.note || '', amount: c.amount != null ? String(c.amount) : '', accuracyClass: c.accuracyClass || '', ownerKind: c.ownerKind || 'физлицо', ownerTaxId: c.ownerTaxId || '', addressKz: c.addressKz || '', verifier: c.verifier || '' });
   const openEdit = (c: Cert) => { setForm(fillForm(c)); setCloneFrom(''); setErr(''); setModal(true); };
@@ -486,6 +496,7 @@ function CertsInner() {
   async function save() {
     if (!form.fio.trim()) { setErr('Укажите ФИО / объект'); return; }
     if (isCert && !form.checkDate) { setErr('Укажите дату поверки'); return; }
+    if (!form.waterType) { setErr('Укажите тип воды (х/в или г/в)'); return; }
     // Запрет «Оплачено» без счёта дохода: при оплате нужен счёт (для Районы счёт = поле
     // «Счёт», оно всегда задано; для прочих прямых — строка оплаты со счётом).
     if (isDirect && source !== 'Районы' && form.payStatus === 'Оплачено' && priceNum > 0 && (!form.id || payTouched) && !payRows.some(p => p.accountId && num(p.amount) > 0)) {
@@ -785,7 +796,7 @@ function CertsInner() {
           <Field label="Дата поверки" required><div className="cert-vf"><Input type="date" value={form.checkDate} onChange={e => onCheckDate(e.target.value)} /><Copy v={form.checkDate ? dmy(form.checkDate) : ''} h="Дата поверки" /></div></Field>
           {isCert
             ? <Field label="Дата очередной поверки"><div className="cert-vf"><Input type="date" value={form.nextCheckDate} onChange={e => setForm({ ...form, nextCheckDate: e.target.value })} /><Copy v={form.nextCheckDate ? dmy(form.nextCheckDate) : ''} h="След. поверка" /></div></Field>
-            : <Field label="Гор/хол вода"><div className="cert-vf"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option>х/в</option><option>г/в</option></Select><Copy v={form.waterType} h="Вода" /></div></Field>}
+            : <Field label="Гор/хол вода" required><div className="cert-vf"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option value="">— выберите —</option><option>х/в</option><option>г/в</option></Select><Copy v={form.waterType} h="Вода" /></div></Field>}
         </div>
         {isCert && (<>
           <div className="erp-form-row">
@@ -799,7 +810,7 @@ function CertsInner() {
           </div>
           <div className="erp-form-row">
             <Field label="Показания м³"><div className="cert-vf"><Input type="number" value={form.readings} onChange={e => setForm({ ...form, readings: e.target.value })} /><Mic k="readings" h="Показания в кубометрах" /><Copy v={form.readings} h="Показания" /></div></Field>
-            <Field label="Тип воды"><div className="cert-vf"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option>х/в</option><option>г/в</option></Select><Copy v={form.waterType} h="Вода" /></div></Field>
+            <Field label="Тип воды" required><div className="cert-vf"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option value="">— выберите —</option><option>х/в</option><option>г/в</option></Select><Copy v={form.waterType} h="Вода" /></div></Field>
           </div>
         </>)}
         <div className="erp-form-row">
