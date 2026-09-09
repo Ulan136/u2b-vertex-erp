@@ -203,6 +203,9 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
       <div class="fchip" id="st-done" onclick="setStatusFilter('Готова')">✅ Готовые</div>
       <div class="fchip" id="st-cancel" onclick="setStatusFilter('Отменён')">❌ Отмена</div>
     </div>
+    <div class="filter-row" style="padding-top:0;">
+      <input id="f-search" type="search" placeholder="🔍 ФИО, адрес или телефон" oninput="setSearch(this.value)" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;outline:none;">
+    </div>
     <div class="stats-row" id="stats"></div>
     <div id="orders-list" style="flex:1;"></div>
     <div style="height:16px;"></div>
@@ -364,7 +367,7 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
 <script src="/cabinet-common.js"></script>
 <script>
 const ORDERS_API='/api/v2/orders', COMMENTS_API='/api/v2/comments', ME_API='/api/v2/me';
-let me=null, orders=[], filter='today', filterFrom='', filterTo='', filterStatus='', commentCounts={}, activeOrderId=null;
+let me=null, orders=[], filter='today', filterFrom='', filterTo='', filterStatus='', filterQuery='', commentCounts={}, activeOrderId=null;
 function statusKey(o){ return o.status==='Готова'?'Готова':o.status==='Отменён'?'Отменён':'В работе'; }
 
 const ROLE_LABEL={admin:'Администратор',director:'Директор',accountant:'Бухгалтер',manager:'Менеджер',master:'Мастер'};
@@ -420,8 +423,17 @@ function visibleOrders(){
   } else if(filter==='today'){ list = orders.filter(o=>orderDay(o)===t); }
   else { list = orders; }
   if(filterStatus) list = list.filter(o=>statusKey(o)===filterStatus);
+  const q=(filterQuery||'').trim().toLowerCase();
+  if(q){
+    list = list.filter(o=>{
+      const addrs=[(o.address||''), ...((Array.isArray(o.positions)?o.positions:[]).map(p=>p&&p.address||''))].join(' ');
+      const hay=`${o.clientName||''} ${o.phone||''} ${addrs}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }
   return list;
 }
+function setSearch(v){ filterQuery=v; render(); }
 function syncFilterUi(){
   const range=filter==='range';
   document.getElementById('f-today').classList.toggle('on',filter==='today');
@@ -472,7 +484,7 @@ function render(){
     <div class="stat-chip sc-new"><div class="sc-num">${active.length}</div><div class="sc-lbl">В работе</div></div>
     <div class="stat-chip sc-done"><div class="sc-num">${done}</div><div class="sc-lbl">Готово</div></div>
     <div class="stat-chip"><div class="sc-num">${vis.length}</div><div class="sc-lbl">Всего</div></div>`;
-  list.innerHTML=vis.length?vis.map(orderCardHtml).join(''):`<div class="empty">${filter==='today'?'На сегодня заявок нет':filter==='range'?'Нет заявок за период':'Заявок нет'}</div>`;
+  list.innerHTML=vis.length?vis.map(orderCardHtml).join(''):`<div class="empty">${filterQuery.trim()?'Ничего не найдено':filter==='today'?'На сегодня заявок нет':filter==='range'?'Нет заявок за период':'Заявок нет'}</div>`;
   // nav badge = активные заявки сегодня
   const t=todayStr();
   const todayActive=orders.filter(o=>orderDay(o)===t&&o.status!=='Готова'&&o.status!=='Отменён').length;
