@@ -482,6 +482,12 @@ function CertsInner() {
   }
   async function save() {
     if (!form.fio.trim()) { setErr('Укажите ФИО / объект'); return; }
+    if (isCert && !form.checkDate) { setErr('Укажите дату поверки'); return; }
+    // Запрет «Оплачено» без счёта дохода: при оплате нужен счёт (для Районы счёт = поле
+    // «Счёт», оно всегда задано; для прочих прямых — строка оплаты со счётом).
+    if (isDirect && source !== 'Районы' && form.payStatus === 'Оплачено' && priceNum > 0 && (!form.id || payTouched) && !payRows.some(p => p.accountId && num(p.amount) > 0)) {
+      setErr('«Оплачено» — укажите счёт оплаты (счёт дохода)'); return;
+    }
     if (payMismatch) { setErr(`Сумма оплат (${fmtNum(payTotal)}) должна равняться цене (${fmtNum(priceNum)})`); return; }
     setSaving(true); setErr('');
     try {
@@ -773,7 +779,7 @@ function CertsInner() {
           <Field label="Заводской номер"><div className="cert-vf"><Input value={form.serialNo} onChange={e => setForm({ ...form, serialNo: e.target.value })} placeholder="Серийный номер" style={{ fontFamily: 'monospace' }} /><Mic k="serialNo" h="Номер счётчика" /><Copy v={form.serialNo} h="Зав. №" /></div></Field>
         </div>
         <div className="erp-form-row">
-          <Field label="Дата поверки"><div className="cert-vf"><Input type="date" value={form.checkDate} onChange={e => onCheckDate(e.target.value)} /><Copy v={form.checkDate ? dmy(form.checkDate) : ''} h="Дата поверки" /></div></Field>
+          <Field label="Дата поверки" required><div className="cert-vf"><Input type="date" value={form.checkDate} onChange={e => onCheckDate(e.target.value)} /><Copy v={form.checkDate ? dmy(form.checkDate) : ''} h="Дата поверки" /></div></Field>
           {isCert
             ? <Field label="Дата очередной поверки"><div className="cert-vf"><Input type="date" value={form.nextCheckDate} onChange={e => setForm({ ...form, nextCheckDate: e.target.value })} /><Copy v={form.nextCheckDate ? dmy(form.nextCheckDate) : ''} h="След. поверка" /></div></Field>
             : <Field label="Гор/хол вода"><div className="cert-vf"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option>х/в</option><option>г/в</option></Select><Copy v={form.waterType} h="Вода" /></div></Field>}
