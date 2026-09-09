@@ -33,6 +33,9 @@ type Cert = {
 };
 // Метка счёта дохода в списке: пусто → «—», один счёт → его имя, несколько → «Смешанная».
 const payAccLabel = (c: Cert): string => { const a = (c.payAccounts || []).filter(Boolean); return a.length === 0 ? '—' : a.length === 1 ? a[0] : 'Смешанная'; };
+// Аномалия: «Оплачено», но доход не проведён (нет цены/счёта) — подсветить жёлтым как
+// напоминание. Как только исправят (появится приход) — подсветка исчезнет сама.
+const paidNoIncome = (c: Cert): boolean => c.payStatus === 'Оплачено' && (c.payAccounts || []).filter(Boolean).length === 0;
 type Acct = { id: string; name: string; section?: string | null; category?: string | null; isActive?: boolean; icon?: string | null };
 const fmtNum = (n: number) => (Number(n) || 0).toLocaleString('ru-RU');
 type Product = { id: string; skuCode: string; name: string };
@@ -643,7 +646,7 @@ function CertsInner() {
               </tr></thead>
               <tbody>
                 {list.map((c, i) => (
-                  <tr key={c.id} data-focus-id={c.id} className={isTTE(c) ? 'cert-hot' : ''}>
+                  <tr key={c.id} data-focus-id={c.id} className={isTTE(c) ? 'cert-hot' : ''} style={paidNoIncome(c) ? { background: '#fef08a' } : undefined} title={paidNoIncome(c) ? '⚠ Оплачено, но доход не проведён — укажите цену и счёт (после исправления подсветка исчезнет)' : undefined}>
                     <td className="erp-muted col-no" style={{ fontSize: 11 }}>{i + 1}</td>
                     <td className="erp-td-main col-fio">{c.fio}</td>
                     <td className="col-address" style={{ fontSize: 11, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.address || '—'}</td>
@@ -685,7 +688,7 @@ function CertsInner() {
               </tr></thead>
               <tbody>
                 {list.map((c, i) => (
-                  <tr key={c.id} data-focus-id={c.id} className={isTTE(c) ? 'cert-hot' : ''}>
+                  <tr key={c.id} data-focus-id={c.id} className={isTTE(c) ? 'cert-hot' : ''} style={paidNoIncome(c) ? { background: '#fef08a' } : undefined} title={paidNoIncome(c) ? '⚠ Оплачено, но доход не проведён — укажите цену и счёт (после исправления подсветка исчезнет)' : undefined}>
                     <td className="erp-muted" style={{ fontSize: 11 }}>{i + 1}</td>
                     <td className="erp-td-main">{c.fio}</td>
                     <td style={{ fontSize: 11 }}>{c.address || '—'}</td>
