@@ -38,14 +38,27 @@ export default function DebtsPage() {
   const qs = new URLSearchParams(); if (tab === 'debit' || tab === 'credit') qs.set('type', tab); if (q.trim()) qs.set('q', q.trim());
   const { data: debts, error, isLoading, mutate } = useApi<Debt[]>(!isJournal ? '/api/v2/debts' + (qs.toString() ? '?' + qs : '') : null);
   const { data: all } = useApi<Debt[]>('/api/v2/debts');
-  const { data: fin } = useApi<{ accounts: Acct[]; operations?: OpLite[] }>('/api/v2/finance');
+  const { data: fin, mutate: mutateFin } = useApi<{ accounts: Acct[]; operations?: OpLite[] }>('/api/v2/finance');
   const { data: cats, mutate: mutateCats } = useApi<Cat[]>('/api/v2/debt-categories');
   // Авто-долги (не в реестре): закупы «В долг» → мы должны; продажи/поверки в ожидании → нам должны.
-  const { data: movs } = useApi<MoveLite[]>('/api/v2/products/movements?type=IN&limit=500');
+  const { data: movs, mutate: mutateMovs } = useApi<MoveLite[]>('/api/v2/products/movements?type=IN&limit=500');
   const { data: salesD } = useApi<SaleLite[]>('/api/v2/sales');
   const { data: certsD } = useApi<CertLite[]>('/api/v2/certs');
   const supDebt = purchaseDebts(movs || [], fin?.operations || []);
   const pend = pendingReceivables(salesD || [], certsD || []);
+  // Долги поставщикам по группам закупа (для погашения прямо здесь): непокрытые
+  // закупы «В долг», ключ = purchaseGroup||id, минус частичные оплаты по этому ключу.
+  const supPaidByKey = React.useMemo(() => { const p: Record<string, number> = {}; for (const o of fin?.operations || []) { if (o.opType !== 'Расход' || o.source !== 'Закуп' || o.reversedAt || o.reverses) continue; const g = o.expenseGroupId; if (g) p[g] = (p[g] || 0) + num(o.amount); } return p; }, [fin]);
+  const supGroups = React.useMemo(() => {
+    const g: Record<string, { key: string; repId: string; supplier: string; cost: number }> = {};
+    for (const m of (movs || []) as Array<MoveLite & { id?: string; purchaseGroup?: string | null }>) {
+      if (m.financeGroup || m.reversedAt) continue;
+      if (/возврат|отмена продажи/i.test(m.comment || '')) continue;
+      const key = m.purchaseGroup || m.id; if (!key) continue;
+      (g[key] ||= { key, repId: m.id as string, supplier: (m.supplier || '').trim() || 'Без поставщика', cost: 0 }).cost += num(m.totalSum) || num(m.qty) * num(m.price);
+    }
+    return Object.values(g).map(x => ({ ...x, remaining: Math.round((x.cost - (supPaidByKey[x.key] || 0)) * 100) / 100 })).filter(x => x.remaining > 0.5).sort((a, b) => b.remaining - a.remaining);
+  }, [movs, supPaidByKey]);
   const accounts = React.useMemo(() => (fin?.accounts || []).slice().sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)), [fin]);
   const catList = cats || [];
 
@@ -132,6 +145,21 @@ export default function DebtsPage() {
     try { await apiSend(`/api/v2/debt-payments/${pid}`, 'DELETE'); await mutate(); toast('↩️ Платёж отменён'); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
+  // ── Погашение долга ПОСТАВЩИКУ (закуп «В долг») прямо с экрана «Долги» ──
+  const [supPay, setSupPay] = React.useState<null | { repId: string; supplier: string; remaining: number; rows: PayRow[]; date: string; err: string; saving: boolean }>(null);
+  const openSupPay = (gr: { repId: string; supplier: string; remaining: number }) => setSupPay({ repId: gr.repId, supplier: gr.supplier, remaining: gr.remaining, rows: [{ accountId: '', amount: String(gr.remaining) }], date: today(), err: '', saving: false });
+  const supTotal = (supPay?.rows || []).reduce((s, r) => s + num(r.amount), 0);
+  async function saveSupPay() {
+    if (!supPay) return;
+    const rows = supPay.rows.filter(r => r.accountId && num(r.amount) > 0).map(r => ({ accountId: r.accountId, amount: num(r.amount) }));
+    if (!rows.length) { setSupPay(p => p && { ...p, err: 'Укажите счёт и сумму' }); return; }
+    setSupPay(p => p && { ...p, saving: true, err: '' });
+    try {
+      const res = await apiSend(`/api/v2/purchases/${supPay.repId}/pay`, 'POST', { payments: rows, payDate: supPay.date || null }) as { paid?: string; remaining?: string; fullyPaid?: boolean };
+      setSupPay(null); await Promise.all([mutateMovs(), mutateFin()]);
+      toast(`✅ Погашено ${fmt(num(res?.paid))} ₸${res && !res.fullyPaid ? ` · остаток долга ${fmt(num(res.remaining))}` : ''}`);
+    } catch (e) { setSupPay(p => p && { ...p, err: (e as Error).message, saving: false }); }
+  }
   async function removeDebt(d: Debt) {
     if (!confirm('Удалить долг? Связанные погашения/операции будут откачены.')) return;
     try { await apiSend(`/api/v2/debts/${d.id}`, 'DELETE'); await mutate(); toast('🗑️ Удалено'); }
@@ -171,6 +199,25 @@ export default function DebtsPage() {
           <Link href="/erp/purchases" style={{ textDecoration: 'none', color: 'inherit' }}>🏭 Долг поставщикам (закупы в долг): <b style={{ color: '#dc2626' }}>{fmt(supDebt.total)}</b>{supDebt.bySupplier.length ? <span className="erp-muted"> · {supDebt.bySupplier.length} пост.</span> : null} <span style={{ color: '#2563eb', fontSize: 12 }}>→ Закупки</span></Link>
           <Link href="/erp/finance" style={{ textDecoration: 'none', color: 'inherit' }}>⏳ Ждём оплаты (продажи+поверки): <b style={{ color: '#16a34a' }}>{fmt(pend.total)}</b> <span style={{ color: '#2563eb', fontSize: 12 }}>→ Финансы</span></Link>
           <span className="erp-muted" style={{ fontSize: 11, flexBasis: '100%' }}>Это не записи ручного реестра — они считаются автоматически. Реестр ниже ведёшь вручную (напр. займы, разовые долги).</span>
+        </Card>
+      )}
+
+      {supGroups.length > 0 && (
+        <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
+          <div style={{ padding: '10px 14px', fontWeight: 700 }}>🏭 Долги поставщикам (закупы в долг) — погасить</div>
+          <table className="erp-table">
+            <thead><tr><th>Поставщик</th><th style={{ textAlign: 'right' }}>Остаток долга</th><th style={{ textAlign: 'right' }}>Действие</th></tr></thead>
+            <tbody>
+              {supGroups.map(g => (
+                <tr key={g.key}>
+                  <td className="erp-td-main">{g.supplier}</td>
+                  <td style={{ textAlign: 'right', color: '#dc2626', fontWeight: 700 }}>{fmt(g.remaining)} ₸</td>
+                  <td style={{ textAlign: 'right' }}><Button variant="outline" onClick={() => openSupPay(g)} style={{ fontSize: 12 }}>💵 Погасить</Button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="erp-muted" style={{ fontSize: 11, padding: '6px 14px' }}>Спишется со счёта не больше его остатка (счёт не уйдёт в минус). Те же долги гасятся и в разделе «Закупки».</div>
         </Card>
       )}
 
@@ -339,6 +386,28 @@ export default function DebtsPage() {
             </div>
           </>
         )}
+      </Modal>
+
+      {/* Погашение долга поставщику (закуп «В долг») */}
+      <Modal open={!!supPay} onClose={() => setSupPay(null)} title={`🏭 Погашение поставщику — ${supPay?.supplier || ''}`}
+        footer={<><Button onClick={saveSupPay} disabled={supPay?.saving}>{supPay?.saving ? 'Проведение…' : '💵 Погасить'}</Button><Button variant="outline" onClick={() => setSupPay(null)}>Отмена</Button></>}>
+        {supPay && (<>
+          {supPay.err && <div className="erp-form-err">{supPay.err}</div>}
+          <div className="erp-muted" style={{ fontSize: 12, margin: '8px 0 10px' }}>Остаток долга: <b>{fmt(supPay.remaining)}</b> · спишется со счёта (не больше его остатка — «сколько есть»).</div>
+          {supPay.rows.map((r, i) => (
+            <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+              <Select value={r.accountId} onChange={e => setSupPay(p => p && { ...p, rows: p.rows.map((x, j) => j === i ? { ...x, accountId: e.target.value } : x) })} style={{ flex: 3 }}>
+                <option value="">— счёт —</option>
+                {SECTIONS.map(([sk, sl]) => { const secAccs = accounts.filter(a => (a.section || 'other') === sk); return secAccs.length ? <optgroup key={sk} label={sl}>{secAccs.map(a => <option key={a.id} value={a.id}>{accLabel(a)}</option>)}</optgroup> : null; })}
+              </Select>
+              <MoneyInput value={r.amount} onValue={v => setSupPay(p => p && { ...p, rows: p.rows.map((x, j) => j === i ? { ...x, amount: v } : x) })} placeholder="сумма" style={{ flex: 1, minWidth: 90 }} />
+              <button className="erp-icon-btn" title="Убрать счёт" style={{ color: '#dc2626', opacity: supPay.rows.length > 1 ? 1 : .3 }} onClick={() => setSupPay(p => p && { ...p, rows: p.rows.length > 1 ? p.rows.filter((_, j) => j !== i) : p.rows })} disabled={supPay.rows.length <= 1}>✕</button>
+            </div>
+          ))}
+          <button className="erp-chip" style={{ marginBottom: 10 }} onClick={() => setSupPay(p => p && { ...p, rows: [...p.rows, { accountId: '', amount: '' }] })}>➕ ещё счёт</button>
+          <div className="erp-muted" style={{ fontSize: 12, marginBottom: 6 }}>Итого к погашению: <b>{fmt(supTotal)}</b> из остатка {fmt(supPay.remaining)}. Если на счёте меньше — спишется сколько есть, остальное останется долгом.</div>
+          <Field label="Дата"><Input type="date" value={supPay.date} onChange={e => setSupPay(p => p && { ...p, date: e.target.value })} /></Field>
+        </>)}
       </Modal>
 
       {/* Управление категориями долгов */}
