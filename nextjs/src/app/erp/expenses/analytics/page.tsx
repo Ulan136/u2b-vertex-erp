@@ -29,8 +29,9 @@ export default function ExpenseAnalyticsPage() {
   const qs = new URLSearchParams(); if (from) qs.set('from', from); if (to) qs.set('to', to);
   const { data, error, isLoading } = useApi<{ operations: Op[] }>('/api/v2/finance?' + qs);
 
-  // Расходы за период: только Расход, без сторно/отменённых.
-  const all = React.useMemo(() => (data?.operations || []).filter(o => o.opType === 'Расход' && !o.reversedAt && !o.reverses), [data]);
+  // Расходы за период: только Расход, без сторно/отменённых. Закуп (оборот) исключаем —
+  // это не расход фирмы (см. экран «Расходы»).
+  const all = React.useMemo(() => (data?.operations || []).filter(o => o.opType === 'Расход' && o.source !== 'Закуп' && !o.reversedAt && !o.reverses), [data]);
   // Умный поиск: по сотруднику, категории, подкатегории, описанию (слова через AND).
   const expenses = React.useMemo(() => {
     const qn = q.trim().toLowerCase();

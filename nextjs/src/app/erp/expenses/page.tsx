@@ -55,7 +55,9 @@ export default function ExpensesPage() {
   const catList = cats || [];
   // Список расходов: только действующие Расходы. Исключаем сторно-строки и
   // ОТМЕНЁННЫЕ оригиналы (reversedAt) — после «удаления» (сторно) расход уходит.
-  const expenses = React.useMemo(() => (fin?.operations || []).filter(o => o.opType === 'Расход' && !o.name?.startsWith('Сторно') && !o.reversedAt && !o.reverses), [fin]);
+  // ЗАКУП (source='Закуп') сюда НЕ попадает: это оборот (склад/кредиторка), а не расход
+  // фирмы — он виден в фин.журнале, в кредиторке и на складе, но не в «Расходах».
+  const expenses = React.useMemo(() => (fin?.operations || []).filter(o => o.opType === 'Расход' && o.source !== 'Закуп' && !o.name?.startsWith('Сторно') && !o.reversedAt && !o.reverses), [fin]);
   const orderNo = (id?: string | null) => orders?.find(o => o.id === id)?.orderNo;
 
   // категория/подкатегория операции: из полей, иначе из имени/источника (legacy).
