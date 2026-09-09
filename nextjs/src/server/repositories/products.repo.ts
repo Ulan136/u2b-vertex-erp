@@ -32,6 +32,11 @@ export const productsRepo = {
   markMovementReversed: (id: string, exec: Executor = db) =>
     exec.update(stockMovements).set({ reversedAt: new Date() }).where(eq(stockMovements.id, id)),
 
+  // Снять метку оплаты (finance_group) со всех движений группы — при отмене погашения
+  // долга закуп снова становится «В долг». group = debtKey (purchaseGroup||id).
+  clearFinanceGroup: (group: string, exec: Executor = db) =>
+    exec.update(stockMovements).set({ financeGroup: null }).where(eq(stockMovements.financeGroup, group)),
+
   updateMovement: (id: string, data: Record<string, unknown>, exec: Executor = db) =>
     exec.update(stockMovements).set(data as Partial<MovementInsert>).where(eq(stockMovements.id, id)),
 

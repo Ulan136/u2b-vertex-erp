@@ -1,5 +1,6 @@
 import { db, type Executor } from '@/db';
 import { financeRepo } from '@/server/repositories/finance.repo';
+import { productsRepo } from '@/server/repositories/products.repo';
 import { expenseCategoriesRepo } from '@/server/repositories/expenseCategories.repo';
 import { employeesRepo } from '@/server/repositories/employees.repo';
 import { permissionsRepo } from '@/server/repositories/permissions.repo';
@@ -81,6 +82,9 @@ async function reverseOperation(id: string, actorId?: string | null, exec?: Exec
     if (orig.source) insert.source = orig.source;
     const rev = await insertOperation(insert, invType, orig.amount, orig.accountId, null, e);
     await financeRepo.markReversed(orig.id, e);
+    // Отмена погашения долга закупа (source='Закуп'): вернуть закуп в «В долг» —
+    // снять метку оплаты finance_group с движений этой группы, иначе долг «теряется».
+    if (orig.source === 'Закуп' && orig.expenseGroupId) await productsRepo.clearFinanceGroup(orig.expenseGroupId as string, e);
     return rev;
   };
   return exec ? run(exec) : db.transaction(run);

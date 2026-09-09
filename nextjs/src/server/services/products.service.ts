@@ -289,16 +289,30 @@ export const productsService = {
       const paidSoFar = Math.round(prior.reduce((s, o) => s + (Number(o.amount) || 0), 0) * 100) / 100;
       const remaining = Math.round((cost - paidSoFar) * 100) / 100;
       if (remaining <= 0.01) throw badRequest('Долг уже погашен');
-      const paid = Math.round(payments.reduce((s, p) => s + (Number(p.amount) || 0), 0) * 100) / 100;
-      if (paid <= 0) throw badRequest('Укажите сумму погашения');
-      if (paid - remaining > 0.01) throw badRequest(`Сумма оплат (${money(paid)}) больше остатка долга (${money(remaining)})`);
+      const wantTotal = Math.round(payments.reduce((s, p) => s + (Number(p.amount) || 0), 0) * 100) / 100;
+      if (wantTotal <= 0) throw badRequest('Укажите сумму погашения');
+      // «Взять сколько есть»: с каждого счёта списываем НЕ больше его остатка (счёт не
+      // уходит в минус) и не больше остатка долга. Что не покрыли — остаётся долгом.
+      let leftToPay = remaining;
+      const capped: Array<{ accountId: string; amount: number; accountName?: string | null }> = [];
+      for (const p of payments) {
+        if (leftToPay <= 0.005) break;
+        const acc = await financeRepo.findAccount(p.accountId, tx);
+        if (!acc) throw badRequest('Счёт оплаты не найден');
+        const avail = Math.max(0, Math.round((Number(acc.balance) || 0) * 100) / 100);
+        const want = Math.round((Number(p.amount) || 0) * 100) / 100;
+        const take = Math.round(Math.min(want, avail, leftToPay) * 100) / 100;
+        if (take > 0) { capped.push({ accountId: p.accountId, amount: take, accountName: acc.name }); leftToPay = Math.round((leftToPay - take) * 100) / 100; }
+      }
+      const paid = Math.round(capped.reduce((s, p) => s + p.amount, 0) * 100) / 100;
+      if (paid <= 0) throw badRequest('На выбранном счёте недостаточно средств для погашения');
       const first = live[0]?.productName || '';
       const partial = paid + 0.01 < remaining;   // не покрывает остаток → частичное
       const tag = partial ? 'Погашение долга (частично)' : 'Погашение долга';
       const name = (live.length > 1 ? `${tag}: ${first} +${live.length - 1} поз.` : `${tag}: ${first} ×${live[0]?.qty ?? ''}`).slice(0, 200);
-      for (const p of payments) {
+      for (const p of capped) {
         await financeService.createOperation({
-          opType: 'Расход', accountId: p.accountId, amount: money(p.amount),
+          opType: 'Расход', accountId: p.accountId, amount: money(p.amount), accountName: p.accountName || undefined,
           name, source: 'Закуп', supplier: m.supplier || undefined, docNo: m.docNo || undefined,
           opDate: payDate || undefined, expenseGroupId: debtKey,
         }, actor?.id ?? null, tx);
