@@ -16,7 +16,17 @@ export const certsRepo = {
     // ссылке /api/v2/certs/{id}/photo/{n}. Так списки лёгкие и без дублей.
     const { photos: _photos, ...cols } = getTableColumns(certificates);
     void _photos;
-    return db.select({ ...cols, createdByName: users.name, photoCount: sql<number>`coalesce(jsonb_array_length(${certificates.photos}), 0)` }).from(certificates)
+    // Реальные счета дохода сертификата (для колонки «Счёт»): имена счетов действующих
+    // приходов по этому серту (прямые — по cert_id; Выездная — по order_id). Пусто = не
+    // оплачен; 1 счёт = его имя; несколько = смешанная оплата.
+    const payAccounts = sql<string[]>`coalesce((
+      select array_agg(distinct fo.account_name) from finance_operations fo
+      where fo.op_type = 'Приход' and fo.reversed_at is null and fo.reverses is null
+        and fo.account_name is not null
+        and (fo.cert_id = ${certificates.id}
+             or (${certificates.orderId} is not null and fo.order_id = ${certificates.orderId}))
+    ), '{}')`;
+    return db.select({ ...cols, createdByName: users.name, photoCount: sql<number>`coalesce(jsonb_array_length(${certificates.photos}), 0)`, payAccounts }).from(certificates)
       .leftJoin(users, eq(certificates.createdBy, users.id))
       .where(and(...conds)).orderBy(desc(certificates.createdAt));
   },

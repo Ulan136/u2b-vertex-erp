@@ -28,9 +28,11 @@ type Cert = {
   meterType?: string | null; serialNo?: string | null; yearMade?: number | null; waterType?: string | null;
   checkDate?: string | null; nextCheckDate?: string | null; stampNo?: string | null; sealType?: string | null; readings?: string | number | null;
   result?: string | null; operStatus?: string | null; payStatus?: string | null; invoiceType?: string | null; sentStatus?: string | null; note?: string | null; createdByName?: string | null; createdAt?: string | null; amount?: string | number | null;
-  paidAmount?: string | number | null; commissionPaidAt?: string | null;
+  paidAmount?: string | number | null; commissionPaidAt?: string | null; payAccounts?: string[] | null;
   accuracyClass?: string | null; ownerKind?: string | null; ownerTaxId?: string | null; addressKz?: string | null; verifier?: string | null;
 };
+// Метка счёта дохода в списке: пусто → «—», один счёт → его имя, несколько → «Смешанная».
+const payAccLabel = (c: Cert): string => { const a = (c.payAccounts || []).filter(Boolean); return a.length === 0 ? '—' : a.length === 1 ? a[0] : 'Смешанная'; };
 type Acct = { id: string; name: string; section?: string | null; category?: string | null; isActive?: boolean; icon?: string | null };
 const fmtNum = (n: number) => (Number(n) || 0).toLocaleString('ru-RU');
 type Product = { id: string; skuCode: string; name: string };
@@ -120,7 +122,6 @@ function CertsInner() {
   const isDirect = source !== 'Выездная';
   const certSection = source === 'Астана' ? 'branch' : 'poverka';
   const secAccounts = React.useMemo(() => (fin?.accounts || []).filter(a => (a.section || '') === certSection && a.isActive !== false), [fin, certSection]);
-  const defaultAcc = secAccounts.find(a => a.category === 'kaspi') || secAccounts[0];
   const [payRows, setPayRows] = React.useState<Array<{ accountId: string; amount: string }>>([{ accountId: '', amount: '' }]);
   const [payTouched, setPayTouched] = React.useState(false);   // трогал ли пользователь оплату/цену в этой сессии модалки
   const setPay = (updater: React.SetStateAction<Array<{ accountId: string; amount: string }>>) => { setPayTouched(true); setPayRows(updater); };
@@ -153,7 +154,7 @@ function CertsInner() {
   const [commErr, setCommErr] = React.useState('');
   const [commOffsetOn, setCommOffsetOn] = React.useState(true);   // учитывать комиссию во взаиморасчёте (Блок 1)
   // При открытии модалки — одна строка оплаты: счёт раздела по умолчанию + цена.
-  React.useEffect(() => { if (modal) { setPayRows([{ accountId: defaultAcc?.id || '', amount: form.amount || '' }]); setPayTouched(false); } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [modal]);
+  React.useEffect(() => { if (modal) { setPayRows([{ accountId: '', amount: form.amount || '' }]); setPayTouched(false); } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [modal]);
   // Выездная: подгрузить текущий счёт оплаты заявки при открытии правки.
   React.useEffect(() => {
     setPayAcc(null); setNewAcc('');
@@ -263,7 +264,7 @@ function CertsInner() {
     if (fOper && c.operStatus !== fOper) return false;
     if (fPay && c.payStatus !== fPay) return false;
     if (fClient && (c.client || '') !== fClient) return false;
-    if (fInv && c.invoiceType !== fInv) return false;
+    if (fInv && !(c.payAccounts || []).includes(fInv)) return false;   // фильтр по реальному счёту дохода
     if (fWater && (c.waterType || '') !== fWater) return false;
     if (!isCert && fSent && (c.sentStatus || 'Не отправлено') !== fSent) return false;
     const d = iso(c.checkDate);
@@ -378,7 +379,7 @@ function CertsInner() {
     // Блок 2 — комиссия (только ВДК).
     if (hasComm) {
       setCommErr(''); setCommFrom(''); setCommTo(''); setCommPer('200'); setCommOffsetOn(true);
-      setCommAcct(allAccounts.find(a => a.category === 'nalichka')?.id || defaultAcc?.id || allAccounts[0]?.id || '');
+      setCommAcct('');   // счёт комиссии по умолчанию пустой — выбирается явно
     }
     setPcOpen(true);
   }
@@ -658,7 +659,7 @@ function CertsInner() {
                     </td>
                     <td className="col-oper"><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
                     <td className="col-pay"><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
-                    <td className="col-invoice"><SSel c={c} field="invoiceType" opts={INV} tone="neutral" /></td>
+                    <td className="col-invoice" title="Счёт(а) дохода по факту оплаты">{payAccLabel(c)}</td>
                     <td className="erp-muted col-author" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>
                     <td className="col-actions" style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
                       <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(c)}>✏️</button>
@@ -692,7 +693,7 @@ function CertsInner() {
                     </td>
                     <td><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
                     <td><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
-                    <td><SSel c={c} field="invoiceType" opts={INV} tone="neutral" /></td>
+                    <td title="Счёт(а) дохода по факту оплаты">{payAccLabel(c)}</td>
                     <td><SSel c={c} field="sentStatus" opts={SENT} tone={sentTone(c.sentStatus)} /></td>
                     <td className="erp-muted" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>
                     <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
@@ -866,7 +867,7 @@ function CertsInner() {
                     <button type="button" className="erp-icon-btn" style={{ color: '#dc2626' }} onClick={() => setPay(rs => rs.length > 1 ? rs.filter((_, j) => j !== i) : rs)} title="Убрать">✕</button>
                   </div>
                 ))}
-                <Button variant="outline" onClick={() => setPay(rs => [...rs, { accountId: defaultAcc?.id || '', amount: '' }])} style={{ fontSize: 12 }}>+ ещё счёт</Button>
+                <Button variant="outline" onClick={() => setPay(rs => [...rs, { accountId: '', amount: '' }])} style={{ fontSize: 12 }}>+ ещё счёт</Button>
                 <div className="sale-pay-state">
                   <span>Внесено: <b style={{ color: payMismatch ? '#b45309' : '#16a34a' }}>{fmtNum(payTotal)} ₸</b></span>
                   <span>Цена: <b>{fmtNum(priceNum)} ₸</b></span>
