@@ -513,19 +513,33 @@ function CertsInner() {
       setModal(false); await mutate(); toast(form.id ? '✅ Сохранено' : (isCert ? '✅ Сертификат добавлен' : '✅ Извещение добавлено'));
     } catch (e) { setErr((e as Error).message); } finally { setSaving(false); }
   }
-  async function remove(c: Cert) {
-    if (!confirm(`Переместить «${c.fio}» в корзину?\nОттуда можно восстановить или удалить насовсем.`)) return;
-    try { await apiSend(`/api/v2/certs/${c.id}`, 'DELETE'); await mutate(); toast('🗑️ В корзину (можно восстановить)'); }
+  // Красивая ERP-модалка подтверждения (вместо системного confirm) для удаления.
+  const [confirmDlg, setConfirmDlg] = React.useState<null | { title: string; msg: string; danger?: boolean; okLabel: string; run: () => Promise<void> }>(null);
+  const [confirmBusy, setConfirmBusy] = React.useState(false);
+  async function runConfirm() {
+    if (!confirmDlg) return;
+    setConfirmBusy(true);
+    try { await confirmDlg.run(); setConfirmDlg(null); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
+    finally { setConfirmBusy(false); }
+  }
+  function remove(c: Cert) {
+    setConfirmDlg({
+      title: '🗑 Переместить в корзину?',
+      msg: `Сертификат «${c.fio}»${c.serialNo ? ` (№ ${c.serialNo})` : ''} уйдёт в корзину. Оттуда его можно восстановить или удалить насовсем.`,
+      okLabel: '🗑 В корзину', run: async () => { await apiSend(`/api/v2/certs/${c.id}`, 'DELETE'); await mutate(); toast('🗑️ В корзину (можно восстановить)'); },
+    });
   }
   async function restoreCert(c: Cert) {
     try { await apiSend(`/api/v2/certs/${c.id}/restore`, 'POST'); await mutate(); toast('♻️ Восстановлено'); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
-  async function purgeCert(c: Cert) {
-    if (!confirm(`⚠️ Удалить «${c.fio}» НАВСЕГДА?\nВосстановить будет НЕЛЬЗЯ.`)) return;
-    try { await apiSend(`/api/v2/certs/${c.id}/purge`, 'DELETE'); await mutate(); toast('🗑️ Удалено насовсем'); }
-    catch (e) { toast('⚠️ ' + (e as Error).message); }
+  function purgeCert(c: Cert) {
+    setConfirmDlg({
+      title: '⚠️ Удалить НАВСЕГДА?',
+      msg: `Сертификат «${c.fio}»${c.serialNo ? ` (№ ${c.serialNo})` : ''} будет удалён БЕЗВОЗВРАТНО. Восстановить будет нельзя.`,
+      danger: true, okLabel: 'Удалить навсегда', run: async () => { await apiSend(`/api/v2/certs/${c.id}/purge`, 'DELETE'); await mutate(); toast('🗑️ Удалено насовсем'); },
+    });
   }
   // Инлайн-смена статуса (Операция/Оплата/Счёт/Отправлено) — PATCH одного поля.
   async function patchField(c: Cert, field: string, value: string) {
@@ -1044,6 +1058,16 @@ function CertsInner() {
             <Button variant="outline" onClick={markCommissionPaid} disabled={commSaving || commCount === 0} title="Отметить выплаченной без движения денег (прошлые периоды)">✓ Отметить (без денег)</Button>
           </div>
         </>)}
+      </Modal>
+
+      {/* Подтверждение удаления — ERP-модалка вместо системного confirm */}
+      <Modal open={!!confirmDlg} onClose={() => { if (!confirmBusy) setConfirmDlg(null); }} width={440}
+        title={<span>{confirmDlg?.title}</span>}
+        footer={<>
+          <Button onClick={runConfirm} disabled={confirmBusy} style={confirmDlg?.danger ? { background: '#dc2626', borderColor: '#dc2626' } : undefined}>{confirmBusy ? 'Выполняется…' : (confirmDlg?.okLabel || 'OK')}</Button>
+          <Button variant="outline" onClick={() => setConfirmDlg(null)} disabled={confirmBusy}>Отмена</Button>
+        </>}>
+        <div style={{ fontSize: 14, lineHeight: 1.55 }}>{confirmDlg?.msg}</div>
       </Modal>
 
       {voice.open && (
