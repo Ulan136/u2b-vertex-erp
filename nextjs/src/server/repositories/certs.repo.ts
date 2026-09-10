@@ -40,6 +40,20 @@ export const certsRepo = {
     return row ?? null;
   },
 
+  // Живой (не в корзине) серт-двойник: тот же источник + зав.№ + дата поверки + тип
+  // документа. Для запрета повторного сохранения одного и того же счётчика в один день.
+  async findDuplicate(source: string, serialNo: string, checkDate: string, docType: string, exec: Executor = db) {
+    const [row] = await exec.select({ id: certificates.id, fio: certificates.fio }).from(certificates)
+      .where(and(
+        sql`${certificates.deletedAt} is null`,
+        eq(certificates.source, source as Source),
+        eq(certificates.serialNo, serialNo),
+        eq(certificates.checkDate, checkDate),
+        eq(certificates.docType, docType),
+      )).limit(1);
+    return row ?? null;
+  },
+
   async create(data: Record<string, unknown>, exec: Executor = db) {
     const [row] = await exec.insert(certificates).values(data as unknown as CertInsert).returning();
     return row;

@@ -161,6 +161,13 @@ export const certsService = {
     // Филиал сертификата — из филиала создателя (для скоупа кабинета филиала),
     // если явно не задан. У головного офиса → его филиал (Тараз).
     if (fields.branchId == null && actor?.id) fields.branchId = await usersRepo.branchOf(actor.id);
+    // ЗАПРЕТ ДВОЙНИКА: тот же источник + зав.№ + дата поверки + тип документа уже есть.
+    const dupSerial = String(fields.serialNo ?? '').trim();
+    const dupDate = String(fields.checkDate ?? '').slice(0, 10);
+    if (dupSerial && dupDate && data.source) {
+      const dup = await certsRepo.findDuplicate(data.source, dupSerial, dupDate, String(data.docType || 'cert'));
+      if (dup) throw badRequest(`Двойник: сертификат с зав. № ${dupSerial} за ${dupDate} уже есть (${dup.fio}). Повторно не сохраняем.`);
+    }
     // Сертификат + списание клейма + доход (если «Оплачено», не Выездная) — одной
     // транзакцией. Всё считаем по сохранённой строке (итоговое состояние).
     const row = await db.transaction(async (tx) => {
