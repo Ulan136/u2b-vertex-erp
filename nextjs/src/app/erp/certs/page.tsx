@@ -49,6 +49,8 @@ const INV = ['Каспи', 'БЦК', 'Наличка'];
 const SENT = ['Не отправлено', 'Запланировано', 'Отправлено'];
 const dmy = (d?: string | null) => formatDate(d) || '—';
 const iso = (d?: string | null) => (d ? String(d).slice(0, 10) : '');
+// Сегодня в формате YYYY-MM-DD по локальному времени (не UTC — иначе сдвиг на границе суток).
+const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const num = (v: unknown) => Number(v) || 0;
 const operTone = (s?: string | null): 'ok' | 'warn' | 'info' | 'neutral' => s === 'Внесён в КТРМ' ? 'ok' : s === 'В работе' ? 'neutral' : 'warn';
 const sentTone = (s?: string | null): 'ok' | 'warn' | 'info' => s === 'Отправлено' ? 'ok' : s === 'Запланировано' ? 'info' : 'warn';
@@ -471,7 +473,10 @@ function CertsInner() {
     // На странице ВДК клиент нового сертификата по умолчанию = «вдк» (как источник).
     const vdkClient = source === 'ВДК' ? (clientsInDir.find(c => c.toLowerCase() === 'вдк') || 'вдк') : '';
     const d = SRC_DEF[source];   // цена + тип воды по источнику (можно изменить)
-    setForm({ ...EMPTY, client: vdkClient, ...(d ? { amount: d.amount, waterType: d.waterType } : {}) });
+    // Дата поверки по умолчанию — сегодня (можно изменить). Очередная = +5 лет.
+    const td = todayIso();
+    const nxt = docType === 'cert' ? `${Number(td.slice(0, 4)) + 5}${td.slice(4)}` : '';
+    setForm({ ...EMPTY, client: vdkClient, checkDate: td, nextCheckDate: nxt, ...(d ? { amount: d.amount, waterType: d.waterType } : {}) });
     setCloneFrom(''); setErr(''); setModal(true);
   };
   const fillForm = (c: Cert): typeof EMPTY => ({ id: c.id, fio: c.fio || '', address: c.address || '', phone: c.phone || '', client: c.client || '', meterType: c.meterType || '', serialNo: c.serialNo || '', yearMade: c.yearMade ? String(c.yearMade) : '', waterType: c.waterType || 'х/в', checkDate: iso(c.checkDate), nextCheckDate: iso(c.nextCheckDate), stampNo: c.stampNo || '', sealType: c.sealType === 'ПЛ' ? 'ПЛ' : 'СЛ', readings: c.readings != null ? String(c.readings) : '', result: c.result || 'Годен', operStatus: c.operStatus || 'В работе', payStatus: c.payStatus || 'В ожидании', invoiceType: c.invoiceType || '', sentStatus: c.sentStatus || 'Не отправлено', note: c.note || '', amount: c.amount != null ? String(c.amount) : '', accuracyClass: c.accuracyClass || '', ownerKind: c.ownerKind || 'физлицо', ownerTaxId: c.ownerTaxId || '', addressKz: c.addressKz || '', verifier: c.verifier || '' });

@@ -30,7 +30,9 @@ export const certsRepo = {
     ), '{}')`;
     return db.select({ ...cols, createdByName: users.name, photoCount: sql<number>`coalesce(jsonb_array_length(${certificates.photos}), 0)`, payAccounts }).from(certificates)
       .leftJoin(users, eq(certificates.createdBy, users.id))
-      .where(and(...conds)).orderBy(desc(certificates.createdAt));
+      // Сортировка по ДАТЕ ПОВЕРКИ (новые сверху), при равной — по времени создания.
+      // Так после правки даты серт встаёт на своё место, а не остаётся по порядку ввода.
+      .where(and(...conds)).orderBy(sql`${certificates.checkDate} desc nulls last`, desc(certificates.createdAt));
   },
 
   async findById(id: string, exec: Executor = db) {
