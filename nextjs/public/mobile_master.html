@@ -624,7 +624,7 @@ function zaRenderPositions(){
   zaRenderPay();
 }
 async function zaDelPosition(id){
-  if(!confirm('Удалить позицию (сертификат)?'))return;
+  if(!confirm('Удалить позицию (сертификат)?\nЗапись уйдёт в корзину — восстановить можно в офисе.'))return;
   try{ const r=await fetch(CERTS_API+'/'+id,{method:'DELETE'}); if(!r.ok&&r.status!==204)throw new Error('HTTP '+r.status); zaPositions=zaPositions.filter(c=>c.id!==id); zaRenderPositions(); toast('🗑 Позиция удалена'); }
   catch(e){ toast('⚠️ '+e.message); }
 }
