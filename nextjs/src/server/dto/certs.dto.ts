@@ -28,7 +28,7 @@ export const certUpsertSchema = z.object({
   sentStatus: z.string().optional(),   // извещение: статус отправки
   operStatus: z.string().optional(),
   payStatus: z.string().optional(),
-  invoiceType: z.string().optional(),
+  invoiceType: z.string().nullish(),
   isArchived: z.boolean().optional(),   // в архив / из архива
   // Реквизиты для е-КТРМ. ИИН/БИН — ровно 12 цифр, пустая строка допустима
   // (в разобранных сертификатах поле часто не заполнено).
@@ -120,7 +120,8 @@ export const commissionPaySchema = z.object({
 
 // Подготовка полей к вставке/апдейту: undefined убираем (→ дефолт БД / без изменения),
 // пустую строку в date/uuid-колонках приводим к null (иначе Postgres 500 на '').
-const CERT_DATE_OR_UUID = new Set(['checkDate', 'nextCheckDate', 'branchId', 'orderId']);
+// invoiceType — enum-колонка: пустая строка невалидна, поэтому '' → null (счёт не выбран).
+const CERT_DATE_OR_UUID = new Set(['checkDate', 'nextCheckDate', 'branchId', 'orderId', 'invoiceType']);
 export function cleanCertFields(data: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   Object.entries(data).forEach(([k, v]) => {

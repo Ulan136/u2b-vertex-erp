@@ -53,7 +53,7 @@ const num = (v: unknown) => Number(v) || 0;
 const operTone = (s?: string | null): 'ok' | 'warn' | 'info' | 'neutral' => s === 'Внесён в КТРМ' ? 'ok' : s === 'В работе' ? 'neutral' : 'warn';
 const sentTone = (s?: string | null): 'ok' | 'warn' | 'info' => s === 'Отправлено' ? 'ok' : s === 'Запланировано' ? 'info' : 'warn';
 const isTTE = (c: Cert) => /ттэ/i.test(c.note || '') || c.waterType === 'г/в';
-const EMPTY = { id: '', fio: '', address: '', phone: '', client: '', meterType: '', serialNo: '', yearMade: '', waterType: 'х/в', checkDate: '', nextCheckDate: '', stampNo: '', sealType: 'СЛ', readings: '', result: 'Годен', operStatus: 'В работе', payStatus: 'В ожидании', invoiceType: 'Каспи', sentStatus: 'Не отправлено', note: '', amount: '', accuracyClass: '', ownerKind: 'физлицо', ownerTaxId: '', addressKz: '', verifier: '' };
+const EMPTY = { id: '', fio: '', address: '', phone: '', client: '', meterType: '', serialNo: '', yearMade: '', waterType: 'х/в', checkDate: '', nextCheckDate: '', stampNo: '', sealType: 'СЛ', readings: '', result: 'Годен', operStatus: 'В работе', payStatus: 'В ожидании', invoiceType: '', sentStatus: 'Не отправлено', note: '', amount: '', accuracyClass: '', ownerKind: 'физлицо', ownerTaxId: '', addressKz: '', verifier: '' };
 // Дефолты нового сертификата по источнику: цена + тип воды (можно менять). САМИ — вода
 // пустая (выбрать вручную). Прочие источники — как в EMPTY (х/в, без цены).
 const SRC_DEF: Record<string, { amount: string; waterType: string }> = {
@@ -474,7 +474,7 @@ function CertsInner() {
     setForm({ ...EMPTY, client: vdkClient, ...(d ? { amount: d.amount, waterType: d.waterType } : {}) });
     setCloneFrom(''); setErr(''); setModal(true);
   };
-  const fillForm = (c: Cert): typeof EMPTY => ({ id: c.id, fio: c.fio || '', address: c.address || '', phone: c.phone || '', client: c.client || '', meterType: c.meterType || '', serialNo: c.serialNo || '', yearMade: c.yearMade ? String(c.yearMade) : '', waterType: c.waterType || 'х/в', checkDate: iso(c.checkDate), nextCheckDate: iso(c.nextCheckDate), stampNo: c.stampNo || '', sealType: c.sealType === 'ПЛ' ? 'ПЛ' : 'СЛ', readings: c.readings != null ? String(c.readings) : '', result: c.result || 'Годен', operStatus: c.operStatus || 'В работе', payStatus: c.payStatus || 'В ожидании', invoiceType: c.invoiceType || 'Каспи', sentStatus: c.sentStatus || 'Не отправлено', note: c.note || '', amount: c.amount != null ? String(c.amount) : '', accuracyClass: c.accuracyClass || '', ownerKind: c.ownerKind || 'физлицо', ownerTaxId: c.ownerTaxId || '', addressKz: c.addressKz || '', verifier: c.verifier || '' });
+  const fillForm = (c: Cert): typeof EMPTY => ({ id: c.id, fio: c.fio || '', address: c.address || '', phone: c.phone || '', client: c.client || '', meterType: c.meterType || '', serialNo: c.serialNo || '', yearMade: c.yearMade ? String(c.yearMade) : '', waterType: c.waterType || 'х/в', checkDate: iso(c.checkDate), nextCheckDate: iso(c.nextCheckDate), stampNo: c.stampNo || '', sealType: c.sealType === 'ПЛ' ? 'ПЛ' : 'СЛ', readings: c.readings != null ? String(c.readings) : '', result: c.result || 'Годен', operStatus: c.operStatus || 'В работе', payStatus: c.payStatus || 'В ожидании', invoiceType: c.invoiceType || '', sentStatus: c.sentStatus || 'Не отправлено', note: c.note || '', amount: c.amount != null ? String(c.amount) : '', accuracyClass: c.accuracyClass || '', ownerKind: c.ownerKind || 'физлицо', ownerTaxId: c.ownerTaxId || '', addressKz: c.addressKz || '', verifier: c.verifier || '' });
   const openEdit = (c: Cert) => { setForm(fillForm(c)); setCloneFrom(''); setErr(''); setModal(true); };
   const openClone = (c: Cert) => { setForm({ ...fillForm(c), id: '', checkDate: '', nextCheckDate: '' }); setCloneFrom(`${c.fio || ''}`); setErr(''); setModal(true); };
 
@@ -899,7 +899,7 @@ function CertsInner() {
         <div className="erp-form-row" style={{ gridTemplateColumns: isCert ? '1fr 1fr 1fr' : '1fr 1fr 1fr 1fr' }}>
           <Field label="Операция"><Select value={form.operStatus} onChange={e => setForm({ ...form, operStatus: e.target.value })}>{OPER.map(o => <option key={o}>{o}</option>)}</Select></Field>
           <Field label="Оплата"><Select value={form.payStatus} onChange={e => setForm({ ...form, payStatus: e.target.value })}>{PAY.map(o => <option key={o}>{o}</option>)}</Select></Field>
-          <Field label="Счёт"><Select value={form.invoiceType} onChange={e => setForm({ ...form, invoiceType: e.target.value })}>{INV.map(o => <option key={o}>{o}</option>)}</Select></Field>
+          <Field label="Счёт"><Select value={form.invoiceType} onChange={e => setForm({ ...form, invoiceType: e.target.value })}><option value="">— выберите счёт —</option>{INV.map(o => <option key={o}>{o}</option>)}</Select></Field>
           {!isCert && <Field label="Отправка"><Select value={form.sentStatus} onChange={e => setForm({ ...form, sentStatus: e.target.value })}>{SENT.map(o => <option key={o}>{o}</option>)}</Select></Field>}
         </div>
 
