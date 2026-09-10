@@ -127,7 +127,17 @@ function CertsInner() {
   const { data: products } = useApi<Product[]>('/api/v2/products');
   const { data: clients, mutate: mutateClients } = useApi<Client[]>('/api/v2/clients');
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
-  const { data: org } = useApi<{ companyName?: string | null }>('/api/v2/org');
+  const { data: org, mutate: mutateOrg } = useApi<{ companyName?: string | null; stampSeqNext?: number | null }>('/api/v2/org');
+  const stampNext = org?.stampSeqNext ?? null;   // общий порядковый № клейма (следующий)
+  // Задать новый порядковый № клейма (новая партия). База вводится в поле prompt.
+  async function setStampBase() {
+    const cur = window.prompt('Порядковый № клейма (начало партии):', stampNext ? String(stampNext) : '');
+    if (cur == null) return;
+    const n = Math.floor(Number(cur.replace(/\D/g, '')));
+    if (!(n > 0)) { toast('⚠️ Введите номер цифрами'); return; }
+    try { await apiSend('/api/v2/org', 'PATCH', { stampSeqNext: n }); await mutateOrg(); setForm(f => ({ ...f, stampNo: String(n) })); toast(`✅ Порядковый № клейма: ${n}`); }
+    catch (e) { toast('⚠️ ' + (e as Error).message); }
+  }
   // Комиссия — наш долг перед клиентом за сертификаты ТЭЦ. Блок «Выплата комиссий»
   // живёт на экране ВДК, но считает по ТЭЦ-сертам, поэтому грузим их отдельно (только
   // когда блок доступен: экран ВДК + сертификаты).
@@ -515,7 +525,7 @@ function CertsInner() {
       else await apiSend('/api/v2/certs', 'POST', buildBody());
       // «Недавние» пишем только при УСПЕШНОМ сохранении (не при наборе).
       if (form.meterType.trim()) setRecentMeters(pushRecent('meterType', uid, { v: form.meterType.trim() }));
-      setModal(false); await mutate(); toast(form.id ? '✅ Сохранено' : (isCert ? '✅ Сертификат добавлен' : '✅ Извещение добавлено'));
+      setModal(false); await Promise.all([mutate(), mutateOrg()]); toast(form.id ? '✅ Сохранено' : (isCert ? '✅ Сертификат добавлен' : '✅ Извещение добавлено'));
     } catch (e) { setErr((e as Error).message); } finally { setSaving(false); }
   }
   // Красивая ERP-модалка подтверждения (вместо системного confirm) для удаления.
@@ -841,7 +851,17 @@ function CertsInner() {
         </div>
         {isCert && (<>
           <div className="erp-form-row">
-            <Field label="№ клейма"><div className="cert-vf"><Input value={form.stampNo} onChange={e => setForm({ ...form, stampNo: e.target.value })} placeholder="0000000" style={{ fontFamily: 'monospace' }} /><Mic k="stampNo" h="Номер клейма" /><Copy v={form.stampNo} h="№ клейма" /></div></Field>
+            <Field label="№ клейма">
+              <div className="cert-vf"><Input value={form.stampNo} onChange={e => setForm({ ...form, stampNo: e.target.value })} placeholder="0000000" style={{ fontFamily: 'monospace' }} /><Mic k="stampNo" h="Номер клейма" /><Copy v={form.stampNo} h="№ клейма" /></div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                {stampNext ? (<>
+                  <button type="button" className="erp-chip" onClick={() => setForm(f => ({ ...f, stampNo: String(stampNext) }))} title="Подставить следующий порядковый № клейма">➡ Использовать № {stampNext}</button>
+                  <button type="button" className="erp-chip" onClick={setStampBase} title="Новая партия клейм — задать другой начальный номер">🔁 новая партия</button>
+                </>) : (
+                  <button type="button" className="erp-chip" onClick={setStampBase} title="Задать порядковый № клейма (партию)">➕ Внести порядковый номер</button>
+                )}
+              </div>
+            </Field>
             <Field label="Тип поверительного клейма">
               <div className="cert-seal">
                 <label><input type="radio" name="sealType" checked={form.sealType === 'СЛ'} onChange={() => setForm({ ...form, sealType: 'СЛ' })} /> Самоклеющийся лейбл (СЛ)</label>

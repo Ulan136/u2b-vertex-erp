@@ -284,6 +284,7 @@ export const orgSettings = pgTable('org_settings', {
   kpTemplateB64     : text('kp_template_b64'),
   // Публичный JS-ключ Яндекс.Карт (ограничен доменом) — карта выбора адреса в заявках.
   yandexMapsKey     : varchar('yandex_maps_key', { length: 120 }),
+  stampSeqNext      : integer('stamp_seq_next'),   // общий порядковый № клейма (следующий)
   updatedAt    : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
