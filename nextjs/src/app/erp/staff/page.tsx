@@ -23,7 +23,7 @@ export default function StaffPage() {
   const employees = data?.employees || [];
 
   const [add, setAdd] = React.useState<{ open: boolean; cands: Cand[]; userId: string; salary: string; err: string; saving: boolean }>({ open: false, cands: [], userId: '', salary: '', err: '', saving: false });
-  const [edit, setEdit] = React.useState<{ open: boolean; e: Emp | null; salary: string; err: string; saving: boolean }>({ open: false, e: null, salary: '', err: '', saving: false });
+  const [edit, setEdit] = React.useState<{ open: boolean; e: Emp | null; name: string; position: string; salary: string; err: string; saving: boolean }>({ open: false, e: null, name: '', position: '', salary: '', err: '', saving: false });
   const [pay, setPay] = React.useState<{ open: boolean; e: Emp | null; amount: string; accountId: string; kind: string; comment: string; err: string; saving: boolean }>({ open: false, e: null, amount: '', accountId: '', kind: 'salary', comment: '', err: '', saving: false });
 
   async function openAdd() {
@@ -39,9 +39,17 @@ export default function StaffPage() {
   }
   async function saveEdit() {
     if (!edit.e) return;
+    if (!edit.name.trim()) { setEdit(s => ({ ...s, err: 'Укажите ФИО' })); return; }
     setEdit(s => ({ ...s, saving: true, err: '' }));
-    try { await apiSend(`/api/v2/employees/${edit.e.userId}`, 'PATCH', { fixedSalary: Number(edit.salary) || 0 }); setEdit(s => ({ ...s, open: false })); await mutate(); toast('✅ Оклад обновлён'); }
-    catch (e) { setEdit(s => ({ ...s, err: (e as Error).message, saving: false })); }
+    try {
+      // ФИО/должность — в пользователе (users), оклад — в кадрах (employees). Пользователя
+      // трогаем только если реально изменилось (иначе не нужны права на управление юзерами).
+      const nameChanged = edit.name.trim() !== (edit.e.name || '');
+      const posChanged = (edit.position.trim() || '') !== (edit.e.position || '');
+      if (nameChanged || posChanged) await apiSend(`/api/v2/users/${edit.e.userId}`, 'PATCH', { name: edit.name.trim(), position: edit.position.trim() || null });
+      await apiSend(`/api/v2/employees/${edit.e.userId}`, 'PATCH', { fixedSalary: Number(edit.salary) || 0 });
+      setEdit(s => ({ ...s, open: false })); await mutate(); toast('✅ Сохранено');
+    } catch (e) { setEdit(s => ({ ...s, err: (e as Error).message, saving: false })); }
   }
   async function remove(e: Emp) {
     if (!confirm(`Убрать «${e.name}» из кадрового учёта? История выплат сохранится.`)) return;
@@ -94,7 +102,7 @@ export default function StaffPage() {
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {e.salaryHidden ? <span className="erp-muted" style={{ fontSize: 11 }}>скрыто</span> : canEdit ? <>
                         <Button variant="outline" onClick={() => setPay({ open: true, e, amount: String(e.remaining || 0), accountId: '', kind: 'salary', comment: '', err: '', saving: false })} style={{ fontSize: 12, padding: '4px 8px' }}>Выплатить</Button>
-                        <button className="erp-icon-btn" title="Оклад" onClick={() => setEdit({ open: true, e, salary: String(e.fixedSalary || 0), err: '', saving: false })}>✏️</button>
+                        <button className="erp-icon-btn" title="Изменить (ФИО / должность / оклад)" onClick={() => setEdit({ open: true, e, name: e.name || '', position: e.position || '', salary: String(e.fixedSalary || 0), err: '', saving: false })}>✏️</button>
                         <button className="erp-icon-btn" title="Убрать" style={{ color: '#dc2626' }} onClick={() => remove(e)}>🗑️</button>
                       </> : <span className="erp-muted">—</span>}
                     </td>
@@ -112,10 +120,14 @@ export default function StaffPage() {
         <Field label="Оклад (₸/мес)" required><MoneyInput value={add.salary} onValue={v => setAdd(a => ({ ...a, salary: v }))} placeholder="200 000" /></Field>
       </Modal>
 
-      <Modal open={edit.open} onClose={() => setEdit(s => ({ ...s, open: false }))} title={`✏️ Оклад — ${edit.e?.name || ''}`}
+      <Modal open={edit.open} onClose={() => setEdit(s => ({ ...s, open: false }))} title={`✏️ Сотрудник — ${edit.e?.name || ''}`}
         footer={<><Button onClick={saveEdit} disabled={edit.saving}>{edit.saving ? '…' : 'Сохранить'}</Button><Button variant="outline" onClick={() => setEdit(s => ({ ...s, open: false }))}>Отмена</Button></>}>
         {edit.err && <div className="erp-form-err">{edit.err}</div>}
-        <Field label="Оклад (₸/мес)"><MoneyInput value={edit.salary} onValue={v => setEdit(s => ({ ...s, salary: v }))} placeholder="0" /></Field>
+        <Field label="ФИО" required><Input value={edit.name} onChange={e => setEdit(s => ({ ...s, name: e.target.value }))} placeholder="Фамилия Имя Отчество" /></Field>
+        <div className="erp-form-row">
+          <Field label="Должность"><Input value={edit.position} onChange={e => setEdit(s => ({ ...s, position: e.target.value }))} placeholder="напр. Менеджер" /></Field>
+          <Field label="Оклад (₸/мес)"><MoneyInput value={edit.salary} onValue={v => setEdit(s => ({ ...s, salary: v }))} placeholder="0" /></Field>
+        </div>
       </Modal>
 
       <Modal open={pay.open} onClose={() => setPay(p => ({ ...p, open: false }))} title={`💵 Выплата — ${pay.e?.name || ''}`}
