@@ -92,6 +92,8 @@ export const certificates = pgTable('certificates', {
   paidAmount    : numeric('paid_amount', { precision: 12, scale: 2 }).default('0'),
   // Комиссия клиенту выплачена (ТЭЦ): когда. null → не выплачена (наш долг).
   commissionPaidAt: timestamp('commission_paid_at', { withTimezone: true }),
+  // Оплата закрыта взаиморасчётом (зачётом комиссии) → в колонке «Счёт» показываем «Смешанная».
+  settledByOffset: boolean('settled_by_offset').default(false),
   isArchived    : boolean('is_archived').default(false),
   archivedAt    : timestamp('archived_at', { withTimezone: true }),
   deletedAt     : timestamp('deleted_at', { withTimezone: true }),   // корзина: мягкое удаление

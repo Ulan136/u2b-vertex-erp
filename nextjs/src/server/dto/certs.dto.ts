@@ -95,6 +95,7 @@ export const payByClientSchema = z.object({
   payments: z.array(z.object({
     accountId: z.string().uuid(),
     amount: z.coerce.number().positive(),
+    offset: z.boolean().optional(),   // строка зачёта (взаиморасчёт) — серт, оплаченный ею, помечаем «Смешанная»
   })).min(1, 'Добавьте хотя бы одну оплату'),
   // Взаиморасчёт: при приёме оплаты гасим наш долг по комиссии ТЭЦ зачётом —
   // Расход на тот же счёт (деньги отдельно не выдаём). Период/кол-во комиссии.

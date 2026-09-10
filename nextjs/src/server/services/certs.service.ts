@@ -145,6 +145,8 @@ export const certsService = {
           ...(cert.orderId ? { orderId: cert.orderId } : { certId }) },
         actor?.id ?? null, tx,
       );
+      // доход переведён на один реальный счёт → это больше не зачёт: снимаем метку «Смешанная»
+      if (!cert.orderId) await certsRepo.update(certId, { settledByOffset: false }, tx);
       return { ok: true, account: acc.name, total: m2(total) };
     });
   },
@@ -320,17 +322,17 @@ export const certsService = {
       // Пул принятых денег: закрываем сертификаты ПО ПОРЯДКУ. Полностью закрытый →
       // «Оплачено»; один недокрытый → «Есть остаток» (доход = внесённая часть);
       // остальные не трогаем (остаются «В ожидании»).
-      const pool = payments.map(p => ({ accountId: String(p.accountId), left: round2(p.amount) }));
+      const pool = payments.map(p => ({ accountId: String(p.accountId), left: round2(p.amount), offset: !!p.offset }));
       let pi = 0; let closed = 0; let partialId: string | null = null;
       for (const c of targets) {
         const due = dueOf(c);
         if (due <= 0.005) continue;
         // сколько можем внести в этот серт из пула
-        let take = 0; const alloc: PayLine[] = [];
+        let take = 0; const alloc: PayLine[] = []; let usedOffset = false;
         let need = due;
         while (need > 0.001 && pi < pool.length) {
           const t = round2(Math.min(need, pool[pi].left));
-          if (t > 0) { alloc.push({ accountId: pool[pi].accountId, amount: t }); pool[pi].left = round2(pool[pi].left - t); need = round2(need - t); take = round2(take + t); }
+          if (t > 0) { alloc.push({ accountId: pool[pi].accountId, amount: t }); if (pool[pi].offset) usedOffset = true; pool[pi].left = round2(pool[pi].left - t); need = round2(need - t); take = round2(take + t); }
           if (pool[pi].left <= 0.001) pi++;
         }
         if (take <= 0.005) break;   // деньги кончились — остальные оставляем «В ожидании»
@@ -340,6 +342,8 @@ export const certsService = {
           amount: String(priceOf(c)),
           paidAmount: String(full ? priceOf(c) : newPaid),
           payStatus: full ? 'Оплачено' : 'Есть остаток',
+          // серт, в оплату которого пошёл зачёт (взаиморасчёт) → в колонке «Счёт» показываем «Смешанная»
+          ...(usedOffset ? { settledByOffset: true } : {}),
         }, tx);
         await productsService.syncCertSeal({ id: upd.id, serialNo: upd.serialNo }, sealFor(upd), actor, tx);
         // Доход этого сертификата за эту оплату = внесённая часть (alloc), привязан к certId.

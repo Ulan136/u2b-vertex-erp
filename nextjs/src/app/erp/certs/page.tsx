@@ -28,11 +28,12 @@ type Cert = {
   meterType?: string | null; serialNo?: string | null; yearMade?: number | null; waterType?: string | null;
   checkDate?: string | null; nextCheckDate?: string | null; stampNo?: string | null; sealType?: string | null; readings?: string | number | null;
   result?: string | null; operStatus?: string | null; payStatus?: string | null; invoiceType?: string | null; sentStatus?: string | null; note?: string | null; createdByName?: string | null; createdAt?: string | null; amount?: string | number | null;
-  paidAmount?: string | number | null; commissionPaidAt?: string | null; payAccounts?: string[] | null;
+  paidAmount?: string | number | null; commissionPaidAt?: string | null; payAccounts?: string[] | null; settledByOffset?: boolean | null;
   accuracyClass?: string | null; ownerKind?: string | null; ownerTaxId?: string | null; addressKz?: string | null; verifier?: string | null;
 };
-// Метка счёта дохода в списке: пусто → «—», один счёт → его имя, несколько → «Смешанная».
-const payAccLabel = (c: Cert): string => { const a = (c.payAccounts || []).filter(Boolean); return a.length === 0 ? '—' : a.length === 1 ? a[0] : 'Смешанная'; };
+// Метка счёта дохода в списке: пусто → «—»; оплата закрыта взаиморасчётом → «Смешанная»;
+// один счёт → его имя; несколько → «Смешанная».
+const payAccLabel = (c: Cert): string => { const a = (c.payAccounts || []).filter(Boolean); if (a.length === 0) return '—'; if (c.settledByOffset) return 'Смешанная'; return a.length === 1 ? a[0] : 'Смешанная'; };
 // Аномалия: «Оплачено», но доход не проведён (нет цены/счёта) — подсветить жёлтым как
 // напоминание. Как только исправят (появится приход) — подсветка исчезнет сама.
 const paidNoIncome = (c: Cert): boolean => c.payStatus === 'Оплачено' && (c.payAccounts || []).filter(Boolean).length === 0;
@@ -473,7 +474,7 @@ function CertsInner() {
       await apiSend('/api/v2/certs/pay-by-client', 'POST', {
         source, docType, client: fClient, pricePerCert: pcPriceNum, count: pcQtyNum,
         dateFrom: pcFrom || null, dateTo: pcTo || null,
-        payments: [...cashRows, { accountId: commAcct, amount: offsetComm }],   // кэш + зачёт (на счёт комиссии)
+        payments: [...cashRows, { accountId: commAcct, amount: offsetComm, offset: true }],   // кэш + зачёт (на счёт комиссии); offset → серт помечается «Смешанная»
         settleCommission: { perCert: commPerNum, dateFrom: commFrom || null, dateTo: commTo || null, count: commCount, accountId: commAcct },
       });
       setPcOpen(false); await Promise.all([mutate(), mutateTec()]);
