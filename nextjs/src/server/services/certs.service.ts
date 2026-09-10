@@ -8,7 +8,6 @@ import { financeService } from '@/server/services/finance.service';
 import { financeRepo } from '@/server/repositories/finance.repo';
 import { sealMarker } from '@/server/dto/products.dto';
 import { usersRepo } from '@/server/repositories/users.repo';
-import { orgRepo } from '@/server/repositories/org.repo';
 import { BRANCH_ROLE } from '@/server/dto/permissions.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
@@ -177,10 +176,10 @@ export const certsService = {
       await syncCertIncome(created, payments, actor, tx);
       return created;
     });
-    // Продвигаем общий порядковый счётчик клейма: если клеймо числовое — следующий = +1.
-    // Так другой менеджер при открытии формы получит следующий номер. Best-effort.
+    // Продвигаем порядковый счётчик клейма ЭТОГО МЕНЕДЖЕРА (у каждого свой): клеймо
+    // числовое → следующий = +1. Другой менеджер этого не видит. Best-effort.
     const usedStamp = Number(String(row.stampNo ?? '').trim());
-    if (Number.isFinite(usedStamp) && usedStamp > 0) { try { await orgRepo.upsert({ stampSeqNext: usedStamp + 1 }); } catch { /* noop */ } }
+    if (Number.isFinite(usedStamp) && usedStamp > 0 && actor?.id) { try { await usersRepo.update(actor.id, { stampSeqNext: usedStamp + 1 }); } catch { /* noop */ } }
     // Самообучение справочника типов приборов (best-effort, не роняет сохранение).
     if (fields.meterType) await deviceTypesService.touch(fields.meterType);
     return row;

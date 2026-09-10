@@ -127,15 +127,17 @@ function CertsInner() {
   const { data: products } = useApi<Product[]>('/api/v2/products');
   const { data: clients, mutate: mutateClients } = useApi<Client[]>('/api/v2/clients');
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
-  const { data: org, mutate: mutateOrg } = useApi<{ companyName?: string | null; stampSeqNext?: number | null }>('/api/v2/org');
-  const stampNext = org?.stampSeqNext ?? null;   // общий порядковый № клейма (следующий)
-  // Задать новый порядковый № клейма (новая партия). База вводится в поле prompt.
+  const { data: org } = useApi<{ companyName?: string | null }>('/api/v2/org');
+  // Порядковый № клейма — СВОЙ у каждого менеджера (по аккаунту): читаем/пишем через /me.
+  const { data: me, mutate: mutateMe } = useApi<{ stampSeqNext?: number | null }>('/api/v2/me');
+  const stampNext = me?.stampSeqNext ?? null;
+  // Задать свой порядковый № клейма (новая партия). База вводится в prompt.
   async function setStampBase() {
-    const cur = window.prompt('Порядковый № клейма (начало партии):', stampNext ? String(stampNext) : '');
+    const cur = window.prompt('Ваш порядковый № клейма (начало партии):', stampNext ? String(stampNext) : '');
     if (cur == null) return;
     const n = Math.floor(Number(cur.replace(/\D/g, '')));
     if (!(n > 0)) { toast('⚠️ Введите номер цифрами'); return; }
-    try { await apiSend('/api/v2/org', 'PATCH', { stampSeqNext: n }); await mutateOrg(); setForm(f => ({ ...f, stampNo: String(n) })); toast(`✅ Порядковый № клейма: ${n}`); }
+    try { await apiSend('/api/v2/me/stamp-seq', 'POST', { next: n }); await mutateMe(); setForm(f => ({ ...f, stampNo: String(n) })); toast(`✅ Ваш № клейма: ${n}`); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
   // Комиссия — наш долг перед клиентом за сертификаты ТЭЦ. Блок «Выплата комиссий»
@@ -491,7 +493,11 @@ function CertsInner() {
   };
   const fillForm = (c: Cert): typeof EMPTY => ({ id: c.id, fio: c.fio || '', address: c.address || '', phone: c.phone || '', client: c.client || '', meterType: c.meterType || '', serialNo: c.serialNo || '', yearMade: c.yearMade ? String(c.yearMade) : '', waterType: c.waterType || 'х/в', checkDate: iso(c.checkDate), nextCheckDate: iso(c.nextCheckDate), stampNo: c.stampNo || '', sealType: c.sealType === 'ПЛ' ? 'ПЛ' : 'СЛ', readings: c.readings != null ? String(c.readings) : '', result: c.result || 'Годен', operStatus: c.operStatus || 'В работе', payStatus: c.payStatus || 'В ожидании', invoiceType: c.invoiceType || '', sentStatus: c.sentStatus || 'Не отправлено', note: c.note || '', amount: c.amount != null ? String(c.amount) : '', accuracyClass: c.accuracyClass || '', ownerKind: c.ownerKind || 'физлицо', ownerTaxId: c.ownerTaxId || '', addressKz: c.addressKz || '', verifier: c.verifier || '' });
   const openEdit = (c: Cert) => { setForm(fillForm(c)); setCloneFrom(''); setErr(''); setModal(true); };
-  const openClone = (c: Cert) => { setForm({ ...fillForm(c), id: '', checkDate: '', nextCheckDate: '' }); setCloneFrom(`${c.fio || ''}`); setErr(''); setModal(true); };
+  const openClone = (c: Cert) => {
+    const td = todayIso();   // дата поверки клона по умолчанию — сегодня (можно изменить)
+    const nxt = docType === 'cert' ? `${Number(td.slice(0, 4)) + 5}${td.slice(4)}` : '';
+    setForm({ ...fillForm(c), id: '', checkDate: td, nextCheckDate: nxt }); setCloneFrom(`${c.fio || ''}`); setErr(''); setModal(true);
+  };
 
   function onCheckDate(v: string) {
     setForm(f => {
@@ -525,7 +531,7 @@ function CertsInner() {
       else await apiSend('/api/v2/certs', 'POST', buildBody());
       // «Недавние» пишем только при УСПЕШНОМ сохранении (не при наборе).
       if (form.meterType.trim()) setRecentMeters(pushRecent('meterType', uid, { v: form.meterType.trim() }));
-      setModal(false); await Promise.all([mutate(), mutateOrg()]); toast(form.id ? '✅ Сохранено' : (isCert ? '✅ Сертификат добавлен' : '✅ Извещение добавлено'));
+      setModal(false); await Promise.all([mutate(), mutateMe()]); toast(form.id ? '✅ Сохранено' : (isCert ? '✅ Сертификат добавлен' : '✅ Извещение добавлено'));
     } catch (e) { setErr((e as Error).message); } finally { setSaving(false); }
   }
   // Красивая ERP-модалка подтверждения (вместо системного confirm) для удаления.

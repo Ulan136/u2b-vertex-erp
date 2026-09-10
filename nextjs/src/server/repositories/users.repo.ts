@@ -30,6 +30,12 @@ export const usersRepo = {
     return row ?? null;
   },
 
+  // Порядковый № клейма менеджера (следующий) — для формы сертификата.
+  async stampSeqOf(id: string): Promise<number | null> {
+    const [row] = await db.select({ n: users.stampSeqNext }).from(users).where(eq(users.id, id)).limit(1);
+    return row?.n ?? null;
+  },
+
   async findByEmail(email: string) {
     const [row] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
     return row ?? null;
