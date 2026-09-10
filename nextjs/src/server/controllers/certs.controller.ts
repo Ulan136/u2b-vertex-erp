@@ -12,6 +12,7 @@ export const GET = withApi(async (req: NextRequest, ctx) => {
     archived: sp.get('archived') === 'true',
     type: sp.get('type'),
     orderId: sp.get('orderId'),
+    trash: sp.get('trash') === '1' || sp.get('trash') === 'true',
   }, ctx.user ? { id: ctx.user.id, role: ctx.user.role } : null);
 });
 export const POST = withApi(async (req: NextRequest, ctx) => created(await certsService.create(await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null)));
@@ -23,6 +24,11 @@ export const PAY_ACCOUNT = withApi(async (req: NextRequest, ctx) => certsService
 // item: /api/v2/certs/[id]
 export const PATCH = withApi(async (req: NextRequest, ctx) => certsService.update(ctx.params!.id, await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
 export const DELETE = withApi(async (req: NextRequest, ctx) => certsService.remove(ctx.params!.id, ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
+
+// Корзина: POST /api/v2/certs/[id]/restore — вернуть из корзины;
+// DELETE /api/v2/certs/[id]/purge — удалить насовсем.
+export const RESTORE = withApi(async (_req: NextRequest, ctx) => certsService.restore(ctx.params!.id, ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null));
+export const PURGE = withApi(async (_req: NextRequest, ctx) => certsService.purge(ctx.params!.id));
 
 // POST /api/v2/orders/[id]/payment — приём оплаты заявки (выездной мастер):
 // смешанная оплата → приход на счета «Поверка» + сертификаты «Оплачено».

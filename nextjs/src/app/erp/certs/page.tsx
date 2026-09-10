@@ -105,6 +105,7 @@ function CertsInner() {
   const initial = sp.get('source');
   const [source, setSource] = React.useState(initial && SOURCES.includes(initial) ? initial : 'САМИ');
   const [docType, setDocType] = React.useState<'cert' | 'izv'>(sp.get('type') === 'izv' ? 'izv' : 'cert');
+  const [trash, setTrash] = React.useState(false);   // режим «Корзина» (удалённые)
   const [q, setQ] = React.useState('');
   const [fOper, setFOper] = React.useState('');
   const [fPay, setFPay] = React.useState('');
@@ -120,7 +121,7 @@ function CertsInner() {
     const s = sp.get('source'); if (s && SOURCES.includes(s)) setSource(s);
     const t = sp.get('type'); if (t === 'cert' || t === 'izv') setDocType(t);
   }, [sp]);
-  const { data: certs, error, isLoading, mutate } = useApi<Cert[]>(`/api/v2/certs?source=${encodeURIComponent(source)}&archived=false&type=${docType}`);
+  const { data: certs, error, isLoading, mutate } = useApi<Cert[]>(`/api/v2/certs?source=${encodeURIComponent(source)}&archived=false&type=${docType}${trash ? '&trash=1' : ''}`);
   const { data: products } = useApi<Product[]>('/api/v2/products');
   const { data: clients, mutate: mutateClients } = useApi<Client[]>('/api/v2/clients');
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
@@ -513,8 +514,17 @@ function CertsInner() {
     } catch (e) { setErr((e as Error).message); } finally { setSaving(false); }
   }
   async function remove(c: Cert) {
-    if (!confirm(`Удалить запись «${c.fio}»?`)) return;
-    try { await apiSend(`/api/v2/certs/${c.id}`, 'DELETE'); await mutate(); toast('🗑️ Удалено'); }
+    if (!confirm(`Переместить «${c.fio}» в корзину?\nОттуда можно восстановить или удалить насовсем.`)) return;
+    try { await apiSend(`/api/v2/certs/${c.id}`, 'DELETE'); await mutate(); toast('🗑️ В корзину (можно восстановить)'); }
+    catch (e) { toast('⚠️ ' + (e as Error).message); }
+  }
+  async function restoreCert(c: Cert) {
+    try { await apiSend(`/api/v2/certs/${c.id}/restore`, 'POST'); await mutate(); toast('♻️ Восстановлено'); }
+    catch (e) { toast('⚠️ ' + (e as Error).message); }
+  }
+  async function purgeCert(c: Cert) {
+    if (!confirm(`⚠️ Удалить «${c.fio}» НАВСЕГДА?\nВосстановить будет НЕЛЬЗЯ.`)) return;
+    try { await apiSend(`/api/v2/certs/${c.id}/purge`, 'DELETE'); await mutate(); toast('🗑️ Удалено насовсем'); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
   // Инлайн-смена статуса (Операция/Оплата/Счёт/Отправлено) — PATCH одного поля.
@@ -606,7 +616,8 @@ function CertsInner() {
           <Button variant="outline" onClick={() => printPdf(list)}>🖨 PDF</Button>
           <Button variant="outline" onClick={() => exportExcel(list, `Реестр_${isCert ? 'сертификаты' : 'извещения'}_${source}.xlsx`)}>⬇ Excel</Button>
           <Button variant="outline" onClick={() => exportWord(list, `Реестр_${isCert ? 'сертификаты' : 'извещения'}_${source}.docx`)}>⬇ Word</Button>
-          <Button onClick={openNew}>+ {isCert ? 'Сертификат' : 'Извещение'}</Button>
+          <Button variant="outline" onClick={() => setTrash(t => !t)} title="Удалённые сертификаты (восстановление / удаление насовсем)" style={trash ? { background: '#fef08a', borderColor: '#eab308' } : undefined}>🗑 Корзина{trash ? ' ✕' : ''}</Button>
+          {!trash && <Button onClick={openNew}>+ {isCert ? 'Сертификат' : 'Извещение'}</Button>}
         </div>} />
 
       {/* Строка статистики */}
@@ -632,7 +643,8 @@ function CertsInner() {
         <Select value={fWater} onChange={e => setFWater(e.target.value)} title="Тип воды"><option value="">Вода: все</option><option value="х/в">🔵 х/в (холодная)</option><option value="г/в">🔴 г/в (горячая)</option></Select>
         {!isCert && <Select value={fSent} onChange={e => setFSent(e.target.value)}><option value="">Отправка: все</option>{SENT.map(o => <option key={o}>{o}</option>)}</Select>}
         <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
-        {isDirect && <Button onClick={openPay} title={hasComm ? 'Приём оплаты сертификата (ВДК) и/или выплата комиссий клиенту за сертификаты ТЭЦ' : (!fClient ? 'Сначала выберите клиента в фильтре «Клиент»' : pcCount === 0 ? 'Нет сертификатов в ожидании' : `Принять оплату за ${pcCount} серт.`)}>{hasComm ? '🧾 Оплата сертификата / выплата комиссий' : '🧾 Приём оплаты сертификата'}</Button>}
+        {isDirect && !trash && <Button onClick={openPay} title={hasComm ? 'Приём оплаты сертификата (ВДК) и/или выплата комиссий клиенту за сертификаты ТЭЦ' : (!fClient ? 'Сначала выберите клиента в фильтре «Клиент»' : pcCount === 0 ? 'Нет сертификатов в ожидании' : `Принять оплату за ${pcCount} серт.`)}>{hasComm ? '🧾 Оплата сертификата / выплата комиссий' : '🧾 Приём оплаты сертификата'}</Button>}
+        {trash && <span style={{ fontSize: 13, fontWeight: 700, color: '#b45309' }}>🗑 Корзина ({source}) — восстановите ♻️ или удалите насовсем</span>}
       </Card>
 
       {isDirect && fClient && (
@@ -657,7 +669,7 @@ function CertsInner() {
               </tr></thead>
               <tbody>
                 {list.map((c, i) => (
-                  <tr key={c.id} data-focus-id={c.id} className={isTTE(c) ? 'cert-hot' : ''} style={paidNoIncome(c) ? { background: '#fef08a' } : undefined} title={paidNoIncome(c) ? '⚠ Оплачено, но доход не проведён — укажите цену и счёт (после исправления подсветка исчезнет)' : undefined}>
+                  <tr key={c.id} data-focus-id={c.id} className={isTTE(c) ? 'cert-hot' : ''} style={!trash && paidNoIncome(c) ? { background: '#fef08a' } : undefined} title={!trash && paidNoIncome(c) ? '⚠ Оплачено, но доход не проведён — укажите цену и счёт (после исправления подсветка исчезнет)' : undefined}>
                     <td className="erp-muted col-no" style={{ fontSize: 11 }}>{i + 1}</td>
                     <td className="erp-td-main col-fio">{c.fio}</td>
                     <td className="col-address" style={{ fontSize: 11, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.address || '—'}</td>
@@ -682,10 +694,15 @@ function CertsInner() {
                     <td className="col-invoice" title="Счёт(а) дохода по факту оплаты">{payAccLabel(c)}</td>
                     <td className="erp-muted col-author" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>
                     <td className="col-actions" style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
-                      <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(c)}>✏️</button>
-                      <button className="erp-icon-btn" title="Клонировать" onClick={() => openClone(c)}>⧉</button>
-                      <button className="erp-icon-btn" title={c.operStatus === 'Внесён в КТРМ' ? 'Уже в КТРМ' : 'Внести в е-КТРМ'} style={{ color: c.operStatus === 'Внесён в КТРМ' ? '#16a34a' : '#1d4ed8' }} onClick={() => ktrm(c)}>{c.operStatus === 'Внесён в КТРМ' ? '✅' : '🤖'}</button>
-                      <button className="erp-icon-btn" title="Удалить" style={{ color: '#dc2626' }} onClick={() => remove(c)}>🗑️</button>
+                      {trash ? (<>
+                        <button className="erp-icon-btn" title="Восстановить из корзины" style={{ color: '#16a34a' }} onClick={() => restoreCert(c)}>♻️</button>
+                        <button className="erp-icon-btn" title="Удалить НАВСЕГДА" style={{ color: '#dc2626' }} onClick={() => purgeCert(c)}>🗑️</button>
+                      </>) : (<>
+                        <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(c)}>✏️</button>
+                        <button className="erp-icon-btn" title="Клонировать" onClick={() => openClone(c)}>⧉</button>
+                        <button className="erp-icon-btn" title={c.operStatus === 'Внесён в КТРМ' ? 'Уже в КТРМ' : 'Внести в е-КТРМ'} style={{ color: c.operStatus === 'Внесён в КТРМ' ? '#16a34a' : '#1d4ed8' }} onClick={() => ktrm(c)}>{c.operStatus === 'Внесён в КТРМ' ? '✅' : '🤖'}</button>
+                        <button className="erp-icon-btn" title="В корзину" style={{ color: '#dc2626' }} onClick={() => remove(c)}>🗑️</button>
+                      </>)}
                     </td>
                   </tr>
                 ))}
@@ -699,7 +716,7 @@ function CertsInner() {
               </tr></thead>
               <tbody>
                 {list.map((c, i) => (
-                  <tr key={c.id} data-focus-id={c.id} className={isTTE(c) ? 'cert-hot' : ''} style={paidNoIncome(c) ? { background: '#fef08a' } : undefined} title={paidNoIncome(c) ? '⚠ Оплачено, но доход не проведён — укажите цену и счёт (после исправления подсветка исчезнет)' : undefined}>
+                  <tr key={c.id} data-focus-id={c.id} className={isTTE(c) ? 'cert-hot' : ''} style={!trash && paidNoIncome(c) ? { background: '#fef08a' } : undefined} title={!trash && paidNoIncome(c) ? '⚠ Оплачено, но доход не проведён — укажите цену и счёт (после исправления подсветка исчезнет)' : undefined}>
                     <td className="erp-muted" style={{ fontSize: 11 }}>{i + 1}</td>
                     <td className="erp-td-main">{c.fio}</td>
                     <td style={{ fontSize: 11 }}>{c.address || '—'}</td>
@@ -717,9 +734,14 @@ function CertsInner() {
                     <td><SSel c={c} field="sentStatus" opts={SENT} tone={sentTone(c.sentStatus)} /></td>
                     <td className="erp-muted" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>
                     <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
-                      <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(c)}>✏️</button>
-                      <button className="erp-icon-btn" title="Клонировать" onClick={() => openClone(c)}>⧉</button>
-                      <button className="erp-icon-btn" title="Удалить" style={{ color: '#dc2626' }} onClick={() => remove(c)}>🗑️</button>
+                      {trash ? (<>
+                        <button className="erp-icon-btn" title="Восстановить из корзины" style={{ color: '#16a34a' }} onClick={() => restoreCert(c)}>♻️</button>
+                        <button className="erp-icon-btn" title="Удалить НАВСЕГДА" style={{ color: '#dc2626' }} onClick={() => purgeCert(c)}>🗑️</button>
+                      </>) : (<>
+                        <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(c)}>✏️</button>
+                        <button className="erp-icon-btn" title="Клонировать" onClick={() => openClone(c)}>⧉</button>
+                        <button className="erp-icon-btn" title="В корзину" style={{ color: '#dc2626' }} onClick={() => remove(c)}>🗑️</button>
+                      </>)}
                     </td>
                   </tr>
                 ))}

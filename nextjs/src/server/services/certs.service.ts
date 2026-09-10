@@ -100,6 +100,7 @@ export const certsService = {
       type: q.orderId ? null : (q.type || 'cert'),   // по заявке — все её сертификаты, без фильтра по типу
       orderId: q.orderId ?? null,
       branchId,   // null у обычных ролей → без фильтра по филиалу (как было)
+      trash: q.trash ?? false,   // корзина
     });
   },
 
@@ -195,12 +196,39 @@ export const certsService = {
     return row;
   },
 
+  // Удаление = В КОРЗИНУ (мягкое): сторнируем доход (баланс к нулю) + возвращаем клейма
+  // на склад + ставим deleted_at (строка остаётся). Ссылки на серт не рвём (для
+  // восстановления). Из корзины можно вернуть (restore) или стереть насовсем (purge).
   async remove(id: string, actor?: { id: string; name?: string } | null) {
     if (!id) throw badRequest('id is required');
-    // Сторнируем доход (баланс к нулю) + снимаем cert_id с финопер (FK NO ACTION),
-    // возвращаем клейма на склад и удаляем поверку — одной транзакцией.
     await db.transaction(async (tx) => {
       await reverseCertIncome(id, actor, tx);
+      await productsService.releaseCertConsumables(id, tx);
+      await certsRepo.softDelete(id, tx);
+    });
+    return { ok: true };
+  },
+
+  // Восстановление из корзины: снимаем deleted_at + пересобираем клеймо и доход
+  // (если серт «Оплачено»/«Есть остаток» — доход проведётся заново).
+  async restore(id: string, actor?: { id: string; name?: string } | null) {
+    if (!id) throw badRequest('id is required');
+    const row = await db.transaction(async (tx) => {
+      const r = await certsRepo.restore(id, tx);
+      if (!r) return null;
+      await productsService.syncCertSeal({ id: r.id, serialNo: r.serialNo }, sealFor(r), actor, tx);
+      await syncCertIncome(r as CertRow, undefined, actor, tx);
+      return r;
+    });
+    if (!row) throw notFound('Сертификат не найден в корзине');
+    return { ok: true };
+  },
+
+  // Окончательное удаление из корзины (с концами): снимаем cert_id с финопер (FK) +
+  // возвращаем остаточные клейма + жёсткий DELETE. Доход уже сторнирован при удалении.
+  async purge(id: string) {
+    if (!id) throw badRequest('id is required');
+    await db.transaction(async (tx) => {
       await financeRepo.detachCert(id, tx);
       await productsService.releaseCertConsumables(id, tx);
       await certsRepo.remove(id, tx);

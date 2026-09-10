@@ -93,6 +93,7 @@ export const certificates = pgTable('certificates', {
   commissionPaidAt: timestamp('commission_paid_at', { withTimezone: true }),
   isArchived    : boolean('is_archived').default(false),
   archivedAt    : timestamp('archived_at', { withTimezone: true }),
+  deletedAt     : timestamp('deleted_at', { withTimezone: true }),   // корзина: мягкое удаление
   createdBy     : uuid('created_by').references(() => users.id),
   updatedBy     : uuid('updated_by').references(() => users.id),
   createdAt     : timestamp('created_at', { withTimezone: true }).defaultNow(),

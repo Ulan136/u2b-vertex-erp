@@ -6,8 +6,10 @@ type CertInsert = typeof certificates.$inferInsert;
 type Source = typeof certificates.source.enumValues[number];
 
 export const certsRepo = {
-  list({ source, archived, type, orderId, branchId }: { source?: string | null; archived: boolean; type?: string | null; orderId?: string | null; branchId?: string | null }) {
-    const conds = [eq(certificates.isArchived, archived)];
+  list({ source, archived, type, orderId, branchId, trash }: { source?: string | null; archived: boolean; type?: string | null; orderId?: string | null; branchId?: string | null; trash?: boolean }) {
+    // Корзина: trash=true → только удалённые (deleted_at IS NOT NULL); иначе — только
+    // живые (deleted_at IS NULL). Удалённые никогда не смешиваются с обычными списками.
+    const conds = [trash ? sql`${certificates.deletedAt} is not null` : sql`${certificates.deletedAt} is null`, eq(certificates.isArchived, archived)];
     if (type) conds.push(eq(certificates.docType, type));          // без type → все документы (для дашборда)
     if (source) conds.push(eq(certificates.source, source as Source));
     if (orderId) conds.push(eq(certificates.orderId, orderId));    // сертификаты одной заявки
@@ -48,6 +50,14 @@ export const certsRepo = {
       .where(eq(certificates.id, id))
       .returning();
     return row;
+  },
+
+  // Корзина: мягкое удаление (в корзину) и восстановление.
+  softDelete: (id: string, exec: Executor = db) =>
+    exec.update(certificates).set({ deletedAt: new Date(), updatedAt: new Date() }).where(eq(certificates.id, id)),
+  async restore(id: string, exec: Executor = db) {
+    const [row] = await exec.update(certificates).set({ deletedAt: null, updatedAt: new Date() }).where(eq(certificates.id, id)).returning();
+    return row ?? null;
   },
 
   remove: (id: string, exec: Executor = db) => exec.delete(certificates).where(eq(certificates.id, id)),

@@ -71,7 +71,7 @@ export function isCertPaid(payStatus?: string | null): boolean {
   return payStatus === 'Оплачено';
 }
 
-export type CertQuery = { source?: string | null; archived?: boolean; type?: string | null; orderId?: string | null };
+export type CertQuery = { source?: string | null; archived?: boolean; type?: string | null; orderId?: string | null; trash?: boolean };
 
 // Приём оплаты поверки (заявки): смешанная оплата — строки {счёт, сумма}.
 export const poverkaPaymentSchema = z.object({
