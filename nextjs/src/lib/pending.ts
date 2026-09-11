@@ -12,6 +12,14 @@ export type SaleLite = { totalSum?: string | number; paidSum?: string | number; 
 export type CertLite = { payStatus?: string | null; amount?: string | number | null };
 export type OpLite = { opType?: string | null; source?: string | null; expenseGroupId?: string | null; amount?: string | number; reversedAt?: string | null; reverses?: string | null };
 
+// Полный агрегат оплат закупов из /api/v2/finance (purchasePayments) — сумма активных
+// Расход-Закуп по debtKey БЕЗ лимита 50. Приводим к OpLite, чтобы paidByDebtKey/
+// purchaseDebts считали долг по всем оплатам, а не по обрезанному журналу операций.
+export type PurchasePayment = { expenseGroupId?: string | null; amount?: string | number };
+export function paymentsAsOps(pp?: PurchasePayment[]): OpLite[] {
+  return (pp || []).map(p => ({ opType: 'Расход', source: 'Закуп', expenseGroupId: p.expenseGroupId, amount: p.amount }));
+}
+
 // Сумма уже оплаченного по каждому долгу-закупу (частичные погашения). Ключ =
 // expense_group_id операции = debtKey закупа (purchaseGroup или id движения).
 export function paidByDebtKey(ops?: OpLite[]): Record<string, number> {

@@ -4,7 +4,7 @@ import { formatDate } from '@/lib/format';
 import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow } from '@/components/ui';
-import { purchaseDebts, type MoveLite, type OpLite } from '@/lib/pending';
+import { purchaseDebts, paidByDebtKey, paymentsAsOps, type MoveLite, type PurchasePayment } from '@/lib/pending';
 
 type Movement = { id: string; skuCode?: string | null; productName?: string | null; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; author?: string | null; moveDate?: string | null; comment?: string | null; financeGroup?: string | null; purchaseGroup?: string | null; reversedAt?: string | null };
 type Product = { id: string; skuCode: string; name: string; price: string | number; costPrice?: string | number | null; currentStock: number };
@@ -23,21 +23,15 @@ const emptyForm = () => ({ open: false, items: [emptyItem()], supplier: '', docN
 export default function PurchasesPage() {
   const { data: buys, error, isLoading, mutate } = useApi<Movement[]>('/api/v2/products/movements?type=IN&limit=200');
   const { data: products, mutate: mutateProducts } = useApi<Product[]>('/api/v2/products');
-  const { data: fin } = useApi<{ accounts: Acct[]; operations?: Array<{ opType?: string | null; source?: string | null; expenseGroupId?: string | null; amount?: string | number; reversedAt?: string | null; reverses?: string | null }> }>('/api/v2/finance');
+  const { data: fin } = useApi<{ accounts: Acct[]; purchasePayments?: PurchasePayment[] }>('/api/v2/finance');
   const { data: suppliers } = useApi<Array<{ id: string; name: string }>>('/api/v2/clients?kind=supplier');
   const accounts = fin?.accounts || [];
-  // Уже оплачено по каждому долгу-закупу (частичные погашения) — ключ = debtKey.
-  const paidByKey = React.useMemo(() => {
-    const p: Record<string, number> = {};
-    for (const o of fin?.operations || []) {
-      if (o.opType !== 'Расход' || o.source !== 'Закуп' || o.reversedAt || o.reverses) continue;
-      const g = o.expenseGroupId; if (!g) continue; p[g] = (p[g] || 0) + num(o.amount);
-    }
-    return p;
-  }, [fin]);
+  // Уже оплачено по каждому долгу-закупу — по ПОЛНОМУ агрегату оплат закупов
+  // (purchasePayments), а не по обрезанному журналу операций (последние 50).
+  const paidByKey = React.useMemo(() => paidByDebtKey(paymentsAsOps(fin?.purchasePayments)), [fin]);
   const debtKeyOf = (b: Movement) => b.purchaseGroup || b.id;
   // Долг по каждому поставщику (мы должны) — по имени; для показа в форме закупа.
-  const supDebts = React.useMemo(() => purchaseDebts((buys || []) as MoveLite[], (fin?.operations || []) as OpLite[]).bySupplier, [buys, fin]);
+  const supDebts = React.useMemo(() => purchaseDebts((buys || []) as MoveLite[], paymentsAsOps(fin?.purchasePayments)).bySupplier, [buys, fin]);
   const supDebtOf = (name: string) => { const k = (name || '').trim().toLowerCase(); return k ? (supDebts.find(s => s.supplier.trim().toLowerCase() === k)?.amount || 0) : 0; };
   const accGroups = SECTIONS.map(s => ({ ...s, accs: accounts.filter(a => (a.section || 'other') === s.key).sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)) }));
 

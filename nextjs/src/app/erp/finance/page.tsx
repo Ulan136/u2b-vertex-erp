@@ -7,7 +7,7 @@ import { toast } from '@/lib/toast';
 import { Card, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow, DateRange } from '@/components/ui';
 import { isRealIncome, isRealExpense } from '@/server/dto/finance.dto';
 import { opIcon, opName, opSign, opAmountColor, isReversed, isReversal } from '@/lib/opDisplay';
-import { purchaseDebts, pendingReceivables, type MoveLite, type SaleLite, type CertLite } from '@/lib/pending';
+import { purchaseDebts, pendingReceivables, paymentsAsOps, type MoveLite, type SaleLite, type CertLite, type PurchasePayment } from '@/lib/pending';
 
 type Acct = { id: string; name: string; category?: string | null; section?: string | null; icon?: string | null; balance?: string | number | null; sortOrder?: number | null };
 type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; createdByName?: string | null; saleId?: string | null; certId?: string | null };
@@ -61,12 +61,14 @@ export default function FinancePage() {
   const [to, setTo] = React.useState('');
   const [fAcc, setFAcc] = React.useState('');   // фильтр по конкретному счёту
   const qs = new URLSearchParams(); if (from) qs.set('from', from); if (to) qs.set('to', to);
-  const { data, error, isLoading, mutate } = useApi<{ accounts: Acct[]; operations: Op[] }>('/api/v2/finance' + (qs.toString() ? '?' + qs : ''));
+  const { data, error, isLoading, mutate } = useApi<{ accounts: Acct[]; operations: Op[]; purchasePayments?: PurchasePayment[] }>('/api/v2/finance' + (qs.toString() ? '?' + qs : ''));
   // Вычисляемые долги (ожидаемые поступления + долг поставщикам) — сводкой, без реестра.
   const movements = useApi<MoveLite[]>('/api/v2/products/movements?type=IN&limit=500');
   const salesData = useApi<SaleLite[]>('/api/v2/sales');
   const certsData = useApi<CertLite[]>('/api/v2/certs');
-  const supDebt = purchaseDebts(movements.data || [], data?.operations || []);
+  // Долг поставщикам — по ПОЛНОМУ агрегату оплат закупов (purchasePayments), а не по
+  // обрезанному журналу operations (последние 50), иначе старые погашения не вычитаются.
+  const supDebt = purchaseDebts(movements.data || [], paymentsAsOps(data?.purchasePayments));
   const pend = pendingReceivables(salesData.data || [], certsData.data || []);
   const accounts = data?.accounts || [];
   const ops = data?.operations || [];

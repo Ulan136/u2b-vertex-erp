@@ -28,7 +28,21 @@ export const financeRepo = {
         .leftJoin(users, eq(financeOperations.createdBy, users.id))
         .orderBy(desc(financeOperations.createdAt)).limit(50);
     }
-    return { accounts, operations };
+    // Оплаты закупов (для расчёта долга поставщикам) — ПОЛНЫЙ агрегат по debtKey,
+    // без лимита 50: иначе бэкдейтнутые/старые погашения выпадают из окна и долг
+    // показывается завышенным. Ключ = expense_group_id, сумма активных Расход-Закуп.
+    const purchasePayments = await db
+      .select({ expenseGroupId: financeOperations.expenseGroupId, amount: sql<string>`sum(${financeOperations.amount})` })
+      .from(financeOperations)
+      .where(and(
+        eq(financeOperations.source, 'Закуп'),
+        eq(financeOperations.opType, 'Расход'),
+        sql`${financeOperations.reversedAt} is null`,
+        sql`${financeOperations.reverses} is null`,
+        sql`${financeOperations.expenseGroupId} is not null`,
+      ))
+      .groupBy(financeOperations.expenseGroupId);
+    return { accounts, operations, purchasePayments };
   },
 
   async createOperation(data: Record<string, unknown>, exec: Executor = db) {

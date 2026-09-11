@@ -7,7 +7,7 @@ import { Card, PageTitle, Badge } from '@/components/ui';
 import { isRealIncome, isRealExpense } from '@/server/dto/finance.dto';
 import { opIcon, opName, opSign, opAmountColor, isReversed } from '@/lib/opDisplay';
 import { payColor } from '@/lib/status';
-import { purchaseDebts, pendingReceivables, type MoveLite } from '@/lib/pending';
+import { purchaseDebts, pendingReceivables, paymentsAsOps, type MoveLite, type PurchasePayment } from '@/lib/pending';
 
 type Acct = { id: string; name: string; section?: string | null; balance?: string | number | null; icon?: string | null };
 type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; saleId?: string | null; certId?: string | null };
@@ -48,7 +48,7 @@ function Kpi({ icon, label, value, sub, tone, href }: { icon: string; label: str
 }
 
 export default function Dashboard() {
-  const fin = useApi<{ accounts: Acct[]; operations: Op[] }>('/api/v2/finance');
+  const fin = useApi<{ accounts: Acct[]; operations: Op[]; purchasePayments?: PurchasePayment[] }>('/api/v2/finance');
   const debts = useApi<Debt[]>('/api/v2/debts');
   const tasks = useApi<Task[]>('/api/v2/tasks');
   const ordF = useApi<Order[]>('/api/v2/orders?source=field_check');
@@ -73,7 +73,7 @@ export default function Dashboard() {
   const payableOverdue = debtList.some(d => d.type === 'credit' && d.status !== 'closed' && d.dueDate && String(d.dueDate).slice(0, 10) < today);
 
   // Вычисляемые долги (не из ручного реестра): закупы «В долг» + ожидаемые поступления.
-  const supDebt = purchaseDebts(movements.data || [], fin.data?.operations || []);
+  const supDebt = purchaseDebts(movements.data || [], paymentsAsOps(fin.data?.purchasePayments));
   const pend = pendingReceivables(sales.data || [], certs.data || []);
   const payableAll = payable + supDebt.total;      // мы должны = реестр + долг поставщикам
   const receivableAll = receivable + pend.total;   // нам должны = реестр + ожидают оплаты
