@@ -331,7 +331,6 @@ function CertsInner() {
 
   // ── Оплата по клиенту: данные ──
   const clientsInDir = React.useMemo(() => Array.from(new Set(all.map(c => (c.client || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'ru')), [all]);
-  const allAccounts = React.useMemo(() => (fin?.accounts || []).filter(a => a.isActive !== false), [fin]);
   // Ожидающие сертификаты клиента, отфильтрованные по диапазону дат поверки (если задан).
   const pcAwaiting = React.useMemo(() => {
     if (!fClient) return [];
@@ -1073,7 +1072,7 @@ function CertsInner() {
           </div>
           <div className="erp-form-row">
             <Field label="Комиссия за сертификат, ₸"><MoneyInput value={commPer} onValue={setCommPer} placeholder="200" /></Field>
-            <Field label="Со счёта"><Select value={commAcct} onChange={e => setCommAcct(e.target.value)}><option value="">— счёт —</option>{allAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}</Select></Field>
+            <Field label="Со счёта"><Select value={commAcct} onChange={e => setCommAcct(e.target.value)}><option value="">{secAccounts.length ? '— счёт —' : '— нет счетов раздела —'}</option>{secAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}</Select></Field>
           </div>
           <div className="sale-pay-state" style={{ marginTop: 6 }}>
             <span>Не выплачено{(commFrom || commTo) ? ' за период' : ''}: <b style={{ color: commCount ? '#b45309' : '#16a34a' }}>{commCount}</b> серт.</span>
