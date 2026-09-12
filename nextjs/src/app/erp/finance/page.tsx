@@ -79,6 +79,8 @@ export default function FinancePage() {
   const [op, setOp] = React.useState({ type: 'Приход', accountId: '', toAccountId: '', amount: '', name: '', date: today(), err: '', saving: false });
   const [acctModal, setAcctModal] = React.useState(false);
   const [acc, setAcc] = React.useState({ id: '', name: '', category: 'kaspi', section: 'poverka', icon: '💳', balance: '', err: '', saving: false });
+  const [confirmRev, setConfirmRev] = React.useState<Op | null>(null);   // модалка подтверждения отмены операции (сторно)
+  const [revBusy, setRevBusy] = React.useState(false);
   // Скрытые колонки-разделы (глазок): свернуть пустые/лишние, чтобы остальные
   // растянулись и журнал операций читался в большом объёме.
   const [hidden, setHidden] = React.useState<Set<string>>(new Set());
@@ -106,10 +108,17 @@ export default function FinancePage() {
     try { await apiSend('/api/v2/finance', 'POST', body); setOpModal(false); await mutate(); toast('✅ Операция сохранена'); }
     catch (e) { setOp(o => ({ ...o, err: (e as Error).message, saving: false })); }
   }
-  async function reverseOp(o: Op) {
-    if (!confirm(`Отменить операцию «${opName(o)}» на ${fmt(o.amount)}?\nБудет сторно — обратная операция вернёт баланс. Ошибку так исправляют.`)) return;
-    try { await apiSend(`/api/v2/finance/${o.id}/reverse`, 'POST'); await mutate(); toast('↩️ Операция отменена (сторно)'); }
+  // Отмена операции (сторно) — через стильную модалку с предупреждением, чтобы не
+  // нажали случайно (danger-подтверждение вместо тихого системного confirm).
+  function reverseOp(o: Op) {
+    setConfirmRev(o);
+  }
+  async function runReverse() {
+    const o = confirmRev; if (!o) return;
+    setRevBusy(true);
+    try { await apiSend(`/api/v2/finance/${o.id}/reverse`, 'POST'); await mutate(); setConfirmRev(null); toast('↩️ Операция отменена (сторно)'); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
+    finally { setRevBusy(false); }
   }
   function editAcct(a: Acct) {
     const startOp = ops.find(o => o.accountId === a.id && o.source === 'Старт');
@@ -271,6 +280,29 @@ export default function FinancePage() {
           <Field label="Иконка"><Input value={acc.icon} onChange={e => setAcc(a => ({ ...a, icon: e.target.value }))} /></Field>
           <Field label="Начальный остаток (₸)"><MoneyInput value={acc.balance} onValue={v => setAcc(a => ({ ...a, balance: v }))} placeholder="0" /></Field>
         </div>
+      </Modal>
+
+      {/* Подтверждение отмены операции (сторно) — стильная модалка-предупреждение,
+          чтобы не нажали случайно. */}
+      <Modal open={!!confirmRev} onClose={() => { if (!revBusy) setConfirmRev(null); }} width={460}
+        title={<span>⚠️ Отменить операцию?</span>}
+        footer={<>
+          <Button onClick={runReverse} disabled={revBusy} style={{ background: '#dc2626', borderColor: '#dc2626' }}>{revBusy ? 'Выполняется…' : '↩️ Да, отменить (сторно)'}</Button>
+          <Button variant="outline" onClick={() => setConfirmRev(null)} disabled={revBusy}>Нет, оставить</Button>
+        </>}>
+        {confirmRev && (
+          <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+            <div style={{ marginBottom: 10, padding: '10px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8 }}>
+              <div style={{ fontWeight: 700 }}>{opName(confirmRev)}</div>
+              <div style={{ color: '#475569', fontSize: 13, marginTop: 2 }}>
+                {confirmRev.opType} · <b>{fmt(confirmRev.amount)}</b>
+                {confirmRev.accountName ? ` · ${confirmRev.accountName}` : ''}
+                {confirmRev.opDate ? ` · ${formatDate(confirmRev.opDate)}` : ''}
+              </div>
+            </div>
+            Будет создана обратная операция (<b>сторно</b>) — баланс счёта вернётся как было. Так исправляют ошибочные операции. Отменить это действие потом нельзя (только провести операцию заново).
+          </div>
+        )}
       </Modal>
     </div>
   );
