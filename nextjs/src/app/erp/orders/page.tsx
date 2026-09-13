@@ -10,6 +10,10 @@ import YandexAddressPicker from '@/components/erp/YandexAddressPicker';
 
 type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null; createdByName?: string | null; createdAt?: string | null; lat?: number | null; lng?: number | null };
 type Branch = { id: string; name: string; isHead?: boolean };
+type Acct = { id: string; name: string; section?: string | null; icon?: string | null; isActive?: boolean };
+type PayState = { order: Order; total: number; rows: Array<{ accountId: string; amount: string }>; saving: boolean; err: string };
+const num = (v: unknown) => Number(v) || 0;
+const fmtSum = (n: number) => Math.round(n).toLocaleString('ru-RU') + ' ₸';
 // Подпись филиала «— Головной / — Филиал» выводим из флага isHead (не из имени).
 const branchLabel = (b: Branch) => `${b.name} - ${b.isHead ? 'Головной' : 'Филиал'}`;
 
@@ -36,6 +40,10 @@ function OrdersInner() {
   const mapsKey = org?.yandexMapsKey || '';
   const { data: branches } = useApi<Branch[]>('/api/v2/branches');
   const branchName = (id?: string | null) => (branches || []).find(b => b.id === id)?.name;
+  // Счета раздела «Поверка» — для приёма оплаты выездной заявки менеджером (как в кабинете мастера).
+  const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
+  const payAccts = (fin?.accounts || []).filter(a => (a.section || '') === 'poverka' && a.isActive !== false);
+  const [pay, setPay] = React.useState<PayState | null>(null);
 
   const [modal, setModal] = React.useState(false);
   const [form, setForm] = React.useState<typeof EMPTY>(EMPTY);
@@ -73,6 +81,33 @@ function OrdersInner() {
     try { await apiSend(`/api/v2/orders/${o.id}`, 'DELETE'); await mutate(); toast('🗑️ Удалено'); }
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
+  // ── Приём оплаты выездной заявки (менеджером) — по позициям заявки, приход на «Поверка» ──
+  async function openPay(o: Order) {
+    try {
+      const certs: Array<{ amount?: string | number | null; payStatus?: string | null }> =
+        await fetch(`/api/v2/certs?orderId=${o.id}`, { headers: { accept: 'application/json' }, cache: 'no-store' }).then(r => r.json());
+      if (!Array.isArray(certs) || !certs.length) { toast('⚠️ У заявки нет позиций — мастер ещё не завёл счётчики'); return; }
+      const total = Math.round(certs.reduce((s, c) => s + num(c.amount), 0) * 100) / 100;
+      if (total <= 0) { toast('⚠️ У позиций не указана цена'); return; }
+      if (certs.every(c => c.payStatus === 'Оплачено')) { toast('✅ Заявка уже оплачена'); return; }
+      setPay({ order: o, total, rows: [{ accountId: '', amount: String(total) }], saving: false, err: '' });
+    } catch { toast('⚠️ Не удалось загрузить позиции заявки'); }
+  }
+  function setPayRow(i: number, patch: Partial<{ accountId: string; amount: string }>) {
+    setPay(p => p && { ...p, rows: p.rows.map((r, j) => j === i ? { ...r, ...patch } : r) });
+  }
+  async function submitPay() {
+    if (!pay) return;
+    const payments = pay.rows.filter(r => r.accountId && num(r.amount) > 0).map(r => ({ accountId: r.accountId, amount: num(r.amount) }));
+    if (!payments.length) { setPay(p => p && { ...p, err: 'Укажите счёт и сумму' }); return; }
+    const sum = Math.round(payments.reduce((s, p) => s + p.amount, 0) * 100) / 100;
+    if (Math.abs(sum - pay.total) > 0.01) { setPay(p => p && { ...p, err: `Внесено ${fmtSum(sum)} ≠ итог ${fmtSum(pay.total)}` }); return; }
+    setPay(p => p && { ...p, saving: true, err: '' });
+    try {
+      await apiSend(`/api/v2/orders/${pay.order.id}/payment`, 'POST', { payments });
+      setPay(null); await mutate(); toast('✅ Оплата принята — приход на «Поверка»');
+    } catch (e) { setPay(p => p && { ...p, saving: false, err: (e as Error).message }); }
+  }
 
   return (
     <div>
@@ -107,6 +142,7 @@ function OrdersInner() {
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       {o.lat != null && o.lng != null && <a className="erp-icon-btn" href={naviUrl(o.lat, o.lng)} target="_blank" rel="noopener noreferrer" title="🧭 Маршрут в Яндекс.Навигаторе" style={{ textDecoration: 'none', color: '#2563eb' }}>🧭</a>}
                       {o.status === 'В работе' && <Button variant="outline" onClick={() => setStatus(o, 'Готова')} style={{ fontSize: 12, padding: '4px 8px' }}>Готова</Button>}
+                      {source === 'field_check' && <button className="erp-icon-btn" title="Принять оплату" style={{ color: '#16a34a' }} onClick={() => openPay(o)}>💵</button>}
                       <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(o)}>✏️</button>
                       <button className="erp-icon-btn" title="Удалить" style={{ color: '#dc2626' }} onClick={() => remove(o)}>🗑️</button>
                     </td>
@@ -135,6 +171,37 @@ function OrdersInner() {
         </div>
         <Field label="Комментарий"><Input value={form.comment} onChange={e => setForm({ ...form, comment: e.target.value })} /></Field>
         {form.id && <EntityHistory entityType="order" entityId={form.id} />}
+      </Modal>
+
+      {/* Приём оплаты выездной заявки (менеджером). Итог = сумма цен позиций; оплаты
+          должны его покрыть; приход идёт на счёт(а) раздела «Поверка». */}
+      <Modal open={!!pay} onClose={() => { if (!pay?.saving) setPay(null); }} width={480}
+        title={<span>💵 Приём оплаты · заявка {pay?.order.orderNo || ''}</span>}
+        footer={<>
+          <Button onClick={submitPay} disabled={pay?.saving}>{pay?.saving ? 'Приём…' : '✅ Принять оплату'}</Button>
+          <Button variant="outline" onClick={() => setPay(null)} disabled={pay?.saving}>Отмена</Button>
+        </>}>
+        {pay && (() => {
+          const entered = Math.round(pay.rows.reduce((s, r) => s + num(r.amount), 0) * 100) / 100;
+          const diff = Math.round((pay.total - entered) * 100) / 100;
+          return (
+            <div>
+              {pay.err && <div className="erp-form-err">{pay.err}</div>}
+              <div style={{ fontSize: 14, marginBottom: 8 }}>Клиент: <b>{pay.order.clientName || '—'}</b> · итог по позициям: <b>{fmtSum(pay.total)}</b></div>
+              {payAccts.length === 0 && <div className="erp-form-err">Нет счетов раздела «Поверка» — заведите счёт в Финансах.</div>}
+              {pay.rows.map((r, i) => (
+                <div key={i} className="erp-form-row" style={{ alignItems: 'end' }}>
+                  <Field label={i === 0 ? 'Счёт' : ''}><Select value={r.accountId} onChange={e => setPayRow(i, { accountId: e.target.value })}><option value="">— счёт —</option>{payAccts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}</Select></Field>
+                  <Field label={i === 0 ? 'Сумма (₸)' : ''}><Input type="number" min={0} value={r.amount} onChange={e => setPayRow(i, { amount: e.target.value })} /></Field>
+                </div>
+              ))}
+              <Button variant="outline" style={{ fontSize: 12, padding: '4px 8px' }} onClick={() => setPay(p => p && { ...p, rows: [...p.rows, { accountId: '', amount: '' }] })}>+ ещё счёт</Button>
+              <div style={{ fontSize: 13, marginTop: 8, color: Math.abs(diff) < 0.01 ? '#16a34a' : '#b45309' }}>
+                Внесено: <b>{fmtSum(entered)}</b> из {fmtSum(pay.total)}{Math.abs(diff) < 0.01 ? ' — совпадает ✓' : diff > 0 ? ` · не хватает ${fmtSum(diff)}` : ` · лишние ${fmtSum(-diff)}`}
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
     </div>
   );

@@ -257,6 +257,8 @@ export const certsService = {
     const { payments } = poverkaPaymentSchema.parse(input);
     const certs = await certsRepo.list({ orderId, archived: false });
     if (!certs.length) throw badRequest('В заявке нет позиций для оплаты');
+    // Уже оплачено (все позиции «Оплачено») → повторный приём задвоил бы доход. Стоп.
+    if (certs.every(c => c.payStatus === 'Оплачено')) throw badRequest('Заявка уже оплачена');
     const total = certs.reduce((s, c) => s + Number(c.amount || 0), 0);
     if (total <= 0) throw badRequest('У позиций не указана цена — заполните «Цена» в позициях');
     const paid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
