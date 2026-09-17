@@ -30,7 +30,10 @@ type Cert = {
   result?: string | null; operStatus?: string | null; payStatus?: string | null; invoiceType?: string | null; sentStatus?: string | null; note?: string | null; createdByName?: string | null; createdAt?: string | null; amount?: string | number | null;
   paidAmount?: string | number | null; commissionPaidAt?: string | null; payAccounts?: string[] | null; settledByOffset?: boolean | null;
   accuracyClass?: string | null; ownerKind?: string | null; ownerTaxId?: string | null; addressKz?: string | null; verifier?: string | null;
+  dupStamp?: boolean | null; dupSerial?: boolean | null;   // значение (клеймо/зав.№) повторяется в системе → подсветить ячейку
 };
+// Светло-красный фон дублирующейся ячейки (клеймо/зав.№ повторяется в системе).
+const DUP_CELL: React.CSSProperties = { background: '#fee2e2' };
 // Метка счёта дохода в списке: пусто → «—»; оплата закрыта взаиморасчётом → «Смешанная»;
 // один счёт → его имя; несколько → «Смешанная».
 const payAccLabel = (c: Cert): string => { const a = (c.payAccounts || []).filter(Boolean); if (a.length === 0) return '—'; if (c.settledByOffset) return 'Смешанная'; return a.length === 1 ? a[0] : 'Смешанная'; };
@@ -711,10 +714,10 @@ function CertsInner() {
                     <td className="erp-td-main col-fio">{c.fio}</td>
                     <td className="col-address" style={{ fontSize: 11, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.address || '—'}</td>
                     <td className="col-meter"><code className="cert-type">{c.meterType || '—'}</code></td>
-                    <td className="col-serial" style={{ fontFamily: 'monospace', fontSize: 11 }}>{c.serialNo || '—'}</td>
+                    <td className="col-serial" style={{ fontFamily: 'monospace', fontSize: 11, ...(c.dupSerial ? DUP_CELL : {}) }} title={c.dupSerial ? 'Заводской № повторяется в системе' : undefined}>{c.serialNo || '—'}</td>
                     <td className="col-checkdate" style={{ fontSize: 11 }}>{dmy(c.checkDate)}</td>
                     <td className="col-nextdate" style={{ fontSize: 11 }}><Badge tone="ok">{dmy(c.nextCheckDate)}</Badge></td>
-                    <td className="col-stamp" style={{ fontFamily: 'monospace', fontSize: 11 }}>{c.stampNo || '—'}</td>
+                    <td className="col-stamp" style={{ fontFamily: 'monospace', fontSize: 11, ...(c.dupStamp ? DUP_CELL : {}) }} title={c.dupStamp ? 'Номер клейма повторяется в системе' : undefined}>{c.stampNo || '—'}</td>
                     <td className="col-readings" style={{ textAlign: 'right', fontWeight: 600, fontSize: 11 }}>{c.readings != null ? num(c.readings).toLocaleString('ru-RU') : '—'}</td>
                     <td className="col-water" style={{ fontSize: 11 }}>{c.waterType === 'г/в' ? '🔴 г/в' : '🔵 х/в'}</td>
                     <td className="erp-muted col-year" style={{ fontSize: 11 }}>{c.yearMade || '—'}</td>
@@ -757,7 +760,7 @@ function CertsInner() {
                     <td className="erp-muted" style={{ fontSize: 11 }}>{i + 1}</td>
                     <td className="erp-td-main">{c.fio}</td>
                     <td style={{ fontSize: 11 }}>{c.address || '—'}</td>
-                    <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{c.serialNo || '—'}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 11, ...(c.dupSerial ? DUP_CELL : {}) }} title={c.dupSerial ? 'Заводской № повторяется в системе' : undefined}>{c.serialNo || '—'}</td>
                     <td style={{ fontSize: 11 }}>{dmy(c.checkDate)}</td>
                     <td style={{ fontSize: 11 }}>{dmy(c.nextCheckDate)}</td>
                     <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 12 }}>

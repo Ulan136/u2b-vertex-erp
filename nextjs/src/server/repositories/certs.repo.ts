@@ -28,7 +28,11 @@ export const certsRepo = {
         and (fo.cert_id = ${certificates.id}
              or (${certificates.orderId} is not null and fo.order_id = ${certificates.orderId}))
     ), '{}')`;
-    return db.select({ ...cols, createdByName: users.name, photoCount: sql<number>`coalesce(jsonb_array_length(${certificates.photos}), 0)`, payAccounts }).from(certificates)
+    // Дубли (глобально среди живых сертов): клеймо/зав.№ встречается более чем в
+    // одном серте → в списке подсветим красным именно эту ячейку.
+    const dupStamp = sql<boolean>`(${certificates.stampNo} is not null and btrim(${certificates.stampNo}) <> '' and exists(select 1 from certificates d where d.deleted_at is null and d.stamp_no = ${certificates.stampNo} and d.id <> ${certificates.id}))`;
+    const dupSerial = sql<boolean>`(${certificates.serialNo} is not null and btrim(${certificates.serialNo}) <> '' and exists(select 1 from certificates d where d.deleted_at is null and d.serial_no = ${certificates.serialNo} and d.id <> ${certificates.id}))`;
+    return db.select({ ...cols, createdByName: users.name, photoCount: sql<number>`coalesce(jsonb_array_length(${certificates.photos}), 0)`, payAccounts, dupStamp, dupSerial }).from(certificates)
       .leftJoin(users, eq(certificates.createdBy, users.id))
       // Сортировка по ДАТЕ ПОВЕРКИ (новые сверху), при равной — по времени создания.
       // Так после правки даты серт встаёт на своё место, а не остаётся по порядку ввода.
@@ -42,6 +46,22 @@ export const certsRepo = {
 
   // Живой (не в корзине) серт-двойник: тот же источник + зав.№ + дата поверки + тип
   // документа. Для запрета повторного сохранения одного и того же счётчика в один день.
+  // Живой серт с таким же номером клейма (клеймо уникально в системе). exclude — id
+  // редактируемого серта (чтобы не считать сам себя).
+  async findByStamp(stampNo: string, excludeId: string | null, exec: Executor = db) {
+    const conds = [sql`${certificates.deletedAt} is null`, eq(certificates.stampNo, stampNo)];
+    if (excludeId) conds.push(sql`${certificates.id} <> ${excludeId}`);
+    const [row] = await exec.select({ id: certificates.id, fio: certificates.fio, source: certificates.source }).from(certificates).where(and(...conds)).limit(1);
+    return row ?? null;
+  },
+  // Живой серт с таким же заводским номером (зав.№ уникален в системе).
+  async findBySerialGlobal(serialNo: string, excludeId: string | null, exec: Executor = db) {
+    const conds = [sql`${certificates.deletedAt} is null`, eq(certificates.serialNo, serialNo)];
+    if (excludeId) conds.push(sql`${certificates.id} <> ${excludeId}`);
+    const [row] = await exec.select({ id: certificates.id, fio: certificates.fio, source: certificates.source }).from(certificates).where(and(...conds)).limit(1);
+    return row ?? null;
+  },
+
   async findDuplicate(source: string, serialNo: string, checkDate: string, docType: string, exec: Executor = db) {
     const [row] = await exec.select({ id: certificates.id, fio: certificates.fio }).from(certificates)
       .where(and(
