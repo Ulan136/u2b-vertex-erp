@@ -20,13 +20,18 @@ function sealFor(cert: { docType?: string | null; sealType?: string | null; payS
 }
 
 // ── Доход прямого сертификата/извещения (смешанная оплата → приход на счета) ──
-type CertRow = { id: string; source?: string | null; payStatus?: string | null; amount?: unknown; paidAmount?: unknown; commissionPaidAt?: unknown; docType?: string | null; serialNo?: string | null; checkDate?: unknown; client?: string | null; invoiceType?: string | null };
+type CertRow = { id: string; source?: string | null; payStatus?: string | null; amount?: unknown; paidAmount?: unknown; commissionPaidAt?: unknown; docType?: string | null; serialNo?: string | null; checkDate?: unknown; client?: string | null; invoiceType?: string | null; orderId?: string | null };
 
 // Метка счёта в сертификате (invoiceType) → категория финсчёта.
 const INVOICE_CATEGORY: Record<string, string> = { 'Каспи': 'kaspi', 'БЦК': 'bck', 'Наличка': 'nalichka' };
 // Источники, где счёт дохода определяется полем invoiceType (колонка «СЧЁТ» управляет
 // маршрутом дохода; смена счёта в списке переводит деньги). Пока только «Районы».
 const INVOICE_ROUTED = new Set(['Районы']);
+// Доход маршрутизируется полем invoiceType (колонка «СЧЁТ» = где реально деньги):
+// «Районы» всегда; «Выездная БЕЗ заявки» — тоже (с заявкой доход идёт через payOrder).
+function invoiceRouted(cert: { source?: string | null; orderId?: string | null }): boolean {
+  return INVOICE_ROUTED.has(cert.source || '') || (cert.source === 'Выездная' && !cert.orderId);
+}
 type PayLine = { accountId: string; amount: number };
 
 // Сторнируем действующий доход сертификата (обратной операцией, баланс к нулю).
@@ -43,7 +48,7 @@ async function resolveCertAlloc(cert: CertRow, payments: PayLine[] | undefined, 
   const section = sectionForCertSource(cert.source);
   // Районы: доход ВСЕГДА на счёт из поля invoiceType (колонка «СЧЁТ» — единый источник),
   // независимо от переданных строк оплаты. Так показанный счёт = где реально деньги.
-  if (INVOICE_ROUTED.has(cert.source || '')) {
+  if (invoiceRouted(cert)) {
     const cat = cert.invoiceType ? INVOICE_CATEGORY[cert.invoiceType] : null;
     const acc = (cat && await financeRepo.accountBySectionCategory(section, cat, tx)) || await financeRepo.defaultAccount(section, tx);
     if (!acc) throw badRequest('Нет счёта для дохода — заведите счёт в разделе (Финансы → Привязка счетов)');
@@ -71,7 +76,7 @@ async function syncCertIncome(cert: CertRow, payments: PayLine[] | undefined, ac
   const target = certIncomeAmount(cert);
   // Районы: счёт дохода зависит от invoiceType, поэтому НЕ применяем sum-based no-op —
   // даём дойти до сверки по счетам (ниже), чтобы смена счёта перепровела доход.
-  if (!INVOICE_ROUTED.has(cert.source || '') && (!payments || !payments.length) && existing.length) {
+  if (!invoiceRouted(cert) && (!payments || !payments.length) && existing.length) {
     const have = Math.round(existing.reduce((s, o) => s + (Number(o.amount) || 0), 0) * 100) / 100;
     if (Math.abs(have - target) <= 0.01) return;
   }

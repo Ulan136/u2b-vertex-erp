@@ -10,7 +10,8 @@ test('sectionForCertSource: Астана → branch, прочие → poverka', 
 });
 test('certIncomePosts: доход только оплачено + не Выездная + цена>0', () => {
   assert.equal(certIncomePosts({ source: 'САМИ', payStatus: 'Оплачено', amount: 10000 }), true);
-  assert.equal(certIncomePosts({ source: 'Выездная', payStatus: 'Оплачено', amount: 10000 }), false); // Выездная — доход через заявку
+  assert.equal(certIncomePosts({ source: 'Выездная', payStatus: 'Оплачено', amount: 10000, orderId: 'ord-1' }), false); // Выездная С заявкой — доход через payOrder
+  assert.equal(certIncomePosts({ source: 'Выездная', payStatus: 'Оплачено', amount: 10000 }), true); // Выездная БЕЗ заявки — доход по-сертификатно
   assert.equal(certIncomePosts({ source: 'САМИ', payStatus: 'В ожидании', amount: 10000 }), false);
   assert.equal(certIncomePosts({ source: 'САМИ', payStatus: 'Бесплатно', amount: 10000 }), false);
   assert.equal(certIncomePosts({ source: 'САМИ', payStatus: 'Оплачено', amount: 0 }), false);      // без цены — не проводим

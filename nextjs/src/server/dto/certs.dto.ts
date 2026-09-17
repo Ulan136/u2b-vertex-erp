@@ -47,18 +47,20 @@ export const certUpsertSchema = z.object({
 export function sectionForCertSource(source?: string | null): 'poverka' | 'branch' {
   return source === 'Астана' ? 'branch' : 'poverka';
 }
-// Доход по сертификату = фактически внесённая сумма (не Выездная — там доход
-// через заявку мастера): «Оплачено» → вся цена (amount), «Есть остаток» →
-// внесённая часть (paidAmount), иначе 0.
-export function certIncomeAmount(cert: { source?: string | null; payStatus?: string | null; amount?: unknown; paidAmount?: unknown }): number {
-  if (cert.source === 'Выездная') return 0;
+// Доход по сертификату = фактически внесённая сумма: «Оплачено» → вся цена (amount),
+// «Есть остаток» → внесённая часть (paidAmount), иначе 0.
+// Выездная С ЗАЯВКОЙ (orderId) — доход идёт через заявку мастера (payOrder), поэтому
+// по-сертификатно НЕ проводим. Выездная БЕЗ заявки (заведена прямо на экране) —
+// обычный по-сертификатный доход (иначе «Оплачено» без прихода и пустой счёт).
+export function certIncomeAmount(cert: { source?: string | null; payStatus?: string | null; amount?: unknown; paidAmount?: unknown; orderId?: string | null }): number {
+  if (cert.source === 'Выездная' && cert.orderId) return 0;
   const v = cert.payStatus === 'Оплачено' ? Number(cert.amount)
     : cert.payStatus === 'Есть остаток' ? Number(cert.paidAmount)
     : 0;
   return Math.round((v || 0) * 100) / 100;
 }
 // Доход проводим, когда фактически внесено > 0.
-export function certIncomePosts(cert: { source?: string | null; payStatus?: string | null; amount?: unknown; paidAmount?: unknown }): boolean {
+export function certIncomePosts(cert: { source?: string | null; payStatus?: string | null; amount?: unknown; paidAmount?: unknown; orderId?: string | null }): boolean {
   return certIncomeAmount(cert) > 0;
 }
 

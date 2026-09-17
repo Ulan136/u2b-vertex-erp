@@ -682,6 +682,20 @@ function zaRenderPay(){
   const total=zaTotal();
   const tEl=document.getElementById('za-total'); if(tEl)tEl.textContent=fmtSum(total)+' ₸';
   const box=document.getElementById('za-pay-rows'); if(!box)return;
+  const btn=document.getElementById('za-pay-btn');
+  const sumLine=document.getElementById('za-pay-sum')?.closest('.za-pay-line');
+  // Заявка уже оплачена: все позиции с ценой → «Оплачено». Показываем статус, а не
+  // кнопку приёма (иначе мастеру кажется «в ожидании» даже после оплаты).
+  const payable=zaPositions.filter(c=>Number(c.amount)>0);
+  const allPaid=payable.length>0 && payable.every(c=>c.payStatus==='Оплачено');
+  if(allPaid){
+    box.innerHTML='<div style="text-align:center;color:#16a34a;font-weight:700;font-size:15px;padding:8px;background:#f0fdf4;border:1.5px solid #a7f3d0;border-radius:10px;">✅ Оплата принята</div>';
+    if(btn)btn.style.display='none';
+    if(sumLine)sumLine.style.display='none';
+    return;
+  }
+  if(btn)btn.style.display='';
+  if(sumLine)sumLine.style.display='';
   const prevAcc=box.querySelector('.za-pay-row select')?.value||'';   // сохранить уже выбранный счёт
   box.innerHTML='';
   const node=zaPayRowNode(total>0?total:'');                          // по умолчанию — весь итог на один счёт
