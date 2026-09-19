@@ -751,7 +751,7 @@ function CertsInner() {
           ) : (
             <table className="erp-table">
               <thead><tr>
-                <th>№</th><th>ФИО / Объект</th><th>Адрес</th><th>№ счётчика</th><th>Дата поверки</th><th>Плановая след.</th>
+                <th>№</th><th>ФИО абонента</th><th>Адрес абонента</th><th>Тип прибора</th><th>Заводской номер</th><th>Дата поверки</th><th>Причина непригодности</th>
                 <th style={{ textAlign: 'right' }}>💰 Сумма</th><th>🔄 Операция</th><th>💳 Оплата</th><th>🧾 Счёт</th><th>📨 Отправлено</th><th>Автор</th><th style={{ textAlign: 'center' }}>Действия</th>
               </tr></thead>
               <tbody>
@@ -760,9 +760,10 @@ function CertsInner() {
                     <td className="erp-muted" style={{ fontSize: 11 }}>{i + 1}</td>
                     <td className="erp-td-main">{c.fio}</td>
                     <td style={{ fontSize: 11 }}>{c.address || '—'}</td>
+                    <td><code className="cert-type">{c.meterType || '—'}</code></td>
                     <td style={{ fontFamily: 'monospace', fontSize: 11, ...(c.dupSerial ? DUP_CELL : {}) }} title={c.dupSerial ? 'Заводской № повторяется в системе' : undefined}>{c.serialNo || '—'}</td>
                     <td style={{ fontSize: 11 }}>{dmy(c.checkDate)}</td>
-                    <td style={{ fontSize: 11 }}>{dmy(c.nextCheckDate)}</td>
+                    <td style={{ fontSize: 11, maxWidth: 240, whiteSpace: 'normal' }} title={c.note || undefined}>{c.note || '—'}</td>
                     <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 12 }}>
                       {num(c.amount) > 0 ? fmtNum(num(c.amount)) + ' ₸' : '—'}
                       {c.payStatus === 'Есть остаток' && <div style={{ fontSize: 10, color: '#b45309', fontWeight: 600 }} title="Остаток к доплате">ост. {fmtNum(num(c.amount) - num(c.paidAmount))} ₸</div>}
