@@ -27,7 +27,7 @@ type Cert = {
   id: string; source: string; docType?: string | null; fio?: string | null; address?: string | null; phone?: string | null; client?: string | null;
   meterType?: string | null; serialNo?: string | null; yearMade?: number | null; waterType?: string | null;
   checkDate?: string | null; nextCheckDate?: string | null; stampNo?: string | null; sealType?: string | null; readings?: string | number | null;
-  result?: string | null; operStatus?: string | null; payStatus?: string | null; invoiceType?: string | null; sentStatus?: string | null; note?: string | null; createdByName?: string | null; createdAt?: string | null; amount?: string | number | null;
+  result?: string | null; operStatus?: string | null; payStatus?: string | null; invoiceType?: string | null; sentStatus?: string | null; note?: string | null; unfitReason?: string | null; createdByName?: string | null; createdAt?: string | null; amount?: string | number | null;
   paidAmount?: string | number | null; commissionPaidAt?: string | null; payAccounts?: string[] | null; settledByOffset?: boolean | null;
   accuracyClass?: string | null; ownerKind?: string | null; ownerTaxId?: string | null; addressKz?: string | null; verifier?: string | null;
   dupStamp?: boolean | null; dupSerial?: boolean | null;   // значение (клеймо/зав.№) повторяется в системе → подсветить ячейку
@@ -59,7 +59,7 @@ const num = (v: unknown) => Number(v) || 0;
 const operTone = (s?: string | null): 'ok' | 'warn' | 'info' | 'neutral' => s === 'Внесён в КТРМ' ? 'ok' : s === 'В работе' ? 'neutral' : 'warn';
 const sentTone = (s?: string | null): 'ok' | 'warn' | 'info' => s === 'Отправлено' ? 'ok' : s === 'Запланировано' ? 'info' : 'warn';
 const isTTE = (c: Cert) => /ттэ/i.test(c.note || '') || c.waterType === 'г/в';
-const EMPTY = { id: '', fio: '', address: '', phone: '', client: '', meterType: '', serialNo: '', yearMade: '', waterType: 'х/в', checkDate: '', nextCheckDate: '', stampNo: '', sealType: 'СЛ', readings: '', result: 'Годен', operStatus: 'В работе', payStatus: 'В ожидании', invoiceType: '', sentStatus: 'Не отправлено', note: '', amount: '', accuracyClass: '', ownerKind: 'физлицо', ownerTaxId: '', addressKz: '', verifier: '' };
+const EMPTY = { id: '', fio: '', address: '', phone: '', client: '', meterType: '', serialNo: '', yearMade: '', waterType: 'х/в', checkDate: '', nextCheckDate: '', stampNo: '', sealType: 'СЛ', readings: '', result: 'Годен', operStatus: 'В работе', payStatus: 'В ожидании', invoiceType: '', sentStatus: 'Не отправлено', note: '', unfitReason: '', amount: '', accuracyClass: '', ownerKind: 'физлицо', ownerTaxId: '', addressKz: '', verifier: '' };
 // Дефолты нового сертификата по источнику: цена + тип воды (можно менять). САМИ — вода
 // пустая (выбрать вручную). Прочие источники — как в EMPTY (х/в, без цены).
 const SRC_DEF: Record<string, { amount: string; waterType: string }> = {
@@ -75,7 +75,7 @@ const SRC_DEF: Record<string, { amount: string; waterType: string }> = {
 const VERIFIERS = ['Болегенов А.', 'Оңласынбек А.Ғ.', 'Бейбіт Ғ.Б.', 'Абдикалыков А.А.'];
 
 const VOICE_CERT: Array<[keyof typeof EMPTY, string]> = [['fio', 'ФИО абонента'], ['address', 'Адрес'], ['serialNo', 'Номер счётчика'], ['stampNo', 'Номер клейма'], ['readings', 'Показания в кубометрах'], ['yearMade', 'Год выпуска'], ['phone', 'Телефон'], ['client', 'Клиент'], ['note', 'Примечание']];
-const VOICE_IZV: Array<[keyof typeof EMPTY, string]> = [['fio', 'ФИО абонента'], ['address', 'Адрес'], ['serialNo', 'Заводской номер'], ['yearMade', 'Год выпуска'], ['phone', 'Телефон'], ['client', 'Клиент'], ['note', 'Примечание']];
+const VOICE_IZV: Array<[keyof typeof EMPTY, string]> = [['fio', 'ФИО абонента'], ['address', 'Адрес'], ['serialNo', 'Заводской номер'], ['unfitReason', 'Причина непригодности'], ['yearMade', 'Год выпуска'], ['phone', 'Телефон'], ['client', 'Клиент'], ['note', 'Примечание']];
 
 // Аккордеон по дате поверки (свежие сверху), сворачиваемый.
 function CertAccordion({ items, empty }: { items: Cert[]; empty: string }) {
@@ -496,7 +496,7 @@ function CertsInner() {
     setForm({ ...EMPTY, client: vdkClient, checkDate: td, nextCheckDate: nxt, ...(d ? { amount: d.amount, waterType: d.waterType } : {}) });
     setCloneFrom(''); setErr(''); setModal(true);
   };
-  const fillForm = (c: Cert): typeof EMPTY => ({ id: c.id, fio: c.fio || '', address: c.address || '', phone: c.phone || '', client: c.client || '', meterType: c.meterType || '', serialNo: c.serialNo || '', yearMade: c.yearMade ? String(c.yearMade) : '', waterType: c.waterType || 'х/в', checkDate: iso(c.checkDate), nextCheckDate: iso(c.nextCheckDate), stampNo: c.stampNo || '', sealType: c.sealType === 'ПЛ' ? 'ПЛ' : 'СЛ', readings: c.readings != null ? String(c.readings) : '', result: c.result || 'Годен', operStatus: c.operStatus || 'В работе', payStatus: c.payStatus || 'В ожидании', invoiceType: c.invoiceType || '', sentStatus: c.sentStatus || 'Не отправлено', note: c.note || '', amount: c.amount != null ? String(c.amount) : '', accuracyClass: c.accuracyClass || '', ownerKind: c.ownerKind || 'физлицо', ownerTaxId: c.ownerTaxId || '', addressKz: c.addressKz || '', verifier: c.verifier || '' });
+  const fillForm = (c: Cert): typeof EMPTY => ({ id: c.id, fio: c.fio || '', address: c.address || '', phone: c.phone || '', client: c.client || '', meterType: c.meterType || '', serialNo: c.serialNo || '', yearMade: c.yearMade ? String(c.yearMade) : '', waterType: c.waterType || 'х/в', checkDate: iso(c.checkDate), nextCheckDate: iso(c.nextCheckDate), stampNo: c.stampNo || '', sealType: c.sealType === 'ПЛ' ? 'ПЛ' : 'СЛ', readings: c.readings != null ? String(c.readings) : '', result: c.result || 'Годен', operStatus: c.operStatus || 'В работе', payStatus: c.payStatus || 'В ожидании', invoiceType: c.invoiceType || '', sentStatus: c.sentStatus || 'Не отправлено', note: c.note || '', unfitReason: c.unfitReason || '', amount: c.amount != null ? String(c.amount) : '', accuracyClass: c.accuracyClass || '', ownerKind: c.ownerKind || 'физлицо', ownerTaxId: c.ownerTaxId || '', addressKz: c.addressKz || '', verifier: c.verifier || '' });
   const openEdit = (c: Cert) => { setForm(fillForm(c)); setCloneFrom(''); setErr(''); setModal(true); };
   const openClone = (c: Cert) => {
     const td = todayIso();   // дата поверки клона по умолчанию — сегодня (можно изменить)
@@ -512,7 +512,7 @@ function CertsInner() {
   }
 
   function buildBody() {
-    const base: Record<string, unknown> = { source, docType, fio: form.fio.trim(), address: form.address || '', phone: form.phone || null, client: form.client || null, meterType: form.meterType || null, serialNo: form.serialNo || null, yearMade: form.yearMade ? Number(form.yearMade) : null, waterType: form.waterType, checkDate: form.checkDate || null, result: form.result, operStatus: form.operStatus, payStatus: form.payStatus, invoiceType: form.invoiceType, note: form.note || null, amount: form.amount ? Number(form.amount) : null, ownerKind: form.ownerKind, ownerTaxId: form.ownerTaxId || null, addressKz: form.addressKz || null, verifier: form.verifier || null, accuracyClass: form.accuracyClass || null };
+    const base: Record<string, unknown> = { source, docType, fio: form.fio.trim(), address: form.address || '', phone: form.phone || null, client: form.client || null, meterType: form.meterType || null, serialNo: form.serialNo || null, yearMade: form.yearMade ? Number(form.yearMade) : null, waterType: form.waterType, checkDate: form.checkDate || null, result: form.result, operStatus: form.operStatus, payStatus: form.payStatus, invoiceType: form.invoiceType, note: form.note || null, unfitReason: form.unfitReason || null, amount: form.amount ? Number(form.amount) : null, ownerKind: form.ownerKind, ownerTaxId: form.ownerTaxId || null, addressKz: form.addressKz || null, verifier: form.verifier || null, accuracyClass: form.accuracyClass || null };
     // Прямой доход: при «Оплачено» передаём раскладку по счетам (иначе сервер не проведёт).
     // Раскладку шлём только для новой записи или если оплату/цену трогали —
     // иначе сервер не пересобирает уже проведённый доход (правка не-оплатных полей).
@@ -763,7 +763,7 @@ function CertsInner() {
                     <td><code className="cert-type">{c.meterType || '—'}</code></td>
                     <td style={{ fontFamily: 'monospace', fontSize: 11, ...(c.dupSerial ? DUP_CELL : {}) }} title={c.dupSerial ? 'Заводской № повторяется в системе' : undefined}>{c.serialNo || '—'}</td>
                     <td style={{ fontSize: 11 }}>{dmy(c.checkDate)}</td>
-                    <td style={{ fontSize: 11, maxWidth: 240, whiteSpace: 'normal' }} title={c.note || undefined}>{c.note || '—'}</td>
+                    <td style={{ fontSize: 11, maxWidth: 240, whiteSpace: 'normal' }} title={c.unfitReason || undefined}>{c.unfitReason || '—'}</td>
                     <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 12 }}>
                       {num(c.amount) > 0 ? fmtNum(num(c.amount)) + ' ₸' : '—'}
                       {c.payStatus === 'Есть остаток' && <div style={{ fontSize: 10, color: '#b45309', fontWeight: 600 }} title="Остаток к доплате">ост. {fmtNum(num(c.amount) - num(c.paidAmount))} ₸</div>}
@@ -890,6 +890,9 @@ function CertsInner() {
           <Field label="Результат поверки"><Select value={form.result} onChange={e => setForm({ ...form, result: e.target.value })}><option value="Годен">✅ Годен</option><option value="Не годен">⛔ Не годен</option></Select></Field>
           <Field label="Год выпуска"><div className="cert-vf"><Input type="number" value={form.yearMade} onChange={e => setForm({ ...form, yearMade: e.target.value })} placeholder="2020" /><Mic k="yearMade" h="Год выпуска" /><Copy v={form.yearMade} h="Год выпуска" /></div></Field>
         </div>
+        {(!isCert || form.result === 'Не годен') && (
+          <Field label="Причина непригодности (в е-КТРМ)"><div className="cert-vf"><Input value={form.unfitReason} onChange={e => setForm({ ...form, unfitReason: e.target.value })} placeholder="напр. погрешность выше нормы, механическое повреждение…" /><Mic k="unfitReason" h="Причина непригодности" /><Copy v={form.unfitReason} h="Причина непригодности" /></div></Field>
+        )}
         <div className="erp-form-row">
           <Field label="Телефон (не печатается)"><div className="cert-vf"><Input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+7 700 000 00 00" /><Mic k="phone" h="Телефон" /></div></Field>
           <Field label="Клиент">

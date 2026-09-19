@@ -18,6 +18,7 @@ export const certUpsertSchema = z.object({
   readings: z.union([z.string(), z.number()]).nullish(),
   amount: z.union([z.string(), z.number()]).nullish(),   // цена поверки (позиции)
   note: z.string().nullish(),
+  unfitReason: z.string().nullish(),   // причина непригодности (извещение) — уходит в е-КТРМ
   phone: z.string().nullish(),
   client: z.string().nullish(),
   sealType: z.string().nullish(),

@@ -71,6 +71,7 @@ export const certificates = pgTable('certificates', {
   stampNo       : varchar('stamp_no', { length: 20 }),
   readings      : numeric('readings', { precision: 10, scale: 2 }),
   note          : text('note'),
+  unfitReason   : text('unfit_reason'),   // причина непригодности (извещение) — в е-КТРМ
   phone         : varchar('phone', { length: 30 }),
   client        : varchar('client', { length: 200 }),
   sealType      : varchar('seal_type', { length: 40 }),
