@@ -353,6 +353,11 @@ export const certsService = {
       // «Оплачено»; один недокрытый → «Есть остаток» (доход = внесённая часть);
       // остальные не трогаем (остаются «В ожидании»).
       const pool = payments.map(p => ({ accountId: String(p.accountId), left: round2(p.amount), offset: !!p.offset }));
+      // «Смешанная» на уровне ОПЕРАЦИИ: приём не на ОДИН чистый счёт (2+ разных счёта
+      // ИЛИ был взаиморасчёт/offset) → ВСЕ закрытые серты помечаем «Смешанная», даже
+      // если конкретный серт закрылся одним счётом (правило: «не чисто один счёт →
+      // смешанная, хоть на чуть процента»).
+      const mixedOperation = new Set(payments.map(p => String(p.accountId))).size > 1 || payments.some(p => p.offset);
       let pi = 0; let closed = 0; let partialId: string | null = null;
       for (const c of targets) {
         const due = dueOf(c);
@@ -372,8 +377,9 @@ export const certsService = {
           amount: String(priceOf(c)),
           paidAmount: String(full ? priceOf(c) : newPaid),
           payStatus: full ? 'Оплачено' : 'Есть остаток',
-          // серт, в оплату которого пошёл зачёт (взаиморасчёт) → в колонке «Счёт» показываем «Смешанная»
-          ...(usedOffset ? { settledByOffset: true } : {}),
+          // «Смешанная»: серт закрыт зачётом (usedOffset) ИЛИ операция смешанная
+          // (mixedOperation — не на один чистый счёт) → в колонке «Счёт» «Смешанная».
+          ...((usedOffset || mixedOperation) ? { settledByOffset: true } : {}),
         }, tx);
         await productsService.syncCertSeal({ id: upd.id, serialNo: upd.serialNo }, sealFor(upd), actor, tx);
         // Доход этого сертификата за эту оплату = внесённая часть (alloc), привязан к certId.
