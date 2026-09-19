@@ -6,8 +6,12 @@ type SaleInsert = typeof sales.$inferInsert;
 type SalePaymentInsert = typeof salePayments.$inferInsert;
 
 export const salesRepo = {
+  // Порядок журнала — по ДАТЕ ПРОДАЖИ (новые сверху), при равной — по времени
+  // создания. Так продажа, введённая задним числом, встаёт на своё место по дате,
+  // а не висит вверху по порядку создания (сквозной № ПРД остаётся своим).
   list: () => db.select({ ...getTableColumns(sales), createdByName: users.name }).from(sales)
-    .leftJoin(users, eq(sales.createdBy, users.id)).orderBy(desc(sales.createdAt)),
+    .leftJoin(users, eq(sales.createdBy, users.id))
+    .orderBy(sql`${sales.saleDate} desc nulls last`, desc(sales.createdAt)),
 
   async findById(id: string, exec: Executor = db) {
     const [row] = await exec.select().from(sales).where(eq(sales.id, id)).limit(1);
