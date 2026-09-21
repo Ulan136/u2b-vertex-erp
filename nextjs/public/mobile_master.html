@@ -335,7 +335,12 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
         <div class="form-group"><div class="form-label">Тип воды <span class="required">*</span></div>
           <div style="display:flex;gap:8px;align-items:center;"><select class="form-input form-select" id="pos-water" style="flex:1;"><option value="х/в">Холодная вода (х/в)</option><option value="г/в">Горячая вода (г/в)</option></select><button class="mic-inline" onclick="mvStart('pos-water','Холодная или горячая',false)">🎤</button></div></div>
         <div class="form-group"><div class="form-label">№ поверительного клейма</div>
-          <div style="display:flex;gap:8px;align-items:center;"><input class="form-input" id="pos-stamp" placeholder="0000000" inputmode="numeric" style="flex:1;"><button class="mic-inline" onclick="mvStart('pos-stamp','Номер клейма цифрами',true)">🎤</button></div></div>
+          <div style="display:flex;gap:8px;align-items:center;"><input class="form-input" id="pos-stamp" placeholder="0000000" inputmode="numeric" style="flex:1;"><button class="mic-inline" onclick="mvStart('pos-stamp','Номер клейма цифрами',true)">🎤</button></div>
+          <div id="pos-stamp-btns" style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;"></div></div>
+        <div class="form-group"><div class="form-label">Результат поверки</div>
+          <select class="form-input form-select" id="pos-result" onchange="posToggleReason()"><option value="Годен">✅ Годен</option><option value="Не годен">⛔ Не годен</option></select></div>
+        <div class="form-group" id="pos-reason-wrap" style="display:none;"><div class="form-label">Причина непригодности (в е-КТРМ)</div>
+          <div style="display:flex;gap:8px;align-items:center;"><input class="form-input" id="pos-reason" placeholder="напр. погрешность выше нормы" style="flex:1;"><button class="mic-inline" onclick="mvStart('pos-reason','Причина непригодности',false)">🎤</button></div></div>
         <div class="form-group"><div class="form-label">Тип пломбы</div><select class="form-input form-select" id="pos-seal"><option value="СЛ">Самоклеющийся лейбл (СЛ)</option><option value="ПЛ">Пластиковое пломбо (ПЛ)</option></select></div>
         <div class="form-group"><div class="form-label">Цена, ₸</div><input type="number" class="form-input" id="pos-amount" placeholder="0" inputmode="decimal"></div>
         <div class="form-group"><div class="form-label">Комментарий</div>
@@ -389,6 +394,8 @@ async function loadMe(){
     if(r.status===401){location.href='/login?from=/master';return;}
     me=r.ok?await r.json():null;
   }catch(e){me=null;}
+  masterStampNext=(me&&me.stampSeqNext!=null)?Number(me.stampSeqNext):null;   // свой порядковый № клейма
+  posRenderStampBtns();
   const nm=(me&&me.name)||'Мастер';
   const ini=(nm.trim()[0]||'М').toUpperCase();
   document.getElementById('hdr-avatar').textContent=ini;
@@ -723,12 +730,36 @@ async function zaAcceptPayment(){
 }
 
 // ── ПОЗИЦИЯ (модалка сертификата) ──
+// Свой порядковый № клейма менеджера (как в главном): подставляем/двигаем через /api/v2/me.
+let masterStampNext=null;
+async function loadStampNext(){
+  try{ const r=await fetch('/api/v2/me',{cache:'no-store'}); if(r.ok){ const me=await r.json(); masterStampNext=me&&me.stampSeqNext!=null?Number(me.stampSeqNext):null; } }
+  catch(_e){ masterStampNext=null; }
+  posRenderStampBtns();
+}
+function posRenderStampBtns(){
+  const box=document.getElementById('pos-stamp-btns'); if(!box)return;
+  const chip=(txt,fn)=>`<button type="button" onclick="${fn}" style="border:1px solid #cbd5e1;background:#f8fafc;border-radius:8px;padding:6px 10px;font-size:12px;font-family:inherit;cursor:pointer;">${txt}</button>`;
+  box.innerHTML=(masterStampNext?chip('➡ Использовать № '+masterStampNext,'posUseStamp()'):'')+chip(masterStampNext?'🔁 новая партия':'➕ Внести порядковый номер','posSetStampBase()');
+}
+function posUseStamp(){ if(masterStampNext)setV('pos-stamp',String(masterStampNext)); }
+async function posSetStampBase(){
+  const cur=window.prompt('Ваш порядковый № клейма (начало партии):',masterStampNext?String(masterStampNext):'');
+  if(cur==null)return; const n=Math.floor(Number(String(cur).replace(/\D/g,'')));
+  if(!(n>0)){ toast('⚠️ Введите номер цифрами'); return; }
+  try{ const r=await fetch('/api/v2/me/stamp-seq',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({next:n})});
+    if(!r.ok)throw new Error('HTTP '+r.status); masterStampNext=n; setV('pos-stamp',String(n)); posRenderStampBtns(); toast('✅ Ваш № клейма: '+n); }
+  catch(e){ toast('⚠️ '+e.message); }
+}
+function posToggleReason(){ const nog=document.getElementById('pos-result').value==='Не годен'; document.getElementById('pos-reason-wrap').style.display=nog?'':'none'; }
 function posOpen(){
   posPhotos=[];
-  ['pos-meter','pos-serial','pos-year','pos-readings','pos-stamp','pos-note','pos-amount'].forEach(id=>setV(id,''));
+  ['pos-meter','pos-serial','pos-year','pos-readings','pos-stamp','pos-note','pos-amount','pos-reason'].forEach(id=>setV(id,''));
   setV('pos-date',todayStr());
   document.getElementById('pos-water').value='х/в';
   document.getElementById('pos-seal').value='СЛ';
+  document.getElementById('pos-result').value='Годен'; posToggleReason();
+  posRenderStampBtns();
   posRenderPhotos(); openSheet('posSheet');
 }
 function posClose(){ closeSheet('posSheet'); }
@@ -760,12 +791,13 @@ async function posSave(){
       waterType:document.getElementById('pos-water').value,
       readings, checkDate:date, nextCheckDate:plus5y(date),
       stampNo:getV('pos-stamp')||null, sealType:document.getElementById('pos-seal').value, seal:true,
+      result:document.getElementById('pos-result').value, unfitReason:getV('pos-reason')||null,
       note:getV('pos-note')||null, photos:posPhotos,
     };
     const r=await fetch(CERTS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(r.status===401){location.href='/login?from=/master';return;}
     if(!r.ok){ let m='HTTP '+r.status; try{const e=await r.json();m=e.error||m;}catch(_e){} throw new Error(m); }   // показать реальную причину (уник. клейма/зав.№ и др.)
-    posClose(); await zaLoadPositions(); render(); toast('✅ Позиция сохранена — «Готова к КТРМ»');
+    posClose(); await zaLoadPositions(); render(); loadStampNext(); toast('✅ Позиция сохранена — «Готова к КТРМ»');   // сервер продвинул № клейма — обновим
   }catch(e){ if(e.message!=='auth')toast('⚠️ '+e.message); }
   finally{ posBusy=false; btn.disabled=false; btn.textContent='✅ Готово — сохранить позицию'; }
 }
