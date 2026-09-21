@@ -764,7 +764,7 @@ async function posSave(){
     };
     const r=await fetch(CERTS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(r.status===401){location.href='/login?from=/master';return;}
-    if(!r.ok) throw new Error('HTTP '+r.status);
+    if(!r.ok){ let m='HTTP '+r.status; try{const e=await r.json();m=e.error||m;}catch(_e){} throw new Error(m); }   // показать реальную причину (уник. клейма/зав.№ и др.)
     posClose(); await zaLoadPositions(); render(); toast('✅ Позиция сохранена — «Готова к КТРМ»');
   }catch(e){ if(e.message!=='auth')toast('⚠️ '+e.message); }
   finally{ posBusy=false; btn.disabled=false; btn.textContent='✅ Готово — сохранить позицию'; }
