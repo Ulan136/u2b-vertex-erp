@@ -34,6 +34,7 @@ function OrdersInner() {
   const [fFrom, setFFrom] = React.useState('');
   const [fTo, setFTo] = React.useState('');
   const [fWater, setFWater] = React.useState('');   // фильтр «Вода»: х/в / г/в
+  const [fStatus, setFStatus] = React.useState(''); // фильтр по статусу заявки
   const qs = new URLSearchParams({ source }); if (branch !== 'all') qs.set('branch', branch);
   const { data: orders, error, isLoading, mutate } = useApi<Order[]>('/api/v2/orders?' + qs);
   const { data: org } = useApi<{ yandexMapsKey?: string | null }>('/api/v2/org');
@@ -56,6 +57,7 @@ function OrdersInner() {
     if (fFrom && d < fFrom) return false;   // фильтр по дате заявки
     if (fTo && d > fTo) return false;
     if (fWater && (o.waterType || '') !== fWater) return false;
+    if (fStatus && (o.status || '') !== fStatus) return false;
     return true;
   });
 
@@ -118,6 +120,7 @@ function OrdersInner() {
         <Select value={branch} onChange={e => setBranch(e.target.value)}><option value="all">Все филиалы</option>{(branches || []).map(b => <option key={b.id} value={b.id}>{branchLabel(b)}</option>)}</Select>
         <Input placeholder="🔍 №, клиент, адрес, телефон" value={q} onChange={e => setQ(e.target.value)} />
         <Select value={fWater} onChange={e => setFWater(e.target.value)} title="Тип воды"><option value="">Вода: все</option><option value="х/в">🔵 х/в (холодная)</option><option value="г/в">🔴 г/в (горячая)</option></Select>
+        <Select value={fStatus} onChange={e => setFStatus(e.target.value)} title="Статус заявки"><option value="">Статус: все</option>{STATUSES.map(s => <option key={s} value={s}>{s}</option>)}</Select>
         <DateRange from={fFrom} to={fTo} onChange={(f, t) => { setFFrom(f); setFTo(t); }} />
       </Card>
 
