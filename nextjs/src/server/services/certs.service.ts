@@ -353,33 +353,28 @@ export const certsService = {
       // «Оплачено»; один недокрытый → «Есть остаток» (доход = внесённая часть);
       // остальные не трогаем (остаются «В ожидании»).
       const pool = payments.map(p => ({ accountId: String(p.accountId), left: round2(p.amount), offset: !!p.offset }));
-      // «Смешанная» на уровне ОПЕРАЦИИ: приём не на ОДИН чистый счёт (2+ разных счёта
-      // ИЛИ был взаиморасчёт/offset) → ВСЕ закрытые серты помечаем «Смешанная», даже
-      // если конкретный серт закрылся одним счётом (правило: «не чисто один счёт →
-      // смешанная, хоть на чуть процента»).
-      const mixedOperation = new Set(payments.map(p => String(p.accountId))).size > 1 || payments.some(p => p.offset);
       let pi = 0; let closed = 0; let partialId: string | null = null;
       for (const c of targets) {
         const due = dueOf(c);
         if (due <= 0.005) continue;
         // сколько можем внести в этот серт из пула
-        let take = 0; const alloc: PayLine[] = []; let usedOffset = false;
+        let take = 0; const alloc: PayLine[] = [];
         let need = due;
         while (need > 0.001 && pi < pool.length) {
           const t = round2(Math.min(need, pool[pi].left));
-          if (t > 0) { alloc.push({ accountId: pool[pi].accountId, amount: t }); if (pool[pi].offset) usedOffset = true; pool[pi].left = round2(pool[pi].left - t); need = round2(need - t); take = round2(take + t); }
+          if (t > 0) { alloc.push({ accountId: pool[pi].accountId, amount: t }); pool[pi].left = round2(pool[pi].left - t); need = round2(need - t); take = round2(take + t); }
           if (pool[pi].left <= 0.001) pi++;
         }
         if (take <= 0.005) break;   // деньги кончились — остальные оставляем «В ожидании»
         const full = take + 0.005 >= due;
         const newPaid = round2(priceOf(c) === due ? take : round2(round2(c.paidAmount) + take)); // накопительно для «Есть остаток»
+        // «Смешанная» НЕ помечаем флагом: она вычисляется из числа счетов дохода
+        // серта (2+ счёта = доли = «Смешанная»). Доход разносится по alloc ниже —
+        // если серт закрыт кэшем + зачётом или двумя счетами, у него будет 2+ счёта.
         const upd = await certsRepo.update(c.id, {
           amount: String(priceOf(c)),
           paidAmount: String(full ? priceOf(c) : newPaid),
           payStatus: full ? 'Оплачено' : 'Есть остаток',
-          // «Смешанная»: серт закрыт зачётом (usedOffset) ИЛИ операция смешанная
-          // (mixedOperation — не на один чистый счёт) → в колонке «Счёт» «Смешанная».
-          ...((usedOffset || mixedOperation) ? { settledByOffset: true } : {}),
         }, tx);
         await productsService.syncCertSeal({ id: upd.id, serialNo: upd.serialNo }, sealFor(upd), actor, tx);
         // Доход этого сертификата за эту оплату = внесённая часть (alloc), привязан к certId.

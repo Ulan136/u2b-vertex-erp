@@ -34,9 +34,9 @@ type Cert = {
 };
 // Светло-красный фон дублирующейся ячейки (клеймо/зав.№ повторяется в системе).
 const DUP_CELL: React.CSSProperties = { background: '#fee2e2' };
-// Метка счёта дохода в списке: пусто → «—»; оплата закрыта взаиморасчётом → «Смешанная»;
-// один счёт → его имя; несколько → «Смешанная».
-const payAccLabel = (c: Cert): string => { const a = (c.payAccounts || []).filter(Boolean); if (a.length === 0) return '—'; if (c.settledByOffset) return 'Смешанная'; return a.length === 1 ? a[0] : 'Смешанная'; };
+// Метка счёта дохода в списке: пусто → «—»; ОДИН счёт → его имя; НЕСКОЛЬКО (реальные
+// доли по разным счетам, вкл. взаиморасчёт как отдельный счёт) → «Смешанная».
+const payAccLabel = (c: Cert): string => { const a = (c.payAccounts || []).filter(Boolean); if (a.length === 0) return '—'; return a.length === 1 ? a[0] : 'Смешанная'; };
 // Аномалия: «Оплачено», но доход не проведён (нет цены/счёта) — подсветить жёлтым как
 // напоминание. Как только исправят (появится приход) — подсветка исчезнет сама.
 const paidNoIncome = (c: Cert): boolean => c.payStatus === 'Оплачено' && (c.payAccounts || []).filter(Boolean).length === 0;
