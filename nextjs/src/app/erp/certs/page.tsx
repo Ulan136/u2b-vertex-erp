@@ -581,7 +581,10 @@ function CertsInner() {
   // ── Экспорт: только 11 нужных колонок (№ · ФИО/объект · Адрес · Тип · Зав.№ ·
   // Поверка · Очередная · Клеймо · Показания · Вода · Год) — без Результат/Оплата/
   // Счёт/Автор. Формы: PDF (печать), CSV, Word.
-  const exportRows = (arr: Cert[]) => arr.map((c, i) => [String(i + 1), c.fio || '', c.address || '', c.meterType || '', c.serialNo || '', dmy(c.checkDate), isCert ? dmy(c.nextCheckDate) : '', c.stampNo || '', c.readings != null ? String(c.readings) : '', c.waterType || '', c.yearMade ? String(c.yearMade) : '']);
+  // Показания в выгрузке — как введено (без хвостовых «.00», которые даёт numeric(10,2)):
+  // 318.00 → «318», 318.50 → «318.5».
+  const readOut = (v: unknown) => (v == null || v === '') ? '' : String(Number(v));
+  const exportRows = (arr: Cert[]) => arr.map((c, i) => [String(i + 1), c.fio || '', c.address || '', c.meterType || '', c.serialNo || '', dmy(c.checkDate), isCert ? dmy(c.nextCheckDate) : '', c.stampNo || '', readOut(c.readings), c.waterType || '', c.yearMade ? String(c.yearMade) : '']);
   const EXP_HEAD = ['№', 'ФИО/объект', 'Адрес', 'Тип', 'Зав.№', 'Поверка', 'Очередная', 'Клеймо', 'Показания', 'Вода', 'Год'];
   // Шапка реестра (как в утверждённом шаблоне): РЕЕСТР / вид СИ / прошедших
   // поверку в <организация> / за <год> год. Организация — из настроек (org),
