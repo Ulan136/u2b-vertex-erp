@@ -29,7 +29,10 @@ export const ordersService = {
     const rows = await ordersRepo.list();
     const headBranchId = await branchesRepo.headId();
     const isPriv = actor?.role === 'admin' || actor?.role === 'director';
-    const userBranchId = actor && !isPriv ? await usersRepo.branchOf(actor.id) : null;
+    // Непривилегированный (мастер/менеджер/филиал): скоуп по своему филиалу; если
+    // филиал НЕ задан — считаем ГОЛОВНЫМ (Тараз), а не «видит всё». Так «головной»
+    // ограничивает своим городом, а не показывает все филиалы.
+    const userBranchId = actor && !isPriv ? ((await usersRepo.branchOf(actor.id)) ?? headBranchId) : null;
     const scoped = scopeOrdersByBranch(rows, { role: actor?.role, userBranchId, headBranchId, branchFilter });
     const s = asSource(source);
     return s ? filterOrdersBySource(scoped, s) : scoped;
