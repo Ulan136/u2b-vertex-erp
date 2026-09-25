@@ -318,7 +318,10 @@ export const certsService = {
       if (dateFrom && d < dateFrom) return false;   // диапазон дат поверки
       if (dateTo && d > dateTo) return false;
       return true;
-    });
+    })
+      // Оплачиваем ПО ДАТЕ ПОВЕРКИ (старые первыми, FIFO) — как на экране (по возр.),
+      // чтобы серты задним числом (ранние даты) закрывались первыми, а не оставались.
+      .sort((a, b) => (isoDate(a.checkDate) || '9999-99-99').localeCompare(isoDate(b.checkDate) || '9999-99-99'));
     if (!awaiting.length) throw badRequest('Нет сертификатов в ожидании за выбранный период');
     // Оплачиваем указанное число (первые N ожидающих) или все, если не задано.
     const count = wantCount ? Math.min(wantCount, awaiting.length) : awaiting.length;
