@@ -856,7 +856,10 @@ function CertsInner() {
               )}
             </div><Copy v={form.meterType} h="Тип прибора" /></div>
           </Field>
-          <Field label="Заводской номер"><div className="cert-vf"><Input value={form.serialNo} onChange={e => setForm({ ...form, serialNo: e.target.value })} placeholder="Серийный номер" style={{ fontFamily: 'monospace' }} /><Mic k="serialNo" h="Номер счётчика" /><Copy v={form.serialNo} h="Зав. №" /></div></Field>
+          <Field label="Заводской номер"><div className="cert-vf"><Input value={form.serialNo} onChange={e => setForm({ ...form, serialNo: e.target.value })} placeholder="Серийный номер" style={{ fontFamily: 'monospace' }} /><Mic k="serialNo" h="Номер счётчика" /><Copy v={form.serialNo} h="Зав. №" /></div>
+            {form.serialNo.trim() && all.some(c => c.id !== form.id && (c.serialNo || '').trim() === form.serialNo.trim()) && (
+              <div style={{ fontSize: 11, color: '#b45309', marginTop: 4 }}>⚠ Такой зав.№ уже есть в системе — проверьте, не ошибка ли (сохранить можно).</div>
+            )}</Field>
         </div>
         <div className="erp-form-row">
           <Field label="Дата поверки" required><div className="cert-vf"><Input type="date" value={form.checkDate} onChange={e => onCheckDate(e.target.value)} /><Copy v={form.checkDate ? dmy(form.checkDate) : ''} h="Дата поверки" /></div></Field>

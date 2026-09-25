@@ -168,16 +168,13 @@ export const certsService = {
     // Филиал сертификата — из филиала создателя (для скоупа кабинета филиала),
     // если явно не задан. У головного офиса → его филиал (Тараз).
     if (fields.branchId == null && actor?.id) fields.branchId = await usersRepo.branchOf(actor.id);
-    // ЗАПРЕТ ДУБЛЕЙ: клеймо и заводской № уникальны в системе (среди живых сертов).
+    // ЗАПРЕТ ДУБЛЕЙ: только КЛЕЙМО уникально (физически одно). Заводской № НЕ
+    // блокируем — счётчик может повториться (напр. повторная поверка); дубль зав.№
+    // только подсвечивается в списке как предупреждение.
     const stampNo = String(fields.stampNo ?? '').trim();
     if (stampNo) {
       const d = await certsRepo.findByStamp(stampNo, null);
       if (d) throw badRequest(`Клеймо № ${stampNo} уже используется (${d.fio}, ${d.source}). Клеймо должно быть уникальным.`);
-    }
-    const serialNo = String(fields.serialNo ?? '').trim();
-    if (serialNo) {
-      const d = await certsRepo.findBySerialGlobal(serialNo, null);
-      if (d) throw badRequest(`Заводской № ${serialNo} уже есть в другом сертификате (${d.fio}, ${d.source}). Зав. № должен быть уникальным.`);
     }
     // Сертификат + списание клейма + доход (если «Оплачено», не Выездная) — одной
     // транзакцией. Всё считаем по сохранённой строке (итоговое состояние).
@@ -204,23 +201,14 @@ export const certsService = {
     // нельзя занулять NOT NULL поля — если пришёл null, пишем ''
     if ('fio' in fields && fields.fio == null) fields.fio = '';
     if ('address' in fields && fields.address == null) fields.address = '';
-    // ЗАПРЕТ ДУБЛЕЙ при смене клейма/зав.№ (проверяем ТОЛЬКО если значение реально
-    // меняется — иначе правка полей существующего дубля была бы заблокирована собой).
-    if ('stampNo' in fields || 'serialNo' in fields) {
+    // ЗАПРЕТ ДУБЛЕЙ только по КЛЕЙМУ (при реальной смене значения). Заводской № НЕ
+    // блокируем — счётчик может повториться; дубль зав.№ лишь подсвечивается.
+    if ('stampNo' in fields) {
       const cur = await certsRepo.findById(id);
-      if ('stampNo' in fields) {
-        const v = String(fields.stampNo ?? '').trim();
-        if (v && v !== String(cur?.stampNo ?? '').trim()) {
-          const d = await certsRepo.findByStamp(v, id);
-          if (d) throw badRequest(`Клеймо № ${v} уже используется (${d.fio}, ${d.source}). Клеймо должно быть уникальным.`);
-        }
-      }
-      if ('serialNo' in fields) {
-        const v = String(fields.serialNo ?? '').trim();
-        if (v && v !== String(cur?.serialNo ?? '').trim()) {
-          const d = await certsRepo.findBySerialGlobal(v, id);
-          if (d) throw badRequest(`Заводской № ${v} уже есть в другом сертификате (${d.fio}, ${d.source}). Зав. № должен быть уникальным.`);
-        }
+      const v = String(fields.stampNo ?? '').trim();
+      if (v && v !== String(cur?.stampNo ?? '').trim()) {
+        const d = await certsRepo.findByStamp(v, id);
+        if (d) throw badRequest(`Клеймо № ${v} уже используется (${d.fio}, ${d.source}). Клеймо должно быть уникальным.`);
       }
     }
     // Правка + пересверка клейма и дохода (статус оплаты/цена/раскладка могли
