@@ -664,11 +664,12 @@ async function loadPayAccounts(){
 function fmtSum(n){ return Number(n||0).toLocaleString('ru-RU'); }
 function zaTotal(){ return zaPositions.reduce((s,c)=>s+Number(c.amount||0),0); }
 function zaAccOptions(){
-  // Только счета раздела «№1 Поверка». Первый пункт пустой → счёт по умолчанию НЕ
-  // выбран: мастер обязан указать его явно (защита от «молча ушло на Каспи», в т.ч.
-  // при пересоздании строки оплаты после обновления позиций).
-  const accs=payAccounts.filter(a=>(a.section||'other')==='poverka');
-  if(!accs.length) return '<option value="">— нет счетов раздела «Поверка» —</option>';
+  // Счета раздела МАСТЕРА (головной → «Поверка»; филиал Астана/Алматы → свой раздел),
+  // чтобы доход выездной ушёл на счёт своего филиала, а не Тараза. Первый пункт пустой
+  // → счёт по умолчанию НЕ выбран: мастер указывает явно (защита от «молча ушло»).
+  const sec=(me&&me.financeSection)||'poverka';
+  const accs=payAccounts.filter(a=>(a.section||'other')===sec);
+  if(!accs.length) return '<option value="">— нет счетов вашего раздела —</option>';
   return '<option value="">— выберите счёт —</option>'+accs.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('');
 }
 function zaPayRowNode(amount){

@@ -32,7 +32,20 @@ function sealFor(cert: { docType?: string | null; sealType?: string | null; payS
 }
 
 // ── Доход прямого сертификата/извещения (смешанная оплата → приход на счета) ──
-type CertRow = { id: string; source?: string | null; payStatus?: string | null; amount?: unknown; paidAmount?: unknown; commissionPaidAt?: unknown; docType?: string | null; serialNo?: string | null; checkDate?: unknown; client?: string | null; invoiceType?: string | null; orderId?: string | null };
+type CertRow = { id: string; source?: string | null; payStatus?: string | null; amount?: unknown; paidAmount?: unknown; commissionPaidAt?: unknown; docType?: string | null; serialNo?: string | null; checkDate?: unknown; client?: string | null; invoiceType?: string | null; orderId?: string | null; branchId?: string | null };
+
+// Раздел финансов ДОХОДА серта — по ФИЛИАЛУ серта: Астана→'branch', Алматы→
+// 'branch_almaty' (деньги филиала идут на его счёт, не в Тараз); без филиала/головной
+// → по источнику (Выездная/САМИ/… → 'poverka'). Так финансы Тараза не включают деньги
+// филиала — там только проделанная работа (серты).
+async function certSection(cert: { source?: string | null; branchId?: string | null }): Promise<string> {
+  if (cert.branchId) {
+    const s = branchFinanceSection(await branchesRepo.get(cert.branchId));
+    if (s) return s;   // 'branch' | 'branch_almaty' — филиал
+  }
+  return sectionForCertSource(cert.source);   // 'poverka' (или legacy 'branch' по источнику)
+}
+const srcLabel = (section: string) => (section === 'poverka' ? 'Поверка' : 'Филиал');
 
 // Метка счёта в сертификате (invoiceType) → категория финсчёта.
 const INVOICE_CATEGORY: Record<string, string> = { 'Каспи': 'kaspi', 'БЦК': 'bck', 'Наличка': 'nalichka' };
@@ -57,7 +70,7 @@ async function reverseCertIncome(certId: string, actor: { id: string; name?: str
 // Цель = фактически внесённая сумма (полная цена или частичная — см. certIncomeAmount).
 async function resolveCertAlloc(cert: CertRow, payments: PayLine[] | undefined, tx: Executor): Promise<PayLine[]> {
   const amount = certIncomeAmount(cert);
-  const section = sectionForCertSource(cert.source);
+  const section = await certSection(cert);   // раздел дохода — по филиалу серта
   // Районы: доход ВСЕГДА на счёт из поля invoiceType (колонка «СЧЁТ» — единый источник),
   // независимо от переданных строк оплаты. Так показанный счёт = где реально деньги.
   if (invoiceRouted(cert)) {
@@ -96,7 +109,7 @@ async function syncCertIncome(cert: CertRow, payments: PayLine[] | undefined, ac
   const norm = (arr: PayLine[]) => arr.map(p => `${p.accountId}:${p.amount.toFixed(2)}`).sort().join('|');
   if (existing.length && norm(existing.map(o => ({ accountId: o.accountId as string, amount: Number(o.amount) }))) === norm(alloc)) return;
   if (existing.length) await reverseCertIncome(cert.id, actor, tx);
-  const src = sectionForCertSource(cert.source) === 'branch' ? 'Филиал' : 'Поверка';
+  const src = srcLabel(await certSection(cert));
   for (const p of alloc) {
     const acc = await financeRepo.findAccount(p.accountId, tx);
     if (!acc) throw badRequest('Счёт оплаты не найден');
@@ -295,12 +308,17 @@ export const certsService = {
     const paid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
     if (Math.abs(paid - total) > 0.01) throw badRequest(`Сумма оплат (${m2(paid)}) должна равняться итогу (${m2(total)})`);
 
+    // Раздел/метка дохода — по ФИЛИАЛУ заявки (позиции одного филиала): Астана → «Филиал»
+    // на её счёт; головной → «Поверка». Деньги филиала не попадают в финансы Тараза.
+    const section = await certSection(certs[0] as CertRow);
+    const src = srcLabel(section);
+    const opName = src === 'Поверка' ? 'Поверка (выездная)' : 'Выездная (филиал)';
     return db.transaction(async (tx) => {
       for (const p of payments) {
         const acc = await financeRepo.findAccount(p.accountId, tx);
         if (!acc) throw badRequest('Счёт оплаты не найден');
         await financeService.createOperation(
-          { opType: 'Приход', accountId: p.accountId, amount: m2(p.amount), name: 'Поверка (выездная)', source: 'Поверка', orderId, accountName: acc.name },
+          { opType: 'Приход', accountId: p.accountId, amount: m2(p.amount), name: opName, source: src, orderId, accountName: acc.name },
           actor?.id ?? null, tx,
         );
       }
@@ -384,7 +402,7 @@ export const certsService = {
         }, tx);
         await productsService.syncCertSeal({ id: upd.id, serialNo: upd.serialNo }, sealFor(upd), actor, tx);
         // Доход этого сертификата за эту оплату = внесённая часть (alloc), привязан к certId.
-        const src = sectionForCertSource(upd.source) === 'branch' ? 'Филиал' : 'Поверка';
+        const src = srcLabel(await certSection(upd));
         for (const p of alloc) {
           const acc = await financeRepo.findAccount(p.accountId, tx);
           if (!acc) throw badRequest('Счёт оплаты не найден');

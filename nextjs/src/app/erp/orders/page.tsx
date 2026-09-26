@@ -48,10 +48,17 @@ function OrdersInner() {
     const b = branches.find(x => x.name === (nameBySlug[slug] || ''));
     if (b) setBranch(b.id);
   }, [sp, branches]);
-  // Счета раздела «Поверка» — для приёма оплаты выездной заявки менеджером (как в кабинете мастера).
+  // Счета для приёма оплаты заявки — раздела ФИЛИАЛА заявки (Астана→branch, Алматы→
+  // branch_almaty, головной→poverka), чтобы доход филиала ушёл на его счёт, не в Тараз.
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
-  const payAccts = (fin?.accounts || []).filter(a => (a.section || '') === 'poverka' && a.isActive !== false);
   const [pay, setPay] = React.useState<PayState | null>(null);
+  const sectionOfBranch = (branchId?: string | null): string => {
+    if (!branchId) return 'poverka';
+    const b = (branches || []).find(x => x.id === branchId);
+    if (!b || b.isHead) return 'poverka';
+    return b.name === 'Алматы' ? 'branch_almaty' : b.name === 'Астана' ? 'branch' : 'poverka';
+  };
+  const payAccts = (fin?.accounts || []).filter(a => (a.section || '') === (pay ? sectionOfBranch(pay.order.branchId) : 'poverka') && a.isActive !== false);
 
   const [modal, setModal] = React.useState(false);
   const [form, setForm] = React.useState<typeof EMPTY>(EMPTY);
