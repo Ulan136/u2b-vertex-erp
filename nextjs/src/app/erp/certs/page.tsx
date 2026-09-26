@@ -109,6 +109,7 @@ function CertAccordion({ items, empty }: { items: Cert[]; empty: string }) {
 function CertsInner() {
   const sp = useSearchParams();
   const initial = sp.get('source');
+  const branchSlug = sp.get('branch') || '';   // кабинет филиала: смотреть Выездную филиала (admin)
   const [source, setSource] = React.useState(initial && SOURCES.includes(initial) ? initial : 'САМИ');
   const [docType, setDocType] = React.useState<'cert' | 'izv'>(sp.get('type') === 'izv' ? 'izv' : 'cert');
   const [trash, setTrash] = React.useState(false);   // режим «Корзина» (удалённые)
@@ -127,7 +128,7 @@ function CertsInner() {
     const s = sp.get('source'); if (s && SOURCES.includes(s)) setSource(s);
     const t = sp.get('type'); if (t === 'cert' || t === 'izv') setDocType(t);
   }, [sp]);
-  const { data: certs, error, isLoading, mutate } = useApi<Cert[]>(`/api/v2/certs?source=${encodeURIComponent(source)}&archived=false&type=${docType}${trash ? '&trash=1' : ''}`);
+  const { data: certs, error, isLoading, mutate } = useApi<Cert[]>(`/api/v2/certs?source=${encodeURIComponent(source)}&archived=false&type=${docType}${trash ? '&trash=1' : ''}${branchSlug ? `&branch=${encodeURIComponent(branchSlug)}` : ''}`);
   const { data: products } = useApi<Product[]>('/api/v2/products');
   const { data: clients, mutate: mutateClients } = useApi<Client[]>('/api/v2/clients');
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');

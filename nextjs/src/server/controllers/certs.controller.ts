@@ -13,6 +13,7 @@ export const GET = withApi(async (req: NextRequest, ctx) => {
     type: sp.get('type'),
     orderId: sp.get('orderId'),
     trash: sp.get('trash') === '1' || sp.get('trash') === 'true',
+    branch: sp.get('branch'),   // admin/директор: смотреть Выездную конкретного филиала
   }, ctx.user ? { id: ctx.user.id, role: ctx.user.role } : null);
 });
 export const POST = withApi(async (req: NextRequest, ctx) => created(await certsService.create(await req.json(), ctx.user ? { id: ctx.user.id, name: ctx.user.name } : null)));

@@ -8,10 +8,22 @@ import { financeService } from '@/server/services/finance.service';
 import { financeRepo } from '@/server/repositories/finance.repo';
 import { sealMarker } from '@/server/dto/products.dto';
 import { usersRepo } from '@/server/repositories/users.repo';
+import { branchesRepo } from '@/server/repositories/branches.repo';
+import { branchFinanceSection } from '@/server/lib/branchScope';
 import { BRANCH_ROLE } from '@/server/dto/permissions.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
 const m2 = (n: unknown) => (Math.round((Number(n) || 0) * 100) / 100).toFixed(2);
+
+// slug филиала (astana|almaty) → branchId. Для просмотра Выездной филиала админом.
+const BRANCH_SECTION_BY_SLUG: Record<string, string> = { astana: 'branch', almaty: 'branch_almaty' };
+async function branchIdBySlug(slug?: string | null): Promise<string | null> {
+  if (!slug) return null;
+  const section = BRANCH_SECTION_BY_SLUG[slug];
+  if (!section) return null;
+  const all = await branchesRepo.listActive();
+  return all.find((b: { id: string; name?: string | null; city?: string | null }) => branchFinanceSection(b) === section)?.id ?? null;
+}
 
 // Какое клеймо должно быть списано у ИТОГОВОГО состояния поверки:
 // расходуется только у ОПЛАЧЕННОЙ поверки (docType='cert'); иначе — ничего.
@@ -97,8 +109,11 @@ async function syncCertIncome(cert: CertRow, payments: PayLine[] | undefined, ac
 
 export const certsService = {
   async list(q: CertQuery, viewer?: { id: string; role?: string | null } | null) {
-    // Роль 'branch' видит только сертификаты/извещения своего филиала (скоуп по branchId).
-    const branchId = viewer?.role === BRANCH_ROLE ? await usersRepo.branchOf(viewer.id) : null;
+    // Роль 'branch' видит только серты своего филиала (скоуп по branchId). Остальные
+    // (admin/директор) — конкретный филиал по ?branch=astana|almaty (для кабинета филиала).
+    const branchId = viewer?.role === BRANCH_ROLE
+      ? await usersRepo.branchOf(viewer.id)
+      : await branchIdBySlug(q.branch);
     return certsRepo.list({
       source: q.source ?? null,
       archived: q.archived ?? false,

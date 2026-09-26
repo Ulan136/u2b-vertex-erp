@@ -41,6 +41,13 @@ function OrdersInner() {
   const mapsKey = org?.yandexMapsKey || '';
   const { data: branches } = useApi<Branch[]>('/api/v2/branches');
   const branchName = (id?: string | null) => (branches || []).find(b => b.id === id)?.name;
+  // Кабинет филиала: ?branch=astana|almaty → предвыбрать этот филиал (по имени из справочника).
+  React.useEffect(() => {
+    const slug = sp.get('branch'); if (!slug || !(branches && branches.length)) return;
+    const nameBySlug: Record<string, string> = { astana: 'Астана', almaty: 'Алматы' };
+    const b = branches.find(x => x.name === (nameBySlug[slug] || ''));
+    if (b) setBranch(b.id);
+  }, [sp, branches]);
   // Счета раздела «Поверка» — для приёма оплаты выездной заявки менеджером (как в кабинете мастера).
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
   const payAccts = (fin?.accounts || []).filter(a => (a.section || '') === 'poverka' && a.isActive !== false);

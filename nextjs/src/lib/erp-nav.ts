@@ -46,11 +46,13 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Сертификат', screenKey: 'poverka_primary', href: '/erp/certs?source=Первичная-АК&type=cert' },
     { label: 'Извещение', screenKey: 'poverka_primary', href: '/erp/certs?source=Первичная-АК&type=izv' },
   ] },
-  // ФИЛИАЛЫ: Астана → Выездная поверка → Сертификат/Извещение (как в оригинале).
+  // ФИЛИАЛЫ: Астана → полная Выездная поверка по своему филиалу (Заявки от мастера →
+  // Сертификат → Извещение), scope ?branch=astana. Зеркало головной Выездной.
   { title: 'Филиалы', icon: '🏢', zone: 'income', items: [
     { label: 'Астана · Выездная поверка', screenKey: 'poverka_astana', heading: true },
-    { label: 'Сертификат', screenKey: 'poverka_astana', href: '/erp/certs?source=Астана&type=cert' },
-    { label: 'Извещение', screenKey: 'poverka_astana', href: '/erp/certs?source=Астана&type=izv' },
+    { label: 'Заявки', screenKey: 'poverka_astana', href: '/erp/orders?source=field_check&branch=astana' },
+    { label: 'Сертификат', screenKey: 'poverka_astana', href: '/erp/certs?source=Выездная&type=cert&branch=astana' },
+    { label: 'Извещение', screenKey: 'poverka_astana', href: '/erp/certs?source=Выездная&type=izv&branch=astana' },
   ] },
   { title: 'Продажа', icon: '💰', zone: 'income', items: [
     { label: 'Журнал продаж', screenKey: 'sales', href: '/erp/sales' },
