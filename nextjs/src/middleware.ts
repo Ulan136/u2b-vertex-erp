@@ -81,9 +81,10 @@ export default auth((req) => {
     if (dest) return NextResponse.redirect(new URL(dest, req.nextUrl));
   }
 
-  // Филиал: «Рабочего стола» у него нет — заход на корень/ERP уводим на его Заявки.
+  // Филиал: «Рабочего стола» у него нет — заход на корень/ERP уводим на домашнюю
+  // страницу кабинета филиала (счёт + ссылки на Заявки/Сертификаты/Извещения).
   if (loggedIn && role === 'branch' && (pathname === '/' || pathname === '/erp')) {
-    return NextResponse.redirect(new URL('/erp/orders?source=field_check', req.nextUrl));
+    return NextResponse.redirect(new URL('/erp/branch-finance', req.nextUrl));
   }
 
   // /sketch/* — архив старых макетов, доступ только Админу

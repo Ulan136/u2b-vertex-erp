@@ -90,6 +90,14 @@ function BranchFinanceInner() {
           <Button onClick={openExp} disabled={!accounts.length}>+ Расход</Button>
         </div>} />
 
+      {/* Точка входа в кабинет филиала: экраны Выездной поверки (свой филиал). */}
+      <Card style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: '#475569' }}>🚗 Выездная поверка:</span>
+        <Link href={`/erp/orders?source=field_check${branch ? `&branch=${branch}` : ''}`} className="ui-btn ui-btn-outline">📋 Заявки</Link>
+        <Link href={`/erp/certs?source=Выездная&type=cert${branch ? `&branch=${branch}` : ''}`} className="ui-btn ui-btn-outline">📄 Сертификаты</Link>
+        <Link href={`/erp/certs?source=Выездная&type=izv${branch ? `&branch=${branch}` : ''}`} className="ui-btn ui-btn-outline">📭 Извещения</Link>
+      </Card>
+
       <Card className="erp-filters" style={{ marginTop: 12 }}>
         <DateRange from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
       </Card>
