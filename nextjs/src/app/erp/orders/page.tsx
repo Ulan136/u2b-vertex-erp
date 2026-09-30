@@ -75,7 +75,9 @@ function OrdersInner() {
     return true;
   });
 
-  const openNew = () => { setForm(EMPTY); setErr(''); setModal(true); };
+  // Новая заявка: филиал по умолчанию = выбранный в фильтре (в кабинете Астаны это Астана),
+  // иначе головной. Так в кабинете филиала заявка сразу заводится на свой филиал.
+  const openNew = () => { setForm({ ...EMPTY, branchId: branch !== 'all' ? branch : '' }); setErr(''); setModal(true); };
   const openEdit = (o: Order) => { setForm({ id: o.id, clientName: o.clientName || '', phone: o.phone || '', address: o.address || '', qty: o.qty ? String(o.qty) : '1', waterType: o.waterType || 'х/в', branchId: o.branchId || '', status: o.status || 'В работе', comment: o.comment || '', lat: o.lat ?? null, lng: o.lng ?? null }); setErr(''); setModal(true); };
 
   async function save() {
