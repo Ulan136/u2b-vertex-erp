@@ -74,6 +74,7 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Журнал расходов', screenKey: 'expenses', href: '/erp/expenses' },
     { label: 'Категории', screenKey: 'expenses', href: '/erp/expenses/categories' },
     { label: 'Аналитика', screenKey: 'expenses', href: '/erp/expenses/analytics' },
+    { label: '🤝 Долги', screenKey: 'expenses', href: '/erp/expenses/debts' },
   ] },
   { title: 'Склад', icon: '🏭', zone: 'ops', items: [
     { label: 'Журнал склада', screenKey: 'warehouse', href: '/erp/warehouse' },

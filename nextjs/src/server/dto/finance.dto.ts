@@ -160,15 +160,17 @@ export function movementAmount(opType: string, amount: string | number): number 
 // Тип операции определяет приход/расход. СТОРНО (reverses) и ОТМЕНЁННЫЕ
 // (reversedAt) в суммы приходов/расходов НЕ входят: сторно возврата дохода —
 // это НЕ расход, а обнуление дохода. Категория/раздел счёта роли не играет.
-type OpLike = { opType?: string | null; reverses?: string | null; reversedAt?: unknown };
+type OpLike = { opType?: string | null; reverses?: string | null; reversedAt?: unknown; source?: string | null };
 export function isLiveOp(op: OpLike): boolean {
   return !op.reverses && !op.reversedAt;
 }
+// Долг (выдача/возврат) — движение денег, но НЕ доход/расход фирмы (актив-возврат),
+// поэтому в приход/расход отчётов не входит (баланс счёта при этом меняется корректно).
 export function isRealIncome(op: OpLike): boolean {
-  return op.opType === 'Приход' && isLiveOp(op);
+  return op.opType === 'Приход' && op.source !== 'Долг' && isLiveOp(op);
 }
 export function isRealExpense(op: OpLike): boolean {
-  return op.opType === 'Расход' && isLiveOp(op);
+  return op.opType === 'Расход' && op.source !== 'Долг' && isLiveOp(op);
 }
 
 export function inPeriod(opDate: string | null | undefined, from?: string | null, to?: string | null): boolean {

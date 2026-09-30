@@ -425,6 +425,21 @@ export const debts = pgTable('debts', {
   updatedAt            : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── LOANS (простые долги/займы) ───────────────────────────────
+// Простой трекер: выдали кому-то деньги из счёта (Расход) — ждём возврат (Приход
+// на счёт). Отдельно от debts (дебиторка/кредиторка) — намеренно проще.
+export const loans = pgTable('loans', {
+  id          : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  debtorName  : varchar('debtor_name', { length: 200 }).notNull(),
+  amount      : numeric('amount', { precision: 12, scale: 2 }).notNull(),          // выдано
+  returned    : numeric('returned', { precision: 12, scale: 2 }).notNull().default('0'),  // возвращено
+  accountId   : uuid('account_id').references(() => financeAccounts.id, { onDelete: 'set null' }),  // с какого счёта выдан
+  comment     : text('comment'),
+  createdBy   : uuid('created_by').references(() => users.id),
+  createdAt   : timestamp('created_at', { withTimezone: true }).defaultNow(),
+  closedAt    : timestamp('closed_at', { withTimezone: true }),   // когда возвращён полностью
+});
+
 // ── DEBT PAYMENTS (погашения) ─────────────────────────────────
 // A payment against a debt. It reuses the finance ledger: each payment
 // creates a finance_operation (Приход for debit, Расход for credit) whose id

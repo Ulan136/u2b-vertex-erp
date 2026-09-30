@@ -31,7 +31,7 @@ export default function ExpenseAnalyticsPage() {
 
   // Расходы за период: только Расход, без сторно/отменённых. Закуп (оборот) исключаем —
   // это не расход фирмы (см. экран «Расходы»).
-  const all = React.useMemo(() => (data?.operations || []).filter(o => o.opType === 'Расход' && o.source !== 'Закуп' && !o.reversedAt && !o.reverses), [data]);
+  const all = React.useMemo(() => (data?.operations || []).filter(o => o.opType === 'Расход' && o.source !== 'Закуп' && o.source !== 'Долг' && !o.reversedAt && !o.reverses), [data]);
   // Умный поиск: по сотруднику, категории, подкатегории, описанию (слова через AND).
   const expenses = React.useMemo(() => {
     const qn = q.trim().toLowerCase();
