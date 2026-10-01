@@ -134,7 +134,10 @@ function CertsInner() {
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
   const { data: org } = useApi<{ companyName?: string | null }>('/api/v2/org');
   // Порядковый № клейма — СВОЙ у каждого менеджера (по аккаунту): читаем/пишем через /me.
-  const { data: me, mutate: mutateMe } = useApi<{ stampSeqNext?: number | null }>('/api/v2/me');
+  const { data: me, mutate: mutateMe } = useApi<{ stampSeqNext?: number | null; financeSection?: string | null }>('/api/v2/me');
+  // Астана: админ смотрит через ?branch=astana ИЛИ сам пользователь-филиал Астана
+  // (financeSection='branch'). Тогда колонка «Показания» спит, вместо неё «Класс счётчика».
+  const isAstana = branchSlug === 'astana' || me?.financeSection === 'branch';
   const stampNext = me?.stampSeqNext ?? null;
   // Задать свой порядковый № клейма (новая партия). База вводится в prompt.
   async function setStampBase() {
@@ -707,7 +710,7 @@ function CertsInner() {
             <table className="erp-table cert-reg">
               <thead><tr>
                 <th className="col-no">№</th><th className="col-fio">ФИО абонента</th><th className="col-address">Адрес абонента</th><th className="col-meter">Тип прибора</th><th className="col-serial">Заводской номер</th>
-                <th className="col-checkdate">Дата поверки</th><th className="col-nextdate">Очередная поверка</th><th className="col-stamp">Номер клейма</th><th className="col-readings" style={{ textAlign: 'right' }}>Показания м³</th>
+                <th className="col-checkdate">Дата поверки</th><th className="col-nextdate">Очередная поверка</th><th className="col-stamp">Номер клейма</th><th className="col-readings" style={{ textAlign: isAstana ? 'center' : 'right' }}>{isAstana ? 'Класс счётчика' : 'Показания м³'}</th>
                 <th className="col-water">Вода</th><th className="col-year">Год</th><th className="col-note">Прим.</th><th className="col-phone">Телефон</th><th className="col-client">Клиент</th>
                 <th className="col-sum" style={{ textAlign: 'right' }}>💰 Сумма</th><th className="col-oper">🔄 Операция</th><th className="col-pay">💳 Оплата</th><th className="col-invoice">🧾 Счёт</th><th className="col-author">Автор</th><th className="col-actions" style={{ textAlign: 'center' }}>Действия</th>
               </tr></thead>
@@ -722,7 +725,7 @@ function CertsInner() {
                     <td className="col-checkdate" style={{ fontSize: 11 }}>{dmy(c.checkDate)}</td>
                     <td className="col-nextdate" style={{ fontSize: 11 }}><Badge tone="ok">{dmy(c.nextCheckDate)}</Badge></td>
                     <td className="col-stamp" style={{ fontFamily: 'monospace', fontSize: 11, ...(c.dupStamp ? DUP_CELL : {}) }} title={c.dupStamp ? 'Номер клейма повторяется в системе' : undefined}>{c.stampNo || '—'}</td>
-                    <td className="col-readings" style={{ textAlign: 'right', fontWeight: 600, fontSize: 11 }}>{c.readings != null ? num(c.readings).toLocaleString('ru-RU') : '—'}</td>
+                    <td className="col-readings" style={{ textAlign: isAstana ? 'center' : 'right', fontWeight: 600, fontSize: 11 }}>{isAstana ? (c.accuracyClass || '—') : (c.readings != null ? num(c.readings).toLocaleString('ru-RU') : '—')}</td>
                     <td className="col-water" style={{ fontSize: 11 }}>{c.waterType === 'г/в' ? '🔴 г/в' : '🔵 х/в'}</td>
                     <td className="erp-muted col-year" style={{ fontSize: 11 }}>{c.yearMade || '—'}</td>
                     <td className="col-note" style={{ fontSize: 11, color: '#c2410c', fontWeight: 700 }}>{c.note || ''}</td>
@@ -917,8 +920,10 @@ function CertsInner() {
               {VERIFIERS.map(v => <option key={v}>{v}</option>)}
             </Select>
           </Field>
-          <Field label="Класс точности">
-            <Input value={form.accuracyClass} onChange={e => setForm({ ...form, accuracyClass: e.target.value })} placeholder="±5; ±2" />
+          <Field label={isAstana ? 'Класс счётчика' : 'Класс точности'}>
+            {isAstana
+              ? <Select value={form.accuracyClass} onChange={e => setForm({ ...form, accuracyClass: e.target.value })}><option value="">— класс —</option><option value="В">В</option><option value="С">С</option></Select>
+              : <Input value={form.accuracyClass} onChange={e => setForm({ ...form, accuracyClass: e.target.value })} placeholder="±5; ±2" />}
           </Field>
         </div>
         <div className="erp-form-row">
