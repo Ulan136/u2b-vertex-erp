@@ -48,12 +48,23 @@ function OrdersInner() {
   const mapsKey = org?.yandexMapsKey || '';
   const { data: branches } = useApi<Branch[]>('/api/v2/branches');
   const branchName = (id?: string | null) => (branches || []).find(b => b.id === id)?.name;
-  // Кабинет филиала: ?branch=astana|almaty → предвыбрать этот филиал (по имени из справочника).
+  // Предвыбор филиала по URL (один раз, когда справочник загрузился):
+  //   ?branch=astana|almaty → страница филиала (показывает только его заявки);
+  //   без ?branch=          → главная «Выездная поверка» = ГОЛОВНОЙ (Тараз),
+  //   чтобы заявки Астаны тут НЕ смешивались (у филиала своя страница).
+  // Дальше пользователь может вручную выбрать «Все филиалы» в выпадающем списке.
+  const branchDefaulted = React.useRef(false);
   React.useEffect(() => {
-    const slug = sp.get('branch'); if (!slug || !(branches && branches.length)) return;
-    const nameBySlug: Record<string, string> = { astana: 'Астана', almaty: 'Алматы' };
-    const b = branches.find(x => x.name === (nameBySlug[slug] || ''));
-    if (b) setBranch(b.id);
+    if (branchDefaulted.current || !(branches && branches.length)) return;
+    const slug = sp.get('branch');
+    if (slug) {
+      const nameBySlug: Record<string, string> = { astana: 'Астана', almaty: 'Алматы' };
+      const b = branches.find(x => x.name === (nameBySlug[slug] || ''));
+      if (b) { setBranch(b.id); branchDefaulted.current = true; }
+    } else {
+      const head = branches.find(b => b.isHead);
+      if (head) { setBranch(head.id); branchDefaulted.current = true; }
+    }
   }, [sp, branches]);
   // Счета для приёма оплаты заявки — раздела ФИЛИАЛА заявки (Астана→branch, Алматы→
   // branch_almaty, головной→poverka), чтобы доход филиала ушёл на его счёт, не в Тараз.
@@ -84,7 +95,13 @@ function OrdersInner() {
 
   // Новая заявка: филиал по умолчанию = выбранный в фильтре (в кабинете Астаны это Астана),
   // иначе головной. Так в кабинете филиала заявка сразу заводится на свой филиал.
-  const openNew = () => { setForm({ ...EMPTY, branchId: branch !== 'all' ? branch : '' }); setErr(''); setModal(true); };
+  const openNew = () => {
+    // головной филиал в форме = пустое значение (option «— головной —»), поэтому
+    // предвыбранный головной не подставляем как id, а оставляем пустым.
+    const headId = (branches || []).find(b => b.isHead)?.id;
+    const preBranch = branch !== 'all' && branch !== headId ? branch : '';
+    setForm({ ...EMPTY, branchId: preBranch }); setErr(''); setModal(true);
+  };
   const openEdit = (o: Order) => {
     const positions = (o.positions && o.positions.length)
       ? o.positions.map(p => ({ qty: String(p.qty || 1), water: p.water || 'х/в' }))
