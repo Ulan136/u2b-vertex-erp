@@ -127,12 +127,20 @@ export const certsService = {
     const branchId = viewer?.role === BRANCH_ROLE
       ? await usersRepo.branchOf(viewer.id)
       : await branchIdBySlug(q.branch);
+    // «Выездная» — единственный источник, общий с филиалами (Астана/Алматы). Без явного
+    // выбора филиала он должен показывать ТОЛЬКО головной (Тараз) + серты без филиала,
+    // чтобы серты филиала сюда не смешивались (у филиала своя страница ?branch=astana).
+    // По заявке (orderId) и в корзине скоуп не навязываем.
+    const headBranchId = (!branchId && !q.orderId && q.source === 'Выездная')
+      ? await branchesRepo.headId()
+      : null;
     return certsRepo.list({
       source: q.source ?? null,
       archived: q.archived ?? false,
       type: q.orderId ? null : (q.type || 'cert'),   // по заявке — все её сертификаты, без фильтра по типу
       orderId: q.orderId ?? null,
       branchId,   // null у обычных ролей → без фильтра по филиалу (как было)
+      headBranchId,   // скоуп головного для Выездной без выбранного филиала
       trash: q.trash ?? false,   // корзина
     });
   },

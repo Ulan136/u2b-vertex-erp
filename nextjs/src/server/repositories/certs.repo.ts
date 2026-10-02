@@ -6,7 +6,7 @@ type CertInsert = typeof certificates.$inferInsert;
 type Source = typeof certificates.source.enumValues[number];
 
 export const certsRepo = {
-  list({ source, archived, type, orderId, branchId, trash }: { source?: string | null; archived: boolean; type?: string | null; orderId?: string | null; branchId?: string | null; trash?: boolean }) {
+  list({ source, archived, type, orderId, branchId, headBranchId, trash }: { source?: string | null; archived: boolean; type?: string | null; orderId?: string | null; branchId?: string | null; headBranchId?: string | null; trash?: boolean }) {
     // Корзина: trash=true → только удалённые (deleted_at IS NOT NULL); иначе — только
     // живые (deleted_at IS NULL). Удалённые никогда не смешиваются с обычными списками.
     const conds = [trash ? sql`${certificates.deletedAt} is not null` : sql`${certificates.deletedAt} is null`, eq(certificates.isArchived, archived)];
@@ -14,6 +14,10 @@ export const certsRepo = {
     if (source) conds.push(eq(certificates.source, source as Source));
     if (orderId) conds.push(eq(certificates.orderId, orderId));    // сертификаты одной заявки
     if (branchId) conds.push(eq(certificates.branchId, branchId)); // скоуп кабинета филиала
+    // Головной (Тараз): серты своего филиала ИЛИ без филиала (legacy/внешний кабинет),
+    // чтобы серты филиалов (Астана/Алматы) сюда НЕ попадали. Применяется, когда явный
+    // branchId не задан, но запрошен скоуп головного.
+    else if (headBranchId) conds.push(sql`(${certificates.branchId} = ${headBranchId} or ${certificates.branchId} is null)`);
     // photos (base64) в списке НЕ отдаём — только их количество; сами фото по
     // ссылке /api/v2/certs/{id}/photo/{n}. Так списки лёгкие и без дублей.
     const { photos: _photos, ...cols } = getTableColumns(certificates);
