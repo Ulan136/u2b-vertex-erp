@@ -131,7 +131,8 @@ export const certsService = {
     // выбора филиала он должен показывать ТОЛЬКО головной (Тараз) + серты без филиала,
     // чтобы серты филиала сюда не смешивались (у филиала своя страница ?branch=astana).
     // По заявке (orderId) и в корзине скоуп не навязываем.
-    const headBranchId = (!branchId && !q.orderId && q.source === 'Выездная')
+    // branch=all — явный запрос «все филиалы» (напр. экран «База данных»): скоуп не навязываем.
+    const headBranchId = (!branchId && q.branch !== 'all' && !q.orderId && q.source === 'Выездная')
       ? await branchesRepo.headId()
       : null;
     return certsRepo.list({

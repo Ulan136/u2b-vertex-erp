@@ -6,10 +6,11 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, EmptyRow } from '@/components/ui';
 
-type Cert = { id: string; source: string; fio?: string | null; address?: string | null; phone?: string | null; serialNo?: string | null; meterType?: string | null; checkDate?: string | null; nextCheckDate?: string | null; photoCount?: number; orderId?: string | null };
-type PhotoRow = { key: string; client: string; address: string; meta: string; date: string; photos: string[] };
+type Cert = { id: string; source: string; fio?: string | null; address?: string | null; phone?: string | null; serialNo?: string | null; meterType?: string | null; checkDate?: string | null; nextCheckDate?: string | null; photoCount?: number; orderId?: string | null; branchId?: string | null };
+type PhotoRow = { key: string; client: string; address: string; meta: string; date: string; photos: string[]; branchId?: string | null };
 type Position = { address?: string | null; qty?: number | null; water?: string | null };
-type FieldOrder = { id: string; orderNo?: string | null; clientName?: string | null; phone?: string | null; address?: string | null; positions?: Position[]; photos?: string[]; status?: string | null; orderDate?: string | null; createdAt?: string | null; createdByName?: string | null };
+type FieldOrder = { id: string; orderNo?: string | null; clientName?: string | null; phone?: string | null; address?: string | null; positions?: Position[]; photos?: string[]; status?: string | null; orderDate?: string | null; createdAt?: string | null; createdByName?: string | null; branchId?: string | null };
+type Branch = { id: string; name: string; isHead?: boolean };
 type View = 'deadlines' | 'archive-cert' | 'archive-izv' | 'orders' | 'field-photos';
 const dmy = (d?: string | null) => formatDate(d) || '—';
 const today = () => new Date().toISOString().slice(0, 10);
@@ -27,6 +28,14 @@ function DatabaseInner() {
   const sp = useSearchParams();
   const [view, setView] = React.useState<View>((sp.get('view') as View) || 'deadlines');
   React.useEffect(() => { const v = sp.get('view') as View; if (v && TITLES[v]) setView(v); }, [sp]);
+  // Фильтр по филиалу (общий для всех вкладок): «Все» / Тараз / Астана / …
+  const [fBranch, setFBranch] = React.useState('all');
+  const { data: branches } = useApi<Branch[]>('/api/v2/branches');
+  const headId = (branches || []).find(b => b.isHead)?.id;
+  // Запись без филиала = головной (Тараз): так legacy/Тараз-данные остаются у головного.
+  const branchIdOf = (bid?: string | null) => bid ?? headId ?? null;
+  const branchNameOf = (bid?: string | null) => (branches || []).find(b => b.id === branchIdOf(bid))?.name || 'Тараз';
+  const inBranch = (bid?: string | null) => fBranch === 'all' || branchIdOf(bid) === fBranch;
 
   const { data: activeCert, isLoading: l1, error, mutate: mCert } = useApi<Cert[]>('/api/v2/certs?archived=false&type=cert');
   const { data: arcCert, mutate: mArcCert } = useApi<Cert[]>('/api/v2/certs?archived=true&type=cert');
@@ -34,7 +43,7 @@ function DatabaseInner() {
   // Фотоотчёты грузим лениво — только на своей вкладке. Фото теперь на
   // сертификатах (по ссылке /api/v2/certs/{id}/photo/{n}); заявки с order.photos —
   // легаси со старого потока, показываем тоже, чтобы ничего не потерять.
-  const { data: fieldCerts, isLoading: lCerts } = useApi<Cert[]>(view === 'field-photos' ? '/api/v2/certs?source=Выездная' : null);
+  const { data: fieldCerts, isLoading: lCerts } = useApi<Cert[]>(view === 'field-photos' ? '/api/v2/certs?source=Выездная&branch=all' : null);
   const { data: fieldOrders, isLoading: lOrders } = useApi<FieldOrder[]>(view === 'field-photos' ? '/api/v2/orders?source=field_check' : null);
 
   // Полноэкранный просмотрщик фото одной заявки.
@@ -51,7 +60,7 @@ function DatabaseInner() {
   }, [viewer]);
 
   const t = today(); const soonBound = plus(60);
-  const deadlines = (activeCert || []).filter(c => c.nextCheckDate).sort((a, b) => String(a.nextCheckDate).localeCompare(String(b.nextCheckDate)));
+  const deadlines = (activeCert || []).filter(c => c.nextCheckDate && inBranch(c.branchId)).sort((a, b) => String(a.nextCheckDate).localeCompare(String(b.nextCheckDate)));
   const expiring = deadlines.filter(c => String(c.nextCheckDate).slice(0, 10) <= soonBound);
   const dtOf = (o: FieldOrder) => o.orderDate || o.createdAt || '';
   const addrOf = (o: FieldOrder) => (Array.isArray(o.positions) && o.positions[0]?.address) || o.address || '—';
@@ -63,12 +72,14 @@ function DatabaseInner() {
       key: 'c' + c.id, client: c.fio || '—', address: c.address || '—',
       meta: `${c.meterType || 'Прибор'}${c.serialNo ? ' №' + c.serialNo : ''}`,
       date: c.checkDate || '', photos: Array.from({ length: c.photoCount || 0 }, (_, i) => `/api/v2/certs/${c.id}/photo/${i}`),
+      branchId: c.branchId,
     })),
     ...(fieldOrders || []).filter(o => Array.isArray(o.photos) && o.photos.length > 0).map(o => ({
       key: 'o' + o.id, client: o.clientName || '—', address: addrOf(o),
       meta: `заявка ${o.orderNo || ''}`.trim(), date: dtOf(o), photos: o.photos as string[],
+      branchId: o.branchId,
     })),
-  ].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  ].filter(r => inBranch(r.branchId)).sort((a, b) => String(b.date).localeCompare(String(a.date)));
   const openViewer = (row: PhotoRow, idx: number) => setViewer({ photos: row.photos, idx, title: `${row.client} · ${row.meta}` });
   const meta = TITLES[view];
 
@@ -89,24 +100,34 @@ function DatabaseInner() {
   return (
     <div>
       <PageTitle title="База данных" sub={meta.sub} />
-      <Card className="erp-filters"><div className="erp-chips">
-        {(['deadlines', 'archive-cert', 'archive-izv', 'orders', 'field-photos'] as View[]).map(v => (
-          <button key={v} className={`erp-chip${view === v ? ' on' : ''}`} onClick={() => setView(v)}>
-            {TITLES[v].t}{v === 'archive-cert' ? ` (${(arcCert || []).length})` : v === 'archive-izv' ? ` (${(arcIzv || []).length})` : v === 'orders' ? ` (${expiring.length})` : v === 'field-photos' && (fieldCerts || fieldOrders) ? ` (${photoRows.length})` : ''}
-          </button>
-        ))}
-      </div></Card>
+      <Card className="erp-filters">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>🏢 Филиал:</span>
+          <button className={`erp-chip${fBranch === 'all' ? ' on' : ''}`} onClick={() => setFBranch('all')}>Все</button>
+          {(branches || []).slice().sort((a, b) => (a.isHead ? 0 : 1) - (b.isHead ? 0 : 1)).map(b => (
+            <button key={b.id} className={`erp-chip${fBranch === b.id ? ' on' : ''}`} onClick={() => setFBranch(b.id)}>{b.name}{b.isHead ? ' · головной' : ''}</button>
+          ))}
+        </div>
+        <div className="erp-chips">
+          {(['deadlines', 'archive-cert', 'archive-izv', 'orders', 'field-photos'] as View[]).map(v => (
+            <button key={v} className={`erp-chip${view === v ? ' on' : ''}`} onClick={() => setView(v)}>
+              {TITLES[v].t}{v === 'archive-cert' ? ` (${(arcCert || []).filter(c => inBranch(c.branchId)).length})` : v === 'archive-izv' ? ` (${(arcIzv || []).filter(c => inBranch(c.branchId)).length})` : v === 'orders' ? ` (${expiring.length})` : v === 'field-photos' && (fieldCerts || fieldOrders) ? ` (${photoRows.length})` : ''}
+            </button>
+          ))}
+        </div>
+      </Card>
 
       <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
         {error ? <EmptyRow>Нет доступа к базе данных.</EmptyRow> : l1 && view === 'deadlines' ? <EmptyRow>Загрузка…</EmptyRow> : (
           <>
             {view === 'deadlines' && (deadlines.length === 0 ? <EmptyRow>Нет записей с датой очередной поверки.</EmptyRow> : (
               <table className="erp-table">
-                <thead><tr><th>ФИО / объект</th><th>Адрес</th><th>№ счётчика</th><th>Направление</th><th>Поверка</th><th>Следующая</th><th>Срок</th><th></th></tr></thead>
+                <thead><tr><th>ФИО / объект</th><th>Адрес</th><th>№ счётчика</th><th>Направление</th><th>Филиал</th><th>Поверка</th><th>Следующая</th><th>Срок</th><th></th></tr></thead>
                 <tbody>{deadlines.map(c => (
                   <tr key={c.id}>
                     <td className="erp-td-main">{c.fio}</td><td style={{ fontSize: 12 }}>{c.address || '—'}</td>
                     <td style={{ fontSize: 12, fontFamily: 'monospace' }}>{c.serialNo || '—'}</td><td style={{ fontSize: 12 }}>{c.source}</td>
+                    <td style={{ fontSize: 12 }}>{branchNameOf(c.branchId)}</td>
                     <td style={{ fontSize: 12 }}>{dmy(c.checkDate)}</td><td style={{ fontSize: 12, fontWeight: 600 }}>{dmy(c.nextCheckDate)}</td>
                     <td>{dateStatus(c)}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}><button className="erp-icon-btn" title="В архив" onClick={() => archive(c, true)}>🗂</button></td>
@@ -116,14 +137,15 @@ function DatabaseInner() {
             ))}
 
             {(view === 'archive-cert' || view === 'archive-izv') && (() => {
-              const rows = view === 'archive-cert' ? (arcCert || []) : (arcIzv || []);
+              const rows = (view === 'archive-cert' ? (arcCert || []) : (arcIzv || [])).filter(c => inBranch(c.branchId));
               return rows.length === 0 ? <EmptyRow>Архив пуст.</EmptyRow> : (
                 <table className="erp-table">
-                  <thead><tr><th>ФИО / объект</th><th>Адрес</th><th>№ счётчика</th><th>Направление</th><th>Дата поверки</th><th></th></tr></thead>
+                  <thead><tr><th>ФИО / объект</th><th>Адрес</th><th>№ счётчика</th><th>Направление</th><th>Филиал</th><th>Дата поверки</th><th></th></tr></thead>
                   <tbody>{rows.map(c => (
                     <tr key={c.id}>
                       <td className="erp-td-main">{c.fio}</td><td style={{ fontSize: 12 }}>{c.address || '—'}</td>
                       <td style={{ fontSize: 12, fontFamily: 'monospace' }}>{c.serialNo || '—'}</td><td style={{ fontSize: 12 }}>{c.source}</td>
+                      <td style={{ fontSize: 12 }}>{branchNameOf(c.branchId)}</td>
                       <td style={{ fontSize: 12 }}>{dmy(c.checkDate)}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}><button className="erp-icon-btn" title="Вернуть из архива" onClick={() => archive(c, false)}>↩</button></td>
                     </tr>
@@ -134,11 +156,12 @@ function DatabaseInner() {
 
             {view === 'orders' && (expiring.length === 0 ? <EmptyRow>Нет счётчиков с истекающим сроком.</EmptyRow> : (
               <table className="erp-table">
-                <thead><tr><th>Клиент / объект</th><th>Адрес</th><th>№ счётчика</th><th>Направление</th><th>Срок поверки</th><th>Статус</th><th></th></tr></thead>
+                <thead><tr><th>Клиент / объект</th><th>Адрес</th><th>№ счётчика</th><th>Направление</th><th>Филиал</th><th>Срок поверки</th><th>Статус</th><th></th></tr></thead>
                 <tbody>{expiring.map(c => (
                   <tr key={c.id}>
                     <td className="erp-td-main">{c.fio}</td><td style={{ fontSize: 12 }}>{c.address || '—'}</td>
                     <td style={{ fontSize: 12, fontFamily: 'monospace' }}>{c.serialNo || '—'}</td><td style={{ fontSize: 12 }}>{c.source}</td>
+                    <td style={{ fontSize: 12 }}>{branchNameOf(c.branchId)}</td>
                     <td style={{ fontSize: 12, fontWeight: 600 }}>{dmy(c.nextCheckDate)}</td><td>{dateStatus(c)}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}><Button variant="outline" onClick={() => makeOrder(c)} style={{ fontSize: 12, padding: '4px 8px' }}>+ Заявка</Button></td>
                   </tr>
@@ -148,12 +171,13 @@ function DatabaseInner() {
 
             {view === 'field-photos' && (lPhotos && photoRows.length === 0 ? <EmptyRow>Загрузка…</EmptyRow> : photoRows.length === 0 ? <EmptyRow>Пока нет фото. Мастер прикрепляет их к позициям заявки в мобильном кабинете.</EmptyRow> : (
               <table className="erp-table">
-                <thead><tr><th>Клиент</th><th>Адрес</th><th>Прибор / заявка</th><th>Дата</th><th style={{ textAlign: 'right' }}>Фото</th></tr></thead>
+                <thead><tr><th>Клиент</th><th>Адрес</th><th>Прибор / заявка</th><th>Филиал</th><th>Дата</th><th style={{ textAlign: 'right' }}>Фото</th></tr></thead>
                 <tbody>{photoRows.map(row => (
                   <tr key={row.key}>
                     <td className="erp-td-main">{row.client}</td>
                     <td style={{ fontSize: 12 }}>{row.address}</td>
                     <td style={{ fontSize: 12 }}>{row.meta}</td>
+                    <td style={{ fontSize: 12 }}>{branchNameOf(row.branchId)}</td>
                     <td style={{ fontSize: 12 }}>{dmy(row.date)}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'flex-end' }}>
