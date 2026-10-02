@@ -501,7 +501,12 @@ function orderCardHtml(o){
   return `<div class="order-card ${cls}">
     <div class="oc-top"><span class="oc-no">${esc(o.orderNo||'—')}</span><span class="oc-right"><span class="oc-date">📅 ${esc(fmtDate(orderDay(o))||'—')}</span><span class="oc-st" style="color:${st.c};">${st.t}</span></span></div>
     ${o.clientName?`<div class="oc-client">${esc(o.clientName)}</div>`:''}
-    <div class="oc-phone">📞 ${o.phone?`<a href="${telHref(o.phone)}" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;">${esc(o.phone)}</a>`:'—'}</div>
+    ${o.phone
+      ? `<div class="oc-phone" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+           <span style="color:#334155;">📞 ${esc(o.phone)}</span>
+           <a href="${telHref(o.phone)}" onclick="event.stopPropagation()" style="flex:none;background:#059669;color:#fff;font-weight:700;text-decoration:none;padding:9px 16px;border-radius:10px;font-size:14px;white-space:nowrap;">📞 Позвонить</a>
+         </div>`
+      : `<div class="oc-phone">📞 —</div>`}
     ${(o.meetingDate||o.meetingTime)?`<div class="oc-pos" style="color:#1d4ed8;font-weight:700;">⏰ Встреча: ${esc(((o.meetingDate?fmtDate(String(o.meetingDate).slice(0,10)):'')+' '+(o.meetingTime||'')).trim())}</div>`:''}
     ${pos}
     ${o.comment?`<div class="oc-comment">💬 ${esc(o.comment)}</div>`:''}
