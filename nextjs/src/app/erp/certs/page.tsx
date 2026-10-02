@@ -138,6 +138,9 @@ function CertsInner() {
   // Астана: админ смотрит через ?branch=astana ИЛИ сам пользователь-филиал Астана
   // (financeSection='branch'). Тогда колонка «Показания» спит, вместо неё «Класс счётчика».
   const isAstana = branchSlug === 'astana' || me?.financeSection === 'branch';
+  // Астана: в форме главное поле — «Класс счётчика» (обязательно), а «Показания»
+  // спрятаны под раскрывашку (необязательны, вызываем если нужно).
+  const [showReadings, setShowReadings] = React.useState(false);
   const stampNext = me?.stampSeqNext ?? null;
   // Задать свой порядковый № клейма (новая партия). База вводится в prompt.
   async function setStampBase() {
@@ -498,10 +501,10 @@ function CertsInner() {
     const td = todayIso();
     const nxt = docType === 'cert' ? `${Number(td.slice(0, 4)) + 5}${td.slice(4)}` : '';
     setForm({ ...EMPTY, client: vdkClient, checkDate: td, nextCheckDate: nxt, ...(d ? { amount: d.amount, waterType: d.waterType } : {}) });
-    setCloneFrom(''); setErr(''); setModal(true);
+    setShowReadings(false); setCloneFrom(''); setErr(''); setModal(true);
   };
   const fillForm = (c: Cert): typeof EMPTY => ({ id: c.id, fio: c.fio || '', address: c.address || '', phone: c.phone || '', client: c.client || '', meterType: c.meterType || '', serialNo: c.serialNo || '', yearMade: c.yearMade ? String(c.yearMade) : '', waterType: c.waterType || 'х/в', checkDate: iso(c.checkDate), nextCheckDate: iso(c.nextCheckDate), stampNo: c.stampNo || '', sealType: c.sealType === 'ПЛ' ? 'ПЛ' : 'СЛ', readings: c.readings != null ? String(c.readings) : '', result: c.result || 'Годен', operStatus: c.operStatus || 'В работе', payStatus: c.payStatus || 'В ожидании', invoiceType: c.invoiceType || '', sentStatus: c.sentStatus || 'Не отправлено', note: c.note || '', unfitReason: c.unfitReason || '', amount: c.amount != null ? String(c.amount) : '', accuracyClass: c.accuracyClass || '', ownerKind: c.ownerKind || 'физлицо', ownerTaxId: c.ownerTaxId || '', addressKz: c.addressKz || '', verifier: c.verifier || '' });
-  const openEdit = (c: Cert) => { setForm(fillForm(c)); setCloneFrom(''); setErr(''); setModal(true); };
+  const openEdit = (c: Cert) => { setForm(fillForm(c)); setShowReadings(c.readings != null && String(c.readings) !== ''); setCloneFrom(''); setErr(''); setModal(true); };
   const openClone = (c: Cert) => {
     const td = todayIso();   // дата поверки клона по умолчанию — сегодня (можно изменить)
     const nxt = docType === 'cert' ? `${Number(td.slice(0, 4)) + 5}${td.slice(4)}` : '';
@@ -892,9 +895,23 @@ function CertsInner() {
             </Field>
           </div>
           <div className="erp-form-row">
-            <Field label="Показания м³"><div className="cert-vf"><Input type="number" value={form.readings} onChange={e => setForm({ ...form, readings: e.target.value })} /><Mic k="readings" h="Показания в кубометрах" /><Copy v={form.readings} h="Показания" /></div></Field>
+            {isAstana
+              ? <Field label="Класс счётчика" required><div className="cert-vf"><Select value={form.accuracyClass} onChange={e => setForm({ ...form, accuracyClass: e.target.value })}><option value="">— класс —</option><option value="В">В</option><option value="С">С</option></Select><Copy v={form.accuracyClass} h="Класс счётчика" /></div></Field>
+              : <Field label="Показания м³"><div className="cert-vf"><Input type="number" value={form.readings} onChange={e => setForm({ ...form, readings: e.target.value })} /><Mic k="readings" h="Показания в кубометрах" /><Copy v={form.readings} h="Показания" /></div></Field>}
             <Field label="Тип воды" required><div className="cert-vf"><Select value={form.waterType} onChange={e => setForm({ ...form, waterType: e.target.value })}><option value="">— выберите —</option><option>х/в</option><option>г/в</option></Select><Copy v={form.waterType} h="Вода" /></div></Field>
           </div>
+          {isAstana && (
+            <div style={{ margin: '2px 0 8px' }}>
+              <button type="button" onClick={() => setShowReadings(s => !s)} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: 13, padding: 0 }}>
+                {showReadings ? '▾ Скрыть показания' : `▸ Показания м³ (необязательно${form.readings ? `: ${form.readings}` : ''})`}
+              </button>
+              {showReadings && (
+                <div style={{ marginTop: 6 }}>
+                  <Field label="Показания м³"><div className="cert-vf"><Input type="number" value={form.readings} onChange={e => setForm({ ...form, readings: e.target.value })} /><Mic k="readings" h="Показания в кубометрах" /><Copy v={form.readings} h="Показания" /></div></Field>
+                </div>
+              )}
+            </div>
+          )}
         </>)}
         <div className="erp-form-row">
           <Field label="Результат поверки"><Select value={form.result} onChange={e => setForm({ ...form, result: e.target.value })}><option value="Годен">✅ Годен</option><option value="Не годен">⛔ Не годен</option></Select></Field>
@@ -920,11 +937,9 @@ function CertsInner() {
               {VERIFIERS.map(v => <option key={v}>{v}</option>)}
             </Select>
           </Field>
-          <Field label={isAstana ? 'Класс счётчика' : 'Класс точности'}>
-            {isAstana
-              ? <Select value={form.accuracyClass} onChange={e => setForm({ ...form, accuracyClass: e.target.value })}><option value="">— класс —</option><option value="В">В</option><option value="С">С</option></Select>
-              : <Input value={form.accuracyClass} onChange={e => setForm({ ...form, accuracyClass: e.target.value })} placeholder="±5; ±2" />}
-          </Field>
+          {isAstana
+            ? <div />  /* класс счётчика (В/С) для Астаны — в основном блоке выше */
+            : <Field label="Класс точности"><Input value={form.accuracyClass} onChange={e => setForm({ ...form, accuracyClass: e.target.value })} placeholder="±5; ±2" /></Field>}
         </div>
         <div className="erp-form-row">
           <Field label="Владелец прибора">
