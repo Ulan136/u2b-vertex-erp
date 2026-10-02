@@ -294,6 +294,7 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
         <div class="form-group"><div class="form-label">Телефон</div>
           <div style="display:flex;gap:8px;align-items:center;"><input class="form-input" id="za-phone" placeholder="+7…" inputmode="tel" style="flex:1;"><button type="button" class="mic-inline" title="Позвонить" onclick="zaCall()">📞</button></div></div>
         <div class="form-group"><div class="form-label">ФИО</div><input class="form-input" id="za-fio" placeholder="Фамилия И.О."></div>
+        <div class="form-group"><div class="form-label">⏰ Время встречи <span style="color:#9ca3af;font-weight:400;">(можно исправить, если клиент перенёс)</span></div><input class="form-input" id="za-meet" placeholder="напр. 15:00-16:00"></div>
         <div class="form-group"><div class="form-label">Комментарий</div><input class="form-input" id="za-comment" placeholder="комментарий"></div>
         <button class="btn-outline-sm" style="width:100%;" onclick="zaSaveHeader()">💾 Сохранить шапку</button>
       </div>
@@ -466,6 +467,7 @@ function stTag(s){return s==='Готова'?{c:'#059669',t:'✅ Готова'}:s
 function telHref(p){ return 'tel:'+String(p||'').replace(/[^\d+]/g,''); }
 function gisHref(a){ return 'https://2gis.ru/search/'+encodeURIComponent(String(a||'').trim()); }
 function addrLink(a){ a=String(a||'').trim(); return a?`<a href="${gisHref(a)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:underline dotted;">${esc(a)}</a>`:'—'; }
+function fmtDT(s){ try{ const d=new Date(s); if(isNaN(d.getTime()))return ''; const p=n=>String(n).padStart(2,'0'); return p(d.getDate())+'.'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes()); }catch(e){ return ''; } }
 // Кнопки в открытой заявке: позвонить / открыть адрес в 2ГИС (берут текущее значение поля).
 function zaCall(){ const p=getV('za-phone'); if(!p){ toast('⚠️ Телефон не указан'); return; } location.href=telHref(p); }
 function zaOpenGis(){ const a=getV('za-addr'); if(!a){ toast('⚠️ Адрес не указан'); return; } window.open(gisHref(a),'_blank'); }
@@ -479,9 +481,11 @@ function orderCardHtml(o){
     <div class="oc-top"><span class="oc-no">${esc(o.orderNo||'—')}</span><span class="oc-right"><span class="oc-date">📅 ${esc(fmtDate(orderDay(o))||'—')}</span><span class="oc-st" style="color:${st.c};">${st.t}</span></span></div>
     ${o.clientName?`<div class="oc-client">${esc(o.clientName)}</div>`:''}
     <div class="oc-phone">📞 ${o.phone?`<a href="${telHref(o.phone)}" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;">${esc(o.phone)}</a>`:'—'}</div>
+    ${o.meetingTime?`<div class="oc-pos" style="color:#1d4ed8;font-weight:700;">⏰ Время встречи: ${esc(o.meetingTime)}</div>`:''}
     ${pos}
     ${o.comment?`<div class="oc-comment">💬 ${esc(o.comment)}</div>`:''}
     ${o.createdByName?`<div class="oc-comment">👤 Автор: ${esc(o.createdByName)}</div>`:''}
+    ${o.createdAt?`<div class="oc-comment" style="color:#9ca3af;">🕒 Создана: ${fmtDT(o.createdAt)}</div>`:''}
     <div class="oc-actions">
       ${(o.lat!=null&&o.lng!=null)?`<a class="oc-btn" style="background:#eff6ff;color:#1d4ed8;text-decoration:none;" href="https://yandex.ru/maps/?rtext=~${o.lat},${o.lng}&rtt=auto" target="_blank" rel="noopener">🧭 Маршрут</a>`:''}
       ${o.status!=='Готова'?`<button class="oc-btn b-done" onclick="setStatus('${o.id}','Готова')">✅ Готова</button>`:`<button class="oc-btn b-work" onclick="setStatus('${o.id}','В работе')">↩ В работу</button>`}
@@ -604,13 +608,13 @@ function zaOpenOrder(id){
   zaOrderId=id;
   const p=(Array.isArray(o.positions)&&o.positions.length)?o.positions[0]:null;
   setV('za-addr',(p&&p.address)||o.address||''); setV('za-phone',o.phone||'');
-  setV('za-fio',o.clientName||''); setV('za-comment',o.comment||'');
+  setV('za-fio',o.clientName||''); setV('za-comment',o.comment||''); setV('za-meet',o.meetingTime||'');
   document.getElementById('za-title').textContent='Заявка '+(o.orderNo||'');
   openSheet('zaSheet'); zaLoadPositions();
 }
 function zaOpenNew(){
   zaOrderId=null; zaPositions=[];
-  ['za-addr','za-phone','za-fio','za-comment'].forEach(id=>setV(id,''));
+  ['za-addr','za-phone','za-fio','za-comment','za-meet'].forEach(id=>setV(id,''));
   document.getElementById('za-title').textContent='Новая заявка';
   zaRenderPositions(); openSheet('zaSheet');
 }
@@ -649,7 +653,7 @@ async function zaDelPosition(id){
 
 // Создать/обновить заявку (order) из шапки; вернуть её id
 async function zaEnsureOrder(){
-  const body={ clientName:getV('za-fio'), address:getV('za-addr'), phone:getV('za-phone')||null, comment:getV('za-comment')||null };
+  const body={ clientName:getV('za-fio'), address:getV('za-addr'), phone:getV('za-phone')||null, comment:getV('za-comment')||null, meetingTime:getV('za-meet')||null };
   if(zaOrderId){
     try{ const upd=await patchOrder(zaOrderId,body); const i=orders.findIndex(o=>o.id===zaOrderId); if(i>=0)orders[i]=upd; }
     catch(e){ if(e.message==='auth')throw e; }

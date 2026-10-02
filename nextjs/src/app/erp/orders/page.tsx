@@ -9,7 +9,7 @@ import EntityHistory from '@/components/erp/EntityHistory';
 import YandexAddressPicker from '@/components/erp/YandexAddressPicker';
 
 type Pos = { address?: string; qty: number; water: string };
-type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; positions?: Pos[] | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null; createdByName?: string | null; createdAt?: string | null; lat?: number | null; lng?: number | null };
+type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; positions?: Pos[] | null; meetingTime?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null; createdByName?: string | null; createdAt?: string | null; lat?: number | null; lng?: number | null };
 type Branch = { id: string; name: string; isHead?: boolean };
 type Acct = { id: string; name: string; section?: string | null; icon?: string | null; isActive?: boolean };
 type PayState = { order: Order; total: number; rows: Array<{ accountId: string; amount: string }>; saving: boolean; err: string };
@@ -22,7 +22,13 @@ const SOURCES = [{ key: 'field_check', label: '🚗 Выездная' }, { key: 
 const STATUSES = ['В работе', 'Готова', 'Отменён'];
 const dmy = (d?: string | null) => formatDate(d) || '—';
 const statusTone = (s?: string | null): 'ok' | 'warn' | 'err' | 'neutral' => s === 'Готова' ? 'ok' : s === 'Отменён' ? 'err' : 'warn';
-const EMPTY = { id: '', clientName: '', phone: '', address: '', positions: [{ qty: '1', water: 'х/в' }] as Array<{ qty: string; water: string }>, branchId: '', status: 'В работе', comment: '', lat: null as number | null, lng: null as number | null };
+const EMPTY = { id: '', clientName: '', phone: '', address: '', positions: [{ qty: '1', water: 'х/в' }] as Array<{ qty: string; water: string }>, meetFrom: '', meetTo: '', branchId: '', status: 'В работе', comment: '', lat: null as number | null, lng: null as number | null };
+// Время встречи «15:00-16:00» ↔ поля meetFrom/meetTo.
+const splitMeet = (m?: string | null): { meetFrom: string; meetTo: string } => { const [a, b] = String(m || '').split('-'); return { meetFrom: (a || '').trim(), meetTo: (b || '').trim() }; };
+const joinMeet = (a: string, b: string): string | null => (a || b) ? `${a}${b ? '-' + b : ''}` : null;
+// Телефон → звонок, адрес → 2ГИС.
+const telHref = (p?: string | null) => 'tel:' + String(p || '').replace(/[^\d+]/g, '');
+const gisHref = (a?: string | null) => 'https://2gis.ru/search/' + encodeURIComponent(String(a || '').trim());
 // Ссылка «в Навигатор»: мобильное приложение Яндекс.Навигатор (deep link), иначе — веб-карты.
 const naviUrl = (lat: number, lng: number) => `https://yandex.ru/maps/?rtext=~${lat},${lng}&rtt=auto`;
 
@@ -83,7 +89,7 @@ function OrdersInner() {
     const positions = (o.positions && o.positions.length)
       ? o.positions.map(p => ({ qty: String(p.qty || 1), water: p.water || 'х/в' }))
       : [{ qty: o.qty ? String(o.qty) : '1', water: o.waterType || 'х/в' }];
-    setForm({ id: o.id, clientName: o.clientName || '', phone: o.phone || '', address: o.address || '', positions, branchId: o.branchId || '', status: o.status || 'В работе', comment: o.comment || '', lat: o.lat ?? null, lng: o.lng ?? null });
+    setForm({ id: o.id, clientName: o.clientName || '', phone: o.phone || '', address: o.address || '', positions, ...splitMeet(o.meetingTime), branchId: o.branchId || '', status: o.status || 'В работе', comment: o.comment || '', lat: o.lat ?? null, lng: o.lng ?? null });
     setErr(''); setModal(true);
   };
   const addPos = () => setForm(f => ({ ...f, positions: [...f.positions, { qty: '1', water: 'х/в' }] }));
@@ -96,7 +102,7 @@ function OrdersInner() {
     // Строки-приборы → positions (адрес общий из заявки); qty = сумма, waterType = первый (для списков/фильтра).
     const positions = form.positions.filter(p => Number(p.qty) > 0).map(p => ({ address: form.address || '', qty: Number(p.qty) || 1, water: p.water }));
     const totalQty = positions.reduce((s, p) => s + p.qty, 0) || 1;
-    const body = { source, clientName: form.clientName.trim(), phone: form.phone || null, address: form.address || null, qty: totalQty, waterType: positions[0]?.water || 'х/в', positions, branchId: form.branchId || null, status: form.status, comment: form.comment || null, lat: form.lat, lng: form.lng };
+    const body = { source, clientName: form.clientName.trim(), phone: form.phone || null, address: form.address || null, qty: totalQty, waterType: positions[0]?.water || 'х/в', positions, meetingTime: joinMeet(form.meetFrom, form.meetTo), branchId: form.branchId || null, status: form.status, comment: form.comment || null, lat: form.lat, lng: form.lng };
     try {
       if (form.id) await apiSend(`/api/v2/orders/${form.id}`, 'PATCH', body);
       else await apiSend('/api/v2/orders', 'POST', body);
@@ -158,15 +164,16 @@ function OrdersInner() {
           : list.length === 0 ? <EmptyRow>Заявок нет. Нажмите «+ Заявка».</EmptyRow>
           : (
             <table className="erp-table">
-              <thead><tr><th>№</th><th>Дата</th><th>Клиент</th><th>Адрес</th><th>Тел.</th><th style={{ textAlign: 'right' }}>Кол-во</th><th>Филиал</th><th>Статус</th><th>Автор</th><th style={{ textAlign: 'right' }}></th></tr></thead>
+              <thead><tr><th>№</th><th>Дата</th><th>⏰ Время</th><th>Клиент</th><th>Адрес</th><th>Тел.</th><th style={{ textAlign: 'right' }}>Кол-во</th><th>Филиал</th><th>Статус</th><th>Автор</th><th style={{ textAlign: 'right' }}></th></tr></thead>
               <tbody>
                 {list.map(o => (
                   <tr key={o.id}>
                     <td className="erp-muted" style={{ fontSize: 12 }}>{o.orderNo}</td>
                     <td className="erp-muted" style={{ fontSize: 12 }}>{dmy(o.orderDate || o.createdAt)}</td>
+                    <td style={{ fontSize: 12, fontWeight: 600, color: o.meetingTime ? '#2563eb' : '#94a3b8' }}>{o.meetingTime || '—'}</td>
                     <td className="erp-td-main">{o.clientName || '—'}</td>
-                    <td style={{ fontSize: 12 }}>{o.address || '—'}</td>
-                    <td style={{ fontSize: 12 }}>{o.phone || '—'}</td>
+                    <td style={{ fontSize: 12 }}>{o.address ? <a href={gisHref(o.address)} target="_blank" rel="noopener" title="Открыть в 2ГИС" style={{ color: 'inherit' }}>{o.address}</a> : '—'}</td>
+                    <td style={{ fontSize: 12 }}>{o.phone ? <a href={telHref(o.phone)} title="Позвонить" style={{ color: 'inherit' }}>{o.phone}</a> : '—'}</td>
                     <td style={{ textAlign: 'right' }}>{o.qty ?? '—'}</td>
                     <td style={{ fontSize: 12 }}>{branchName(o.branchId) || '—'}</td>
                     <td><Badge tone={statusTone(o.status)}>{o.status}</Badge></td>
@@ -190,9 +197,9 @@ function OrdersInner() {
         {err && <div className="erp-form-err">{err}</div>}
         <div className="erp-form-row">
           <Field label="Клиент" required><Input value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} autoFocus /></Field>
-          <Field label="Телефон"><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} /></Field>
+          <Field label="Телефон"><div style={{ display: 'flex', gap: 6, alignItems: 'center' }}><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={{ flex: 1 }} />{form.phone.trim() && <a className="erp-icon-btn" href={telHref(form.phone)} title="Позвонить" style={{ textDecoration: 'none' }}>📞</a>}</div></Field>
         </div>
-        <Field label="Адрес"><YandexAddressPicker apiKey={mapsKey} address={form.address} lat={form.lat} lng={form.lng} onChange={v => setForm({ ...form, address: v.address, lat: v.lat, lng: v.lng })} /></Field>
+        <Field label="Адрес"><div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}><div style={{ flex: 1 }}><YandexAddressPicker apiKey={mapsKey} address={form.address} lat={form.lat} lng={form.lng} onChange={v => setForm({ ...form, address: v.address, lat: v.lat, lng: v.lng })} /></div>{form.address.trim() && <a className="erp-icon-btn" href={gisHref(form.address)} target="_blank" rel="noopener" title="Открыть в 2ГИС" style={{ textDecoration: 'none', marginTop: 4 }}>🧭</a>}</div></Field>
         <Field label="Приборы (позиции)">
           {form.positions.map((p, i) => (
             <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
@@ -207,6 +214,13 @@ function OrdersInner() {
           <Field label="Филиал"><Select value={form.branchId} onChange={e => setForm({ ...form, branchId: e.target.value })}><option value="">— головной ({(branches || []).find(b => b.isHead)?.name || 'головной'}) —</option>{(branches || []).filter(b => !b.isHead).map(b => <option key={b.id} value={b.id}>{b.name} - Филиал</option>)}</Select></Field>
           <Field label="Статус"><Select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>{STATUSES.map(s => <option key={s}>{s}</option>)}</Select></Field>
         </div>
+        <Field label="Время встречи (во сколько мастер должен быть)">
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Input type="time" value={form.meetFrom} onChange={e => setForm({ ...form, meetFrom: e.target.value })} style={{ width: 140 }} />
+            <span style={{ color: '#94a3b8' }}>—</span>
+            <Input type="time" value={form.meetTo} onChange={e => setForm({ ...form, meetTo: e.target.value })} style={{ width: 140 }} />
+          </div>
+        </Field>
         <Field label="Комментарий"><Input value={form.comment} onChange={e => setForm({ ...form, comment: e.target.value })} /></Field>
         {form.id && <EntityHistory entityType="order" entityId={form.id} />}
       </Modal>

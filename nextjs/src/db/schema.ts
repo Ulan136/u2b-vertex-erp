@@ -356,6 +356,7 @@ export const orders = pgTable('orders', {
   // филиал заявки (nullable). NULL = головной (Тараз). Заявки из ERP получают
   // филиал создателя, из внешнего кабинета — головной.
   branchId  : uuid('branch_id').references(() => branches.id),
+  meetingTime: varchar('meeting_time', { length: 20 }),   // время встречи, напр. «15:00-16:00» (менеджер/мастер)
   comment   : text('comment'),
   // Координаты адреса заявки (выбор на Яндекс.Карте) — для маршрута мастера. Nullable.
   lat       : doublePrecision('lat'),
