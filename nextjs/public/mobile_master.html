@@ -485,9 +485,9 @@ function stTag(s){return s==='Готова'?{c:'#059669',t:'✅ Готова'}:s
 // Телефон → звонок (tel:), адрес → открыть 2ГИС с этим адресом (на телефоне — приложение).
 function telHref(p){ return 'tel:'+String(p||'').replace(/[^\d+]/g,''); }
 function gisHref(a){ return 'https://2gis.ru/search/'+encodeURIComponent(String(a||'').trim()); }
-// Маршрут: есть координаты → маршрут на Яндекс.Картах, иначе поиск адреса в 2ГИС.
+// Маршрут: только 2ГИС (поиск адреса; на телефоне открывается приложение 2ГИС).
 function primaryAddr(o){ if(o&&o.address) return o.address; const p=Array.isArray(o&&o.positions)?o.positions:[]; return (p[0]&&p[0].address)||''; }
-function routeHref(o){ if(o&&o.lat!=null&&o.lng!=null) return 'https://yandex.ru/maps/?rtext=~'+o.lat+','+o.lng+'&rtt=auto'; const a=primaryAddr(o); return a?gisHref(a):''; }
+function routeHref(o){ const a=primaryAddr(o); return a?gisHref(a):''; }
 function addrLink(a){ a=String(a||'').trim(); return a?`<a href="${gisHref(a)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:underline dotted;">${esc(a)}</a>`:'—'; }
 function fmtDT(s){ try{ const d=new Date(s); if(isNaN(d.getTime()))return ''; const p=n=>String(n).padStart(2,'0'); return p(d.getDate())+'.'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes()); }catch(e){ return ''; } }
 function meetSplit(m){ const [a,b]=String(m||'').split('-'); return {from:(a||'').trim(),to:(b||'').trim()}; }
@@ -516,11 +516,10 @@ function orderCardHtml(o){
            <a href="${routeHref(o)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="flex:none;background:#2563eb;color:#fff;font-weight:700;text-decoration:none;padding:9px 16px;border-radius:10px;font-size:14px;white-space:nowrap;">🧭 Маршрут</a>
          </div>`
       : ''}
-    ${(o.meetingDate||o.meetingTime)?`<div class="oc-pos" style="color:#1d4ed8;font-weight:700;">⏰ Встреча: ${esc(((o.meetingDate?fmtDate(String(o.meetingDate).slice(0,10)):'')+' '+(o.meetingTime||'')).trim())}</div>`:''}
+    ${(o.meetingDate||o.meetingTime)?`<div style="margin:8px 0;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 12px;color:#92400e;font-weight:800;font-size:17px;text-align:center;letter-spacing:.3px;">⏰ ${esc(((o.meetingDate?fmtDate(String(o.meetingDate).slice(0,10)):'')+'  '+(o.meetingTime||'')).trim())}</div>`:''}
     ${pos}
     ${o.comment?`<div class="oc-comment">💬 ${esc(o.comment)}</div>`:''}
     ${o.createdByName?`<div class="oc-comment">👤 Автор: ${esc(o.createdByName)}</div>`:''}
-    ${o.createdAt?`<div class="oc-comment" style="color:#9ca3af;">🕒 Создана: ${fmtDT(o.createdAt)}</div>`:''}
     <div class="oc-actions">
       ${o.status!=='Готова'?`<button class="oc-btn b-done" onclick="setStatus('${o.id}','Готова')">✅ Готова</button>`:`<button class="oc-btn b-work" onclick="setStatus('${o.id}','В работе')">↩ В работу</button>`}
       ${o.status!=='Отменён'?`<button class="oc-btn b-cancel" onclick="setStatus('${o.id}','Отменён')">❌ Отменить</button>`:''}
