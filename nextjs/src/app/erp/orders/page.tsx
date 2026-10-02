@@ -48,6 +48,14 @@ function OrdersInner() {
   const mapsKey = org?.yandexMapsKey || '';
   const { data: branches } = useApi<Branch[]>('/api/v2/branches');
   const branchName = (id?: string | null) => (branches || []).find(b => b.id === id)?.name;
+  // Страница филиала (?branch=astana|almaty): заявка жёстко привязана к этому филиалу —
+  // в форме НЕ показываем выбор филиала (и уж точно не Тараз), поле зафиксировано.
+  const branchSlug = sp.get('branch') || '';
+  const lockedBranch = React.useMemo(() => {
+    if (!branchSlug || !(branches && branches.length)) return null;
+    const nameBySlug: Record<string, string> = { astana: 'Астана', almaty: 'Алматы' };
+    return branches.find(x => x.name === (nameBySlug[branchSlug] || '')) || null;
+  }, [branchSlug, branches]);
   // Предвыбор филиала по URL. Страница /erp/orders НЕ перемонтируется при переходе
   // между пунктами меню (меняется только query), поэтому сбрасываем филиал на дефолт
   // КАЖДЫЙ раз, когда меняется ?branch= (иначе выбор «залипает» с прошлой страницы):
@@ -99,10 +107,10 @@ function OrdersInner() {
   // Новая заявка: филиал по умолчанию = выбранный в фильтре (в кабинете Астаны это Астана),
   // иначе головной. Так в кабинете филиала заявка сразу заводится на свой филиал.
   const openNew = () => {
-    // головной филиал в форме = пустое значение (option «— головной —»), поэтому
-    // предвыбранный головной не подставляем как id, а оставляем пустым.
+    // На странице филиала — жёстко его филиал. Иначе: головной = пустое значение
+    // (option «— головной —»), поэтому предвыбранный головной оставляем пустым.
     const headId = (branches || []).find(b => b.isHead)?.id;
-    const preBranch = branch !== 'all' && branch !== headId ? branch : '';
+    const preBranch = lockedBranch ? lockedBranch.id : (branch !== 'all' && branch !== headId ? branch : '');
     setForm({ ...EMPTY, branchId: preBranch }); setErr(''); setModal(true);
   };
   const openEdit = (o: Order) => {
@@ -231,7 +239,9 @@ function OrdersInner() {
           <button type="button" className="erp-chip" onClick={addPos}>+ позиция</button>
         </Field>
         <div className="erp-form-row">
-          <Field label="Филиал"><Select value={form.branchId} onChange={e => setForm({ ...form, branchId: e.target.value })}><option value="">— головной ({(branches || []).find(b => b.isHead)?.name || 'головной'}) —</option>{(branches || []).filter(b => !b.isHead).map(b => <option key={b.id} value={b.id}>{b.name} - Филиал</option>)}</Select></Field>
+          {lockedBranch
+            ? <Field label="Филиал"><Input value={`${lockedBranch.name} — Филиал`} readOnly disabled /></Field>
+            : <Field label="Филиал"><Select value={form.branchId} onChange={e => setForm({ ...form, branchId: e.target.value })}><option value="">— головной ({(branches || []).find(b => b.isHead)?.name || 'головной'}) —</option>{(branches || []).filter(b => !b.isHead).map(b => <option key={b.id} value={b.id}>{b.name} - Филиал</option>)}</Select></Field>}
           <Field label="Статус"><Select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>{STATUSES.map(s => <option key={s}>{s}</option>)}</Select></Field>
         </div>
         <div className="erp-form-row">
