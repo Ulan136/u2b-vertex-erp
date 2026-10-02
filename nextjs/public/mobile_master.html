@@ -289,8 +289,10 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
       <!-- Шапка клиента -->
       <div class="form-section">
         <div class="za-hdr-title">Клиент</div>
-        <div class="form-group"><div class="form-label">Адрес</div><input class="form-input" id="za-addr" placeholder="улица, дом, кв."></div>
-        <div class="form-group"><div class="form-label">Телефон</div><input class="form-input" id="za-phone" placeholder="+7…" inputmode="tel"></div>
+        <div class="form-group"><div class="form-label">Адрес</div>
+          <div style="display:flex;gap:8px;align-items:center;"><input class="form-input" id="za-addr" placeholder="улица, дом, кв." style="flex:1;"><button type="button" class="mic-inline" title="Открыть в 2ГИС" onclick="zaOpenGis()">🧭</button></div></div>
+        <div class="form-group"><div class="form-label">Телефон</div>
+          <div style="display:flex;gap:8px;align-items:center;"><input class="form-input" id="za-phone" placeholder="+7…" inputmode="tel" style="flex:1;"><button type="button" class="mic-inline" title="Позвонить" onclick="zaCall()">📞</button></div></div>
         <div class="form-group"><div class="form-label">ФИО</div><input class="form-input" id="za-fio" placeholder="Фамилия И.О."></div>
         <div class="form-group"><div class="form-label">Комментарий</div><input class="form-input" id="za-comment" placeholder="комментарий"></div>
         <button class="btn-outline-sm" style="width:100%;" onclick="zaSaveHeader()">💾 Сохранить шапку</button>
@@ -464,6 +466,9 @@ function stTag(s){return s==='Готова'?{c:'#059669',t:'✅ Готова'}:s
 function telHref(p){ return 'tel:'+String(p||'').replace(/[^\d+]/g,''); }
 function gisHref(a){ return 'https://2gis.ru/search/'+encodeURIComponent(String(a||'').trim()); }
 function addrLink(a){ a=String(a||'').trim(); return a?`<a href="${gisHref(a)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:underline dotted;">${esc(a)}</a>`:'—'; }
+// Кнопки в открытой заявке: позвонить / открыть адрес в 2ГИС (берут текущее значение поля).
+function zaCall(){ const p=getV('za-phone'); if(!p){ toast('⚠️ Телефон не указан'); return; } location.href=telHref(p); }
+function zaOpenGis(){ const a=getV('za-addr'); if(!a){ toast('⚠️ Адрес не указан'); return; } window.open(gisHref(a),'_blank'); }
 function orderCardHtml(o){
   const st=stTag(o.status);
   const cls=o.status==='Готова'?'done':o.status==='Отменён'?'cancelled':'';
