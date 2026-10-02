@@ -48,22 +48,25 @@ function OrdersInner() {
   const mapsKey = org?.yandexMapsKey || '';
   const { data: branches } = useApi<Branch[]>('/api/v2/branches');
   const branchName = (id?: string | null) => (branches || []).find(b => b.id === id)?.name;
-  // Предвыбор филиала по URL (один раз, когда справочник загрузился):
-  //   ?branch=astana|almaty → страница филиала (показывает только его заявки);
-  //   без ?branch=          → главная «Выездная поверка» = ГОЛОВНОЙ (Тараз),
-  //   чтобы заявки Астаны тут НЕ смешивались (у филиала своя страница).
-  // Дальше пользователь может вручную выбрать «Все филиалы» в выпадающем списке.
-  const branchDefaulted = React.useRef(false);
+  // Предвыбор филиала по URL. Страница /erp/orders НЕ перемонтируется при переходе
+  // между пунктами меню (меняется только query), поэтому сбрасываем филиал на дефолт
+  // КАЖДЫЙ раз, когда меняется ?branch= (иначе выбор «залипает» с прошлой страницы):
+  //   ?branch=astana|almaty → страница филиала (только его заявки);
+  //   без ?branch=          → главная «Выездная» = ГОЛОВНОЙ (Тараз).
+  // Ручной выбор в выпадающем списке сохраняется, пока не сменится URL.
+  const lastSlug = React.useRef<string | null>('__init__');
   React.useEffect(() => {
-    if (branchDefaulted.current || !(branches && branches.length)) return;
+    if (!(branches && branches.length)) return;
     const slug = sp.get('branch');
+    if (slug === lastSlug.current) return;   // URL не менялся → не трогаем ручной выбор
+    lastSlug.current = slug;
     if (slug) {
       const nameBySlug: Record<string, string> = { astana: 'Астана', almaty: 'Алматы' };
       const b = branches.find(x => x.name === (nameBySlug[slug] || ''));
-      if (b) { setBranch(b.id); branchDefaulted.current = true; }
+      if (b) setBranch(b.id);
     } else {
       const head = branches.find(b => b.isHead);
-      if (head) { setBranch(head.id); branchDefaulted.current = true; }
+      if (head) setBranch(head.id);
     }
   }, [sp, branches]);
   // Счета для приёма оплаты заявки — раздела ФИЛИАЛА заявки (Астана→branch, Алматы→
