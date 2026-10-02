@@ -72,6 +72,7 @@ export const certificates = pgTable('certificates', {
   readings      : numeric('readings', { precision: 10, scale: 2 }),
   note          : text('note'),
   unfitReason   : text('unfit_reason'),   // причина непригодности (извещение) — в е-КТРМ
+  accuracyClass : varchar('accuracy_class', { length: 20 }),   // класс счётчика (В/С) — филиал Астана
   phone         : varchar('phone', { length: 30 }),
   client        : varchar('client', { length: 200 }),
   sealType      : varchar('seal_type', { length: 40 }),
