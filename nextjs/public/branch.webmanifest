@@ -1,0 +1,16 @@
+{
+  "name": "Кабинет филиала — U2B-Vertex",
+  "short_name": "Филиал",
+  "description": "Кабинет филиала: заявки, сертификаты, извещения, финансы филиала",
+  "start_url": "/erp/branch-finance",
+  "scope": "/erp",
+  "display": "standalone",
+  "background_color": "#f5f6fa",
+  "theme_color": "#1b2a4a",
+  "orientation": "portrait-primary",
+  "lang": "ru",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
