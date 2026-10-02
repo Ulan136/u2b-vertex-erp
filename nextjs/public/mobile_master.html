@@ -331,6 +331,8 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
         <div class="form-group"><div class="form-label">Год выпуска</div><input type="number" class="form-input" id="pos-year" placeholder="напр. 2024" inputmode="numeric"></div>
         <div class="form-group"><div class="form-label">Показания счётчика, м³ <span class="required">*</span></div>
           <div style="display:flex;gap:8px;align-items:center;"><input type="number" class="form-input" id="pos-readings" placeholder="0000" inputmode="decimal" style="flex:1;"><button class="mic-inline" onclick="mvStart('pos-readings','Показания в кубометрах',true)">🎤</button></div></div>
+        <div class="form-group" id="pos-class-wrap" style="display:none;"><div class="form-label">Класс счётчика</div>
+          <select class="form-input form-select" id="pos-class"><option value="">— класс —</option><option value="В">В</option><option value="С">С</option></select></div>
         <div class="form-group"><div class="form-label">Дата поверки <span class="required">*</span></div><input type="date" class="form-input" id="pos-date"></div>
         <div class="form-group"><div class="form-label">Тип воды <span class="required">*</span></div>
           <div style="display:flex;gap:8px;align-items:center;"><select class="form-input form-select" id="pos-water" style="flex:1;"><option value="х/в">Холодная вода (х/в)</option><option value="г/в">Горячая вода (г/в)</option></select><button class="mic-inline" onclick="mvStart('pos-water','Холодная или горячая',false)">🎤</button></div></div>
@@ -395,7 +397,7 @@ async function loadMe(){
     me=r.ok?await r.json():null;
   }catch(e){me=null;}
   masterStampNext=(me&&me.stampSeqNext!=null)?Number(me.stampSeqNext):null;   // свой порядковый № клейма
-  posRenderStampBtns();
+  posRenderStampBtns(); posApplyBranch();
   const nm=(me&&me.name)||'Мастер';
   const ini=(nm.trim()[0]||'М').toUpperCase();
   document.getElementById('hdr-avatar').textContent=ini;
@@ -753,13 +755,17 @@ async function posSetStampBase(){
   catch(e){ toast('⚠️ '+e.message); }
 }
 function posToggleReason(){ const nog=document.getElementById('pos-result').value==='Не годен'; document.getElementById('pos-reason-wrap').style.display=nog?'':'none'; }
+// «Класс счётчика» (В/С) — только у мастера ФИЛИАЛА (financeSection='branch', Астана);
+// у головного (Тараз) поля нет. Синхронно с главным ERP.
+function posApplyBranch(){ const astana=(me&&me.financeSection)==='branch'; const w=document.getElementById('pos-class-wrap'); if(w)w.style.display=astana?'':'none'; }
 function posOpen(){
   posPhotos=[];
-  ['pos-meter','pos-serial','pos-year','pos-readings','pos-stamp','pos-note','pos-amount','pos-reason'].forEach(id=>setV(id,''));
+  ['pos-meter','pos-serial','pos-year','pos-readings','pos-stamp','pos-note','pos-amount','pos-reason','pos-class'].forEach(id=>setV(id,''));
   setV('pos-date',todayStr());
   document.getElementById('pos-water').value='х/в';
   document.getElementById('pos-seal').value='СЛ';
   document.getElementById('pos-result').value='Годен'; posToggleReason();
+  posApplyBranch();
   posRenderStampBtns();
   posRenderPhotos(); openSheet('posSheet');
 }
@@ -793,6 +799,7 @@ async function posSave(){
       readings, checkDate:date, nextCheckDate:plus5y(date),
       stampNo:getV('pos-stamp')||null, sealType:document.getElementById('pos-seal').value, seal:true,
       result:document.getElementById('pos-result').value, unfitReason:getV('pos-reason')||null,
+      accuracyClass:getV('pos-class')||null,   // класс счётчика (В/С) — у мастера филиала (Астана)
       note:getV('pos-note')||null, photos:posPhotos,
     };
     const r=await fetch(CERTS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
