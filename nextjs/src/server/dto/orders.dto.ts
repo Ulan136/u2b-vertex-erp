@@ -26,6 +26,7 @@ export const orderCreateSchema = z.object({
   qty: z.coerce.number().int().nullish(),
   waterType: z.string().nullish(),
   positions: z.array(positionSchema).optional().default([]),
+  meetingDate: z.string().nullish(),   // день встречи
   meetingTime: z.string().nullish(),   // время встречи «15:00-16:00»
   // фотоотчёт мастера — массив data-URL строк (сжатые изображения). Необязательно
   // и без .default([]), чтобы PATCH без photos не затирал уже загруженные фото.

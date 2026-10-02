@@ -193,9 +193,15 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
       <div class="fchip" id="f-all" onclick="setFilter('all')">Все</div>
     </div>
     <div class="filter-row" style="padding-top:0;align-items:center;gap:6px;">
-      <input type="date" id="f-from" class="fdate" onchange="setRange()" title="С даты">
+      <input type="date" id="f-from" class="fdate" onchange="setRange()" title="День встречи с">
       <span style="color:#9ca3af;font-size:13px;flex:none;">—</span>
-      <input type="date" id="f-to" class="fdate" onchange="setRange()" title="По дату">
+      <input type="date" id="f-to" class="fdate" onchange="setRange()" title="День встречи по">
+    </div>
+    <div class="filter-row" style="padding-top:0;align-items:center;gap:6px;">
+      <span style="color:#6b7280;font-size:12px;flex:none;">⏰ Время</span>
+      <input type="time" id="f-tfrom" class="fdate" onchange="setTimeRange()" title="Время встречи с">
+      <span style="color:#9ca3af;font-size:13px;flex:none;">—</span>
+      <input type="time" id="f-tto" class="fdate" onchange="setTimeRange()" title="Время встречи по">
     </div>
     <div class="filter-row" style="padding-top:0;">
       <div class="fchip on" id="st-all" onclick="setStatusFilter('')">Все статусы</div>
@@ -294,7 +300,9 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
         <div class="form-group"><div class="form-label">Телефон</div>
           <div style="display:flex;gap:8px;align-items:center;"><input class="form-input" id="za-phone" placeholder="+7…" inputmode="tel" style="flex:1;"><button type="button" class="mic-inline" title="Позвонить" onclick="zaCall()">📞</button></div></div>
         <div class="form-group"><div class="form-label">ФИО</div><input class="form-input" id="za-fio" placeholder="Фамилия И.О."></div>
-        <div class="form-group"><div class="form-label">⏰ Время встречи <span style="color:#9ca3af;font-weight:400;">(можно исправить, если клиент перенёс)</span></div><input class="form-input" id="za-meet" placeholder="напр. 15:00-16:00"></div>
+        <div class="form-group"><div class="form-label">📅 День встречи <span style="color:#9ca3af;font-weight:400;">(можно исправить)</span></div><input type="date" class="form-input" id="za-meet-date"></div>
+        <div class="form-group"><div class="form-label">⏰ Время встречи <span style="color:#9ca3af;font-weight:400;">(выбор из ленты)</span></div>
+          <div style="display:flex;gap:8px;align-items:center;"><input type="time" class="form-input" id="za-meet-from" style="flex:1;"><span style="color:#9ca3af;">—</span><input type="time" class="form-input" id="za-meet-to" style="flex:1;"></div></div>
         <div class="form-group"><div class="form-label">Комментарий</div><input class="form-input" id="za-comment" placeholder="комментарий"></div>
         <button class="btn-outline-sm" style="width:100%;" onclick="zaSaveHeader()">💾 Сохранить шапку</button>
       </div>
@@ -377,7 +385,7 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
 <script src="/cabinet-common.js"></script>
 <script>
 const ORDERS_API='/api/v2/orders', COMMENTS_API='/api/v2/comments', ME_API='/api/v2/me';
-let me=null, orders=[], filter='today', filterFrom='', filterTo='', filterStatus='', filterQuery='', commentCounts={}, activeOrderId=null;
+let me=null, orders=[], filter='today', filterFrom='', filterTo='', filterTimeFrom='', filterTimeTo='', filterStatus='', filterQuery='', commentCounts={}, activeOrderId=null;
 function statusKey(o){ return o.status==='Готова'?'Готова':o.status==='Отменён'?'Отменён':'В работе'; }
 
 const ROLE_LABEL={admin:'Администратор',director:'Директор',accountant:'Бухгалтер',manager:'Менеджер',master:'Мастер'};
@@ -392,6 +400,10 @@ function orderDay(o){
   if(o.createdAt){const d=new Date(o.createdAt);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
   return '';
 }
+// День встречи (для фильтра/сортировки): meetingDate, иначе день заявки.
+function meetDay(o){ return o && o.meetingDate ? String(o.meetingDate).slice(0,10) : orderDay(o); }
+// Время начала встречи «15:00-16:00» → «15:00» (для фильтра/сортировки). Нет времени → ''.
+function meetFromTime(o){ return o && o.meetingTime ? meetSplit(o.meetingTime).from : ''; }
 
 async function loadMe(){
   try{
@@ -431,9 +443,13 @@ function visibleOrders(){
   const t=todayStr();
   let list;
   if(filter==='range' && (filterFrom||filterTo)){
-    list = orders.filter(o=>{ const d=orderDay(o); if(!d) return false; if(filterFrom && d<filterFrom) return false; if(filterTo && d>filterTo) return false; return true; });
-  } else if(filter==='today'){ list = orders.filter(o=>orderDay(o)===t); }
+    list = orders.filter(o=>{ const d=meetDay(o); if(!d) return false; if(filterFrom && d<filterFrom) return false; if(filterTo && d>filterTo) return false; return true; });
+  } else if(filter==='today'){ list = orders.filter(o=>meetDay(o)===t); }
   else { list = orders; }
+  // фильтр по времени встречи (начало «15:00»)
+  if(filterTimeFrom||filterTimeTo){
+    list = list.filter(o=>{ const tm=meetFromTime(o); if(!tm) return false; if(filterTimeFrom && tm<filterTimeFrom) return false; if(filterTimeTo && tm>filterTimeTo) return false; return true; });
+  }
   if(filterStatus) list = list.filter(o=>statusKey(o)===filterStatus);
   const q=(filterQuery||'').trim().toLowerCase();
   if(q){
@@ -443,6 +459,8 @@ function visibleOrders(){
       return hay.includes(q);
     });
   }
+  // сортировка по дню встречи, затем по времени начала
+  list = list.slice().sort((a,b)=>{ const da=meetDay(a)||'', db=meetDay(b)||''; if(da!==db) return da<db?-1:1; const ta=meetFromTime(a)||'', tb=meetFromTime(b)||''; return ta<tb?-1:ta>tb?1:0; });
   return list;
 }
 function setSearch(v){ filterQuery=v; render(); }
@@ -457,8 +475,9 @@ function syncFilterUi(){
   document.getElementById('st-done').classList.toggle('on',filterStatus==='Готова');
   document.getElementById('st-cancel').classList.toggle('on',filterStatus==='Отменён');
 }
-function setFilter(f){ filter=f; filterFrom=''; filterTo=''; document.getElementById('f-from').value=''; document.getElementById('f-to').value=''; syncFilterUi(); render(); }
+function setFilter(f){ filter=f; filterFrom=''; filterTo=''; filterTimeFrom=''; filterTimeTo=''; document.getElementById('f-from').value=''; document.getElementById('f-to').value=''; document.getElementById('f-tfrom').value=''; document.getElementById('f-tto').value=''; syncFilterUi(); render(); }
 function setRange(){ filterFrom=document.getElementById('f-from').value; filterTo=document.getElementById('f-to').value; filter=(filterFrom||filterTo)?'range':'today'; syncFilterUi(); render(); }
+function setTimeRange(){ filterTimeFrom=document.getElementById('f-tfrom').value; filterTimeTo=document.getElementById('f-tto').value; render(); }
 function setStatusFilter(s){ filterStatus=s; syncFilterUi(); render(); }
 
 function stTag(s){return s==='Готова'?{c:'#059669',t:'✅ Готова'}:s==='Отменён'?{c:'#dc2626',t:'❌ Отменён'}:{c:'#1d4ed8',t:'🔄 В работе'};}
@@ -468,6 +487,8 @@ function telHref(p){ return 'tel:'+String(p||'').replace(/[^\d+]/g,''); }
 function gisHref(a){ return 'https://2gis.ru/search/'+encodeURIComponent(String(a||'').trim()); }
 function addrLink(a){ a=String(a||'').trim(); return a?`<a href="${gisHref(a)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:underline dotted;">${esc(a)}</a>`:'—'; }
 function fmtDT(s){ try{ const d=new Date(s); if(isNaN(d.getTime()))return ''; const p=n=>String(n).padStart(2,'0'); return p(d.getDate())+'.'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes()); }catch(e){ return ''; } }
+function meetSplit(m){ const [a,b]=String(m||'').split('-'); return {from:(a||'').trim(),to:(b||'').trim()}; }
+function meetJoin(a,b){ a=(a||'').trim(); b=(b||'').trim(); return (a||b)?(a+(b?'-'+b:'')):null; }
 // Кнопки в открытой заявке: позвонить / открыть адрес в 2ГИС (берут текущее значение поля).
 function zaCall(){ const p=getV('za-phone'); if(!p){ toast('⚠️ Телефон не указан'); return; } location.href=telHref(p); }
 function zaOpenGis(){ const a=getV('za-addr'); if(!a){ toast('⚠️ Адрес не указан'); return; } window.open(gisHref(a),'_blank'); }
@@ -481,7 +502,7 @@ function orderCardHtml(o){
     <div class="oc-top"><span class="oc-no">${esc(o.orderNo||'—')}</span><span class="oc-right"><span class="oc-date">📅 ${esc(fmtDate(orderDay(o))||'—')}</span><span class="oc-st" style="color:${st.c};">${st.t}</span></span></div>
     ${o.clientName?`<div class="oc-client">${esc(o.clientName)}</div>`:''}
     <div class="oc-phone">📞 ${o.phone?`<a href="${telHref(o.phone)}" onclick="event.stopPropagation()" style="color:inherit;text-decoration:none;">${esc(o.phone)}</a>`:'—'}</div>
-    ${o.meetingTime?`<div class="oc-pos" style="color:#1d4ed8;font-weight:700;">⏰ Время встречи: ${esc(o.meetingTime)}</div>`:''}
+    ${(o.meetingDate||o.meetingTime)?`<div class="oc-pos" style="color:#1d4ed8;font-weight:700;">⏰ Встреча: ${esc(((o.meetingDate?fmtDate(String(o.meetingDate).slice(0,10)):'')+' '+(o.meetingTime||'')).trim())}</div>`:''}
     ${pos}
     ${o.comment?`<div class="oc-comment">💬 ${esc(o.comment)}</div>`:''}
     ${o.createdByName?`<div class="oc-comment">👤 Автор: ${esc(o.createdByName)}</div>`:''}
@@ -608,13 +629,14 @@ function zaOpenOrder(id){
   zaOrderId=id;
   const p=(Array.isArray(o.positions)&&o.positions.length)?o.positions[0]:null;
   setV('za-addr',(p&&p.address)||o.address||''); setV('za-phone',o.phone||'');
-  setV('za-fio',o.clientName||''); setV('za-comment',o.comment||''); setV('za-meet',o.meetingTime||'');
+  setV('za-fio',o.clientName||''); setV('za-comment',o.comment||'');
+  setV('za-meet-date',o.meetingDate?String(o.meetingDate).slice(0,10):''); { const mt=meetSplit(o.meetingTime); setV('za-meet-from',mt.from); setV('za-meet-to',mt.to); }
   document.getElementById('za-title').textContent='Заявка '+(o.orderNo||'');
   openSheet('zaSheet'); zaLoadPositions();
 }
 function zaOpenNew(){
   zaOrderId=null; zaPositions=[];
-  ['za-addr','za-phone','za-fio','za-comment','za-meet'].forEach(id=>setV(id,''));
+  ['za-addr','za-phone','za-fio','za-comment','za-meet-date','za-meet-from','za-meet-to'].forEach(id=>setV(id,''));
   document.getElementById('za-title').textContent='Новая заявка';
   zaRenderPositions(); openSheet('zaSheet');
 }
@@ -653,7 +675,7 @@ async function zaDelPosition(id){
 
 // Создать/обновить заявку (order) из шапки; вернуть её id
 async function zaEnsureOrder(){
-  const body={ clientName:getV('za-fio'), address:getV('za-addr'), phone:getV('za-phone')||null, comment:getV('za-comment')||null, meetingTime:getV('za-meet')||null };
+  const body={ clientName:getV('za-fio'), address:getV('za-addr'), phone:getV('za-phone')||null, comment:getV('za-comment')||null, meetingDate:getV('za-meet-date')||null, meetingTime:meetJoin(getV('za-meet-from'),getV('za-meet-to')) };
   if(zaOrderId){
     try{ const upd=await patchOrder(zaOrderId,body); const i=orders.findIndex(o=>o.id===zaOrderId); if(i>=0)orders[i]=upd; }
     catch(e){ if(e.message==='auth')throw e; }
