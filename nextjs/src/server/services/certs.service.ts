@@ -120,6 +120,37 @@ async function syncCertIncome(cert: CertRow, payments: PayLine[] | undefined, ac
   }
 }
 
+// Выездная: доход проведён на уровне ЗАЯВКИ (payOrder сумма цен позиций). Если
+// сумму серта правят после оплаты, доход заявки надо скорректировать на дельту —
+// иначе счёт филиала остаётся с прежней суммой (баг: правка 5000→4000 не уменьшала
+// общий счёт). Сторнируем проведённый доход и перепроводим на новую сумму, сохраняя
+// раскладку по счетам (для смешанной оплаты — пропорционально).
+async function adjustOrderIncome(orderId: string, delta: number, actor: { id: string; name?: string } | null | undefined, tx: Executor) {
+  const live = (await financeRepo.findByOrder(orderId, tx)).filter(o => o.opType === 'Приход' && !o.reversedAt && !o.reverses);
+  if (!live.length) return;   // заявка ещё не оплачена — доход заводится только через payOrder
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const posted = r2(live.reduce((s, o) => s + (Number(o.amount) || 0), 0));
+  const target = r2(posted + delta);
+  const name = (live[0].name as string) || 'Поверка (выездная)';
+  const src = (live[0].source as string) || 'Поверка';
+  const fracs = posted > 0
+    ? live.map(o => ({ accountId: o.accountId as string, frac: (Number(o.amount) || 0) / posted }))
+    : [{ accountId: live[0].accountId as string, frac: 1 }];
+  for (const o of live) await financeService.reverseOperation(o.id, actor?.id ?? null, tx);
+  if (target <= 0.01) return;   // всё обнулилось — остаётся только сторно
+  let acc = 0;
+  const alloc = fracs.map((f, i) => { const a = i === fracs.length - 1 ? r2(target - acc) : r2(target * f.frac); acc = r2(acc + a); return { accountId: f.accountId, amount: a }; });
+  for (const p of alloc) {
+    if (p.amount <= 0) continue;
+    const account = await financeRepo.findAccount(p.accountId, tx);
+    if (!account) continue;
+    await financeService.createOperation(
+      { opType: 'Приход', accountId: p.accountId, amount: m2(p.amount), name, source: src, orderId, accountName: account.name },
+      actor?.id ?? null, tx,
+    );
+  }
+}
+
 export const certsService = {
   async list(q: CertQuery, viewer?: { id: string; role?: string | null } | null) {
     // Роль 'branch' видит только серты своего филиала (скоуп по branchId). Остальные
@@ -238,12 +269,14 @@ export const certsService = {
     // нельзя занулять NOT NULL поля — если пришёл null, пишем ''
     if ('fio' in fields && fields.fio == null) fields.fio = '';
     if ('address' in fields && fields.address == null) fields.address = '';
+    // Текущее состояние серта ДО правки — нужно для проверки дубля клейма и для
+    // корректировки дохода заявки при изменении цены Выездной.
+    const before = await certsRepo.findById(id);
     // ЗАПРЕТ ДУБЛЕЙ только по КЛЕЙМУ (при реальной смене значения). Заводской № НЕ
     // блокируем — счётчик может повториться; дубль зав.№ лишь подсвечивается.
     if ('stampNo' in fields) {
-      const cur = await certsRepo.findById(id);
       const v = String(fields.stampNo ?? '').trim();
-      if (v && v !== String(cur?.stampNo ?? '').trim()) {
+      if (v && v !== String(before?.stampNo ?? '').trim()) {
         const d = await certsRepo.findByStamp(v, id);
         if (d) throw badRequest(`Клеймо № ${v} уже используется (${d.fio}, ${d.source}). Клеймо должно быть уникальным.`);
       }
@@ -255,6 +288,12 @@ export const certsService = {
       if (!updated) return null;
       await productsService.syncCertSeal({ id: updated.id, serialNo: updated.serialNo }, sealFor(updated), actor, tx);
       await syncCertIncome(updated, payments, actor, tx);
+      // Выездная с заявкой: доход на уровне заявки. Если изменили цену серта —
+      // скорректировать доход заявки на дельту (иначе общий счёт не уменьшится).
+      if (before && updated.source === 'Выездная' && updated.orderId && 'amount' in fields) {
+        const delta = (Math.round((Number(updated.amount) || 0) * 100) - Math.round((Number(before.amount) || 0) * 100)) / 100;
+        if (Math.abs(delta) > 0.01) await adjustOrderIncome(updated.orderId, delta, actor, tx);
+      }
       return updated;
     });
     if (!row) throw notFound('Certificate not found');
