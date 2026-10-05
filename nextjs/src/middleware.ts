@@ -87,6 +87,13 @@ export default auth((req) => {
     return NextResponse.redirect(new URL('/erp/branch-finance', req.nextUrl));
   }
 
+  // Выездной мастер — только СВОЙ кабинет /master. Любой заход в ERP (включая
+  // кабинет филиала /erp/branch-finance) уводим обратно в кабинет мастера, чтобы
+  // мастер не видел экраны менеджера/филиала. APIs (/api/*) кабинету нужны — их не трогаем.
+  if (loggedIn && role === 'master' && (pathname === '/erp' || pathname.startsWith('/erp/'))) {
+    return NextResponse.redirect(new URL('/master', req.nextUrl));
+  }
+
   // /sketch/* — архив старых макетов, доступ только Админу
   if (pathname.startsWith('/sketch/')) {
     if (!loggedIn) {
