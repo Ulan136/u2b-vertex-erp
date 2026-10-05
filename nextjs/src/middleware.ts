@@ -69,6 +69,14 @@ export default auth((req) => {
   // Старый интерфейс удалён — любой заход на /sketch_screens.html уводим в новый ERP.
   if (pathname === '/sketch_screens.html') return NextResponse.redirect(new URL('/erp', req.nextUrl));
 
+  // Выездной мастер — ВСЕГДА в своём кабинете /master (и десктоп, и телефон). Любой
+  // заход на корень/ERP (включая кабинет филиала /erp/branch-finance) уводим в кабинет
+  // мастера: с общим входом мастер не должен попадать в кабинет менеджера/филиала.
+  // APIs (/api/*) кабинету нужны — их не трогаем.
+  if (loggedIn && role === 'master' && (pathname === '/' || pathname === '/erp' || pathname.startsWith('/erp/'))) {
+    return NextResponse.redirect(new URL('/master', req.nextUrl));
+  }
+
   // Мобильный редирект в свой кабинет при ЛЮБОМ заходе с телефона на ERP:
   // мастер → /master; директор → /director, пока сам не выбрал «Полная версия ERP»
   // (флаг в cookie erp_full, сбрасывается при возврате в кабинет).
@@ -85,13 +93,6 @@ export default auth((req) => {
   // страницу кабинета филиала (счёт + ссылки на Заявки/Сертификаты/Извещения).
   if (loggedIn && role === 'branch' && (pathname === '/' || pathname === '/erp')) {
     return NextResponse.redirect(new URL('/erp/branch-finance', req.nextUrl));
-  }
-
-  // Выездной мастер — только СВОЙ кабинет /master. Любой заход в ERP (включая
-  // кабинет филиала /erp/branch-finance) уводим обратно в кабинет мастера, чтобы
-  // мастер не видел экраны менеджера/филиала. APIs (/api/*) кабинету нужны — их не трогаем.
-  if (loggedIn && role === 'master' && (pathname === '/erp' || pathname.startsWith('/erp/'))) {
-    return NextResponse.redirect(new URL('/master', req.nextUrl));
   }
 
   // /sketch/* — архив старых макетов, доступ только Админу

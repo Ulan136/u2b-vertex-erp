@@ -559,6 +559,18 @@ async function patchOrder(id,body){
 
 async function setStatus(id,status){
   if(status==='Отменён'&&!confirm('Отменить заявку?'))return;
+  // «Готова» только после принятой оплаты (выбран счёт): проверяем позиции заявки.
+  // Нет позиций или есть неоплаченная → не завершаем, просим принять оплату.
+  if(status==='Готова'){
+    try{
+      const rc=await fetch('/api/v2/certs?orderId='+encodeURIComponent(id),{cache:'no-store'});
+      if(rc.ok){
+        const certs=await rc.json();
+        if(!Array.isArray(certs)||!certs.length){ toast('⚠️ Сначала оформите позиции и примите оплату'); return; }
+        if(certs.some(c=>c.payStatus!=='Оплачено')){ toast('⚠️ Заявка не оплачена — примите оплату (выберите счёт)'); return; }
+      }
+    }catch(_e){ /* сеть недоступна — не блокируем жёстко */ }
+  }
   try{const upd=await patchOrder(id,{status});const i=orders.findIndex(o=>o.id===id);if(i>=0)orders[i]=upd;render();
     toast(status==='Готова'?'✅ Заявка готова':status==='Отменён'?'❌ Отменена':'↩ Возвращена в работу');
   }catch(e){if(e.message!=='auth')toast('⚠️ '+e.message);}
