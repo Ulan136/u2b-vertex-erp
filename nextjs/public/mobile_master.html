@@ -340,7 +340,11 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
         <div class="form-group"><div class="form-label">Тип прибора</div>
           <input class="form-input" id="pos-meter" placeholder="начните вводить — подскажем из справочника" list="pos-meter-list" autocomplete="off" oninput="posMeterSuggest(this.value)">
           <datalist id="pos-meter-list"></datalist></div>
-        <div class="form-group"><div class="form-label">№ счётчика</div><input class="form-input" id="pos-serial" placeholder="буквы, цифры, пробел" inputmode="text" autocapitalize="none" autocomplete="off"></div>
+        <div class="form-group"><div class="form-label">№ счётчика</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input class="form-input" id="pos-serial" placeholder="00000000" inputmode="numeric" autocapitalize="none" autocomplete="off" style="flex:1;">
+            <button type="button" id="pos-serial-kb" onclick="posSerialToggleKb()" title="Переключить клавиатуру (цифры ↔ буквы)" style="flex:none;border:1px solid #cbd5e1;background:#f8fafc;border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;cursor:pointer;white-space:nowrap;">🔤 Буквы</button>
+          </div></div>
         <div class="form-group"><div class="form-label">Год выпуска</div><input type="number" class="form-input" id="pos-year" placeholder="напр. 2024" inputmode="numeric"></div>
         <div class="form-group"><div class="form-label">Показания счётчика, м³ <span class="required">*</span></div>
           <div style="display:flex;gap:8px;align-items:center;"><input type="number" class="form-input" id="pos-readings" placeholder="0000" inputmode="decimal" style="flex:1;"><button class="mic-inline" onclick="mvStart('pos-readings','Показания в кубометрах',true)">🎤</button></div></div>
@@ -819,6 +823,19 @@ function posToggleReason(){ const nog=document.getElementById('pos-result').valu
 // «Класс счётчика» (В/С) — только у мастера ФИЛИАЛА (financeSection='branch', Астана);
 // у головного (Тараз) поля нет. Синхронно с главным ERP.
 function posApplyBranch(){ const astana=(me&&me.financeSection)==='branch'; const w=document.getElementById('pos-class-wrap'); if(w)w.style.display=astana?'':'none'; }
+// № счётчика: по умолчанию цифровая клавиатура; кнопка переключает на буквенную и
+// обратно (единого режима «цифры + буквы» в мобильных клавиатурах нет).
+function posSerialToggleKb(){
+  const inp=document.getElementById('pos-serial'); const btn=document.getElementById('pos-serial-kb'); if(!inp)return;
+  const toText = inp.getAttribute('inputmode')!=='text';
+  inp.setAttribute('inputmode', toText?'text':'numeric');
+  if(btn) btn.textContent = toText?'🔢 Цифры':'🔤 Буквы';
+  inp.blur(); setTimeout(()=>inp.focus(),0);   // переоткрыть клавиатуру в новом режиме
+}
+function posSerialResetKb(){
+  const inp=document.getElementById('pos-serial'); const btn=document.getElementById('pos-serial-kb');
+  if(inp)inp.setAttribute('inputmode','numeric'); if(btn)btn.textContent='🔤 Буквы';
+}
 // Автоподсказка типа прибора из общего справочника номенклатуры (как в главном ERP).
 let posMeterTimer=null;
 function posMeterSuggest(v){
@@ -841,6 +858,7 @@ function posOpen(){
   document.getElementById('pos-seal').value='СЛ';
   document.getElementById('pos-result').value='Годен'; posToggleReason();
   posApplyBranch();
+  posSerialResetKb();
   posRenderStampBtns();
   posRenderPhotos(); openSheet('posSheet');
 }
