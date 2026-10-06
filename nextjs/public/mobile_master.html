@@ -242,6 +242,12 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
       <div style="background:#d1fae5;color:#065f46;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;">● Онлайн</div>
     </div>
     <div class="card"><div class="card-inner">
+      <div class="card-title">🔔 Уведомления</div>
+      <div class="detail-row"><span>Статус</span><span id="push-state" style="color:var(--muted);">—</span></div>
+      <button id="push-btn" class="btn-primary" style="width:100%;margin-top:8px;" onclick="pushEnable()">🔔 Включить уведомления</button>
+      <div style="font-size:11px;color:#9ca3af;margin-top:8px;line-height:1.4;">Баннер + звук при новой заявке, даже когда приложение закрыто. На iPhone: «Поделиться» → «На экран Домой», затем открыть с иконки.</div>
+    </div></div>
+    <div class="card"><div class="card-inner">
       <div class="card-title">Доступные модули</div>
       <div class="detail-row"><span>📋 Заявки (выездная)</span><span style="color:var(--green);">✅</span></div>
       <div class="detail-row"><span>📷 Фотоотчёт</span><span style="color:var(--green);">✅</span></div>
@@ -964,6 +970,40 @@ function mvApply(){ if(mvResult&&mvTarget)mvApplyTo(mvTarget,mvResult); if(mvQue
 function mvCancel(){ mvQueue=null; mvClose(); }
 function mvClose(){ if(mvRecog){try{mvRecog.onend=null;mvRecog.stop();}catch(e){} mvRecog=null;} mvResult=''; document.querySelectorAll('.mic-inline,.mic-fab').forEach(b=>b.classList.remove('listening')); document.getElementById('mvOverlay').classList.remove('open'); }
 
+// ── ПУШ-УВЕДОМЛЕНИЯ (Web Push / PWA) ──────────────────────────
+function pushSupported(){ return ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window); }
+function urlB64ToUint8Array(b64){ const pad='='.repeat((4-b64.length%4)%4); const base=(b64+pad).replace(/-/g,'+').replace(/_/g,'/'); const raw=atob(base); const arr=new Uint8Array(raw.length); for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i); return arr; }
+function isStandalone(){ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true; }
+async function pushEnable(){
+  if(!pushSupported()){ toast('⚠️ Устройство/браузер не поддерживает уведомления'); return; }
+  // iPhone: пуш работает ТОЛЬКО если приложение открыто с главного экрана (standalone).
+  if(!isStandalone() && /iphone|ipad|ipod/i.test(navigator.userAgent)){
+    toast('ℹ️ На iPhone сначала: «Поделиться» → «На экран Домой», откройте с иконки и повторите'); return;
+  }
+  const btn=document.getElementById('push-btn'); if(btn){btn.disabled=true;btn.textContent='Подключение…';}
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){ toast('⚠️ Разрешение на уведомления не выдано'); return; }
+    const reg=await navigator.serviceWorker.ready;
+    const kr=await fetch('/api/v2/push/public-key',{cache:'no-store'}); if(!kr.ok)throw new Error('ключ недоступен'); const {key}=await kr.json();
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub) sub=await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:urlB64ToUint8Array(key) });
+    const r=await fetch('/api/v2/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:sub})});
+    if(r.status===401){location.href='/login?from=/master';return;}
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    toast('✅ Уведомления включены'); await pushRenderState(true);
+  }catch(e){ toast('⚠️ '+e.message); }
+  finally{ if(btn)btn.disabled=false; await pushRenderState(); }
+}
+async function pushRenderState(known){
+  const el=document.getElementById('push-state'); const btn=document.getElementById('push-btn'); if(!el)return;
+  if(!pushSupported()){ el.textContent='Не поддерживается'; if(btn)btn.style.display='none'; return; }
+  let on=known;
+  if(on===undefined){ try{ const reg=await navigator.serviceWorker.ready; const sub=await reg.pushManager.getSubscription(); on=!!sub && Notification.permission==='granted'; }catch(_e){ on=false; } }
+  el.textContent = on?'🔔 Включены':'🔕 Выключены'; el.style.color = on?'var(--green)':'var(--muted)';
+  if(btn) btn.textContent = on?'Переподключить уведомления':'🔔 Включить уведомления';
+}
+
 // ── INIT ──────────────────────────────────────────────────────
 (async function(){
   await loadMe();
@@ -973,6 +1013,7 @@ function mvClose(){ if(mvRecog){try{mvRecog.onend=null;mvRecog.stop();}catch(e){
   setInterval(loadOrders,60000);
   // Общий модуль: колокольчик + экран «Задачи» + комментарии + обновление
   if(window.CabinetCommon) CabinetCommon.init({ me, onOpenTasks:()=>goScreen('tasks'), onRefresh:()=>loadOrders() });
+  pushRenderState();   // показать статус уведомлений в «Профиль»
 })();
 </script>
 </body>

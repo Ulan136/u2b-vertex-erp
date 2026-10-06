@@ -503,6 +503,19 @@ export const notifications = pgTable('notifications', {
   createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
+// ── PUSH-ПОДПИСКИ (Web Push / PWA) ────────────────────────────
+// Одна строка = одна подписка браузера/устройства пользователя (endpoint уникален).
+// Используется для системных пуш-уведомлений (баннер+звук) на телефон мастера и др.
+export const pushSubscriptions = pgTable('push_subscriptions', {
+  id        : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  userId    : uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  endpoint  : text('endpoint').notNull().unique(),
+  p256dh    : text('p256dh').notNull(),
+  auth      : text('auth').notNull(),
+  userAgent : varchar('user_agent', { length: 300 }),
+  createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
 // ── TASKS (задачи сотрудникам) ────────────────────────────────
 // status flow: new → accepted → in_progress → done.
 // completed_at is stamped when a task moves to 'done'.

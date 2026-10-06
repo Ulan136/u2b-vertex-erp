@@ -1,5 +1,6 @@
 import { notificationsRepo } from '@/server/repositories/notifications.repo';
 import { idsToPrune } from '@/server/dto/notifications.dto';
+import { pushService } from '@/server/services/push.service';
 
 const MAX_PER_USER = 100;
 
@@ -17,6 +18,8 @@ export const notificationsService = {
         const all = await notificationsRepo.idsNewestFirst(userId);
         await notificationsRepo.removeMany(idsToPrune(all, MAX_PER_USER));
       }
+      // Системный пуш на устройства получателей (баннер+звук), best-effort.
+      await pushService.sendToUsers(ids, { title: payload.title, body: '' });
     } catch (e) {
       console.warn('[notifications] create failed:', (e as Error).message);
     }
