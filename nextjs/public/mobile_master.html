@@ -337,8 +337,10 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
           <button class="mic-fab" onclick="mvStartAll()" title="Заполнить показания/клеймо/комментарий голосом">🎤</button>
           <div><div style="font-size:13px;font-weight:700;color:#dc2626;">Голосовой ввод</div><div style="font-size:11px;color:#9ca3af;">Нажмите и продиктуйте данные счётчика</div></div>
         </div>
-        <div class="form-group"><div class="form-label">Тип прибора</div><input class="form-input" id="pos-meter" placeholder="СГВ-15"></div>
-        <div class="form-group"><div class="form-label">№ счётчика</div><input class="form-input" id="pos-serial" placeholder="00000000" inputmode="numeric"></div>
+        <div class="form-group"><div class="form-label">Тип прибора</div>
+          <input class="form-input" id="pos-meter" placeholder="начните вводить — подскажем из справочника" list="pos-meter-list" autocomplete="off" oninput="posMeterSuggest(this.value)">
+          <datalist id="pos-meter-list"></datalist></div>
+        <div class="form-group"><div class="form-label">№ счётчика</div><input class="form-input" id="pos-serial" placeholder="буквы, цифры, пробел" inputmode="text" autocapitalize="none" autocomplete="off"></div>
         <div class="form-group"><div class="form-label">Год выпуска</div><input type="number" class="form-input" id="pos-year" placeholder="напр. 2024" inputmode="numeric"></div>
         <div class="form-group"><div class="form-label">Показания счётчика, м³ <span class="required">*</span></div>
           <div style="display:flex;gap:8px;align-items:center;"><input type="number" class="form-input" id="pos-readings" placeholder="0000" inputmode="decimal" style="flex:1;"><button class="mic-inline" onclick="mvStart('pos-readings','Показания в кубометрах',true)">🎤</button></div></div>
@@ -817,6 +819,20 @@ function posToggleReason(){ const nog=document.getElementById('pos-result').valu
 // «Класс счётчика» (В/С) — только у мастера ФИЛИАЛА (financeSection='branch', Астана);
 // у головного (Тараз) поля нет. Синхронно с главным ERP.
 function posApplyBranch(){ const astana=(me&&me.financeSection)==='branch'; const w=document.getElementById('pos-class-wrap'); if(w)w.style.display=astana?'':'none'; }
+// Автоподсказка типа прибора из общего справочника номенклатуры (как в главном ERP).
+let posMeterTimer=null;
+function posMeterSuggest(v){
+  clearTimeout(posMeterTimer);
+  const q=String(v||'').trim(); if(q.length<1){ const dl=document.getElementById('pos-meter-list'); if(dl)dl.innerHTML=''; return; }
+  posMeterTimer=setTimeout(async()=>{
+    try{
+      const r=await fetch('/api/v2/device-types?q='+encodeURIComponent(q),{cache:'no-store'});
+      if(!r.ok)return; const hits=await r.json();
+      const dl=document.getElementById('pos-meter-list'); if(!dl)return;
+      dl.innerHTML=(Array.isArray(hits)?hits:[]).map(h=>`<option value="${esc(h.name||'')}"></option>`).join('');
+    }catch(_e){}
+  },250);
+}
 function posOpen(){
   posPhotos=[];
   ['pos-meter','pos-serial','pos-year','pos-readings','pos-stamp','pos-note','pos-amount','pos-reason','pos-class'].forEach(id=>setV(id,''));
