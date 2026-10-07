@@ -67,7 +67,7 @@ export const usersRepo = {
 
   // Active users (lite) — used to pick order-notification recipients.
   listActiveLite: () =>
-    db.select({ id: users.id, role: users.role, isActive: users.isActive })
+    db.select({ id: users.id, role: users.role, isActive: users.isActive, branchId: users.branchId })
       .from(users).where(eq(users.isActive, true)),
 
   // Presence: active users with their last_seen_at (online computed in the service).

@@ -52,15 +52,20 @@ export const ordersService = {
     }
     // Автор = пользователь сессии (из ERP). Внешний кабинет без сессии → null.
     const order = await ordersRepo.create({ ...data, createdBy: actor?.id ?? null });
-    // notify managers + admins about the new cabinet order (best-effort)
+    // notify managers + admins + мастер/филиал ЭТОГО филиала (best-effort) —
+    // чтобы выездной мастер получил пуш о новой заявке своего филиала.
     try {
       const users = await usersRepo.listActiveLite();
+      const headBranchId = await branchesRepo.headId();
       const isTec = order.source === 'tec';
-      await notificationsService.create(orderRecipients(users), {
-        type: 'order',
-        title: `Новая заявка ${order.orderNo ?? ''} (${isTec ? 'ТЭЦ' : 'Выездная'})`,
-        link: isTec ? 'tec-orders' : 'field-orders',
-      });
+      await notificationsService.create(
+        orderRecipients(users, { branchId: order.branchId, headBranchId, actorId: actor?.id ?? null }),
+        {
+          type: 'order',
+          title: `Новая заявка ${order.orderNo ?? ''} (${isTec ? 'ТЭЦ' : 'Выездная'})`,
+          link: isTec ? 'tec-orders' : 'field-orders',
+        },
+      );
     } catch { /* notifications are best-effort */ }
     return order;
   },
