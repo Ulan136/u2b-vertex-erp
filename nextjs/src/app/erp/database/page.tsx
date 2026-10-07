@@ -31,6 +31,10 @@ function DatabaseInner() {
   // Фильтр по филиалу (общий для всех вкладок): «Все» / Тараз / Астана / …
   const [fBranch, setFBranch] = React.useState('all');
   const { data: branches } = useApi<Branch[]>('/api/v2/branches');
+  // Менеджер филиала (роль branch, financeSection='branch') видит ТОЛЬКО свой филиал
+  // (сервер скоупит данные) — выбор филиала ему не нужен, прячем переключатель.
+  const { data: me } = useApi<{ financeSection?: string | null }>('/api/v2/me');
+  const isBranchUser = me?.financeSection === 'branch' || me?.financeSection === 'branch_almaty';
   const headId = (branches || []).find(b => b.isHead)?.id;
   // Запись без филиала = головной (Тараз): так legacy/Тараз-данные остаются у головного.
   const branchIdOf = (bid?: string | null) => bid ?? headId ?? null;
@@ -101,13 +105,15 @@ function DatabaseInner() {
     <div>
       <PageTitle title="База данных" sub={meta.sub} />
       <Card className="erp-filters">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>🏢 Филиал:</span>
-          <button className={`erp-chip${fBranch === 'all' ? ' on' : ''}`} onClick={() => setFBranch('all')}>Все</button>
-          {(branches || []).slice().sort((a, b) => (a.isHead ? 0 : 1) - (b.isHead ? 0 : 1)).map(b => (
-            <button key={b.id} className={`erp-chip${fBranch === b.id ? ' on' : ''}`} onClick={() => setFBranch(b.id)}>{b.name}{b.isHead ? ' · головной' : ''}</button>
-          ))}
-        </div>
+        {!isBranchUser && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>🏢 Филиал:</span>
+            <button className={`erp-chip${fBranch === 'all' ? ' on' : ''}`} onClick={() => setFBranch('all')}>Все</button>
+            {(branches || []).slice().sort((a, b) => (a.isHead ? 0 : 1) - (b.isHead ? 0 : 1)).map(b => (
+              <button key={b.id} className={`erp-chip${fBranch === b.id ? ' on' : ''}`} onClick={() => setFBranch(b.id)}>{b.name}{b.isHead ? ' · головной' : ''}</button>
+            ))}
+          </div>
+        )}
         <div className="erp-chips">
           {(['deadlines', 'archive-cert', 'archive-izv', 'orders', 'field-photos'] as View[]).map(v => (
             <button key={v} className={`erp-chip${view === v ? ' on' : ''}`} onClick={() => setView(v)}>

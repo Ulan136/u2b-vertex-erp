@@ -155,9 +155,11 @@ function CertsInner() {
   // живёт на экране ВДК, но считает по ТЭЦ-сертам, поэтому грузим их отдельно (только
   // когда блок доступен: экран ВДК + сертификаты).
   const { data: tecCerts, mutate: mutateTec } = useApi<Cert[]>(source === 'ВДК' && docType === 'cert' ? `/api/v2/certs?source=${encodeURIComponent('ТЭЦ')}&archived=false&type=cert` : null);
-  // Оплата прямых сертификатов: счета раздела источника (Астана→branch, иначе poverka).
+  // Оплата прямых сертификатов: счета раздела источника. На странице филиала Астаны
+  // (isAstana) Выездная относится к разделу филиала (branch), а не к Тараз (poverka) —
+  // иначе в «Сменить счёт» показывались бы счета Тараза.
   const isDirect = source !== 'Выездная';
-  const certSection = source === 'Астана' ? 'branch' : 'poverka';
+  const certSection = (source === 'Астана' || isAstana) ? 'branch' : 'poverka';
   const secAccounts = React.useMemo(() => (fin?.accounts || []).filter(a => (a.section || '') === certSection && a.isActive !== false), [fin, certSection]);
   const [payRows, setPayRows] = React.useState<Array<{ accountId: string; amount: string }>>([{ accountId: '', amount: '' }]);
   const [payTouched, setPayTouched] = React.useState(false);   // трогал ли пользователь оплату/цену в этой сессии модалки

@@ -96,6 +96,7 @@ function BranchFinanceInner() {
         <Link href={`/erp/orders?source=field_check${branch ? `&branch=${branch}` : ''}`} className="ui-btn ui-btn-outline">📋 Заявки</Link>
         <Link href={`/erp/certs?source=Выездная&type=cert${branch ? `&branch=${branch}` : ''}`} className="ui-btn ui-btn-outline">📄 Сертификаты</Link>
         <Link href={`/erp/certs?source=Выездная&type=izv${branch ? `&branch=${branch}` : ''}`} className="ui-btn ui-btn-outline">📭 Извещения</Link>
+        <Link href="/erp/database?view=deadlines" className="ui-btn ui-btn-outline">🗃 База данных</Link>
       </Card>
 
       <Card className="erp-filters" style={{ marginTop: 12 }}>

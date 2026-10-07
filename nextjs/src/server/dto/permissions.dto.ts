@@ -42,7 +42,9 @@ export const SCREEN_LABELS: Record<ScreenKey, string> = {
 // экраны: свои выездные заявки/сертификаты/извещения (скоуп по branchId) и свои
 // финансы (скоуп по разделу). Всё остальное закрыто — и в меню, и на API-гейте.
 export const BRANCH_ROLE = 'branch';
-export const BRANCH_SCREENS = ['orders_field', 'poverka_field', 'branch_finance'] as const;
+// database — «База данных» (сроки/архивы/авто-заказы/фотоотчёты) со скоупом по
+// branchId: филиал видит ТОЛЬКО свои записи (сервер скоупит certs/orders по филиалу).
+export const BRANCH_SCREENS = ['orders_field', 'poverka_field', 'database', 'branch_finance'] as const;
 
 // ── Pure helpers (no DB) — unit-testable ──────────────────────
 
