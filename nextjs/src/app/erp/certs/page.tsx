@@ -961,7 +961,7 @@ function CertsInner() {
           </Field>
         </div>
         <Field label="Адрес на казахском">
-          <Input value={form.addressKz} onChange={e => setForm({ ...form, addressKz: e.target.value })} placeholder="Тараз қ., Айтиев к-сі, 27 үй, 46 пәтер" />
+          <Input value={form.addressKz} onChange={e => setForm({ ...form, addressKz: e.target.value })} placeholder="қала, көше, үй, пәтер" />
         </Field>
 
         <div className="cert-sec-lbl">🔄 Статусы</div>

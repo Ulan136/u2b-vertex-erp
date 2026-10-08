@@ -51,32 +51,40 @@ function OrdersInner() {
   // Страница филиала (?branch=astana|almaty): заявка жёстко привязана к этому филиалу —
   // в форме НЕ показываем выбор филиала (и уж точно не Тараз), поле зафиксировано.
   const branchSlug = sp.get('branch') || '';
+  // Кто вошёл: менеджер филиала (financeSection='branch'/'branch_almaty') ВСЕГДА
+  // заперт на свой филиал — даже если открыл /erp/orders без ?branch= (его кидает
+  // кабинет филиала без параметра). Так в модалке заявки не будет «Тараз».
+  const { data: me } = useApi<{ branchId?: string | null; financeSection?: string | null }>('/api/v2/me');
+  const isFilialUser = me?.financeSection === 'branch' || me?.financeSection === 'branch_almaty';
+  const userBranch = React.useMemo(
+    () => (isFilialUser && me?.branchId && branches ? (branches.find(b => b.id === me.branchId) || null) : null),
+    [isFilialUser, me, branches],
+  );
+  // Запертый филиал: из ?branch= (страница филиала у админа) ИЛИ свой филиал у
+  // менеджера филиала. Если заперт — в форме выбор филиала скрыт (поле read-only).
   const lockedBranch = React.useMemo(() => {
-    if (!branchSlug || !(branches && branches.length)) return null;
-    const nameBySlug: Record<string, string> = { astana: 'Астана', almaty: 'Алматы' };
-    return branches.find(x => x.name === (nameBySlug[branchSlug] || '')) || null;
-  }, [branchSlug, branches]);
-  // Предвыбор филиала по URL. Страница /erp/orders НЕ перемонтируется при переходе
-  // между пунктами меню (меняется только query), поэтому сбрасываем филиал на дефолт
-  // КАЖДЫЙ раз, когда меняется ?branch= (иначе выбор «залипает» с прошлой страницы):
-  //   ?branch=astana|almaty → страница филиала (только его заявки);
-  //   без ?branch=          → главная «Выездная» = ГОЛОВНОЙ (Тараз).
-  // Ручной выбор в выпадающем списке сохраняется, пока не сменится URL.
-  const lastSlug = React.useRef<string | null>('__init__');
+    if (branchSlug && branches && branches.length) {
+      const nameBySlug: Record<string, string> = { astana: 'Астана', almaty: 'Алматы' };
+      const b = branches.find(x => x.name === (nameBySlug[branchSlug] || ''));
+      if (b) return b;
+    }
+    return userBranch;
+  }, [branchSlug, branches, userBranch]);
+  // Предвыбор филиала. Страница /erp/orders НЕ перемонтируется при переходе между
+  // пунктами меню, поэтому ставим филиал заново при смене «ключа» (slug/свой филиал):
+  //   заперт (slug или менеджер филиала) → этот филиал; иначе → головной (Тараз).
+  // Ручной выбор в списке (у админа) сохраняется, пока ключ не сменится.
+  const lastKey = React.useRef<string | null>('__init__');
   React.useEffect(() => {
     if (!(branches && branches.length)) return;
-    const slug = sp.get('branch');
-    if (slug === lastSlug.current) return;   // URL не менялся → не трогаем ручной выбор
-    lastSlug.current = slug;
-    if (slug) {
-      const nameBySlug: Record<string, string> = { astana: 'Астана', almaty: 'Алматы' };
-      const b = branches.find(x => x.name === (nameBySlug[slug] || ''));
-      if (b) setBranch(b.id);
-    } else {
-      const head = branches.find(b => b.isHead);
-      if (head) setBranch(head.id);
-    }
-  }, [sp, branches]);
+    const slug = sp.get('branch') || '';
+    const key = slug || (userBranch ? 'u:' + userBranch.id : 'head');
+    if (key === lastKey.current) return;
+    lastKey.current = key;
+    if (lockedBranch) { setBranch(lockedBranch.id); return; }
+    const head = branches.find(b => b.isHead);
+    if (head) setBranch(head.id);
+  }, [sp, branches, lockedBranch, userBranch]);
   // Счета для приёма оплаты заявки — раздела ФИЛИАЛА заявки (Астана→branch, Алматы→
   // branch_almaty, головной→poverka), чтобы доход филиала ушёл на его счёт, не в Тараз.
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');

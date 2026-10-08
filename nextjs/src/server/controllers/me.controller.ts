@@ -15,7 +15,7 @@ export const GET = withApi(async (_req, ctx) => {
   const stampSeqNext = await usersRepo.stampSeqOf(ctx.user.id);
   const branchId = await usersRepo.branchOf(ctx.user.id);
   const financeSection = (branchId ? branchFinanceSection(await branchesRepo.get(branchId)) : null) || 'poverka';
-  return { ...ctx.user, stampSeqNext, financeSection };
+  return { ...ctx.user, branchId, stampSeqNext, financeSection };
 });
 
 // POST /api/v2/me/stamp-seq — задать СВОЙ порядковый № клейма (партию). {next:число|пусто}.
