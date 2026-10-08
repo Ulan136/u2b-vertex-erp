@@ -31,6 +31,7 @@ export const userCreateSchema = z.object({
   position: z.string().nullish(),
   role: z.string().min(1),   // ключ роли (системной или кастомной)
   branchId: z.string().uuid().nullish(),   // филиал сотрудника
+  canExpense: z.boolean().optional(),   // право вести расходы филиала
   email: z.string().trim().optional(),   // логин: email ИЛИ телефон
   password: z.string().min(4, 'Пароль минимум 4 символа'), // login
 })
@@ -47,6 +48,7 @@ export const userUpdateSchema = z.object({
   position: z.string().nullish(),
   role: z.string().min(1).optional(),
   branchId: z.string().uuid().nullish(),   // филиал сотрудника
+  canExpense: z.boolean().optional(),   // право вести расходы филиала
   email: z.string().trim().email().optional(),
   password: z.string().min(4).optional(),   // only rehashed when provided
   isActive: z.boolean().optional(),

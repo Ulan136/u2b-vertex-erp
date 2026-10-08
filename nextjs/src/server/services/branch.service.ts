@@ -64,6 +64,8 @@ export const branchService = {
   // куда можно перевести (свои счета + головной), без остатков.
   async finance(viewer: { id: string; role?: string | null }, from?: string | null, to?: string | null, requested?: string | null) {
     const { section, branchId } = await resolveSection(viewer, requested);
+    // Право вести/видеть расходы филиала — только у отмеченных пользователей (admin — всегда).
+    const canExpense = viewer.role === 'admin' || await usersRepo.canExpenseOf(viewer.id);
     const { accounts, operations } = await financeRepo.overview(from, to);
     const scoped = scopeFinance(accounts, operations, { section, from, to });
     // Входящие переводы: перевод, где счёт-ПОЛУЧАТЕЛЬ (toAccountId) — наш, а
@@ -78,12 +80,15 @@ export const branchService = {
     const transferTargets = accounts
       .filter(a => (a.section || '') === section || HEAD_TRANSFER_SECTIONS.includes(a.section || ''))
       .map(a => ({ id: a.id, name: a.name, icon: a.icon ?? null, own: (a.section || '') === section }));
+    // Без права на расходы — не показываем операции-Расходы и обнуляем «Списано»
+    // (баланс счетов НЕ трогаем — он считается из всех операций на сервере финансов).
+    const movs = canExpense ? scoped.movs : scoped.movs.filter(o => o.opType !== 'Расход');
     return {
-      section, branchId,
+      section, branchId, canExpense,
       accounts: scoped.visAccts,
-      operations: [...scoped.movs, ...incoming],
+      operations: [...movs, ...incoming],
       accountNo: numberAccounts(scoped.visAccts),   // № счёта внутри раздела
-      total: scoped.total, income: scoped.income + incomingSum, expense: scoped.expense,
+      total: scoped.total, income: scoped.income + incomingSum, expense: canExpense ? scoped.expense : 0,
       transferTargets,
     };
   },
@@ -91,6 +96,9 @@ export const branchService = {
   // Расход филиала — только со своего счёта. Обычный Расход в финледжере.
   async createExpense(viewer: { id: string; role?: string | null }, input: unknown, actorId?: string | null, requested?: string | null) {
     const { section } = await resolveSection(viewer, requested);
+    if (!(viewer.role === 'admin' || await usersRepo.canExpenseOf(viewer.id))) {
+      throw forbidden('Расходы филиала может вести только уполномоченный сотрудник');
+    }
     const d = expenseSchema.parse(input);
     const acc = await ownAccount(d.accountId, section);
     return financeService.createOperation({

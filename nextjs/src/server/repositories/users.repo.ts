@@ -14,6 +14,7 @@ const mgmtSelection = {
   branchId: users.branchId,
   email: users.email,
   isActive: users.isActive,
+  canExpense: users.canExpense,
 };
 
 export const usersRepo = {
@@ -45,6 +46,12 @@ export const usersRepo = {
   async branchOf(id: string): Promise<string | null> {
     const [row] = await db.select({ branchId: users.branchId }).from(users).where(eq(users.id, id)).limit(1);
     return row?.branchId ?? null;
+  },
+
+  // Право вести расходы филиала (кабинет филиала).
+  async canExpenseOf(id: string): Promise<boolean> {
+    const [row] = await db.select({ v: users.canExpense }).from(users).where(eq(users.id, id)).limit(1);
+    return row?.v === true;
   },
 
   async countActiveAdmins() {

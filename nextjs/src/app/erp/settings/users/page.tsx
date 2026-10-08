@@ -4,11 +4,11 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow } from '@/components/ui';
 
-type User = { id: string; name: string; email?: string | null; phone?: string | null; position?: string | null; role: string; branchId?: string | null; isActive?: boolean };
+type User = { id: string; name: string; email?: string | null; phone?: string | null; position?: string | null; role: string; branchId?: string | null; isActive?: boolean; canExpense?: boolean };
 type Branch = { id: string; name: string; isHead?: boolean };
 const ROLE: Record<string, string> = { admin: 'Админ', director: 'Директор', accountant: 'Бухгалтер', manager: 'Менеджер', master: 'Мастер' };
 const ROLES = ['admin', 'director', 'accountant', 'manager', 'master'];
-const EMPTY = { id: '', name: '', email: '', phone: '', position: '', role: 'manager', branchId: '', password: '' };
+const EMPTY = { id: '', name: '', email: '', phone: '', position: '', role: 'manager', branchId: '', password: '', canExpense: false };
 
 export default function UsersPage() {
   const { data: users, error, isLoading, mutate } = useApi<User[]>('/api/v2/users?all=1');
@@ -24,13 +24,13 @@ export default function UsersPage() {
   const list = users || [];
 
   const openNew = () => { setF(EMPTY); setErr(''); setModal(true); };
-  const openEdit = (u: User) => { setF({ id: u.id, name: u.name, email: u.email || '', phone: u.phone || '', position: u.position || '', role: u.role, branchId: u.branchId || '', password: '' }); setErr(''); setModal(true); };
+  const openEdit = (u: User) => { setF({ id: u.id, name: u.name, email: u.email || '', phone: u.phone || '', position: u.position || '', role: u.role, branchId: u.branchId || '', password: '', canExpense: u.canExpense === true }); setErr(''); setModal(true); };
   async function save() {
     if (!f.name.trim()) { setErr('ФИО обязательно'); return; }
     if (!f.id && (!f.email.trim() && !f.phone.trim())) { setErr('Укажите email или телефон (это логин)'); return; }
     if (!f.id && f.password.length < 4) { setErr('Пароль минимум 4 символа'); return; }
     setSaving(true); setErr('');
-    const body: Record<string, unknown> = { name: f.name.trim(), phone: f.phone || null, position: f.position || null, role: f.role, branchId: f.branchId || null };
+    const body: Record<string, unknown> = { name: f.name.trim(), phone: f.phone || null, position: f.position || null, role: f.role, branchId: f.branchId || null, canExpense: f.canExpense };
     if (!f.id) { body.email = f.email.trim(); body.password = f.password; }
     else if (f.password) body.password = f.password;
     try { if (f.id) await apiSend(`/api/v2/users/${f.id}`, 'PATCH', body); else await apiSend('/api/v2/users', 'POST', body); setModal(false); await mutate(); toast('✅ Сохранено'); }
@@ -66,6 +66,12 @@ export default function UsersPage() {
         <div className="erp-form-row"><Field label="ФИО" required><Input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></Field><Field label="Должность"><Input value={f.position} onChange={e => setF({ ...f, position: e.target.value })} /></Field></div>
         <div className="erp-form-row"><Field label="Email (логин, необязательно)"><Input value={f.email} onChange={e => setF({ ...f, email: e.target.value })} disabled={!!f.id} placeholder="можно оставить пустым" /></Field><Field label="Телефон (логин)"><Input value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} placeholder="+7…" /></Field></div>
         <div className="erp-form-row"><Field label="Роль"><Select value={f.role} onChange={e => setF({ ...f, role: e.target.value })}>{roleOptions.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}</Select></Field><Field label="Филиал"><Select value={f.branchId} onChange={e => setF({ ...f, branchId: e.target.value })}><option value="">— головной ({(branches || []).find(b => b.isHead)?.name || 'головной'}) —</option>{(branches || []).filter(b => !b.isHead).map(b => <option key={b.id} value={b.id}>{b.name} - Филиал</option>)}</Select></Field></div>
+        <Field label="Расходы филиала">
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer' }}>
+            <input type="checkbox" checked={f.canExpense} onChange={e => setF({ ...f, canExpense: e.target.checked })} />
+            Может вести расходы филиала (видит и вносит расходы в кабинете филиала)
+          </label>
+        </Field>
         <Field label={f.id ? 'Новый пароль (если менять)' : 'Пароль'} required={!f.id}><Input type="password" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} placeholder={f.id ? 'оставьте пустым' : 'мин. 4 символа'} /></Field>
       </Modal>
     </div>

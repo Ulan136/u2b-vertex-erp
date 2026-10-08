@@ -13,7 +13,7 @@ const BRANCH_LABEL: Record<string, string> = { astana: 'Астана', almaty: '
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; balance?: string | number | null };
 type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; createdByName?: string | null; incoming?: boolean };
 type Target = { id: string; name: string; icon?: string | null; own: boolean };
-type Resp = { section: string; branchId: string; accounts: Acct[]; operations: Op[]; accountNo: Record<string, number>; total: number; income: number; expense: number; transferTargets: Target[] };
+type Resp = { section: string; branchId: string; accounts: Acct[]; operations: Op[]; accountNo: Record<string, number>; total: number; income: number; expense: number; transferTargets: Target[]; canExpense?: boolean };
 
 const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU');
 const num = (v: unknown) => Number(String(v ?? '').replace(/\s/g, '')) || 0;
@@ -33,6 +33,9 @@ function BranchFinanceInner() {
   const [tab, setTab] = React.useState<'all' | 'expense' | 'transfer' | 'income'>('all');
 
   const accounts = data?.accounts || [];
+  // Право вести/видеть расходы филиала (сервер решает по пользователю; admin — всегда).
+  // Пока данные не загрузились — не прячем (чтобы не мигало).
+  const canExpense = data ? data.canExpense !== false : true;
   const targets = data?.transferTargets || [];
   const defAcc = accounts[0]?.id || '';
   const ops = React.useMemo(() => (data?.operations || []).slice().sort((a, b) => String(b.opDate).localeCompare(String(a.opDate))), [data]);
@@ -87,7 +90,7 @@ function BranchFinanceInner() {
         <div style={{ display: 'flex', gap: 8 }}>
           <Link href="/master" className="ui-btn ui-btn-outline" title="Открыть кабинет мастера филиала">📱 Кабинет мастера</Link>
           <Button variant="outline" onClick={openTr} disabled={!accounts.length}>🔁 Перевод</Button>
-          <Button onClick={openExp} disabled={!accounts.length}>+ Расход</Button>
+          {canExpense && <Button onClick={openExp} disabled={!accounts.length}>+ Расход</Button>}
         </div>} />
 
       {/* Точка входа в кабинет филиала: экраны Выездной поверки (свой филиал). */}
@@ -106,7 +109,7 @@ function BranchFinanceInner() {
       <div className="erp-kpi-grid" style={{ marginTop: 12 }}>
         <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">💳</span><span className="erp-kpi-label">На счетах</span></div><div className="erp-kpi-val">{fmt(data?.total || 0)} ₸</div></div>
         <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">📥</span><span className="erp-kpi-label">Приход за период</span></div><div className="erp-kpi-val" style={{ color: '#16a34a' }}>{fmt(data?.income || 0)} ₸</div></div>
-        <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">📤</span><span className="erp-kpi-label">Списано за период</span></div><div className="erp-kpi-val" style={{ color: '#dc2626' }}>{fmt(data?.expense || 0)} ₸</div></div>
+        {canExpense && <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">📤</span><span className="erp-kpi-label">Списано за период</span></div><div className="erp-kpi-val" style={{ color: '#dc2626' }}>{fmt(data?.expense || 0)} ₸</div></div>}
       </div>
 
       {/* Счета филиала */}
@@ -129,7 +132,7 @@ function BranchFinanceInner() {
       <Card className="erp-journal" style={{ padding: 0, marginTop: 12 }}>
         <div className="erp-chips" style={{ padding: '10px 12px 0' }}>
           <button className={`erp-chip${tab === 'all' ? ' on' : ''}`} onClick={() => setTab('all')}>Все · {counts.all}</button>
-          <button className={`erp-chip${tab === 'expense' ? ' on' : ''}`} onClick={() => setTab('expense')}>💸 Расходы · {counts.expense}</button>
+          {canExpense && <button className={`erp-chip${tab === 'expense' ? ' on' : ''}`} onClick={() => setTab('expense')}>💸 Расходы · {counts.expense}</button>}
           <button className={`erp-chip${tab === 'transfer' ? ' on' : ''}`} onClick={() => setTab('transfer')}>🔁 Переводы · {counts.transfer}</button>
           <button className={`erp-chip${tab === 'income' ? ' on' : ''}`} onClick={() => setTab('income')}>📥 Приходы · {counts.income}</button>
         </div>
