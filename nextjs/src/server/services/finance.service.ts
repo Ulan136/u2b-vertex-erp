@@ -208,6 +208,15 @@ async function overview(from?: string | null, to?: string | null, role?: string 
     const scoped = scopeFinance(data.accounts, data.operations, { section, from, to });
     return { accounts: scoped.visAccts, operations: scoped.movs };
   }
+  // Выездной мастер: /api/v2/finance нужен ему ТОЛЬКО для счетов приёма оплаты (его
+  // раздела). Операции (вкл. расходы) НЕ отдаём вообще — мастер не должен видеть
+  // расходы ни в UI, ни в сетевом ответе.
+  if (role === 'master') {
+    const branchId = userId ? await usersRepo.branchOf(userId) : null;
+    const section = (branchId ? branchFinanceSection(await branchesRepo.get(branchId)) : null) || 'poverka';
+    const accounts = (data.accounts as Array<{ section?: string | null }>).filter(a => (a.section || '') === section);
+    return { accounts, operations: [] };
+  }
   // Видимость категорий расходов — по ролям (карта «Настройки → Доступы»);
   // для незаданных явно категорий действует legacy-флаг managerHidden.
   const [perms, cats] = await Promise.all([permissionsRepo.list(), expenseCategoriesRepo.listAll()]);

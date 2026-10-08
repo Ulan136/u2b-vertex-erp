@@ -6,7 +6,7 @@ import { currentUser, type SessionUser } from './session';
 import { isCabinetPublicApi, apiScreenFor, financeWriteAllowed } from './apiAccess';
 import { permissionsRepo } from '@/server/repositories/permissions.repo';
 import { isScreenAllowed, BRANCH_ROLE } from '@/server/dto/permissions.dto';
-import { branchApiAllowed } from './branchScope';
+import { branchApiAllowed, masterApiDenied } from './branchScope';
 import { presenceService } from '@/server/services/presence.service';
 import { recordMutation, type AuditDraft } from './audit';
 import { clientIp } from './rateLimit';
@@ -60,6 +60,11 @@ export function withApi(handler: Handler) {
         // не ловит, т.к. такие пути не привязаны к экрану.
         if (user.role === BRANCH_ROLE && path.startsWith('/api/v2/') && !branchApiAllowed(path)) {
           return json({ error: 'Кабинет филиала: доступ ограничен' }, 403);
+        }
+        // Выездной мастер: «компанейские»/финансовые эндпоинты (расходы, продажи,
+        // закуп, долги, отчёты, …) закрыты наглухо — мастер не видит расходы вообще.
+        if (user.role === 'master' && path.startsWith('/api/v2/') && masterApiDenied(path)) {
+          return json({ error: 'Кабинет мастера: доступ ограничен' }, 403);
         }
       } else if (user) {
         await presenceService.touch(user.id);    // ERP user on a public route — keep presence fresh

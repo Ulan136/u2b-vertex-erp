@@ -48,3 +48,18 @@ export function branchApiAllowed(pathname: string): boolean {
   if (BRANCH_API_DENY.some(p => pathname === p || pathname.startsWith(p + '/'))) return false;
   return BRANCH_API_ALLOW.some(p => pathname === p || pathname.startsWith(p + '/'));
 }
+
+// Выездной мастер: «компанейские»/финансовые эндпоинты закрыты наглухо — мастер НЕ
+// должен видеть расходы, продажи, закуп, долги, отчёты и т.п. (экранный гейт по
+// умолчанию «разрешено» для не-branch ролей, поэтому закрываем явно). tasks/users/
+// clients/finance НЕ закрываем — они нужны кабинету мастера.
+const MASTER_API_DENY: readonly string[] = [
+  '/api/v2/expenses', '/api/v2/expense-categories', '/api/v2/sales', '/api/v2/purchases',
+  '/api/v2/products', '/api/v2/debts', '/api/v2/debt-payments', '/api/v2/debt-categories',
+  '/api/v2/reports', '/api/v2/staff', '/api/v2/employees', '/api/v2/documents',
+  '/api/v2/invoices', '/api/v2/accounting', '/api/v2/loans',
+  '/api/v2/role-permissions', '/api/v2/roles',
+];
+export function masterApiDenied(pathname: string): boolean {
+  return MASTER_API_DENY.some(p => pathname === p || pathname.startsWith(p + '/'));
+}
