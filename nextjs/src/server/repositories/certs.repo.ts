@@ -32,11 +32,24 @@ export const certsRepo = {
         and (fo.cert_id = ${certificates.id}
              or (${certificates.orderId} is not null and fo.order_id = ${certificates.orderId}))
     ), '{}')`;
+    // Разбивка дохода по счетам (для показа состава смешанной оплаты): [{name, amount}].
+    const payBreakdown = sql<Array<{ name: string; amount: number }>>`coalesce((
+      select jsonb_agg(jsonb_build_object('name', t.account_name, 'amount', t.amt) order by t.amt desc)
+      from (
+        select fo.account_name, sum(fo.amount)::float8 as amt
+        from finance_operations fo
+        where fo.op_type = 'Приход' and fo.reversed_at is null and fo.reverses is null
+          and fo.account_name is not null
+          and (fo.cert_id = ${certificates.id}
+               or (${certificates.orderId} is not null and fo.order_id = ${certificates.orderId}))
+        group by fo.account_name
+      ) t
+    ), '[]')`;
     // Дубли (глобально среди живых сертов): клеймо/зав.№ встречается более чем в
     // одном серте → в списке подсветим красным именно эту ячейку.
     const dupStamp = sql<boolean>`(${certificates.stampNo} is not null and btrim(${certificates.stampNo}) <> '' and exists(select 1 from certificates d where d.deleted_at is null and d.stamp_no = ${certificates.stampNo} and d.id <> ${certificates.id}))`;
     const dupSerial = sql<boolean>`(${certificates.serialNo} is not null and btrim(${certificates.serialNo}) <> '' and exists(select 1 from certificates d where d.deleted_at is null and d.serial_no = ${certificates.serialNo} and d.id <> ${certificates.id}))`;
-    return db.select({ ...cols, createdByName: users.name, photoCount: sql<number>`coalesce(jsonb_array_length(${certificates.photos}), 0)`, payAccounts, dupStamp, dupSerial }).from(certificates)
+    return db.select({ ...cols, createdByName: users.name, photoCount: sql<number>`coalesce(jsonb_array_length(${certificates.photos}), 0)`, payAccounts, payBreakdown, dupStamp, dupSerial }).from(certificates)
       .leftJoin(users, eq(certificates.createdBy, users.id))
       // Сортировка по ДАТЕ ПОВЕРКИ (новые сверху), при равной — по времени создания.
       // Так после правки даты серт встаёт на своё место, а не остаётся по порядку ввода.

@@ -28,15 +28,28 @@ type Cert = {
   meterType?: string | null; serialNo?: string | null; yearMade?: number | null; waterType?: string | null;
   checkDate?: string | null; nextCheckDate?: string | null; stampNo?: string | null; sealType?: string | null; readings?: string | number | null;
   result?: string | null; operStatus?: string | null; payStatus?: string | null; invoiceType?: string | null; sentStatus?: string | null; note?: string | null; unfitReason?: string | null; createdByName?: string | null; createdAt?: string | null; amount?: string | number | null;
-  paidAmount?: string | number | null; commissionPaidAt?: string | null; payAccounts?: string[] | null; settledByOffset?: boolean | null;
+  paidAmount?: string | number | null; commissionPaidAt?: string | null; payAccounts?: string[] | null; payBreakdown?: Array<{ name: string; amount: number }> | null; settledByOffset?: boolean | null;
   accuracyClass?: string | null; ownerKind?: string | null; ownerTaxId?: string | null; addressKz?: string | null; verifier?: string | null;
   dupStamp?: boolean | null; dupSerial?: boolean | null;   // значение (клеймо/зав.№) повторяется в системе → подсветить ячейку
 };
 // Светло-красный фон дублирующейся ячейки (клеймо/зав.№ повторяется в системе).
 const DUP_CELL: React.CSSProperties = { background: '#fee2e2' };
-// Метка счёта дохода в списке: пусто → «—»; ОДИН счёт → его имя; НЕСКОЛЬКО (реальные
-// доли по разным счетам, вкл. взаиморасчёт как отдельный счёт) → «Смешанная».
-const payAccLabel = (c: Cert): string => { const a = (c.payAccounts || []).filter(Boolean); if (a.length === 0) return '—'; return a.length === 1 ? a[0] : 'Смешанная'; };
+// Метка счёта дохода в списке: пусто → «—»; взаиморасчёт → «Взаиморасчёт» + состав;
+// ОДИН счёт → его имя; НЕСКОЛЬКО → «Смешанная» + состав (5 000 Каспи + 5 000 Наличка).
+const nf0 = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
+const payParts = (c: Cert): string =>
+  (c.payBreakdown || []).filter(x => x && x.name).map(x => `${nf0.format(Number(x.amount) || 0)} ${x.name}`).join(' + ');
+const payCell = (c: Cert): React.ReactNode => {
+  const bd = (c.payBreakdown || []).filter(x => x && x.name);
+  const names = (c.payAccounts || []).filter(Boolean);
+  if (!bd.length && !names.length) return '—';
+  const parts = payParts(c);
+  if (c.settledByOffset) {
+    return <span>Взаиморасчёт{parts ? <span className="erp-muted" style={{ display: 'block', fontSize: 10 }}>{parts}</span> : null}</span>;
+  }
+  if (bd.length <= 1) return bd[0]?.name || names[0] || '—';
+  return <span>Смешанная<span className="erp-muted" style={{ display: 'block', fontSize: 10 }}>{parts}</span></span>;
+};
 // Аномалия: «Оплачено», но доход не проведён (нет цены/счёта) — подсветить жёлтым как
 // напоминание. Как только исправят (появится приход) — подсветка исчезнет сама.
 const paidNoIncome = (c: Cert): boolean => c.payStatus === 'Оплачено' && (c.payAccounts || []).filter(Boolean).length === 0;
@@ -743,7 +756,7 @@ function CertsInner() {
                     </td>
                     <td className="col-oper"><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
                     <td className="col-pay"><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
-                    <td className="col-invoice" title="Счёт(а) дохода по факту оплаты">{payAccLabel(c)}</td>
+                    <td className="col-invoice" title={payParts(c) || 'Счёт(а) дохода по факту оплаты'}>{payCell(c)}</td>
                     <td className="erp-muted col-author" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>
                     <td className="col-actions" style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
                       {trash ? (<>
@@ -783,7 +796,7 @@ function CertsInner() {
                     </td>
                     <td><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
                     <td><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
-                    <td title="Счёт(а) дохода по факту оплаты">{payAccLabel(c)}</td>
+                    <td title={payParts(c) || 'Счёт(а) дохода по факту оплаты'}>{payCell(c)}</td>
                     <td><SSel c={c} field="sentStatus" opts={SENT} tone={sentTone(c.sentStatus)} /></td>
                     <td className="erp-muted" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>
                     <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
