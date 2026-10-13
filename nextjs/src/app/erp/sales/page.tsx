@@ -60,6 +60,7 @@ export default function SalesPage() {
   const saleAccounts = (fin?.accounts || []).filter(a => (a.section || '') === 'sale');
 
   const [modal, setModal] = React.useState(false);
+  const [editSale, setEditSale] = React.useState<Sale | null>(null);   // продажа, открытая на редактирование (для показа состава оплаты)
   const [form, setForm] = React.useState(emptyForm());
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState('');
@@ -166,12 +167,14 @@ export default function SalesPage() {
     ? s.items.map(i => ({ productId: i.productId, productName: i.productName || '', skuCode: i.skuCode || '', qty: String(i.qty), price: String(i.price) }))
     : [emptyItem()];
 
-  function openNew() { setForm(emptyForm()); setErr(''); setModal(true); }
+  function openNew() { setEditSale(null); setForm(emptyForm()); setErr(''); setModal(true); }
   function openClone(s: Sale) {
+    setEditSale(null);
     setForm({ id: '', cloneFrom: `${s.saleNo || ''} · ${s.clientName || ''}`, clientName: s.clientName || '', clientType: s.clientType || 'retail', payMode: 'paid', saleDate: today(), comment: s.comment || '', items: itemsToForm(s), payments: [emptyPay()] });
     setErr(''); setModal(true);
   }
   function openEdit(s: Sale) {
+    setEditSale(s);
     setForm({ id: s.id, cloneFrom: '', clientName: s.clientName || '', clientType: s.clientType || 'retail', payMode: 'paid', saleDate: iso(s.saleDate) || today(), comment: s.comment || '', items: itemsToForm(s), payments: [emptyPay()] });
     setErr(''); setModal(true);
   }
@@ -229,8 +232,23 @@ export default function SalesPage() {
     catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
 
+  // Состав оплаты по счетам (суммы агрегируем по имени счёта): «5 000 Каспи + 5 000 Наличка».
+  const payByAcc = (s: Sale): Array<{ name: string; amount: number }> => {
+    const m = new Map<string, number>();
+    (s.payments || []).forEach(p => { const n = (p.accountName || '').trim(); if (!n) return; m.set(n, (m.get(n) || 0) + (Number(p.amount) || 0)); });
+    return Array.from(m.entries()).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount);
+  };
+  const payParts = (s: Sale) => payByAcc(s).map(x => `${fmt(x.amount)} ${x.name}`).join(' + ');
+  // Ячейка «Счёт»: один счёт → имя; несколько → «Смешанная» + состав мелким шрифтом.
+  const payCell = (s: Sale): React.ReactNode => {
+    const bd = payByAcc(s);
+    if (!bd.length) return '—';
+    if (bd.length === 1) return bd[0].name;
+    return <span>Смешанная<span className="erp-muted" style={{ display: 'block', fontSize: 10 }}>{payParts(s)}</span></span>;
+  };
+
   // ── экспорт ──
-  const accSummary = (s: Sale) => Array.from(new Set((s.payments || []).map(p => p.accountName).filter(Boolean))).join(' + ');
+  const accSummary = (s: Sale) => payParts(s) || Array.from(new Set((s.payments || []).map(p => p.accountName).filter(Boolean))).join(' + ');
   async function exportWord() {
     const rows = active.map(s => [s.saleNo || '', dmy(s.saleDate), s.clientName || '', clientTypeLabel(s.clientType), s.productName || '', fmt(s.qty || 0), fmt(s.totalSum || 0), s.payStatus || 'Ожидает', accSummary(s), s.createdByName || '']);
     const spec = {
@@ -317,7 +335,7 @@ export default function SalesPage() {
                       <td className="col-qty" style={{ textAlign: 'right' }}>{fmt(s.qty || 0)}</td>
                       <td className="col-sum" style={{ textAlign: 'right', fontWeight: 700, ...(cancelled ? { textDecoration: 'line-through' } : {}) }}>{fmt(s.totalSum || 0)} ₸</td>
                       <td className="col-pay">{statusBadge(s)}</td>
-                      <td className="erp-muted col-account" style={{ fontSize: 12 }}>{accSummary(s) || '—'}</td>
+                      <td className="erp-muted col-account" style={{ fontSize: 12 }} title={payParts(s) || 'Счёт(а) оплаты'}>{payCell(s)}</td>
                       <td className="erp-muted col-author" style={{ fontSize: 12 }}>{s.createdByName || '—'}</td>
                       <td className="col-actions" style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {canTopup && <button className="erp-icon-btn" title="Дооплата" style={{ color: '#16a34a' }} onClick={() => openTopup(s)}>💵</button>}
@@ -393,6 +411,16 @@ export default function SalesPage() {
           <Button variant="outline" onClick={addItem} style={{ marginTop: 8, fontSize: 12 }}>➕ Добавить товар</Button>
           <div style={{ textAlign: 'right', marginTop: 8, fontSize: 15 }}>Итого: <b>{fmt(formTotal)} ₸</b></div>
         </Field>
+
+        {/* Редактирование существующей продажи: состав уже проведённой оплаты (read-only) */}
+        {form.id && editSale && (
+          <div className="sale-pay" style={{ marginTop: 10 }}>
+            <div className="sale-pay-h"><b>💳 Как оплачено</b>{editSale.payStatus ? <Badge tone={editSale.payStatus === 'Оплачено' ? 'ok' : 'warn'}>{editSale.payStatus}</Badge> : null}</div>
+            <div style={{ fontSize: 14, marginTop: 4, fontWeight: 600 }}>{payParts(editSale) || '— оплат нет (в долг / ожидает) —'}</div>
+            {editSale.paidSum != null && <div className="erp-muted" style={{ fontSize: 12, marginTop: 2 }}>Внесено: {fmt(editSale.paidSum)} ₸ из {fmt(editSale.totalSum || 0)} ₸</div>}
+            <div className="erp-muted" style={{ fontSize: 11, marginTop: 2 }}>Оплаты правятся через «💵 Дооплата» в журнале.</div>
+          </div>
+        )}
 
         {/* Режим оплаты + смешанная оплата — только при создании/клонировании */}
         {!form.id && (<>
