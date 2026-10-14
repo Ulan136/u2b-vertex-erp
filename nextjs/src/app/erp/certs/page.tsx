@@ -182,6 +182,7 @@ function CertsInner() {
   const [newAcc, setNewAcc] = React.useState('');
   const [payAccSaving, setPayAccSaving] = React.useState(false);
   const [modal, setModal] = React.useState(false);
+  const [editCert, setEditCert] = React.useState<Cert | null>(null);   // открытый на правку серт (для показа состава оплаты)
   const [form, setForm] = React.useState<typeof EMPTY>(EMPTY);
   const [cloneFrom, setCloneFrom] = React.useState('');
   const [saving, setSaving] = React.useState(false);
@@ -516,14 +517,14 @@ function CertsInner() {
     const td = todayIso();
     const nxt = docType === 'cert' ? `${Number(td.slice(0, 4)) + 5}${td.slice(4)}` : '';
     setForm({ ...EMPTY, client: vdkClient, checkDate: td, nextCheckDate: nxt, ...(d ? { amount: d.amount, waterType: d.waterType } : {}) });
-    setShowReadings(false); setCloneFrom(''); setErr(''); setModal(true);
+    setEditCert(null); setShowReadings(false); setCloneFrom(''); setErr(''); setModal(true);
   };
   const fillForm = (c: Cert): typeof EMPTY => ({ id: c.id, fio: c.fio || '', address: c.address || '', phone: c.phone || '', client: c.client || '', meterType: c.meterType || '', serialNo: c.serialNo || '', yearMade: c.yearMade ? String(c.yearMade) : '', waterType: c.waterType || 'х/в', checkDate: iso(c.checkDate), nextCheckDate: iso(c.nextCheckDate), stampNo: c.stampNo || '', sealType: c.sealType === 'ПЛ' ? 'ПЛ' : 'СЛ', readings: c.readings != null ? String(c.readings) : '', result: c.result || 'Годен', operStatus: c.operStatus || 'В работе', payStatus: c.payStatus || 'В ожидании', invoiceType: c.invoiceType || '', sentStatus: c.sentStatus || 'Не отправлено', note: c.note || '', unfitReason: c.unfitReason || '', amount: c.amount != null ? String(c.amount) : '', accuracyClass: c.accuracyClass || '', ownerKind: c.ownerKind || 'физлицо', ownerTaxId: c.ownerTaxId || '', addressKz: c.addressKz || '', verifier: c.verifier || '' });
-  const openEdit = (c: Cert) => { setForm(fillForm(c)); setShowReadings(c.readings != null && String(c.readings) !== ''); setCloneFrom(''); setErr(''); setModal(true); };
+  const openEdit = (c: Cert) => { setEditCert(c); setForm(fillForm(c)); setShowReadings(c.readings != null && String(c.readings) !== ''); setCloneFrom(''); setErr(''); setModal(true); };
   const openClone = (c: Cert) => {
     const td = todayIso();   // дата поверки клона по умолчанию — сегодня (можно изменить)
     const nxt = docType === 'cert' ? `${Number(td.slice(0, 4)) + 5}${td.slice(4)}` : '';
-    setForm({ ...fillForm(c), id: '', checkDate: td, nextCheckDate: nxt }); setCloneFrom(`${c.fio || ''}`); setErr(''); setModal(true);
+    setEditCert(null); setForm({ ...fillForm(c), id: '', checkDate: td, nextCheckDate: nxt }); setCloneFrom(`${c.fio || ''}`); setErr(''); setModal(true);
   };
 
   function onCheckDate(v: string) {
@@ -846,6 +847,12 @@ function CertsInner() {
         title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>{form.id ? (isCert ? '✏️ Сертификат' : '✏️ Извещение') : `➕ ${isCert ? 'Сертификат' : 'Извещение'} · ${source}`}{cloneFrom && <span className="sale-clone-badge">⧉ на основе {cloneFrom}</span>}</span>}
         footer={<><Button onClick={save} disabled={saving || payMismatch} title={payMismatch ? 'Сумма оплат ≠ цене' : undefined}>{saving ? 'Сохранение…' : payMismatch ? '⚠ Оплата ≠ цене' : '💾 Сохранить'}</Button><Button variant="outline" onClick={() => setModal(false)}>Отмена</Button></>}>
         {err && <div className="erp-form-err">{err}</div>}
+        {/* Состав оплаты (read-only): сразу видно, с каких счетов и сколько проведено. */}
+        {form.id && editCert && payParts(editCert) && (
+          <div style={{ marginBottom: 10, padding: '8px 12px', background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, fontSize: 13 }}>
+            <b>💳 Как оплачено:</b> {editCert.settledByOffset ? 'Взаиморасчёт — ' : ''}{payParts(editCert)}
+          </div>
+        )}
         <div className="cert-sec-lbl">📋 Данные {isCert ? 'поверки' : 'извещения'}
           {voiceSupported && <button type="button" className="cert-voice-all" onClick={voiceAll}>🎤 Заполнить голосом</button>}
         </div>

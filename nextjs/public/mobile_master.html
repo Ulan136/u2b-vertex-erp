@@ -352,7 +352,7 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
             <button type="button" id="pos-serial-kb" onclick="posSerialToggleKb()" title="Переключить клавиатуру (цифры ↔ буквы)" style="flex:none;border:1px solid #cbd5e1;background:#f8fafc;border-radius:8px;padding:10px 12px;font-size:13px;font-family:inherit;cursor:pointer;white-space:nowrap;">🔤 Буквы</button>
           </div></div>
         <div class="form-group"><div class="form-label">Год выпуска</div><input type="number" class="form-input" id="pos-year" placeholder="напр. 2024" inputmode="numeric"></div>
-        <div class="form-group"><div class="form-label">Показания счётчика, м³ <span class="required">*</span></div>
+        <div class="form-group"><div class="form-label">Показания счётчика, м³ <span class="required" id="pos-readings-req">*</span></div>
           <div style="display:flex;gap:8px;align-items:center;"><input type="number" class="form-input" id="pos-readings" placeholder="0000" inputmode="decimal" style="flex:1;"><button class="mic-inline" onclick="mvStart('pos-readings','Показания в кубометрах',true)">🎤</button></div></div>
         <div class="form-group" id="pos-class-wrap" style="display:none;"><div class="form-label">Класс счётчика</div>
           <select class="form-input form-select" id="pos-class"><option value="">— класс —</option><option value="В">В</option><option value="С">С</option></select></div>
@@ -828,7 +828,12 @@ async function posSetStampBase(){
 function posToggleReason(){ const nog=document.getElementById('pos-result').value==='Не годен'; document.getElementById('pos-reason-wrap').style.display=nog?'':'none'; }
 // «Класс счётчика» (В/С) — только у мастера ФИЛИАЛА (financeSection='branch', Астана);
 // у головного (Тараз) поля нет. Синхронно с главным ERP.
-function posApplyBranch(){ const astana=(me&&me.financeSection)==='branch'; const w=document.getElementById('pos-class-wrap'); if(w)w.style.display=astana?'':'none'; }
+function posApplyBranch(){
+  const astana=(me&&me.financeSection)==='branch';
+  const w=document.getElementById('pos-class-wrap'); if(w)w.style.display=astana?'':'none';
+  // Астана: главное поле — класс счётчика; показания НЕобязательны (прячем звёздочку).
+  const rq=document.getElementById('pos-readings-req'); if(rq)rq.style.display=astana?'none':'';
+}
 // № счётчика: по умолчанию цифровая клавиатура; кнопка переключает на буквенную и
 // обратно (единого режима «цифры + буквы» в мобильных клавиатурах нет).
 function posSerialToggleKb(){
@@ -884,7 +889,8 @@ function posDelPhoto(i){ posPhotos.splice(i,1); posRenderPhotos(); }
 async function posSave(){
   if(posBusy)return;
   const readings=getV('pos-readings'), date=getV('pos-date');
-  if(!readings){ toast('⚠️ Введите показания счётчика'); return; }
+  const astana=(me&&me.financeSection)==='branch';
+  if(!readings && !astana){ toast('⚠️ Введите показания счётчика'); return; }   // у Астаны показания необязательны
   if(!date){ toast('⚠️ Укажите дату поверки'); return; }
   posBusy=true; const btn=document.getElementById('pos-save'); btn.disabled=true; btn.textContent='Сохранение…';
   try{
