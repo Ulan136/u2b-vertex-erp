@@ -1,4 +1,5 @@
 import { ordersRepo } from '@/server/repositories/orders.repo';
+import { certsRepo } from '@/server/repositories/certs.repo';
 import { usersRepo } from '@/server/repositories/users.repo';
 import { branchesRepo } from '@/server/repositories/branches.repo';
 import { notificationsService } from '@/server/services/notifications.service';
@@ -73,8 +74,20 @@ export const ordersService = {
   async update(id: string, input: unknown) {
     if (!id) throw badRequest('id is required');
     const data = orderUpdateSchema.parse(input);
+    const before = await ordersRepo.findById(id);
     const row = await ordersRepo.update(id, data);
     if (!row) throw notFound('Order not found');
+    // Каскад на сертификаты заявки: правка ФИО/адреса/телефона в шапке заявки
+    // (мастером или менеджером) синхронизируется с уже созданными позициями —
+    // иначе в сертификатах оставались бы старые данные (нестыковка). Только реально
+    // изменённые поля, чтобы не затирать индивидуальные адреса позиций.
+    const patch: Record<string, unknown> = {};
+    if (data.clientName !== undefined && (row.clientName ?? '') !== (before?.clientName ?? '')) patch.fio = row.clientName ?? '';
+    if (data.address !== undefined && (row.address ?? '') !== (before?.address ?? '')) patch.address = row.address ?? '';
+    if (data.phone !== undefined && (row.phone ?? '') !== (before?.phone ?? '')) patch.phone = row.phone ?? null;
+    if (Object.keys(patch).length) {
+      try { await certsRepo.updateByOrder(id, patch); } catch { /* каскад best-effort */ }
+    }
     return row;
   },
 

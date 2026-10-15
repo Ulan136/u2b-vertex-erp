@@ -105,6 +105,15 @@ export const certsRepo = {
     return row;
   },
 
+  // Каскад из заявки: обновить общие поля (ФИО/адрес/телефон) у всех живых
+  // сертификатов заявки — чтобы правка шапки мастером/менеджером синхронизировалась
+  // с уже созданными позициями. Пустой patch — no-op.
+  updateByOrder: (orderId: string, patch: Record<string, unknown>, exec: Executor = db) =>
+    Object.keys(patch).length
+      ? exec.update(certificates).set({ ...(patch as Partial<CertInsert>), updatedAt: new Date() })
+          .where(and(eq(certificates.orderId, orderId), sql`${certificates.deletedAt} is null`))
+      : Promise.resolve(),
+
   // Корзина: мягкое удаление (в корзину) и восстановление.
   softDelete: (id: string, exec: Executor = db) =>
     exec.update(certificates).set({ deletedAt: new Date(), updatedAt: new Date() }).where(eq(certificates.id, id)),
