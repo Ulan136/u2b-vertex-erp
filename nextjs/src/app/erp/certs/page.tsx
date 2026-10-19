@@ -756,7 +756,7 @@ function CertsInner() {
                       {c.source === 'ТЭЦ' && c.commissionPaidAt && <span title="Комиссия выплачена" style={{ marginLeft: 4, color: '#16a34a' }}>✓💵</span>}
                     </td>
                     <td className="col-oper"><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
-                    <td className="col-pay"><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
+                    <td className="col-pay" title="Статус оплаты — только просмотр (меняется приёмом оплаты)"><Badge tone={payTone(c.payStatus)}>{c.payStatus || '—'}</Badge></td>
                     <td className="col-invoice" title={payParts(c) || 'Счёт(а) дохода по факту оплаты'}>{payCell(c)}</td>
                     <td className="erp-muted col-author" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>
                     <td className="col-actions" style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
@@ -796,7 +796,7 @@ function CertsInner() {
                       {c.source === 'ТЭЦ' && c.commissionPaidAt && <span title="Комиссия выплачена" style={{ marginLeft: 4, color: '#16a34a' }}>✓💵</span>}
                     </td>
                     <td><SSel c={c} field="operStatus" opts={OPER} tone={operTone(c.operStatus)} /></td>
-                    <td><SSel c={c} field="payStatus" opts={PAY} tone={payTone(c.payStatus)} /></td>
+                    <td title="Статус оплаты — только просмотр (меняется приёмом оплаты)"><Badge tone={payTone(c.payStatus)}>{c.payStatus || '—'}</Badge></td>
                     <td title={payParts(c) || 'Счёт(а) дохода по факту оплаты'}>{payCell(c)}</td>
                     <td><SSel c={c} field="sentStatus" opts={SENT} tone={sentTone(c.sentStatus)} /></td>
                     <td className="erp-muted" style={{ fontSize: 11 }}>{c.createdByName || '—'}</td>
