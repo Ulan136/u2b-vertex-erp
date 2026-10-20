@@ -95,6 +95,13 @@ export default auth((req) => {
     return NextResponse.redirect(new URL('/erp/branch-finance', req.nextUrl));
   }
 
+  // Главная /erp — ДАШБОРД со сводкой по финансам (касса/доходы/расходы). Его видят
+  // ТОЛЬКО Админ и Директор. Остальные роли (менеджер и др.) при заходе на корень/ERP
+  // уводятся на «Продажи», чтобы после входа не попадать на главную и не видеть финансы.
+  if (loggedIn && (pathname === '/' || pathname === '/erp') && role !== 'admin' && role !== 'director') {
+    return NextResponse.redirect(new URL('/erp/sales', req.nextUrl));
+  }
+
   // /sketch/* — архив старых макетов, доступ только Админу
   if (pathname.startsWith('/sketch/')) {
     if (!loggedIn) {
