@@ -52,10 +52,24 @@ export default function LoansPage() {
     } catch (e) { setRet({ ...ret, saving: false, err: (e as Error).message }); }
   }
 
+  // Счета сгруппированы по разделам (optgroup) — чтобы одинаковые имена (Каспи/БЦК/
+  // Наличка) в разных разделах не были вперемешку: видно, с какого именно счёта выдаём.
+  const SECTIONS = [
+    { key: 'poverka', no: 1, label: '📋 Поверка' },
+    { key: 'sale', no: 2, label: '💰 Продажа' },
+    { key: 'other', no: 3, label: '📄 Прочие операции' },
+    { key: 'branch', no: 4, label: '🏢 Филиал Астана' },
+    { key: 'branch_almaty', no: 5, label: '🏢 Филиал Алматы' },
+  ];
+  const accGroups = SECTIONS.map(s => ({ ...s, accs: accts.filter(a => (a.section || 'other') === s.key) }));
   const acctOpts = (
     <>
       <option value="">— счёт —</option>
-      {accts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
+      {accGroups.map(g => g.accs.length === 0 ? null : (
+        <optgroup key={g.key} label={`№${g.no} ${g.label}`}>
+          {g.accs.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
+        </optgroup>
+      ))}
     </>
   );
 
