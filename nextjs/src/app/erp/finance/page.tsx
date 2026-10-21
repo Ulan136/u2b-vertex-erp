@@ -96,6 +96,14 @@ export default function FinancePage() {
   const cash = visAccs.reduce((s, a) => s + (Number(a.balance) || 0), 0);
   const income = visOps.filter(isRealIncome).reduce((s, o) => s + (Number(o.amount) || 0), 0);
   const expense = visOps.filter(isRealExpense).reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  // Разбивка «Кассы» по владельцу денег: Тараз (общий: Поверка+Продажа+Прочие) и
+  // отдельно каждый филиал (Астана/Алматы) — чтобы деньги филиала не смешивались с общими.
+  const BRANCH_SECS: Record<string, string> = { branch: 'Астана', branch_almaty: 'Алматы' };
+  const cashBy = (pred: (sec: string) => boolean) =>
+    accounts.filter(a => matchAcc(a.id) && pred(a.section || 'other')).reduce((s, a) => s + (Number(a.balance) || 0), 0);
+  const cashTaraz = cashBy(sec => !BRANCH_SECS[sec]);
+  const cashAstana = cashBy(sec => sec === 'branch');
+  const cashAlmaty = cashBy(sec => sec === 'branch_almaty');
 
   async function saveOp() {
     const amt = Number(op.amount) || 0;
@@ -164,7 +172,17 @@ export default function FinancePage() {
       </Card>
 
       <div className="erp-kpi-grid" style={{ marginTop: 12 }}>
-        <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">💳</span><span className="erp-kpi-label">Касса</span></div><div className="erp-kpi-val">{fmt(cash)}</div></div>
+        <div className="erp-kpi">
+          <div className="erp-kpi-top"><span className="erp-kpi-ico">💳</span><span className="erp-kpi-label">Касса{cat === 'all' ? ' · всего' : ''}</span></div>
+          <div className="erp-kpi-val">{fmt(cash)}</div>
+          {cat === 'all' && (
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 3, fontSize: 12.5 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>🏛️ Тараз (общий)</span><b>{fmt(cashTaraz)}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#0d9488' }}><span>🏢 Филиал Астана</span><b>{fmt(cashAstana)}</b></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#0891b2' }}><span>🏢 Филиал Алматы</span><b>{fmt(cashAlmaty)}</b></div>
+            </div>
+          )}
+        </div>
         <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">📥</span><span className="erp-kpi-label">Приход за период</span></div><div className="erp-kpi-val" style={{ color: '#16a34a' }}>{fmt(income)}</div></div>
         <div className="erp-kpi"><div className="erp-kpi-top"><span className="erp-kpi-ico">📤</span><span className="erp-kpi-label">Расход за период</span></div><div className="erp-kpi-val" style={{ color: '#dc2626' }}>{fmt(expense)}</div></div>
       </div>
