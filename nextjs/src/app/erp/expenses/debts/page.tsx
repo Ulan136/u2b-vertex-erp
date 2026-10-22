@@ -15,6 +15,8 @@ const dmy = (d?: string | null) => formatDate(d) || '—';
 export default function LoansPage() {
   const { data: loans, isLoading, error, mutate } = useApi<Loan[]>('/api/v2/loans');
   const { data: fin } = useApi<{ accounts: Acct[] }>('/api/v2/finance');
+  const { data: session } = useApi<{ user?: { role?: string } }>('/api/auth/session');
+  const isAdmin = session?.user?.role === 'admin';   // суммы на счетах видит только Админ
   const accts = (fin?.accounts || []).filter(a => a.isActive !== false);
 
   // Список известных должников (для автоподсказки) — собираем из существующих долгов.
@@ -62,12 +64,22 @@ export default function LoansPage() {
     { key: 'branch_almaty', no: 5, label: '🏢 Филиал Алматы' },
   ];
   const accGroups = SECTIONS.map(s => ({ ...s, accs: accts.filter(a => (a.section || 'other') === s.key) }));
-  const acctOpts = (
+  // Список счетов. Админ видит суммы. НЕ-админ сумм не видит — вместо них подсветка:
+  // при ВЫДАЧЕ долга (checkFunds) зелёный = денег хватает на введённую сумму, красный
+  // = не хватает (выбор запрещён). При возврате подсветки нет (деньги приходят).
+  const acctOpts = (amount: number, checkFunds: boolean) => (
     <>
       <option value="">— счёт —</option>
       {accGroups.map(g => g.accs.length === 0 ? null : (
         <optgroup key={g.key} label={`№${g.no} ${g.label}`}>
-          {g.accs.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name} · {fmt(num(a.balance))}</option>)}
+          {g.accs.map(a => {
+            const bal = num(a.balance);
+            if (isAdmin) return <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name} · {fmt(bal)}</option>;
+            const active = checkFunds && amount > 0;
+            const ok = !active || bal >= amount;
+            const style = active ? { background: ok ? '#dcfce7' : '#fee2e2', color: ok ? '#166534' : '#991b1b' } : undefined;
+            return <option key={a.id} value={a.id} style={style} disabled={active && !ok}>{a.icon || '💳'} {a.name}{active ? (ok ? ' ✅' : ' ⛔ не хватает') : ''}</option>;
+          })}
         </optgroup>
       ))}
     </>
@@ -121,7 +133,7 @@ export default function LoansPage() {
           <datalist id="loan-debtors">{debtors.map(d => <option key={d} value={d} />)}</datalist>
           <div className="erp-form-row">
             <Field label="Сумма (₸)" required><MoneyInput value={give.amount} onValue={v => setGive({ ...give, amount: v })} placeholder="0" /></Field>
-            <Field label="С какого счёта выдать" required><Select value={give.accountId} onChange={e => setGive({ ...give, accountId: e.target.value })}>{acctOpts}</Select></Field>
+            <Field label="С какого счёта выдать" required><Select value={give.accountId} onChange={e => setGive({ ...give, accountId: e.target.value })}>{acctOpts(num(give.amount), true)}</Select></Field>
           </div>
           <Field label="Комментарий"><Input value={give.comment} onChange={e => setGive({ ...give, comment: e.target.value })} placeholder="за что / когда вернёт" /></Field>
           <div className="erp-muted" style={{ fontSize: 12 }}>Деньги спишутся со счёта сейчас; при возврате вернутся на выбранный счёт.</div>
@@ -136,7 +148,7 @@ export default function LoansPage() {
           <div style={{ fontSize: 13, marginBottom: 8 }}>Остаток долга: <b style={{ color: '#b45309' }}>{fmt(outstanding(ret.loan))}</b></div>
           <div className="erp-form-row">
             <Field label="Сумма возврата (₸)" required><MoneyInput value={ret.amount} onValue={v => setRet({ ...ret, amount: v })} placeholder="0" /></Field>
-            <Field label="На какой счёт вернули" required><Select value={ret.accountId} onChange={e => setRet({ ...ret, accountId: e.target.value })}>{acctOpts}</Select></Field>
+            <Field label="На какой счёт вернули" required><Select value={ret.accountId} onChange={e => setRet({ ...ret, accountId: e.target.value })}>{acctOpts(num(ret.amount), false)}</Select></Field>
           </div>
         </>)}
       </Modal>
