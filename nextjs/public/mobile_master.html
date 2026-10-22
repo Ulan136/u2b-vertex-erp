@@ -698,6 +698,7 @@ function zaRenderPositions(){
       <div class="pos-info"><div class="pos-name">${esc(c.meterType||'Прибор')}${c.serialNo?' №'+esc(c.serialNo):''}</div>
         <div class="pos-sub">${esc(c.readings||'—')} м³ · ${esc(c.waterType||'')}${c.sealType?' · '+esc(c.sealType):''}${Number(c.amount)>0?' · '+fmtSum(c.amount)+' ₸':''}${paid}</div></div>
       <div class="pos-photos">${photos}</div>
+      <button class="pos-del" onclick="zaEditPosition('${c.id}')" title="Редактировать позицию" style="color:#2563eb;">✏️</button>
       <button class="pos-del" onclick="zaDelPosition('${c.id}')" title="Удалить позицию">🗑</button>
     </div>`;
   }).join('');
@@ -861,8 +862,13 @@ function posMeterSuggest(v){
     }catch(_e){}
   },250);
 }
+let posEditId=null;   // id редактируемой позиции (сертификата); null = создание новой
+function posSetMode(edit){
+  const t=document.querySelector('#posSheet .sheet-title'); if(t)t.textContent=edit?'Редактировать позицию':'Позиция — счётчик';
+  const btn=document.getElementById('pos-save'); if(btn)btn.textContent=edit?'✅ Сохранить изменения':'✅ Готово — сохранить позицию';
+}
 function posOpen(){
-  posPhotos=[];
+  posEditId=null; posPhotos=[];
   ['pos-meter','pos-serial','pos-year','pos-readings','pos-stamp','pos-note','pos-amount','pos-reason','pos-class'].forEach(id=>setV(id,''));
   setV('pos-date',todayStr());
   document.getElementById('pos-water').value='х/в';
@@ -871,6 +877,23 @@ function posOpen(){
   posApplyBranch();
   posSerialResetKb();
   posRenderStampBtns();
+  posSetMode(false);
+  posRenderPhotos(); openSheet('posSheet');
+}
+// Редактирование существующей позиции (мастер правит данные счётчика — у него нет
+// доступа к кабинету менеджера, поэтому даёт правку прямо здесь).
+function zaEditPosition(id){
+  const c=(zaPositions||[]).find(x=>x.id===id); if(!c){ toast('⚠️ Позиция не найдена'); return; }
+  posEditId=id; posPhotos=[];
+  setV('pos-meter',c.meterType||''); setV('pos-serial',c.serialNo||''); setV('pos-year',c.yearMade||'');
+  setV('pos-readings',c.readings!=null?String(c.readings):''); setV('pos-stamp',c.stampNo||'');
+  setV('pos-note',c.note||''); setV('pos-amount',c.amount!=null?String(c.amount):''); setV('pos-reason',c.unfitReason||''); setV('pos-class',c.accuracyClass||'');
+  setV('pos-date',c.checkDate?String(c.checkDate).slice(0,10):todayStr());
+  document.getElementById('pos-water').value=c.waterType||'х/в';
+  document.getElementById('pos-seal').value=(c.sealType==='ПЛ'?'ПЛ':'СЛ');
+  document.getElementById('pos-result').value=(c.result==='Не годен'?'Не годен':'Годен'); posToggleReason();
+  posApplyBranch(); posSerialResetKb(); posRenderStampBtns();
+  posSetMode(true);
   posRenderPhotos(); openSheet('posSheet');
 }
 function posClose(){ closeSheet('posSheet'); }
@@ -894,25 +917,34 @@ async function posSave(){
   if(!date){ toast('⚠️ Укажите дату поверки'); return; }
   posBusy=true; const btn=document.getElementById('pos-save'); btn.disabled=true; btn.textContent='Сохранение…';
   try{
-    const orderId=await zaEnsureOrder();   // гарантируем заявку (создаём, если новая)
-    const payload={
-      orderId, source:'Выездная', operStatus:'Готова к КТРМ',
-      fio:getV('za-fio'), address:getV('za-addr'), phone:getV('za-phone')||null,
+    // данные счётчика (общие для создания и правки)
+    const fields={
       meterType:getV('pos-meter')||null, serialNo:getV('pos-serial')||null,
       yearMade:getV('pos-year')||null, amount:getV('pos-amount')||null,
       waterType:document.getElementById('pos-water').value,
-      readings, checkDate:date, nextCheckDate:plus5y(date),
-      stampNo:getV('pos-stamp')||null, sealType:document.getElementById('pos-seal').value, seal:true,
+      readings:readings||null, checkDate:date, nextCheckDate:plus5y(date),
+      stampNo:getV('pos-stamp')||null, sealType:document.getElementById('pos-seal').value,
       result:document.getElementById('pos-result').value, unfitReason:getV('pos-reason')||null,
       accuracyClass:getV('pos-class')||null,   // класс счётчика (В/С) — у мастера филиала (Астана)
-      note:getV('pos-note')||null, photos:posPhotos,
+      note:getV('pos-note')||null,
     };
-    const r=await fetch(CERTS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    if(r.status===401){location.href='/login?from=/master';return;}
-    if(!r.ok){ let m='HTTP '+r.status; try{const e=await r.json();m=e.error||m;}catch(_e){} throw new Error(m); }   // показать реальную причину (уник. клейма/зав.№ и др.)
-    posClose(); await zaLoadPositions(); render(); loadStampNext(); toast('✅ Позиция сохранена — «Готова к КТРМ»');   // сервер продвинул № клейма — обновим
+    if(posEditId){
+      // Правка существующей позиции — PATCH (фото не трогаем, доход/клеймо сервер пересверит).
+      const r=await fetch(CERTS_API+'/'+posEditId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(fields)});
+      if(r.status===401){location.href='/login?from=/master';return;}
+      if(!r.ok){ let m='HTTP '+r.status; try{const e=await r.json();m=e.error||m;}catch(_e){} throw new Error(m); }
+      posClose(); await zaLoadPositions(); render(); loadStampNext(); toast('✅ Изменения сохранены');
+    }else{
+      const orderId=await zaEnsureOrder();   // гарантируем заявку (создаём, если новая)
+      const payload={ orderId, source:'Выездная', operStatus:'Готова к КТРМ',
+        fio:getV('za-fio'), address:getV('za-addr'), phone:getV('za-phone')||null, seal:true, photos:posPhotos, ...fields };
+      const r=await fetch(CERTS_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      if(r.status===401){location.href='/login?from=/master';return;}
+      if(!r.ok){ let m='HTTP '+r.status; try{const e=await r.json();m=e.error||m;}catch(_e){} throw new Error(m); }   // показать реальную причину (уник. клейма/зав.№ и др.)
+      posClose(); await zaLoadPositions(); render(); loadStampNext(); toast('✅ Позиция сохранена — «Готова к КТРМ»');   // сервер продвинул № клейма — обновим
+    }
   }catch(e){ if(e.message!=='auth')toast('⚠️ '+e.message); }
-  finally{ posBusy=false; btn.disabled=false; btn.textContent='✅ Готово — сохранить позицию'; }
+  finally{ posBusy=false; btn.disabled=false; btn.textContent=posEditId?'✅ Сохранить изменения':'✅ Готово — сохранить позицию'; }
 }
 
 // ── VOICE (Web Speech API, ru-RU) — показания/клеймо/примечание/тип воды ──
