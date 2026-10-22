@@ -6,7 +6,7 @@ import { formatDate } from '@/lib/format';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow } from '@/components/ui';
 
 type Loan = { id: string; debtorName: string; amount: string | number; returned: string | number; accountId?: string | null; accountName?: string | null; comment?: string | null; createdByName?: string | null; createdAt?: string | null; closedAt?: string | null };
-type Acct = { id: string; name: string; section?: string | null; icon?: string | null; isActive?: boolean };
+type Acct = { id: string; name: string; section?: string | null; icon?: string | null; isActive?: boolean; balance?: string | number | null };
 
 const num = (v: unknown) => Number(v) || 0;
 const fmt = (n: number) => Math.round(n).toLocaleString('ru-RU') + ' ₸';
@@ -67,7 +67,7 @@ export default function LoansPage() {
       <option value="">— счёт —</option>
       {accGroups.map(g => g.accs.length === 0 ? null : (
         <optgroup key={g.key} label={`№${g.no} ${g.label}`}>
-          {g.accs.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
+          {g.accs.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name} · {fmt(num(a.balance))}</option>)}
         </optgroup>
       ))}
     </>
