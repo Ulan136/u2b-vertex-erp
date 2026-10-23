@@ -12,7 +12,7 @@ const BANKS = [
   { name: 'БЦК', cat: 'bck', icon: '🏦' },
   { name: 'Наличка', cat: 'nalichka', icon: '💵' },
 ];
-const SECTIONS = ['poverka', 'sale', 'other', 'branch'];
+const SECTIONS = ['poverka', 'sale', 'other', 'branch', 'branch_almaty'];
 
 (async () => {
   let created = 0;

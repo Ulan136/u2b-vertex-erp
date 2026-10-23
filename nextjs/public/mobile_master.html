@@ -827,10 +827,10 @@ async function posSetStampBase(){
   catch(e){ toast('⚠️ '+e.message); }
 }
 function posToggleReason(){ const nog=document.getElementById('pos-result').value==='Не годен'; document.getElementById('pos-reason-wrap').style.display=nog?'':'none'; }
-// «Класс счётчика» (В/С) — только у мастера ФИЛИАЛА (financeSection='branch', Астана);
-// у головного (Тараз) поля нет. Синхронно с главным ERP.
+// «Класс счётчика» (В/С) — только у мастера ФИЛИАЛА (financeSection начинается с 'branch':
+// 'branch'=Астана, 'branch_almaty'=Алматы); у головного (Тараз) поля нет. Синхронно с главным ERP.
 function posApplyBranch(){
-  const astana=(me&&me.financeSection)==='branch';
+  const astana=!!(me&&me.financeSection&&me.financeSection.indexOf('branch')===0);
   const w=document.getElementById('pos-class-wrap'); if(w)w.style.display=astana?'':'none';
   // Астана: главное поле — класс счётчика; показания НЕобязательны (прячем звёздочку).
   const rq=document.getElementById('pos-readings-req'); if(rq)rq.style.display=astana?'none':'';
@@ -912,8 +912,8 @@ function posDelPhoto(i){ posPhotos.splice(i,1); posRenderPhotos(); }
 async function posSave(){
   if(posBusy)return;
   const readings=getV('pos-readings'), date=getV('pos-date');
-  const astana=(me&&me.financeSection)==='branch';
-  if(!readings && !astana){ toast('⚠️ Введите показания счётчика'); return; }   // у Астаны показания необязательны
+  const astana=!!(me&&me.financeSection&&me.financeSection.indexOf('branch')===0);   // филиал (Астана/Алматы)
+  if(!readings && !astana){ toast('⚠️ Введите показания счётчика'); return; }   // у филиала показания необязательны
   if(!date){ toast('⚠️ Укажите дату поверки'); return; }
   posBusy=true; const btn=document.getElementById('pos-save'); btn.disabled=true; btn.textContent='Сохранение…';
   try{
