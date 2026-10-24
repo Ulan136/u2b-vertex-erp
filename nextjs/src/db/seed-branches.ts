@@ -10,7 +10,7 @@ import { neon } from '@neondatabase/serverless';
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL not set');
 const sql = neon(process.env.DATABASE_URL);
 
-const ASTANA_EMAILS = ['b.galym@vertex.kz', 'master2@vertex.kz'];
+const ASTANA_EMAILS = ['b.galym@vertex.kz', 'master2@vertex.kz', 'astana@vertex.kz'];
 const ALMATY_EMAILS = ['almaty@vertex.kz', 'master-almaty@vertex.kz'];
 
 (async () => {
@@ -52,10 +52,11 @@ const ALMATY_EMAILS = ['almaty@vertex.kz', 'master-almaty@vertex.kz'];
                        where email = any(${ALMATY_EMAILS}) returning email`;
   console.log('→ Алматы:', (al as { email: string }[]).map(r => r.email).join(', ') || '(никого не нашли)');
 
-  const scoped = [...ASTANA_EMAILS, ...ALMATY_EMAILS];
+  // ВНИМАНИЕ: головной назначаем ТОЛЬКО тем, у кого филиал ещё НЕ задан (branch_id IS NULL).
+  // Не перетираем ручные назначения из Настроек (иначе менеджер филиала слетает на Тараз).
   const h = await sql`update users set branch_id = ${head.id}
-                      where email <> all(${scoped}) returning email`;
-  console.log(`→ Тараз (головной): ${h.length} сотрудников`);
+                      where branch_id is null returning email`;
+  console.log(`→ Тараз (головной, был пустым): ${h.length} сотрудников`);
 
   console.log('Done.');
 })().catch(err => { console.error(err); process.exit(1); });
