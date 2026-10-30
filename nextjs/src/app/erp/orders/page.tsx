@@ -12,7 +12,7 @@ type Pos = { address?: string; qty: number; water: string };
 type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; positions?: Pos[] | null; meetingDate?: string | null; meetingTime?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null; createdByName?: string | null; createdAt?: string | null; lat?: number | null; lng?: number | null };
 type Branch = { id: string; name: string; isHead?: boolean };
 type Acct = { id: string; name: string; section?: string | null; icon?: string | null; isActive?: boolean };
-type PayState = { order: Order; total: number; rows: Array<{ accountId: string; amount: string }>; saving: boolean; err: string };
+type PayState = { order: Order; total: number; rows: Array<{ accountId: string; amount: string }>; saving: boolean; err: string; already: number };
 const num = (v: unknown) => Number(v) || 0;
 const fmtSum = (n: number) => Math.round(n).toLocaleString('ru-RU') + ' ₸';
 // Подпись филиала «— Головной / — Филиал» выводим из флага isHead (не из имени).
@@ -157,19 +157,27 @@ function OrdersInner() {
   // ── Приём оплаты выездной заявки (менеджером) — по позициям заявки, приход на «Поверка» ──
   async function openPay(o: Order) {
     try {
-      const certs: Array<{ amount?: string | number | null; payStatus?: string | null }> =
+      const certs: Array<{ id?: string; amount?: string | number | null; payStatus?: string | null }> =
         await fetch(`/api/v2/certs?orderId=${o.id}`, { headers: { accept: 'application/json' }, cache: 'no-store' }).then(r => r.json());
       if (!Array.isArray(certs) || !certs.length) { toast('⚠️ У заявки нет позиций — мастер ещё не завёл счётчики'); return; }
       const total = Math.round(certs.reduce((s, c) => s + num(c.amount), 0) * 100) / 100;
       if (total <= 0) { toast('⚠️ У позиций не указана цена'); return; }
-      if (certs.every(c => c.payStatus === 'Оплачено')) { toast('✅ Заявка уже оплачена'); return; }
-      setPay({ order: o, total, rows: [{ accountId: '', amount: String(total) }], saving: false, err: '' });
+      // Уже принятый живой доход по заявке (не статус позиций — он дырявый). >0 → заявка
+      // уже оплачена: модалка покажет предупреждение о возможной переплате и выбор.
+      let already = 0;
+      if (certs[0].id) {
+        try {
+          const info = await fetch(`/api/v2/certs/${certs[0].id}/pay-account`, { headers: { accept: 'application/json' }, cache: 'no-store' }).then(r => r.json());
+          already = Math.round((Number(info?.total) || 0) * 100) / 100;
+        } catch { /* нет данных об оплате — считаем 0 */ }
+      }
+      setPay({ order: o, total, rows: [{ accountId: '', amount: String(total) }], saving: false, err: '', already });
     } catch { toast('⚠️ Не удалось загрузить позиции заявки'); }
   }
   function setPayRow(i: number, patch: Partial<{ accountId: string; amount: string }>) {
     setPay(p => p && { ...p, rows: p.rows.map((r, j) => j === i ? { ...r, ...patch } : r) });
   }
-  async function submitPay() {
+  async function submitPay(force = false) {
     if (!pay) return;
     const payments = pay.rows.filter(r => r.accountId && num(r.amount) > 0).map(r => ({ accountId: r.accountId, amount: num(r.amount) }));
     if (!payments.length) { setPay(p => p && { ...p, err: 'Укажите счёт и сумму' }); return; }
@@ -177,7 +185,8 @@ function OrdersInner() {
     if (Math.abs(sum - pay.total) > 0.01) { setPay(p => p && { ...p, err: `Внесено ${fmtSum(sum)} ≠ итог ${fmtSum(pay.total)}` }); return; }
     setPay(p => p && { ...p, saving: true, err: '' });
     try {
-      await apiSend(`/api/v2/orders/${pay.order.id}/payment`, 'POST', { payments });
+      // force=true — менеджер подтвердил повторный приём поверх уже принятого (модалка переплаты).
+      await apiSend(`/api/v2/orders/${pay.order.id}/payment`, 'POST', { payments, ...(force ? { force: true } : {}) });
       setPay(null); await mutate(); toast('✅ Оплата принята — приход на «Поверка»');
     } catch (e) { setPay(p => p && { ...p, saving: false, err: (e as Error).message }); }
   }
@@ -270,8 +279,11 @@ function OrdersInner() {
           должны его покрыть; приход идёт на счёт(а) раздела «Поверка». */}
       <Modal open={!!pay} onClose={() => { if (!pay?.saving) setPay(null); }} width={480}
         title={<span>💵 Приём оплаты · заявка {pay?.order.orderNo || ''}</span>}
-        footer={<>
-          <Button onClick={submitPay} disabled={pay?.saving}>{pay?.saving ? 'Приём…' : '✅ Принять оплату'}</Button>
+        footer={(pay?.already || 0) > 0.01 ? <>
+          <Button onClick={() => submitPay(true)} disabled={pay?.saving}>{pay?.saving ? 'Приём…' : '⚠️ Провести платёж'}</Button>
+          <Button variant="outline" onClick={() => setPay(null)} disabled={pay?.saving}>Отменить платёж</Button>
+        </> : <>
+          <Button onClick={() => submitPay()} disabled={pay?.saving}>{pay?.saving ? 'Приём…' : '✅ Принять оплату'}</Button>
           <Button variant="outline" onClick={() => setPay(null)} disabled={pay?.saving}>Отмена</Button>
         </>}>
         {pay && (() => {
@@ -280,6 +292,11 @@ function OrdersInner() {
           return (
             <div>
               {pay.err && <div className="erp-form-err">{pay.err}</div>}
+              {pay.already > 0.01 && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 8, padding: '10px 12px', marginBottom: 10, fontSize: 13, lineHeight: 1.45 }}>
+                  ⚠️ <b>По этой заявке уже принято {fmtSum(pay.already)}.</b> Повторный приём задвоит доход — возможна переплата. Нажмите «Отменить платёж», если оплата уже проведена, или «Провести платёж», чтобы всё равно принять поверх.
+                </div>
+              )}
               <div style={{ fontSize: 14, marginBottom: 8 }}>Клиент: <b>{pay.order.clientName || '—'}</b> · итог по позициям: <b>{fmtSum(pay.total)}</b></div>
               {payAccts.length === 0 && <div className="erp-form-err">Нет счетов раздела «Поверка» — заведите счёт в Финансах.</div>}
               {pay.rows.map((r, i) => (

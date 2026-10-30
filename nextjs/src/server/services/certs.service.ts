@@ -353,11 +353,18 @@ export const certsService = {
   // одной транзакцией. Итог = сумма цен позиций; оплаты должны его покрыть.
   async payOrder(orderId: string, input: unknown, actor?: { id: string; name?: string } | null) {
     if (!orderId) throw badRequest('orderId is required');
-    const { payments } = poverkaPaymentSchema.parse(input);
+    const { payments, force } = poverkaPaymentSchema.parse(input);
     const certs = await certsRepo.list({ orderId, archived: false });
     if (!certs.length) throw badRequest('В заявке нет позиций для оплаты');
-    // Уже оплачено (все позиции «Оплачено») → повторный приём задвоил бы доход. Стоп.
-    if (certs.every(c => c.payStatus === 'Оплачено')) throw badRequest('Заявка уже оплачена');
+    // Защита от двойной оплаты по ФАКТУ дохода, а не по статусу позиций: если по
+    // заявке уже есть живой приход (не сторнированный), повторный приём задвоил бы
+    // доход — возможна переплата. Статус «Оплачено» дырявый (добавленная после
+    // оплаты позиция его сбрасывает). Без force — стоп; фронт показывает модалку выбора.
+    if (!force) {
+      const live = (await financeRepo.findByOrder(orderId)).filter(o => o.opType === 'Приход' && !o.reversedAt && !o.reverses);
+      const already = live.reduce((s, o) => s + (Number(o.amount) || 0), 0);
+      if (already > 0.01) throw badRequest(`Заявка уже оплачена (${m2(already)}). Повторный приём задвоит доход — подтвердите «Провести платёж».`);
+    }
     const total = certs.reduce((s, c) => s + Number(c.amount || 0), 0);
     if (total <= 0) throw badRequest('У позиций не указана цена — заполните «Цена» в позициях');
     const paid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
