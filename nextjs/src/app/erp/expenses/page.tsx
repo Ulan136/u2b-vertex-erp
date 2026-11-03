@@ -6,6 +6,7 @@ import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow, DateRange } from '@/components/ui';
 import { useCols, ColumnMenu } from '@/components/erp/ColumnMenu';
 import { useRowFocus } from '@/lib/useRowFocus';
+import { BRANCHES, branchOfSection } from '@/lib/branches';
 
 // Колонки журнала расходов для попапа «Колонки» (№/Сумма/Действия всегда видны).
 const EXPENSE_COLS = [
@@ -51,7 +52,7 @@ export default function ExpensesPage() {
   const respName = session?.user?.name || '—';
   const cols = useCols('expenses', EXPENSE_COLS);
 
-  const accounts = fin?.accounts || [];
+  const accounts = React.useMemo(() => fin?.accounts || [], [fin]);
   const catList = cats || [];
   // Список расходов: только действующие Расходы. Исключаем сторно-строки и
   // ОТМЕНЁННЫЕ оригиналы (reversedAt) — после «удаления» (сторно) расход уходит.
@@ -64,6 +65,10 @@ export default function ExpensesPage() {
   const catOf = (o: Op) => o.expenseCat || (o.source === 'Зарплата' ? 'Зарплата' : (o.name || '').split(':')[0].trim() || 'Прочие');
   // Сумма расходов по каждой категории (для дерева слева — «какая категория сколько»).
   const catTotals = React.useMemo(() => { const m: Record<string, number> = {}; expenses.forEach(o => { const k = catOf(o); m[k] = (m[k] || 0) + num(o.amount); }); return m; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [expenses]);
+  // Филиал расхода = раздел счёта оплаты (правило одно на все экраны, см. lib/branches).
+  const branchOf = React.useCallback((o: Op) => branchOfSection(accounts.find(a => a.id === o.accountId)?.section), [accounts]);
+  // Сумма расходов по каждому филиалу (для нижнего блока дерева).
+  const branchTotals = React.useMemo(() => { const m: Record<string, number> = {}; expenses.forEach(o => { const k = branchOf(o); m[k] = (m[k] || 0) + num(o.amount); }); return m; }, [expenses, branchOf]);
   const subOf = (o: Op) => o.subCategory || '';
   const statusOf = (o: Op) => o.status || 'Оплачен';
   const accName = (o: Op) => o.accountName || accounts.find(a => a.id === o.accountId)?.name || '—';
@@ -75,6 +80,7 @@ export default function ExpensesPage() {
   const [fFrom, setFFrom] = React.useState('');
   const [fTo, setFTo] = React.useState('');
   const [pick, setPick] = React.useState<{ cat: string; sub: string }>({ cat: '', sub: '' });
+  const [fBranch, setFBranch] = React.useState('');   // '' = все филиалы
 
   const list = expenses.filter(o => {
     if (q.trim() && !`${o.name || ''} ${o.supplier || ''} ${o.comment || ''}`.toLowerCase().includes(q.toLowerCase())) return false;
@@ -85,6 +91,7 @@ export default function ExpensesPage() {
     if (fTo && d > fTo) return false;
     if (pick.cat && catOf(o) !== pick.cat) return false;
     if (pick.sub && subOf(o) !== pick.sub) return false;
+    if (fBranch && branchOf(o) !== fBranch) return false;
     return true;
   });
   const listSum = list.reduce((s, o) => s + num(o.amount), 0);
@@ -195,6 +202,52 @@ export default function ExpensesPage() {
                 {pick.cat === c.name && (c.subs || []).map(s => (
                   <div key={s.id} className={`rsh-tree-sub${pick.sub === s.name ? ' on' : ''}`} onClick={() => setPick({ cat: c.name, sub: pick.sub === s.name ? '' : s.name })}>└ {s.name}</div>
                 ))}
+              </div>
+            );
+          })}
+
+          {/* Категории, которые проставлены у операций, но не заведены в справочнике
+              («Филиал», «Комиссия клиенту»). Без этих строк дерево не сходилось с
+              «Все расходы»: суммы попадали в общий итог, но своей строки не имели —
+              их нельзя было ни увидеть, ни отфильтровать. */}
+          {Object.keys(catTotals)
+            .filter(k => !catList.some(c => c.name === k))
+            .sort((a, b) => (catTotals[b] || 0) - (catTotals[a] || 0))
+            .map(k => {
+              const sum = catTotals[k] || 0;
+              const n = expenses.filter(o => catOf(o) === k).length;
+              return (
+                <div
+                  key={`orphan-${k}`}
+                  className={`rsh-tree-item${pick.cat === k && !pick.sub ? ' on' : ''}`}
+                  onClick={() => setPick({ cat: pick.cat === k ? '' : k, sub: '' })}
+                  title={`${n} операц. · категория не заведена в справочнике`}
+                >
+                  <span style={{ fontStyle: 'italic' }}>🏷️ {k}</span>
+                  <b style={{ color: sum ? '#dc2626' : '#94a3b8' }}>{fmt(sum)}</b>
+                </div>
+              );
+            })}
+
+          {/* Расходы по филиалам — постоянный блок под категориями. Привязка по
+              разделу счёта оплаты; клик фильтрует журнал справа, как и категории. */}
+          <div className="rsh-tree-head" style={{ marginTop: 14 }}><span>Филиалы</span></div>
+          <div className={`rsh-tree-item${!fBranch ? ' on' : ''}`} onClick={() => setFBranch('')}>
+            <span>🗺️ Все филиалы</span>
+            <b style={{ color: '#dc2626' }}>{fmt(expenses.reduce((s, o) => s + num(o.amount), 0))}</b>
+          </div>
+          {BRANCHES.map(b => {
+            const sum = branchTotals[b.key] || 0;
+            const n = expenses.filter(o => branchOf(o) === b.key).length;
+            return (
+              <div
+                key={b.key}
+                className={`rsh-tree-item${fBranch === b.key ? ' on' : ''}`}
+                onClick={() => setFBranch(fBranch === b.key ? '' : b.key)}
+                title={`${n} операц.`}
+              >
+                <span>{b.icon} {b.label}</span>
+                <b style={{ color: sum ? '#dc2626' : '#94a3b8' }}>{fmt(sum)}</b>
               </div>
             );
           })}

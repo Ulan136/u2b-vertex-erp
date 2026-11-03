@@ -3,8 +3,10 @@ import * as React from 'react';
 import { useApi } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { Card, PageTitle, Input, Button, EmptyRow } from '@/components/ui';
+import { BRANCHES, branchOfSection, branchLabel } from '@/lib/branches';
 
-type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountName?: string | null; source?: string | null; expenseCat?: string | null; subCategory?: string | null; createdByName?: string | null; reverses?: string | null; reversedAt?: string | null };
+type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountId: string; accountName?: string | null; source?: string | null; expenseCat?: string | null; subCategory?: string | null; createdByName?: string | null; reverses?: string | null; reversedAt?: string | null };
+type Acct = { id: string; name: string; section?: string | null };
 const num = (v: unknown) => Number(v) || 0;
 const fmt = (n: number) => Math.round(n).toLocaleString('ru-RU') + ' ₸';
 const monthStart = () => new Date().toISOString().slice(0, 8) + '01';
@@ -26,8 +28,10 @@ export default function ExpenseAnalyticsPage() {
   const [to, setTo] = React.useState(today());
   const [q, setQ] = React.useState('');
   const [emp, setEmp] = React.useState('');   // выбранный сотрудник (клик по строке) → детализация по дням
+  const [br, setBr] = React.useState('');     // выбранный филиал (клик по строке) → детализация по категориям
   const qs = new URLSearchParams(); if (from) qs.set('from', from); if (to) qs.set('to', to);
-  const { data, error, isLoading } = useApi<{ operations: Op[] }>('/api/v2/finance?' + qs);
+  const { data, error, isLoading } = useApi<{ accounts: Acct[]; operations: Op[] }>('/api/v2/finance?' + qs);
+  const accounts = React.useMemo(() => data?.accounts || [], [data]);
 
   // Расходы за период: только Расход, без сторно/отменённых. Закуп (оборот) исключаем —
   // это не расход фирмы (см. экран «Расходы»).
@@ -47,6 +51,19 @@ export default function ExpenseAnalyticsPage() {
   const byAccount = groupSum(expenses, o => o.accountName || '—');
   const byDay = groupSum(expenses, o => (o.opDate || '').slice(0, 10)).sort((a, b) => b.k.localeCompare(a.k));
   const maxEmp = Math.max(1, ...byEmployee.map(x => x.sum));
+
+  // Филиал операции — по разделу её счёта (общее правило из lib/branches).
+  const branchOf = React.useCallback((o: Op) => branchOfSection(accounts.find(a => a.id === o.accountId)?.section), [accounts]);
+  // Показываем все филиалы, включая пустые: «ноль за период» — тоже результат.
+  const byBranch = React.useMemo(() => {
+    const m: Record<string, { sum: number; n: number }> = {};
+    BRANCHES.forEach(b => { m[b.key] = { sum: 0, n: 0 }; });
+    expenses.forEach(o => { const k = branchOf(o); m[k].sum += num(o.amount); m[k].n++; });
+    return BRANCHES.map(b => ({ k: branchLabel(b.key, true), key: b.key, ...m[b.key] })).sort((a, b) => b.sum - a.sum);
+  }, [expenses, branchOf]);
+  // Детализация выбранного филиала — по категориям расхода.
+  const brCats = React.useMemo(() => br ? groupSum(expenses.filter(o => branchOf(o) === br), catOf) : [], [expenses, br, branchOf]);
+  const brTotal = brCats.reduce((s, c) => s + c.sum, 0);
 
   // Детализация выбранного сотрудника — по дням (за какие дни сколько).
   const empDays = React.useMemo(() => emp ? groupSum(expenses.filter(o => authorOf(o) === emp), o => (o.opDate || '').slice(0, 10)).sort((a, b) => b.k.localeCompare(a.k)) : [], [expenses, emp]);
@@ -121,7 +138,45 @@ export default function ExpenseAnalyticsPage() {
               )}
             </Card>
 
+            <Card style={{ marginTop: 12 }}>
+              <h3 style={{ margin: '0 0 4px' }}>🏙️ По филиалам — где тратят</h3>
+              <div className="erp-muted" style={{ fontSize: 12, marginBottom: 10 }}>
+                Филиал определяется разделом счёта оплаты. Сумма по филиалам всегда равна общему итогу — {fmt(total)}.
+              </div>
+              {byBranch.map(x => {
+                const maxBr = Math.max(1, ...byBranch.map(b => b.sum));
+                return (
+                  <div key={x.key} onClick={() => setBr(br === x.key ? '' : x.key)} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0', fontSize: 13, cursor: 'pointer', background: br === x.key ? '#eff6ff' : undefined, borderRadius: 6, padding: '2px 4px' }} title="Нажмите — детализация по категориям">
+                    <span style={{ width: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{br === x.key ? '▾ ' : '▸ '}{x.k}</span>
+                    <span style={{ flex: 1, background: '#f1f5f9', borderRadius: 4, height: 14 }}><span style={{ display: 'block', height: '100%', width: `${(x.sum / maxBr) * 100}%`, background: '#0f766e', borderRadius: 4 }} /></span>
+                    <span className="erp-muted" style={{ width: 40, textAlign: 'right', fontSize: 11 }}>{x.n} оп.</span>
+                    <span style={{ width: 120, textAlign: 'right', fontWeight: 700 }}>{fmt(x.sum)}</span>
+                    <span style={{ width: 42, textAlign: 'right' }} className="erp-muted">{total ? Math.round((x.sum / total) * 100) : 0}%</span>
+                  </div>
+                );
+              })}
+              {br && (
+                <div style={{ marginTop: 10, borderTop: '1px dashed var(--erp-line)', paddingTop: 10 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>🗂 {branchLabel(br)} · по категориям · итого {fmt(brTotal)}</div>
+                  {brCats.length === 0 ? <div className="erp-muted">Нет расходов за период.</div> : (
+                    <table className="erp-table" style={{ fontSize: 13 }}>
+                      <thead><tr><th>Категория</th><th style={{ textAlign: 'right' }}>Операций</th><th style={{ textAlign: 'right' }}>Сумма</th><th style={{ textAlign: 'right' }}>%</th></tr></thead>
+                      <tbody>{brCats.map(c => (
+                        <tr key={c.k}>
+                          <td className="erp-td-main">{c.k}</td>
+                          <td style={{ textAlign: 'right' }}>{c.n}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(c.sum)}</td>
+                          <td style={{ textAlign: 'right' }} className="erp-muted">{brTotal ? Math.round((c.sum / brTotal) * 100) : 0}%</td>
+                        </tr>
+                      ))}</tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+            </Card>
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 12, marginTop: 12 }}>
+              <Table title="🏙️ По филиалам" rows={byBranch} onRow={k => { const b = BRANCHES.find(x => branchLabel(x.key, true) === k); setBr(b && br !== b.key ? b.key : ''); }} activeKey={branchLabel(br, true)} />
               <Table title="👥 По сотрудникам" rows={byEmployee} onRow={k => setEmp(emp === k ? '' : k)} activeKey={emp} />
               <Table title="📅 По дням" rows={byDay} dateKey />
               <Table title="🗂 По категориям" rows={byCategory} />
