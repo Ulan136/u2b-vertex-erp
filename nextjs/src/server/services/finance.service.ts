@@ -80,6 +80,12 @@ async function reverseOperation(id: string, actorId?: string | null, exec?: Exec
     };
     if (orig.accountName) insert.accountName = orig.accountName;
     if (orig.source) insert.source = orig.source;
+    // Сторно наследует привязку к заявке/сертификату. Без неё отмена «отрывается»
+    // от документа: в истории заявки виден приход, но не его отмена, а оператор в
+    // общем списке финансов не может отличить две одинаковые строки разных заявок.
+    // На колонку «Счёт» это не влияет — payAccounts считает только Приход без reverses.
+    if (orig.orderId) insert.orderId = orig.orderId;
+    if (orig.certId) insert.certId = orig.certId;
     const rev = await insertOperation(insert, invType, orig.amount, orig.accountId, null, e);
     await financeRepo.markReversed(orig.id, e);
     // Отмена погашения долга закупа (source='Закуп'): вернуть закуп в «В долг» —

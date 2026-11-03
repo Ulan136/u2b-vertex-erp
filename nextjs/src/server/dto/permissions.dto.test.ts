@@ -75,7 +75,9 @@ test('visibleScreenKeys: a denied screen is dropped from the menu', () => {
 });
 test('visibleScreenKeys: филиал видит только свои экраны', () => {
   const vis = visibleScreenKeys('branch', []);
-  assert.deepEqual([...vis].sort(), ['branch_finance', 'orders_field', 'poverka_field'].sort());
+  // database — «База данных» филиала (сроки/архивы/авто-заказы/фотоотчёты);
+  // сервер скоупит записи по branchId, так что чужого филиал не увидит.
+  assert.deepEqual([...vis].sort(), ['branch_finance', 'database', 'orders_field', 'poverka_field'].sort());
 });
 
 // ── upsert validation ────────────────────────────────────────
