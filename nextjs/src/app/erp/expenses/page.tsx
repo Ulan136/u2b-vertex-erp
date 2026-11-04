@@ -7,6 +7,7 @@ import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select
 import { useCols, ColumnMenu } from '@/components/erp/ColumnMenu';
 import { useRowFocus } from '@/lib/useRowFocus';
 import { BRANCHES, branchOfSection } from '@/lib/branches';
+import { accountLabel, canSeeBranchSpend } from '@/lib/money-visibility';
 
 // Колонки журнала расходов для попапа «Колонки» (№/Сумма/Действия всегда видны).
 const EXPENSE_COLS = [
@@ -50,6 +51,9 @@ export default function ExpensesPage() {
   const { data: orders } = useApi<Order[]>('/api/v2/orders');
   const { data: session } = useApi<{ user?: { name?: string; role?: string } }>('/api/auth/session');
   const respName = session?.user?.name || '—';
+  const role = session?.user?.role || '';
+  // Расходы филиалов не показываем менеджерам головного офиса.
+  const showBranches = canSeeBranchSpend(role);
   const cols = useCols('expenses', EXPENSE_COLS);
 
   const accounts = React.useMemo(() => fin?.accounts || [], [fin]);
@@ -229,28 +233,31 @@ export default function ExpensesPage() {
               );
             })}
 
-          {/* Расходы по филиалам — постоянный блок под категориями. Привязка по
-              разделу счёта оплаты; клик фильтрует журнал справа, как и категории. */}
-          <div className="rsh-tree-head" style={{ marginTop: 14 }}><span>Филиалы</span></div>
-          <div className={`rsh-tree-item${!fBranch ? ' on' : ''}`} onClick={() => setFBranch('')}>
-            <span>🗺️ Все филиалы</span>
-            <b style={{ color: '#dc2626' }}>{fmt(expenses.reduce((s, o) => s + num(o.amount), 0))}</b>
-          </div>
-          {BRANCHES.map(b => {
-            const sum = branchTotals[b.key] || 0;
-            const n = expenses.filter(o => branchOf(o) === b.key).length;
-            return (
-              <div
-                key={b.key}
-                className={`rsh-tree-item${fBranch === b.key ? ' on' : ''}`}
-                onClick={() => setFBranch(fBranch === b.key ? '' : b.key)}
-                title={`${n} операц.`}
-              >
-                <span>{b.icon} {b.label}</span>
-                <b style={{ color: sum ? '#dc2626' : '#94a3b8' }}>{fmt(sum)}</b>
-              </div>
-            );
-          })}
+          {/* Расходы по филиалам — привязка по разделу счёта оплаты; клик фильтрует
+              журнал справа, как и категории. Блок виден НЕ ВСЕМ: менеджер головного
+              офиса не должен видеть, сколько тратят филиалы. */}
+          {showBranches && (<>
+            <div className="rsh-tree-head" style={{ marginTop: 14 }}><span>Филиалы</span></div>
+            <div className={`rsh-tree-item${!fBranch ? ' on' : ''}`} onClick={() => setFBranch('')}>
+              <span>🗺️ Все филиалы</span>
+              <b style={{ color: '#dc2626' }}>{fmt(expenses.reduce((s, o) => s + num(o.amount), 0))}</b>
+            </div>
+            {BRANCHES.map(b => {
+              const sum = branchTotals[b.key] || 0;
+              const n = expenses.filter(o => branchOf(o) === b.key).length;
+              return (
+                <div
+                  key={b.key}
+                  className={`rsh-tree-item${fBranch === b.key ? ' on' : ''}`}
+                  onClick={() => setFBranch(fBranch === b.key ? '' : b.key)}
+                  title={`${n} операц.`}
+                >
+                  <span>{b.icon} {b.label}</span>
+                  <b style={{ color: sum ? '#dc2626' : '#94a3b8' }}>{fmt(sum)}</b>
+                </div>
+              );
+            })}
+          </>)}
         </Card>
 
         {/* Правая часть */}
@@ -334,7 +341,7 @@ export default function ExpensesPage() {
                 <option value="">— выберите счёт —</option>
                 {accGroups.map(g => g.accs.length === 0 ? null : (
                   <optgroup key={g.key} label={`№${g.no} ${g.label}`}>
-                    {g.accs.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name} · {fmt(a.balance ?? 0)}</option>)}
+                    {g.accs.map(a => <option key={a.id} value={a.id}>{accountLabel({ icon: a.icon || '💳', name: a.name, balance: a.balance }, role, fmt)}</option>)}
                   </optgroup>
                 ))}
               </Select>

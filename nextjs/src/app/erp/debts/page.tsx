@@ -5,6 +5,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import Link from 'next/link';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow, DateRange } from '@/components/ui';
+import { accountLabel } from '@/lib/money-visibility';
 import { purchaseDebts, pendingReceivables, type MoveLite, type SaleLite, type CertLite, type OpLite } from '@/lib/pending';
 
 type Debt = { id: string; type: string; amount: string | number; paidAmount: string | number; status: string; clientName?: string | null; counterpartyName?: string | null; accountId?: string | null; accountName?: string | null; dueDate?: string | null; comment?: string | null; createdByName?: string | null; categoryId?: string | null; categoryName?: string | null; categoryIcon?: string | null };
@@ -96,7 +97,9 @@ export default function DebtsPage() {
   const [openId, setOpenId] = React.useState<string | null>(null);
   const { data: payments } = useApi<Payment[]>(openId ? `/api/v2/debts/${openId}/payments` : null);
   const accName = (id?: string | null) => accounts.find(a => a.id === id)?.name || '—';
-  const accLabel = (a: Acct) => `${a.icon ? a.icon + ' ' : ''}${a.name} · ${fmt(a.balance || 0)}`;
+  // Остатки на счетах видит только Админ (общее правило, lib/money-visibility).
+  const { data: dSession } = useApi<{ user?: { role?: string } }>('/api/auth/session');
+  const accLabel = (a: Acct) => accountLabel(a, dSession?.user?.role, fmt);
 
   // ── модалка нового долга ──
   const [modal, setModal] = React.useState(false);

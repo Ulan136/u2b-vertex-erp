@@ -5,6 +5,7 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, MoneyInput, Select, EmptyRow } from '@/components/ui';
 import { purchaseDebts, paidByDebtKey, paymentsAsOps, type MoveLite, type PurchasePayment } from '@/lib/pending';
+import { accountLabel } from '@/lib/money-visibility';
 
 type Movement = { id: string; skuCode?: string | null; productName?: string | null; qty: number; price?: string | number; totalSum?: string | number; supplier?: string | null; docNo?: string | null; author?: string | null; moveDate?: string | null; comment?: string | null; financeGroup?: string | null; purchaseGroup?: string | null; reversedAt?: string | null };
 type Product = { id: string; skuCode: string; name: string; price: string | number; costPrice?: string | number | null; currentStock: number };
@@ -21,6 +22,9 @@ const emptyItem = (): Item => ({ mode: 'existing', productId: '', newSku: '', ne
 const emptyForm = () => ({ open: false, items: [emptyItem()], supplier: '', docNo: '', date: today(), payMode: 'pay' as 'pay' | 'debt', payments: [{ accountId: '', amount: '' }] as Pay[], err: '', saving: false });
 
 export default function PurchasesPage() {
+  // Остатки на счетах видит только Админ (общее правило, lib/money-visibility).
+  const { data: pSession } = useApi<{ user?: { role?: string } }>('/api/auth/session');
+  const pRole = pSession?.user?.role;
   const { data: buys, error, isLoading, mutate } = useApi<Movement[]>('/api/v2/products/movements?type=IN&limit=200');
   const { data: products, mutate: mutateProducts } = useApi<Product[]>('/api/v2/products');
   const { data: fin } = useApi<{ accounts: Acct[]; purchasePayments?: PurchasePayment[] }>('/api/v2/finance');
@@ -257,7 +261,7 @@ export default function PurchasesPage() {
                   <option value="">— выберите счёт —</option>
                   {accGroups.map(g => g.accs.length === 0 ? null : (
                     <optgroup key={g.key} label={`№${g.no} ${g.label}`}>
-                      {g.accs.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name} · {fmt(a.balance ?? 0)}</option>)}
+                      {g.accs.map(a => <option key={a.id} value={a.id}>{accountLabel({ icon: a.icon || '💳', name: a.name, balance: a.balance }, pRole, fmt)}</option>)}
                     </optgroup>
                   ))}
                 </Select>
@@ -310,7 +314,7 @@ export default function PurchasesPage() {
                 <option value="">— выберите счёт —</option>
                 {accGroups.map(g => g.accs.length === 0 ? null : (
                   <optgroup key={g.key} label={`№${g.no} ${g.label}`}>
-                    {g.accs.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name} · {fmt(a.balance ?? 0)}</option>)}
+                    {g.accs.map(a => <option key={a.id} value={a.id}>{accountLabel({ icon: a.icon || '💳', name: a.name, balance: a.balance }, pRole, fmt)}</option>)}
                   </optgroup>
                 ))}
               </Select>

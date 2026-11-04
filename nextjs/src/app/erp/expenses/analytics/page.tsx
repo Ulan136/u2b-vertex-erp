@@ -4,6 +4,7 @@ import { useApi } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { Card, PageTitle, Input, Button, EmptyRow } from '@/components/ui';
 import { BRANCHES, branchOfSection, branchLabel } from '@/lib/branches';
+import { canSeeBranchSpend } from '@/lib/money-visibility';
 
 type Op = { id: string; opType: string; amount: string | number; opDate?: string | null; name?: string | null; accountId: string; accountName?: string | null; source?: string | null; expenseCat?: string | null; subCategory?: string | null; createdByName?: string | null; reverses?: string | null; reversedAt?: string | null };
 type Acct = { id: string; name: string; section?: string | null };
@@ -32,6 +33,9 @@ export default function ExpenseAnalyticsPage() {
   const qs = new URLSearchParams(); if (from) qs.set('from', from); if (to) qs.set('to', to);
   const { data, error, isLoading } = useApi<{ accounts: Acct[]; operations: Op[] }>('/api/v2/finance?' + qs);
   const accounts = React.useMemo(() => data?.accounts || [], [data]);
+  const { data: session } = useApi<{ user?: { role?: string } }>('/api/auth/session');
+  // Расходы филиалов не показываем менеджерам головного офиса.
+  const showBranches = canSeeBranchSpend(session?.user?.role);
 
   // Расходы за период: только Расход, без сторно/отменённых. Закуп (оборот) исключаем —
   // это не расход фирмы (см. экран «Расходы»).
@@ -138,7 +142,7 @@ export default function ExpenseAnalyticsPage() {
               )}
             </Card>
 
-            <Card style={{ marginTop: 12 }}>
+            {showBranches && <Card style={{ marginTop: 12 }}>
               <h3 style={{ margin: '0 0 4px' }}>🏙️ По филиалам — где тратят</h3>
               <div className="erp-muted" style={{ fontSize: 12, marginBottom: 10 }}>
                 Филиал определяется разделом счёта оплаты. Сумма по филиалам всегда равна общему итогу — {fmt(total)}.
@@ -173,10 +177,10 @@ export default function ExpenseAnalyticsPage() {
                   )}
                 </div>
               )}
-            </Card>
+            </Card>}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 12, marginTop: 12 }}>
-              <Table title="🏙️ По филиалам" rows={byBranch} onRow={k => { const b = BRANCHES.find(x => branchLabel(x.key, true) === k); setBr(b && br !== b.key ? b.key : ''); }} activeKey={branchLabel(br, true)} />
+              {showBranches && <Table title="🏙️ По филиалам" rows={byBranch} onRow={k => { const b = BRANCHES.find(x => branchLabel(x.key, true) === k); setBr(b && br !== b.key ? b.key : ''); }} activeKey={branchLabel(br, true)} />}
               <Table title="👥 По сотрудникам" rows={byEmployee} onRow={k => setEmp(emp === k ? '' : k)} activeKey={emp} />
               <Table title="📅 По дням" rows={byDay} dateKey />
               <Table title="🗂 По категориям" rows={byCategory} />
