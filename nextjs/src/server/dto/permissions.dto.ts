@@ -22,6 +22,7 @@ export const SCREEN_KEYS = [
   'warehouse', 'purchases', 'staff', 'clients', 'invoices', 'database',
   'reports', 'handbook', 'settings',
   'branch_finance',   // кабинет филиала: свой счёт + расходы + переводы (изолировано по разделу)
+  'support',          // заявки в техподдержку: филиал пишет, админ разбирает
 ] as const;
 export type ScreenKey = (typeof SCREEN_KEYS)[number];
 
@@ -34,7 +35,7 @@ export const SCREEN_LABELS: Record<ScreenKey, string> = {
   sales: 'Продажа', other_ops: 'Прочие операции', expenses: 'Расходы', accounting: 'Бухгалтерия',
   finance: 'Финансы', debts: 'Долги', tasks: 'Задачи', warehouse: 'Склад', purchases: 'Закупки', staff: 'Сотрудники',
   clients: 'Клиенты', invoices: 'Счета', database: 'База данных', reports: 'Отчёт', handbook: 'Справочник', settings: 'Настройки',
-  branch_finance: 'Финансы филиала',
+  branch_finance: 'Финансы филиала', support: 'Поддержка',
 };
 
 // ── Роль «Филиал» (branch) — кабинет с жёстким белым списком экранов ──
@@ -44,7 +45,9 @@ export const SCREEN_LABELS: Record<ScreenKey, string> = {
 export const BRANCH_ROLE = 'branch';
 // database — «База данных» (сроки/архивы/авто-заказы/фотоотчёты) со скоупом по
 // branchId: филиал видит ТОЛЬКО свои записи (сервер скоупит certs/orders по филиалу).
-export const BRANCH_SCREENS = ['orders_field', 'poverka_field', 'database', 'branch_finance'] as const;
+// support — заявки в техподдержку: филиал пишет о проблеме и видит ТОЛЬКО свои
+// (скоуп по branchId в support.controller, не только в меню).
+export const BRANCH_SCREENS = ['orders_field', 'poverka_field', 'database', 'branch_finance', 'support'] as const;
 
 // ── Pure helpers (no DB) — unit-testable ──────────────────────
 

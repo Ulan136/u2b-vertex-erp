@@ -20,7 +20,7 @@ export const orderSourceEnum = pgEnum('order_source',     ['field_check','tec'])
 export const debtTypeEnum    = pgEnum('debt_type',        ['debit','credit']);   // debit = нам должны, credit = мы должны
 export const debtStatusEnum  = pgEnum('debt_status',      ['open','partial','closed']);
 export const taskStatusEnum  = pgEnum('task_status',      ['new','accepted','in_progress','done']);
-export const commentEntityEnum = pgEnum('comment_entity', ['order','task']);
+export const commentEntityEnum = pgEnum('comment_entity', ['order','task','support']);
 
 // ── BRANCHES ──────────────────────────────────────────────────
 export const branches = pgTable('branches', {
@@ -515,6 +515,26 @@ export const pushSubscriptions = pgTable('push_subscriptions', {
   auth      : text('auth').notNull(),
   userAgent : varchar('user_agent', { length: 300 }),
   createdAt : timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+// ── SUPPORT (заявки в техподдержку) ───────────────────────────
+// Филиал/сотрудник описывает проблему → заявка попадает в «Поддержку».
+// Переписка по заявке — в comments с entityType='support'.
+// status flow: Новая → В работе → Отвечено → Закрыта.
+export const supportTickets = pgTable('support_tickets', {
+  id         : uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  ticketNo   : integer('ticket_no'),                  // сквозной номер из sequence
+  branchId   : uuid('branch_id').references(() => branches.id),
+  screen     : varchar('screen', { length: 60 }),     // где возникло (раздел системы)
+  title      : varchar('title', { length: 200 }).notNull(),
+  body       : text('body').notNull(),
+  severity   : varchar('severity', { length: 20 }).notNull().default('Обычная'),
+  status     : varchar('status', { length: 20 }).notNull().default('Новая'),
+  createdBy  : uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt  : timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt  : timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  answeredAt : timestamp('answered_at', { withTimezone: true }),
+  closedAt   : timestamp('closed_at', { withTimezone: true }),
 });
 
 // ── TASKS (задачи сотрудникам) ────────────────────────────────

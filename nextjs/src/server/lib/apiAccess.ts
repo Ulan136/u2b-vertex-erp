@@ -36,6 +36,7 @@ export function apiScreenFor(method: string, pathname: string, searchParams: URL
   }
   if (pathname.startsWith('/api/v2/debts') || pathname.startsWith('/api/v2/debt-payments') || pathname.startsWith('/api/v2/debt-categories')) return 'debts';
   if (pathname.startsWith('/api/v2/tasks')) return 'tasks';
+  if (pathname.startsWith('/api/v2/support')) return 'support';   // заявки в поддержку
   if (pathname.startsWith('/api/v2/clients') || pathname.startsWith('/api/v2/client-categories')) return 'clients';
   if (pathname.startsWith('/api/v2/sales')) return 'sales';
   if (pathname.startsWith('/api/v2/products')) return 'warehouse';

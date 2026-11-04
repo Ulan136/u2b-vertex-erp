@@ -93,6 +93,9 @@ export const ERP_NAV: NavSection[] = [
   { title: 'Задачи', icon: '✅', zone: 'ops', items: [
     { label: 'Задачи сотрудникам', screenKey: 'tasks', href: '/erp/tasks' },
   ] },
+  { title: 'Поддержка', icon: '🛟', zone: 'ops', items: [
+    { label: 'Заявки в поддержку', screenKey: 'support', href: '/erp/support' },
+  ] },
   { title: 'Сотрудники', icon: '👥', zone: 'ops', items: [
     { label: 'Руководитель', screenKey: 'staff', href: '/erp/staff/directory' },
     { label: 'Зарплата и кадры', screenKey: 'staff', href: '/erp/staff' },
