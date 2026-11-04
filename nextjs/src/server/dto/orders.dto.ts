@@ -43,7 +43,17 @@ export const orderCreateSchema = z.object({
   source: z.enum(ORDER_SOURCES).optional().default('field_check'),
 });
 
-export const orderUpdateSchema = orderCreateSchema.partial();
+// PATCH обязан означать «меняем только переданное». Zod-овский .partial() НЕ снимает
+// .default(): при частичной правке умолчания срабатывали и ЗАТИРАЛИ данные —
+// positions → [], status → «В работе», source → field_check. Из-за этого смена
+// статуса заявки стирала список приборов (2 х/в + 2 г/в превращались в пусто),
+// а правка ФИО возвращала закрытую заявку в работу.
+// Поэтому поля с умолчаниями переопределены здесь без них.
+export const orderUpdateSchema = orderCreateSchema.partial().extend({
+  positions: z.array(positionSchema).optional(),
+  status: z.string().optional(),
+  source: z.enum(ORDER_SOURCES).optional(),
+});
 
 export type OrderCreate = z.infer<typeof orderCreateSchema>;
 export type OrderUpdate = z.infer<typeof orderUpdateSchema>;

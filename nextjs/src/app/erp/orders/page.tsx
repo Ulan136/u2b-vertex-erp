@@ -245,7 +245,14 @@ function OrdersInner() {
           <Field label="Телефон"><div style={{ display: 'flex', gap: 6, alignItems: 'center' }}><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={{ flex: 1 }} />{form.phone.trim() && <a className="erp-icon-btn" href={telHref(form.phone)} title="Позвонить" style={{ textDecoration: 'none' }}>📞</a>}</div></Field>
         </div>
         <Field label="Адрес"><div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}><div style={{ flex: 1 }}><YandexAddressPicker apiKey={mapsKey} address={form.address} lat={form.lat} lng={form.lng} onChange={v => setForm({ ...form, address: v.address, lat: v.lat, lng: v.lng })} /></div>{form.address.trim() && <a className="erp-icon-btn" href={gisHref(form.address)} target="_blank" rel="noopener" title="Открыть в 2ГИС" style={{ textDecoration: 'none', marginTop: 4 }}>🧭</a>}</div></Field>
-        <Field label="Приборы (позиции)">
+        <Field label={(() => {
+          // Итог рядом с заголовком: при 4-8 приборах в нескольких строках легко
+          // сбиться, а именно сумма уходит в заявку как «Кол-во».
+          const tot = form.positions.reduce((s, p) => s + (Number(p.qty) || 0), 0);
+          const cold = form.positions.filter(p => p.water === 'х/в').reduce((s, p) => s + (Number(p.qty) || 0), 0);
+          const hot = tot - cold;
+          return `Приборы (позиции) — итого ${tot}${tot ? ` · 🔵 ${cold} / 🔴 ${hot}` : ''}`;
+        })()}>
           {form.positions.map((p, i) => (
             <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
               <Input type="number" min={1} value={p.qty} onChange={e => setPos(i, { qty: e.target.value })} placeholder="Кол-во" style={{ width: 110 }} />

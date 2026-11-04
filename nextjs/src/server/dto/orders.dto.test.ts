@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  orderCreateSchema, nextOrderNoFor, filterOrdersBySource, externalCabinetUrl,
+  orderCreateSchema, orderUpdateSchema, nextOrderNoFor, filterOrdersBySource, externalCabinetUrl,
   orderInBranch, scopeOrdersByBranch,
 } from './orders.dto';
 
@@ -111,4 +111,25 @@ test('externalCabinetUrl: tec lives under /tec, field_check stays at base', () =
   assert.equal(externalCabinetUrl('https://u2b-vertex-erp.vercel.app/cabinet', 'field_check'), 'https://u2b-vertex-erp.vercel.app/cabinet');
   assert.equal(externalCabinetUrl('https://u2b-vertex-erp.vercel.app/cabinet', 'tec'), 'https://u2b-vertex-erp.vercel.app/cabinet/tec');
   assert.equal(externalCabinetUrl('https://u2b-vertex-erp.vercel.app/cabinet/', 'tec'), 'https://u2b-vertex-erp.vercel.app/cabinet/tec');
+});
+
+// ── PATCH не должен подставлять умолчания (регрессия ЗАК-296) ──
+// .partial() не снимает .default(), поэтому частичная правка затирала данные:
+// позиции обнулялись, статус возвращался в «В работе», источник — в field_check.
+test('orderUpdateSchema: PATCH статуса не трогает позиции, источник и прочее', () => {
+  const r = orderUpdateSchema.parse({ status: 'Готова' }) as Record<string, unknown>;
+  assert.equal(r.status, 'Готова');
+  assert.equal(r.positions, undefined, 'позиции не должны подставляться пустым массивом');
+  assert.equal(r.source, undefined, 'источник не должен переключаться на field_check');
+});
+test('orderUpdateSchema: PATCH имени клиента не сбрасывает статус', () => {
+  const r = orderUpdateSchema.parse({ clientName: 'Сабыржан Т.Қ' }) as Record<string, unknown>;
+  assert.equal(r.clientName, 'Сабыржан Т.Қ');
+  assert.equal(r.status, undefined, 'статус не должен возвращаться в «В работе»');
+  assert.equal(r.positions, undefined);
+});
+test('orderUpdateSchema: переданные позиции сохраняются как есть', () => {
+  const positions = [{ address: 'Айнакол 66', qty: 2, water: 'х/в' }, { address: 'Айнакол 66', qty: 2, water: 'г/в' }];
+  const r = orderUpdateSchema.parse({ positions }) as Record<string, unknown>;
+  assert.deepEqual(r.positions, positions);
 });
