@@ -103,7 +103,7 @@ test('startScreenKey: default landing per role', () => {
 test('startScreenKey: falls back to first allowed when the preferred is denied', () => {
   // manager denied its landing (orders_field) and everything up to warehouse
   const denied = ['dashboard', 'poverka_sami', 'poverka_vdk', 'poverka_tec', 'poverka_field',
-    'poverka_primary', 'poverka_astana', 'poverka_districts', 'orders_field', 'orders_tec', 'sales', 'other_ops',
+    'poverka_primary', 'poverka_astana', 'poverka_almaty', 'poverka_districts', 'orders_field', 'orders_tec', 'sales', 'other_ops',
     'expenses', 'accounting', 'finance', 'debts', 'tasks'];
   const perms: PermRow[] = denied.map(k => ({ role: 'manager', screenKey: k, allowed: false }));
   assert.equal(startScreenKey('manager', perms), 'warehouse');   // first still-allowed screen

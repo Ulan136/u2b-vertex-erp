@@ -46,13 +46,20 @@ export const ERP_NAV: NavSection[] = [
     { label: 'Сертификат', screenKey: 'poverka_primary', href: '/erp/certs?source=Первичная-АК&type=cert' },
     { label: 'Извещение', screenKey: 'poverka_primary', href: '/erp/certs?source=Первичная-АК&type=izv' },
   ] },
-  // ФИЛИАЛЫ: Астана → полная Выездная поверка по своему филиалу (Заявки от мастера →
-  // Сертификат → Извещение), scope ?branch=astana. Зеркало головной Выездной.
+  // ФИЛИАЛЫ: у каждого филиала полный цикл по своему scope ?branch=<slug> —
+  // Заявки от мастера → Сертификат → Извещение, плюс вход в кабинет мастера.
+  // Зеркало головной Выездной, но данные отскоплены по филиалу на сервере.
   { title: 'Филиалы', icon: '🏢', zone: 'income', items: [
-    { label: 'Астана · Выездная поверка', screenKey: 'poverka_astana', heading: true },
+    { label: 'Филиал Астана', screenKey: 'poverka_astana', heading: true },
     { label: 'Заявки', screenKey: 'poverka_astana', href: '/erp/orders?source=field_check&branch=astana' },
     { label: 'Сертификат', screenKey: 'poverka_astana', href: '/erp/certs?source=Выездная&type=cert&branch=astana' },
     { label: 'Извещение', screenKey: 'poverka_astana', href: '/erp/certs?source=Выездная&type=izv&branch=astana' },
+    { label: 'Кабинет мастера ↗', screenKey: 'poverka_astana', href: '/master', legacy: true },
+    { label: 'Филиал Алматы', screenKey: 'poverka_almaty', heading: true },
+    { label: 'Заявки', screenKey: 'poverka_almaty', href: '/erp/orders?source=field_check&branch=almaty' },
+    { label: 'Сертификат', screenKey: 'poverka_almaty', href: '/erp/certs?source=Выездная&type=cert&branch=almaty' },
+    { label: 'Извещение', screenKey: 'poverka_almaty', href: '/erp/certs?source=Выездная&type=izv&branch=almaty' },
+    { label: 'Кабинет мастера ↗', screenKey: 'poverka_almaty', href: '/master', legacy: true },
   ] },
   { title: 'Продажа', icon: '💰', zone: 'income', items: [
     { label: 'Журнал продаж', screenKey: 'sales', href: '/erp/sales' },

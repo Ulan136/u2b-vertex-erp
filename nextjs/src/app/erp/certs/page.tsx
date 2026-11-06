@@ -148,9 +148,15 @@ function CertsInner() {
   const { data: org } = useApi<{ companyName?: string | null }>('/api/v2/org');
   // Порядковый № клейма — СВОЙ у каждого менеджера (по аккаунту): читаем/пишем через /me.
   const { data: me, mutate: mutateMe } = useApi<{ stampSeqNext?: number | null; financeSection?: string | null }>('/api/v2/me');
-  // Астана: админ смотрит через ?branch=astana ИЛИ сам пользователь-филиал Астана
-  // (financeSection='branch'). Тогда колонка «Показания» спит, вместо неё «Класс счётчика».
-  const isAstana = branchSlug === 'astana' || me?.financeSection === 'branch';
+  // Страница филиала: админ смотрит через ?branch=astana|almaty ИЛИ вошёл сам
+  // пользователь-филиал (financeSection='branch'/'branch_almaty'). Тогда колонка
+  // «Показания» спит, вместо неё «Класс счётчика» — у филиалов учёт по классу.
+  // Раздел счетов филиала нужен, чтобы в «Сменить счёт» не показывались счета Тараза.
+  const branchSection = branchSlug === 'almaty' ? 'branch_almaty'
+    : branchSlug === 'astana' ? 'branch'
+    : (me?.financeSection === 'branch' || me?.financeSection === 'branch_almaty') ? me.financeSection
+    : null;
+  const isAstana = !!branchSection;   // «страница филиала» — Астана или Алматы
   // Астана: в форме главное поле — «Класс счётчика» (обязательно), а «Показания»
   // спрятаны под раскрывашку (необязательны, вызываем если нужно).
   const [showReadings, setShowReadings] = React.useState(false);
@@ -172,7 +178,7 @@ function CertsInner() {
   // (isAstana) Выездная относится к разделу филиала (branch), а не к Тараз (poverka) —
   // иначе в «Сменить счёт» показывались бы счета Тараза.
   const isDirect = source !== 'Выездная';
-  const certSection = (source === 'Астана' || isAstana) ? 'branch' : 'poverka';
+  const certSection = branchSection ?? (source === 'Астана' ? 'branch' : 'poverka');
   const secAccounts = React.useMemo(() => (fin?.accounts || []).filter(a => (a.section || '') === certSection && a.isActive !== false), [fin, certSection]);
   const [payRows, setPayRows] = React.useState<Array<{ accountId: string; amount: string }>>([{ accountId: '', amount: '' }]);
   const [payTouched, setPayTouched] = React.useState(false);   // трогал ли пользователь оплату/цену в этой сессии модалки
