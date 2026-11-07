@@ -212,6 +212,12 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
     <div class="filter-row" style="padding-top:0;">
       <input id="f-search" type="search" placeholder="🔍 ФИО, адрес или телефон" oninput="setSearch(this.value)" style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;outline:none;">
     </div>
+    <!-- Навигатор мастера: запоминается на этом телефоне (localStorage). -->
+    <div class="filter-row" style="padding-top:0;align-items:center;gap:6px;">
+      <span style="color:#6b7280;font-size:12px;flex:none;">🚗 Навигатор</span>
+      <div class="fchip on" id="nav-gis" onclick="setNaviPref('gis')">🧭 2ГИС</div>
+      <div class="fchip" id="nav-yandex" onclick="setNaviPref('yandex')">🗺️ Яндекс</div>
+    </div>
     <div class="stats-row" id="stats"></div>
     <div id="orders-list" style="flex:1;"></div>
     <div style="height:16px;"></div>
@@ -302,7 +308,7 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
       <div class="form-section">
         <div class="za-hdr-title">Клиент</div>
         <div class="form-group"><div class="form-label">Адрес</div>
-          <div style="display:flex;gap:8px;align-items:center;"><input class="form-input" id="za-addr" placeholder="улица, дом, кв." style="flex:1;"><button type="button" class="mic-inline" title="Открыть в 2ГИС" onclick="zaOpenGis()">🧭</button></div></div>
+          <div style="display:flex;gap:8px;align-items:center;"><input class="form-input" id="za-addr" placeholder="улица, дом, кв." style="flex:1;"><button type="button" class="mic-inline" title="Открыть в 2ГИС" onclick="zaOpenGis()">🧭</button><button type="button" class="mic-inline" title="Открыть в Яндекс.Картах" onclick="zaOpenYandex()">🗺️</button></div></div>
         <div class="form-group"><div class="form-label">Телефон</div>
           <div style="display:flex;gap:8px;align-items:center;"><input class="form-input" id="za-phone" placeholder="+7…" inputmode="tel" style="flex:1;"><button type="button" class="mic-inline" title="Позвонить" onclick="zaCall()">📞</button></div></div>
         <div class="form-group"><div class="form-label">ФИО</div><input class="form-input" id="za-fio" placeholder="Фамилия И.О."></div>
@@ -494,19 +500,57 @@ function setStatusFilter(s){ filterStatus=s; syncFilterUi(); render(); }
 
 function stTag(s){return s==='Готова'?{c:'#059669',t:'✅ Готова'}:s==='Отменён'?{c:'#dc2626',t:'❌ Отменён'}:{c:'#1d4ed8',t:'🔄 В работе'};}
 
-// Телефон → звонок (tel:), адрес → открыть 2ГИС с этим адресом (на телефоне — приложение).
+// Телефон → звонок (tel:).
 function telHref(p){ return 'tel:'+String(p||'').replace(/[^\d+]/g,''); }
-function gisHref(a){ return 'https://2gis.ru/search/'+encodeURIComponent(String(a||'').trim()); }
-// Маршрут: только 2ГИС (поиск адреса; на телефоне открывается приложение 2ГИС).
+
+// ── Карты и маршрут ─────────────────────────────────────────────────────────
+// ⚠️ ПРАВИЛО ЖИВЁТ В src/lib/geo.ts — там же тесты. Этот файл статический
+// (без сборщика), импортировать TS сюда нельзя, поэтому ссылки продублированы.
+// Меняешь здесь — поменяй и там, иначе менеджер и мастер поедут по-разному.
+//
+// Есть координаты — ведём по МЕТКЕ (менеджер ткнул в конкретный подъезд);
+// нет — поиском по строке. Порядок координат у сервисов РАЗНЫЙ: 2ГИС и
+// Яндексов `ll` — долгота,широта; Яндексов `rtext` — ШИРОТА,долгота.
+function hasPt(o){ return !!o && o.lat!=null && o.lng!=null; }
+function gisView(o,a){ return hasPt(o)?('https://2gis.kz/geo/'+o.lng+','+o.lat):('https://2gis.kz/search/'+encodeURIComponent(String(a||'').trim())); }
+function yaView(o,a){ return hasPt(o)?('https://yandex.kz/maps/?ll='+o.lng+','+o.lat+'&z=18&pt='+o.lng+','+o.lat):('https://yandex.kz/maps/?text='+encodeURIComponent(String(a||'').trim())); }
+function gisRoute(o,a){ return hasPt(o)?('https://2gis.kz/directions/points/%7C'+o.lng+','+o.lat):('https://2gis.kz/search/'+encodeURIComponent(String(a||'').trim())); }
+function yaRoute(o,a){ return hasPt(o)?('https://yandex.kz/maps/?rtext=~'+o.lat+','+o.lng+'&rtt=auto'):('https://yandex.kz/maps/?text='+encodeURIComponent(String(a||'').trim())+'&rtt=auto'); }
+
+// Навигатор мастера. Выбор лежит в localStorage: у каждого мастера свой
+// телефон и своя привычка — на сервер за этим ходить незачем.
+var NAVI_KEY='u2b_master_navi';
+function naviPref(){ try{ return localStorage.getItem(NAVI_KEY)==='yandex'?'yandex':'gis'; }catch(e){ return 'gis'; } }
+function naviLabel(k){ return k==='yandex'?'🗺️ Яндекс':'🧭 2ГИС'; }
+function setNaviPref(k){
+  try{ localStorage.setItem(NAVI_KEY, k==='yandex'?'yandex':'gis'); }catch(e){}
+  paintNavi();
+  // Карточки перерисовываем: в них вшиты ссылки, а не обработчик.
+  try{ render(); }catch(e){}
+  toast('Навигатор: '+naviLabel(naviPref()));
+}
+function paintNavi(){
+  var p=naviPref();
+  var g=document.getElementById('nav-gis'), y=document.getElementById('nav-yandex');
+  if(g) g.className='fchip'+(p==='gis'?' on':'');
+  if(y) y.className='fchip'+(p==='yandex'?' on':'');
+}
+
 function primaryAddr(o){ if(o&&o.address) return o.address; const p=Array.isArray(o&&o.positions)?o.positions:[]; return (p[0]&&p[0].address)||''; }
-function routeHref(o){ const a=primaryAddr(o); return a?gisHref(a):''; }
-function addrLink(a){ a=String(a||'').trim(); return a?`<a href="${gisHref(a)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:underline dotted;">${esc(a)}</a>`:'—'; }
+// Маршрут в выбранном навигаторе и во втором (разово, маленькой кнопкой).
+function routeHref(o){ const a=primaryAddr(o); if(!a&&!hasPt(o)) return ''; return naviPref()==='yandex'?yaRoute(o,a):gisRoute(o,a); }
+function routeAltHref(o){ const a=primaryAddr(o); if(!a&&!hasPt(o)) return ''; return naviPref()==='yandex'?gisRoute(o,a):yaRoute(o,a); }
+function routeAltLabel(){ return naviPref()==='yandex'?'🧭':'🗺️'; }
+function addrLink(a){ a=String(a||'').trim(); if(!a) return '—'; const u=naviPref()==='yandex'?yaView(null,a):gisView(null,a); return `<a href="${u}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="color:inherit;text-decoration:underline dotted;">${esc(a)}</a>`; }
 function fmtDT(s){ try{ const d=new Date(s); if(isNaN(d.getTime()))return ''; const p=n=>String(n).padStart(2,'0'); return p(d.getDate())+'.'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes()); }catch(e){ return ''; } }
 function meetSplit(m){ const [a,b]=String(m||'').split('-'); return {from:(a||'').trim(),to:(b||'').trim()}; }
 function meetJoin(a,b){ a=(a||'').trim(); b=(b||'').trim(); return (a||b)?(a+(b?'-'+b:'')):null; }
 // Кнопки в открытой заявке: позвонить / открыть адрес в 2ГИС (берут текущее значение поля).
 function zaCall(){ const p=getV('za-phone'); if(!p){ toast('⚠️ Телефон не указан'); return; } location.href=telHref(p); }
-function zaOpenGis(){ const a=getV('za-addr'); if(!a){ toast('⚠️ Адрес не указан'); return; } window.open(gisHref(a),'_blank'); }
+// Открыть адрес из поля: отдельно в 2ГИС и в Яндексе (без привязки к выбору —
+// мастер иногда хочет сверить дом во второй карте).
+function zaOpenGis(){ const a=getV('za-addr'); if(!a){ toast('⚠️ Адрес не указан'); return; } window.open(gisView(null,a),'_blank'); }
+function zaOpenYandex(){ const a=getV('za-addr'); if(!a){ toast('⚠️ Адрес не указан'); return; } window.open(yaView(null,a),'_blank'); }
 function orderCardHtml(o){
   const st=stTag(o.status);
   const cls=o.status==='Готова'?'done':o.status==='Отменён'?'cancelled':'';
@@ -525,7 +569,10 @@ function orderCardHtml(o){
     ${routeHref(o)
       ? `<div class="oc-phone" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
            <span style="color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">📍 ${esc(primaryAddr(o)||'—')}</span>
-           <a href="${routeHref(o)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="flex:none;background:#2563eb;color:#fff;font-weight:700;text-decoration:none;padding:9px 16px;border-radius:10px;font-size:14px;white-space:nowrap;">🧭 Маршрут</a>
+           <span style="flex:none;display:flex;gap:6px;">
+             <a href="${routeHref(o)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="background:#2563eb;color:#fff;font-weight:700;text-decoration:none;padding:9px 14px;border-radius:10px;font-size:14px;white-space:nowrap;">${naviLabel(naviPref())}</a>
+             <a href="${routeAltHref(o)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Второй навигатор" style="background:#eef2f7;color:#334155;text-decoration:none;padding:9px 11px;border-radius:10px;font-size:14px;">${routeAltLabel()}</a>
+           </span>
          </div>`
       : ''}
     ${(o.meetingDate||o.meetingTime)?`<div style="margin:8px 0;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 12px;color:#92400e;font-weight:800;font-size:17px;text-align:center;letter-spacing:.3px;">⏰ ${esc(((o.meetingDate?fmtDate(String(o.meetingDate).slice(0,10)):'')+'  '+(o.meetingTime||'')).trim())}</div>`:''}
@@ -1044,6 +1091,7 @@ async function pushRenderState(known){
 
 // ── INIT ──────────────────────────────────────────────────────
 (async function(){
+  paintNavi();   // выбранный навигатор мастера — до первой отрисовки заявок
   await loadMe();
   document.getElementById('hdr-sub').textContent=(me&&me.name?me.name:'Мастер')+' · '+(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+d.getFullYear();})();
   await loadOrders();

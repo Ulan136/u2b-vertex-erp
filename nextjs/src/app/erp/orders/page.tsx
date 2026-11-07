@@ -7,6 +7,7 @@ import { toast } from '@/lib/toast';
 import { Card, Badge, Button, PageTitle, Modal, Field, Input, Select, EmptyRow, DateRange } from '@/components/ui';
 import EntityHistory from '@/components/erp/EntityHistory';
 import YandexAddressPicker from '@/components/erp/YandexAddressPicker';
+import { gisViewUrl, gisRouteUrl, yandexRouteUrl } from '@/lib/geo';
 
 type Pos = { address?: string; qty: number; water: string };
 type Order = { id: string; orderNo?: string | null; orderDate?: string | null; clientName?: string | null; address?: string | null; phone?: string | null; qty?: number | null; waterType?: string | null; positions?: Pos[] | null; meetingDate?: string | null; meetingTime?: string | null; status?: string | null; branchId?: string | null; comment?: string | null; source?: string | null; createdByName?: string | null; createdAt?: string | null; lat?: number | null; lng?: number | null };
@@ -26,11 +27,9 @@ const EMPTY = { id: '', clientName: '', phone: '', address: '', positions: [{ qt
 // Время встречи «15:00-16:00» ↔ поля meetFrom/meetTo.
 const splitMeet = (m?: string | null): { meetFrom: string; meetTo: string } => { const [a, b] = String(m || '').split('-'); return { meetFrom: (a || '').trim(), meetTo: (b || '').trim() }; };
 const joinMeet = (a: string, b: string): string | null => (a || b) ? `${a}${b ? '-' + b : ''}` : null;
-// Телефон → звонок, адрес → 2ГИС.
+// Телефон → звонок. Ссылки на карты — из общего lib/geo (одно правило на
+// заявки, список и кабинет мастера): есть метка — ведём по метке, нет — поиском.
 const telHref = (p?: string | null) => 'tel:' + String(p || '').replace(/[^\d+]/g, '');
-const gisHref = (a?: string | null) => 'https://2gis.ru/search/' + encodeURIComponent(String(a || '').trim());
-// Ссылка «в Навигатор»: мобильное приложение Яндекс.Навигатор (deep link), иначе — веб-карты.
-const naviUrl = (lat: number, lng: number) => `https://yandex.ru/maps/?rtext=~${lat},${lng}&rtt=auto`;
 
 function OrdersInner() {
   const sp = useSearchParams();
@@ -217,14 +216,19 @@ function OrdersInner() {
                     <td className="erp-muted" style={{ fontSize: 12 }}>{dmy(o.orderDate || o.createdAt)}</td>
                     <td style={{ fontSize: 12, fontWeight: 600, color: (o.meetingDate || o.meetingTime) ? '#2563eb' : '#94a3b8' }}>{(o.meetingDate || o.meetingTime) ? `${o.meetingDate ? dmy(o.meetingDate) : ''}${o.meetingTime ? ' ' + o.meetingTime : ''}`.trim() : '—'}</td>
                     <td className="erp-td-main">{o.clientName || '—'}</td>
-                    <td style={{ fontSize: 12 }}>{o.address ? <a href={gisHref(o.address)} target="_blank" rel="noopener" title="Открыть в 2ГИС" style={{ color: 'inherit' }}>{o.address}</a> : '—'}</td>
+                    <td style={{ fontSize: 12 }}>{o.address ? <a href={gisViewUrl(o.address, o.lat, o.lng)} target="_blank" rel="noopener" title="Открыть в 2ГИС" style={{ color: 'inherit' }}>{o.address}</a> : '—'}</td>
                     <td style={{ fontSize: 12 }}>{o.phone ? <a href={telHref(o.phone)} title="Позвонить" style={{ color: 'inherit' }}>{o.phone}</a> : '—'}</td>
                     <td style={{ textAlign: 'right' }}>{o.qty ?? '—'}</td>
                     <td style={{ fontSize: 12 }}>{branchName(o.branchId) || '—'}</td>
                     <td><Badge tone={statusTone(o.status)}>{o.status}</Badge></td>
                     <td className="erp-muted" style={{ fontSize: 12 }}>{o.createdByName || '—'}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      {o.lat != null && o.lng != null && <a className="erp-icon-btn" href={naviUrl(o.lat, o.lng)} target="_blank" rel="noopener noreferrer" title="🧭 Маршрут в Яндекс.Навигаторе" style={{ textDecoration: 'none', color: '#2563eb' }}>🧭</a>}
+                      {/* Маршрут в обеих программах: менеджер звонит мастеру и
+                          спрашивает, в какой тому удобнее — пусть будут оба. */}
+                      {(o.address || (o.lat != null && o.lng != null)) && <>
+                        <a className="erp-icon-btn" href={gisRouteUrl(o.address, o.lat, o.lng)} target="_blank" rel="noopener noreferrer" title="Маршрут в 2ГИС" style={{ textDecoration: 'none', color: '#2563eb' }}>🧭</a>
+                        <a className="erp-icon-btn" href={yandexRouteUrl(o.address, o.lat, o.lng)} target="_blank" rel="noopener noreferrer" title="Маршрут в Яндекс.Навигаторе" style={{ textDecoration: 'none', color: '#dc2626' }}>🗺️</a>
+                      </>}
                       {o.status === 'В работе' && <Button variant="outline" onClick={() => setStatus(o, 'Готова')} style={{ fontSize: 12, padding: '4px 8px' }}>Готова</Button>}
                       {source === 'field_check' && <button className="erp-icon-btn" title="Принять оплату" style={{ color: '#16a34a' }} onClick={() => openPay(o)}>💵</button>}
                       <button className="erp-icon-btn" title="Изменить" onClick={() => openEdit(o)}>✏️</button>
@@ -244,7 +248,10 @@ function OrdersInner() {
           <Field label="Клиент" required><Input value={form.clientName} onChange={e => setForm({ ...form, clientName: e.target.value })} autoFocus /></Field>
           <Field label="Телефон"><div style={{ display: 'flex', gap: 6, alignItems: 'center' }}><Input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={{ flex: 1 }} />{form.phone.trim() && <a className="erp-icon-btn" href={telHref(form.phone)} title="Позвонить" style={{ textDecoration: 'none' }}>📞</a>}</div></Field>
         </div>
-        <Field label="Адрес"><div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}><div style={{ flex: 1 }}><YandexAddressPicker apiKey={mapsKey} address={form.address} lat={form.lat} lng={form.lng} onChange={v => setForm({ ...form, address: v.address, lat: v.lat, lng: v.lng })} /></div>{form.address.trim() && <a className="erp-icon-btn" href={gisHref(form.address)} target="_blank" rel="noopener" title="Открыть в 2ГИС" style={{ textDecoration: 'none', marginTop: 4 }}>🧭</a>}</div></Field>
+        {/* Город карты по умолчанию — город филиала, в контексте которого открыт
+            экран: из ?branch= (страница филиала) или из раздела счёта самого
+            менеджера филиала. Головной офис — Тараз. */}
+        <Field label="Адрес"><YandexAddressPicker apiKey={mapsKey} branch={branchSlug || me?.financeSection} address={form.address} lat={form.lat} lng={form.lng} onChange={v => setForm({ ...form, address: v.address, lat: v.lat, lng: v.lng })} /></Field>
         <Field label={(() => {
           // Итог рядом с заголовком: при 4-8 приборах в нескольких строках легко
           // сбиться, а именно сумма уходит в заявку как «Кол-во».
