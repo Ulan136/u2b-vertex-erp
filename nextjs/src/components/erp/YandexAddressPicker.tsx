@@ -1,7 +1,7 @@
 'use client';
 import * as React from 'react';
 import {
-  CITIES, cityCenter, cityOfBranch, cityOfCoords, splitAddress, joinAddress,
+  CITIES, cityCenter, cityLabel, cityOfBranch, cityOfCoords, splitAddress, joinAddress,
   tidyAddress, gisViewUrl, yandexViewUrl, type CityKey, type AddrParts,
 } from '@/lib/geo';
 
@@ -119,10 +119,12 @@ function MapPickerWindow({ apiKey, address, lat, lng, branch, onApply, onClose }
   const [pt, setPt] = React.useState<{ lat: number | null; lng: number | null }>({ lat, lng });
   const [err, setErr] = React.useState('');
   const [ready, setReady] = React.useState(false);
+  const [q, setQ] = React.useState('');
+  const [hints, setHints] = React.useState<{ line: string; coords: [number, number] }[]>([]);
 
   const mapRef = React.useRef<HTMLDivElement>(null);
   const searchRef = React.useRef<HTMLInputElement>(null);
-  const objRef = React.useRef<{ ymaps?: any; map?: any; mark?: any; suggest?: any }>({});
+  const objRef = React.useRef<{ ymaps?: any; map?: any; mark?: any }>({});
   // Актуальное состояние для колбэков карты: они создаются один раз, а читать
   // должны свежие значения (иначе подъезд/кв. затираются старыми).
   const liveRef = React.useRef({ parts, city });
@@ -166,6 +168,41 @@ function MapPickerWindow({ apiKey, address, lat, lng, branch, onApply, onClose }
     }).catch(() => setErr('Поиск не ответил — поставьте метку на карте'));
   }, [place]);
 
+  // Подсказки при вводе. Раньше здесь был ymaps.SuggestView — он требует
+  // ТРЕТЬЕГО продукта Яндекса (Геосаджест) и без него валится
+  // FeatureRemovedError. Варианты берём из геокодера, который уже подключён:
+  // один запрос на паузу в наборе, а не на каждую букву.
+  const lookup = React.useCallback((query: string) => {
+    const o = objRef.current;
+    if (!o.ymaps || !o.map) return;
+    o.ymaps.geocode(`${cityLabel(liveRef.current.city)}, ${query}`, {
+      results: 6, boundedBy: o.map.getBounds(), strictBounds: false,
+    }).then((res: any) => {
+      const list: { line: string; coords: [number, number] }[] = [];
+      res.geoObjects.each((g: any) => {
+        list.push({ line: tidyAddress(g.getAddressLine()), coords: g.geometry.getCoordinates() });
+      });
+      setHints(list);
+    }).catch(() => setHints([]));   // молча: подсказки — удобство, а не обязанность
+  }, []);
+
+  // Ждём паузу в наборе: иначе на «Казыбек би 103» ушло бы 13 запросов из
+  // суточной тысячи. Короткие строки не ищем — по «ул» осмысленного ответа нет.
+  React.useEffect(() => {
+    const s = q.trim();
+    if (s.length < 4) { setHints([]); return; }
+    const t = setTimeout(() => lookup(s), 600);
+    return () => clearTimeout(t);
+  }, [q, lookup]);
+
+  const takeHint = React.useCallback((h: { line: string; coords: [number, number] }) => {
+    setHints([]);
+    setQ(h.line);
+    setErr('');
+    objRef.current.map?.setCenter(h.coords, 17);
+    place(h.coords, h.line);
+  }, [place]);
+
   React.useEffect(() => {
     let destroyed = false;
     loadYmaps(apiKey).then((ymaps) => {
@@ -181,17 +218,11 @@ function MapPickerWindow({ apiKey, address, lat, lng, branch, onApply, onClose }
       map.events.add('click', (e: any) => reverse(e.get('coords')));
       mark.events.add('dragend', () => reverse(mark.geometry.getCoordinates()));
 
-      if (searchRef.current) {
-        const suggest = new ymaps.SuggestView(searchRef.current, { results: 7, zIndex: 100000 });
-        suggest.events.add('select', (e: any) => search(String(e.get('item').value || '')));
-        objRef.current.suggest = suggest;
-      }
       setReady(true);
     }).catch((e) => setErr(e?.message || 'Ошибка карты'));
 
     return () => {
       destroyed = true;
-      try { objRef.current.suggest?.destroy?.(); } catch { /* ignore */ }
       try { objRef.current.map?.destroy(); } catch { /* ignore */ }
       objRef.current = {};
     };
@@ -249,11 +280,41 @@ function MapPickerWindow({ apiKey, address, lat, lng, branch, onApply, onClose }
               style={{ flex: 1 }}
               placeholder="🔍 Улица и дом — например «Толе би 1»"
               autoComplete="off"
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); search((e.target as HTMLInputElement).value); } }}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); setHints([]); search(q); }
+                if (e.key === 'Escape' && hints.length) { e.stopPropagation(); setHints([]); }
+              }}
             />
             <button type="button" className="erp-chip" style={{ flex: 'none' }}
-              onClick={() => search(searchRef.current?.value || '')}>Найти</button>
+              onClick={() => { setHints([]); search(q); }}>Найти</button>
           </div>
+
+          {/* Выпадающий список вариантов: менеджер выбирает нужный дом, не
+              доверяя первому попавшемуся — одноимённых улиц в городе хватает. */}
+          {hints.length > 0 && (
+            <div style={{ position: 'relative' }}>
+              <div style={{
+                position: 'absolute', left: 0, right: 0, top: 2, zIndex: 5, background: '#fff',
+                border: '1px solid var(--erp-line)', borderRadius: 10, overflow: 'hidden',
+                boxShadow: '0 12px 34px rgba(0,0,0,.16)',
+              }}>
+                {hints.map((h, i) => (
+                  <button
+                    key={`${h.line}-${i}`}
+                    type="button"
+                    onClick={() => takeHint(h)}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px',
+                      background: 'none', border: 'none', borderTop: i ? '1px solid var(--erp-line)' : 'none',
+                      cursor: 'pointer', fontSize: 13,
+                    }}
+                  >{h.line}</button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {err && <div className="erp-form-err" style={{ marginTop: 8 }}>{err}</div>}
 
