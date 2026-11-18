@@ -169,3 +169,21 @@ test('isRealIncome: приход живой — да; сторнированны
   assert.ok(!isRealIncome({ opType: 'Приход', reverses: 'x' }));            // сторно расхода (Приход) не доход
   assert.ok(!isRealIncome({ opType: 'Расход' }));
 });
+
+// ── отменённые операции не задваивают сводку (филиал Астана, 16.11) ──
+// Мастер принял 10 000, потом отменил приём: в журнале осталась пара
+// «приход (зачёркнут) + сторно-расход». Раньше первая падала в «Поступило»,
+// вторая в «Списано» — обе цифры врали, хотя денег не двигалось.
+test('scopeFinance: отменённый приход и его сторно в итоги не входят', () => {
+  const accts = [{ id: 'b1', section: 'branch', balance: '12000' }];
+  const ops = [
+    { accountId: 'b1', opType: 'Приход', amount: '12000', opDate: '2026-11-16' },                       // живой
+    { accountId: 'b1', opType: 'Приход', amount: '10000', opDate: '2026-11-16', reversedAt: new Date() }, // отменён
+    { accountId: 'b1', opType: 'Расход', amount: '10000', opDate: '2026-11-16', reverses: 'op-2' },       // его сторно
+    { accountId: 'b1', opType: 'Расход', amount: '13000', opDate: '2026-11-16' },                        // настоящий расход
+  ];
+  const r = scopeFinance(accts, ops, { section: 'branch', from: '2026-11-16', to: '2026-11-16' });
+  assert.equal(r.movs.length, 4);    // журнал показывает всё, включая отменённое
+  assert.equal(r.income, 12000);     // было бы 22000
+  assert.equal(r.expense, 13000);    // было бы 23000
+});

@@ -149,7 +149,8 @@ export function balanceDeltas(
 
 // ── Скоуп экрана «Финансы» по разделу и периоду (pure, unit-testable) ──
 type AcctLite = { id: string; balance?: string | number | null; section?: string | null };
-type OpLite = { accountId: string; opType: string; amount?: string | number | null; opDate?: string | null };
+// reverses/reversedAt — чтобы сводка могла отбросить отменённые пары (см. scopeFinance).
+type OpLite = { accountId: string; opType: string; amount?: string | number | null; opDate?: string | null; reverses?: string | null; reversedAt?: unknown };
 
 // Знаковая сумма движения: Приход +, Расход/Перевод −.
 export function movementAmount(opType: string, amount: string | number): number {
@@ -195,7 +196,14 @@ export function scopeFinance<A extends AcctLite, O extends OpLite>(
   const total = visAccts.reduce((s, a) => s + (Number(a.balance) || 0), 0);
   // Внимание: здесь «expense» = отток из раздела (Расход + Перевод), это иная
   // семантика, чем «Расходы» в виджетах (там только op_type='Расход', см. isRealExpense).
-  const income = movs.filter(o => o.opType === 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0);
-  const expense = movs.filter(o => o.opType !== 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  //
+  // Отменённые операции и их сторно в итоги НЕ входят (isLiveOp) — иначе пара
+  // «приход + его сторно» задваивала бы обе цифры: приход оставался в «Поступило»,
+  // а сторно-расход падал в «Списано», хотя денег не двигалось вовсе. Именно так
+  // у филиала Астана 16.11 приход показывал 193 000 вместо 115 000. Сами строки
+  // из журнала не убираем — там они видны зачёркнутыми.
+  const live = movs.filter(isLiveOp);
+  const income = live.filter(o => o.opType === 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  const expense = live.filter(o => o.opType !== 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0);
   return { cats, visAccts, movs, total, income, expense };
 }
