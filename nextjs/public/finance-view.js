@@ -14,6 +14,11 @@
   const secOf = id => { const a = S.accounts.find(x => x.id === id); return a ? (a.section || 'other') : 'other'; };
   const cats = () => S.cat === 'all' ? Object.keys(SECTIONS) : [S.cat];
   const movSign = o => o.opType === 'Приход' ? 1 : -1;
+  // Отменённые операции и их сторно в итоги периода НЕ входят: иначе пара
+  // «приход + его сторно» задваивает обе цифры — приход остаётся в «Приходах»,
+  // а сторно-расход падает в «Расходах», хотя денег не двигалось. Сами строки
+  // в списке движений остаются (зачёркнутыми). Зеркало isLiveOp из finance.dto.ts.
+  const isLive = o => !o.reverses && !o.reversedAt;
 
   const CSS = `
   .fv-view{--c-pov:#2563eb;--c-sale:#d97706;--c-other:#6f42c1;--c-branch:#0d9488;--c-branch-almaty:#0891b2;--c-navy:#1b2a4a;--fv-card:#fff;--fv-line:#e2e8f0;--fv-bg:#f8fafc;--fv-ink:#111827;--fv-muted:#6b7280;color:var(--fv-ink);}
@@ -168,8 +173,9 @@
     const visAccs = S.accounts.filter(a => cs.includes(a.section || 'other'));
     const set = (id, v) => { const e = r.querySelector('#' + id); if (e) e.textContent = v; };
     set('fv-total', fmt(visAccs.reduce((s, a) => s + (Number(a.balance) || 0), 0)));
-    set('fv-inc', fmt(visMovs.filter(o => o.opType === 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0)));
-    set('fv-exp', fmt(visMovs.filter(o => o.opType !== 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0)));
+    const liveMovs = visMovs.filter(isLive);
+    set('fv-inc', fmt(liveMovs.filter(o => o.opType === 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0)));
+    set('fv-exp', fmt(liveMovs.filter(o => o.opType !== 'Приход').reduce((s, o) => s + (Number(o.amount) || 0), 0)));
   }
 
   function doExport() {
