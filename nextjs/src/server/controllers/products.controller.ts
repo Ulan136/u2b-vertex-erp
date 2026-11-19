@@ -13,6 +13,14 @@ export const POST = withApi(async (req: NextRequest, ctx) =>
 // PATCH /api/v2/products/[id] — карточка товара (наименование/мин/цены/тип воды)
 export const PATCH = withApi(async (req: NextRequest, ctx) => productsService.update(ctx.params!.id, await req.json()));
 
+// POST /api/v2/products/reorder — ручной порядок позиций склада («Перестановка»).
+// В «Историю» не пишем: это оформление списка, а не движение товара — иначе лента
+// аудита склада утонула бы в перестановках.
+export const REORDER = withApi(async (req: NextRequest, ctx) => {
+  if (ctx.audit) ctx.audit.skip = true;
+  return productsService.reorder(await req.json());
+});
+
 // GET /api/v2/products/movements?limit=&type=IN|OUT|REV+|REV-&from=&to= — журнал движений
 export const MOVEMENTS = withApi(async (req: NextRequest) => {
   const sp = new URL(req.url).searchParams;

@@ -4,7 +4,7 @@ import { productsRepo } from '@/server/repositories/products.repo';
 import { financeRepo } from '@/server/repositories/finance.repo';
 import { financeService } from '@/server/services/finance.service';
 import { clientsService } from '@/server/services/clients.service';
-import { stockMovementSchema, productUpdateSchema, purchaseCreateSchema, purchaseUpdateSchema, purchasePaySchema, STOCK_SIGN, canApplyStock } from '@/server/dto/products.dto';
+import { stockMovementSchema, productUpdateSchema, productReorderSchema, hasDuplicates, purchaseCreateSchema, purchaseUpdateSchema, purchasePaySchema, STOCK_SIGN, canApplyStock } from '@/server/dto/products.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 
 export { STOCK_SIGN };
@@ -113,6 +113,15 @@ export const productsService = {
     // Поле очищено → сразу подставить себестоимость из истории приходов (если есть).
     if (releaseToAuto) return (await recomputeCost(id, db), await productsRepo.findById(id)) ?? row;
     return row;
+  },
+
+  // Ручной порядок позиций склада (режим «Перестановка»). Позиция = индекс в
+  // присланном списке. Ничего, кроме порядка, не меняем — остатки и цены не трогаются.
+  async reorder(input: unknown) {
+    const { ids } = productReorderSchema.parse(input);
+    if (hasDuplicates(ids)) throw badRequest('Один и тот же товар дважды в списке');
+    const count = await productsRepo.reorder(ids);
+    return { ok: true, count };
   },
 
   // exec передаётся, когда движение — часть внешней транзакции (напр. продажи);

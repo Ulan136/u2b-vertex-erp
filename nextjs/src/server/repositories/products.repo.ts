@@ -1,12 +1,26 @@
 import { db, type Executor } from '@/db';
 import { products, stockMovements } from '@/db/schema';
-import { and, asc, desc, eq, gte, isNull, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
 
 type MovementInsert = typeof stockMovements.$inferInsert;
 
 export const productsRepo = {
+  // Порядок: сначала ручная расстановка кладовщика, при равенстве — по SKU
+  // (пока никто не переставлял, у всех sort_order = 0 → порядок прежний).
   listActive: () =>
-    db.select().from(products).where(eq(products.isActive, true)).orderBy(asc(products.skuCode)),
+    db.select().from(products).where(eq(products.isActive, true))
+      .orderBy(asc(products.sortOrder), asc(products.skuCode)),
+
+  // Перестановка строк: присваиваем позиции одним запросом — иначе 30 товаров
+  // это 30 round-trip'ов до Neon, и при обрыве список остался бы полупереставленным.
+  async reorder(ids: string[], exec: Executor = db) {
+    if (!ids.length) return 0;
+    const cases = sql.join(ids.map((id, i) => sql`when ${products.id} = ${id}::uuid then ${i}`), sql` `);
+    await exec.update(products)
+      .set({ sortOrder: sql`case ${cases} else ${products.sortOrder} end`, updatedAt: new Date() })
+      .where(inArray(products.id, ids));
+    return ids.length;
+  },
 
   async findById(id: string, exec: Executor = db) {
     const [row] = await exec.select().from(products).where(eq(products.id, id)).limit(1);

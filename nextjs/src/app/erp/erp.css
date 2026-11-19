@@ -318,6 +318,12 @@ tr.row-focus-flash > td { animation: rowFocusFlash 2.6s ease-out; }
 .wh-min-edit:hover .wh-min-pen { opacity: 1; }
 .erp-table tr:hover .wh-min-pen { opacity: .5; }
 
+/* Склад — режим перестановки строк: курсор-«рука» и видимая цель перетаскивания */
+.erp-table tr.wh-draggable { cursor: grab; user-select: none; }
+.erp-table tr.wh-draggable:active { cursor: grabbing; }
+.erp-table tr.wh-draggable:hover { background: #eff6ff; }
+.wh-grip { color: #94a3b8; letter-spacing: -1px; }
+
 /* Склад — группы колонок по макету: вертикальные разделители + супер-шапка */
 .erp-table .wh-div { border-left: 2px solid #cbd5e1; }
 .erp-table thead .wh-grp-row th { padding: 7px 10px 3px; font-size: 10px; font-weight: 800; letter-spacing: .05em; color: #475569; text-transform: uppercase; background: #f1f5f9; text-align: center; }

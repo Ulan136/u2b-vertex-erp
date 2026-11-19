@@ -124,6 +124,9 @@ export const products = pgTable('products', {
   costPriceManual: boolean('cost_price_manual').default(false),   // true → задана вручную, приход её не перезаписывает
   isConsumable : boolean('is_consumable').default(false),
   isActive     : boolean('is_active').default(true),
+  // Порядок строк на экране Склад — кладовщик расставляет его руками
+  // («Перестановка»). 0 у всех → список идёт по SKU, как было до этого.
+  sortOrder    : integer('sort_order').default(0),
   createdAt    : timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt    : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

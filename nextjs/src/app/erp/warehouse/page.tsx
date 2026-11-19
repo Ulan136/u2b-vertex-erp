@@ -88,8 +88,78 @@ export default function WarehousePage() {
     } catch (e) { toast('⚠️ ' + (e as Error).message); setMinEdit(m => m && ({ ...m, saving: false })); }
   }
 
-  const all = products || [];
-  const list = all.filter(p => !q.trim() || (p.name + ' ' + p.skuCode).toLowerCase().includes(q.toLowerCase()));
+  // useMemo, а не `products || []`: иначе каждый рендер даёт новый пустой массив
+  // и пересчитывает порядок перестановки впустую.
+  const all = React.useMemo(() => products || [], [products]);
+
+  // ── режим перестановки строк ──────────────────────────────
+  // Пока он включён, порядок живёт ТОЛЬКО в браузере: сервер узнаёт о нём по
+  // кнопке «Готово». Поэтому «Отмена» — это просто сброс состояния, ничего
+  // откатывать не нужно. null = режим выключен.
+  const [order, setOrder] = React.useState<string[] | null>(null);
+  const [savingOrder, setSavingOrder] = React.useState(false);
+  const arranging = order !== null;
+  const dragId = React.useRef<string | null>(null);
+
+  // Список в порядке перестановки. Товар, заведённый кем-то другим, пока шла
+  // перестановка, не теряем — дописываем в конец.
+  const ordered = React.useMemo(() => {
+    if (!order) return all;
+    const by = new Map(all.map(p => [p.id, p]));
+    const seen = new Set(order);
+    const out = order.map(id => by.get(id)).filter(Boolean) as Product[];
+    all.forEach(p => { if (!seen.has(p.id)) out.push(p); });
+    return out;
+  }, [all, order]);
+
+  const groupOf = React.useCallback((id: string) => all.find(p => p.id === id)?.groupId || 'other', [all]);
+
+  function startArrange() {
+    setQ('');                                   // переставляем всегда полный список
+    setMinEdit(null);
+    setOrder(all.map(p => p.id));
+  }
+  // Переставляем только внутри группы: перетащить «Импульсный» к радиомодульным
+  // значило бы сменить товару группу — это делается в карточке товара, не мышкой.
+  function moveTo(fromId: string, toId: string) {
+    if (fromId === toId || groupOf(fromId) !== groupOf(toId)) return;
+    setOrder(o => {
+      if (!o) return o;
+      const i = o.indexOf(fromId), j = o.indexOf(toId);
+      if (i < 0 || j < 0 || i === j) return o;
+      const next = o.slice();
+      next.splice(i, 1);
+      next.splice(j, 0, fromId);
+      return next;
+    });
+  }
+  // Кнопки ↑/↓ — для тех, кому мышку тянуть неудобно (и для тачскрина, где
+  // HTML5-перетаскивание не работает вовсе). Шагаем к соседу СВОЕЙ группы.
+  function nudge(id: string, dir: -1 | 1) {
+    setOrder(o => {
+      if (!o) return o;
+      const i = o.indexOf(id); if (i < 0) return o;
+      const mine = groupOf(id);
+      let j = i + dir;
+      while (j >= 0 && j < o.length && groupOf(o[j]) !== mine) j += dir;
+      if (j < 0 || j >= o.length) return o;
+      const next = o.slice();
+      next.splice(i, 1);
+      next.splice(j, 0, id);
+      return next;
+    });
+  }
+  async function saveOrder() {
+    if (!order) return;
+    setSavingOrder(true);
+    try {
+      await apiSend('/api/v2/products/reorder', 'POST', { ids: order });
+      setOrder(null); await mutate(); toast('✅ Порядок сохранён');
+    } catch (e) { toast('⚠️ ' + (e as Error).message); }
+    finally { setSavingOrder(false); }
+  }
+
+  const list = ordered.filter(p => !q.trim() || (p.name + ' ' + p.skuCode).toLowerCase().includes(q.toLowerCase()));
   const lowCount = all.filter(p => free(p) < num(p.minStock) && free(p) > 0).length;
   const emptyCount = all.filter(p => free(p) <= 0).length;
   // Стоимость склада — по СЕБЕСТОИМОСТИ (приходным ценам), не по рознице.
@@ -186,11 +256,23 @@ export default function WarehousePage() {
     <div>
       <PageTitle title="Склад" sub="Остатки · движения · ведомость" action={
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Button variant="outline" onClick={printInvoice}>🖨 Ведомость</Button>
-          <Button variant="outline" onClick={exportWord}>⬇ Word</Button>
-          <Button variant="outline" onClick={openRev}>📋 Ревизия</Button>
-          <Button variant="outline" onClick={() => openMove('OUT')}>📤 Расход</Button>
-          <Button onClick={() => openMove('IN')}>📥 Приход</Button>
+          {/* В режиме перестановки прячем остальные кнопки: приход «вслепую»,
+              пока строки ездят под курсором, — верный способ ошибиться. */}
+          {arranging ? (
+            <>
+              <Button variant="outline" onClick={() => setOrder(null)} disabled={savingOrder}>✕ Отмена</Button>
+              <Button onClick={saveOrder} disabled={savingOrder}>{savingOrder ? 'Сохраняю…' : '✓ Готово'}</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={startArrange} title="Расставить позиции мышкой">↕ Перестановка</Button>
+              <Button variant="outline" onClick={printInvoice}>🖨 Ведомость</Button>
+              <Button variant="outline" onClick={exportWord}>⬇ Word</Button>
+              <Button variant="outline" onClick={openRev}>📋 Ревизия</Button>
+              <Button variant="outline" onClick={() => openMove('OUT')}>📤 Расход</Button>
+              <Button onClick={() => openMove('IN')}>📥 Приход</Button>
+            </>
+          )}
         </div>} />
 
       <div className="erp-kpi-grid">
@@ -203,9 +285,13 @@ export default function WarehousePage() {
       <Card className="erp-filters" style={{ marginTop: 12 }}>
         <div className="erp-chips">
           <button className={`erp-chip${tab === 'stock' ? ' on' : ''}`} onClick={() => setTab('stock')}>📦 Остатки</button>
-          <button className={`erp-chip${tab === 'moves' ? ' on' : ''}`} onClick={() => setTab('moves')}>📋 Движения</button>
+          <button className={`erp-chip${tab === 'moves' ? ' on' : ''}`} disabled={arranging}
+            title={arranging ? 'Сначала завершите перестановку' : undefined}
+            onClick={() => setTab('moves')}>📋 Движения</button>
         </div>
-        {tab === 'stock' && <Input placeholder="🔍 Наименование или SKU" value={q} onChange={e => setQ(e.target.value)} />}
+        {tab === 'stock' && <Input placeholder="🔍 Наименование или SKU" value={q} disabled={arranging}
+          title={arranging ? 'Во время перестановки поиск выключен — переставляем полный список' : undefined}
+          onChange={e => setQ(e.target.value)} />}
       </Card>
 
       {/* Фильтр периода — управляет колонками Приход/Расход и журналом (только чтение) */}
@@ -229,6 +315,13 @@ export default function WarehousePage() {
           <span style={{ color: '#dc2626', fontWeight: 700 }}>📤 {fmt(periodTotals.out)}</span>
         </span>
       </Card>
+
+      {arranging && (
+        <Card style={{ marginTop: 8, background: '#eff6ff', borderColor: '#bfdbfe', fontSize: 13 }}>
+          ↕ <b>Перестановка</b> — тяните строку мышкой за любое место или двигайте кнопками ↑ ↓.
+          Менять местами можно внутри одной группы. Нажмите <b>✓ Готово</b>, чтобы сохранить порядок.
+        </Card>
+      )}
 
       {tab === 'stock' ? (
         <Card className="erp-journal" style={{ marginTop: 12, padding: 0 }}>
@@ -266,8 +359,21 @@ export default function WarehousePage() {
                         const inq = s?.inQty || 0, outq = s?.outQty || 0;
                         const editing = minEdit?.id === p.id;
                         return (
-                          <tr key={p.id}>
-                            <td className="erp-muted" style={{ fontSize: 12 }}>{p.skuCode}</td>
+                          <tr key={p.id}
+                            draggable={arranging}
+                            className={arranging ? 'wh-draggable' : undefined}
+                            onDragStart={arranging ? (e => { dragId.current = p.id; e.dataTransfer.effectAllowed = 'move'; }) : undefined}
+                            onDragOver={arranging ? (e => {
+                              // Переставляем прямо под курсором, а не по «отпусканию»:
+                              // так видно результат до того, как отпустил кнопку.
+                              e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+                              if (dragId.current) moveTo(dragId.current, p.id);
+                            }) : undefined}
+                            onDrop={arranging ? (e => { e.preventDefault(); dragId.current = null; }) : undefined}
+                            onDragEnd={arranging ? (() => { dragId.current = null; }) : undefined}>
+                            <td className="erp-muted" style={{ fontSize: 12 }}>
+                              {arranging && <span className="wh-grip" title="Тяните строку мышкой">⠿ </span>}{p.skuCode}
+                            </td>
                             <td className="erp-td-main" title={p.fullName || p.name}>{p.name}</td>
                             <td style={{ fontSize: 12 }}>{p.waterType === 'г/в' ? '🔴 г/в' : p.waterType === 'х/в' ? '🔵 х/в' : '—'}</td>
                             <td className="wh-div" style={{ textAlign: 'right', color: inq ? '#16a34a' : undefined, fontWeight: inq ? 700 : 400 }} title={s && (s.revPlus || s.revMinus) ? `ревизии: +${s.revPlus} / −${s.revMinus}` : undefined}>{inq ? '+' + fmt(inq) : <span className="erp-muted">—</span>}</td>
@@ -283,6 +389,8 @@ export default function WarehousePage() {
                                   <button className="erp-icon-btn" title="Сохранить" onClick={saveMin} disabled={minEdit!.saving}>✅</button>
                                   <button className="erp-icon-btn" title="Отмена" onClick={() => setMinEdit(null)}>✕</button>
                                 </span>
+                              ) : arranging ? (
+                                <span className="erp-muted">{fmt(p.minStock)}</span>
                               ) : (
                                 <span className="wh-min-edit" title="Изменить минимум" onClick={() => setMinEdit({ id: p.id, value: String(p.minStock ?? 0), saving: false })}>
                                   <span className="erp-muted">{fmt(p.minStock)}</span> <span className="wh-min-pen">✎</span>
@@ -294,9 +402,14 @@ export default function WarehousePage() {
                             <td className="erp-muted" style={{ textAlign: 'right' }}>{num(p.priceDiscount) ? fmt(p.priceDiscount!) : '—'}</td>
                             <td className="wh-div">{statusBadge(p)}</td>
                             <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                              <button className="erp-icon-btn" title="Приход" onClick={() => openMove('IN', p.id)}>📥</button>
-                              <button className="erp-icon-btn" title="Расход" onClick={() => openMove('OUT', p.id)}>📤</button>
-                              <button className="erp-icon-btn" title="Настройки товара" onClick={() => openSet(p)}>⚙️</button>
+                              {arranging ? (<>
+                                <button className="erp-icon-btn" title="Выше" onClick={() => nudge(p.id, -1)}>↑</button>
+                                <button className="erp-icon-btn" title="Ниже" onClick={() => nudge(p.id, 1)}>↓</button>
+                              </>) : (<>
+                                <button className="erp-icon-btn" title="Приход" onClick={() => openMove('IN', p.id)}>📥</button>
+                                <button className="erp-icon-btn" title="Расход" onClick={() => openMove('OUT', p.id)}>📤</button>
+                                <button className="erp-icon-btn" title="Настройки товара" onClick={() => openSet(p)}>⚙️</button>
+                              </>)}
                             </td>
                           </tr>
                         );

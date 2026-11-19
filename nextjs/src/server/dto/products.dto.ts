@@ -12,6 +12,18 @@ export const productUpdateSchema = z.object({
   groupId: z.string().nullish(),
 });
 
+// POST /products/reorder — ручной порядок строк на складе: весь список целиком,
+// позиция = место в массиве. Шлём целиком (а не «этот стал третьим»), потому что
+// только так порядок остаётся связным, если кто-то переставлял параллельно.
+export const productReorderSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).max(2000),
+});
+
+// Один и тот же товар дважды в списке — порядок бессмыслен, это сбитый клиент.
+export function hasDuplicates(ids: string[]): boolean {
+  return new Set(ids).size !== ids.length;
+}
+
 // ── Учёт остатка (чистые функции — тестируемые) ──
 // Знак движения: приход/ревизия+ увеличивают, расход/ревизия− уменьшают остаток.
 export const STOCK_SIGN: Record<string, number> = { 'IN': 1, 'REV+': 1, 'OUT': -1, 'REV-': -1 };
