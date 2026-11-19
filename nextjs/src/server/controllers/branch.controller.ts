@@ -17,3 +17,8 @@ export const EXPENSE = withApi(async (req: NextRequest, ctx) => created(await br
 
 // POST /api/v2/branch/transfer?branch= — перевод со счёта филиала (свои/головной)
 export const TRANSFER = withApi(async (req: NextRequest, ctx) => created(await branchService.createTransfer({ id: ctx.user!.id, role: ctx.user!.role }, await req.json(), ctx.user?.id ?? null, new URL(req.url).searchParams.get('branch'))));
+
+// POST /api/v2/branch/finance/[id]/reverse?branch= — отмена (сторно) операции
+// своего раздела. Доступ — только «админ филиала» (гейт в branch.service).
+export const REVERSE = withApi(async (req: NextRequest, ctx) =>
+  branchService.reverseOperation({ id: ctx.user!.id, role: ctx.user!.role }, ctx.params!.id, ctx.user?.id ?? null, new URL(req.url).searchParams.get('branch')));

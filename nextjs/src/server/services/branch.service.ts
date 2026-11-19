@@ -66,6 +66,8 @@ export const branchService = {
     const { section, branchId } = await resolveSection(viewer, requested);
     // Право вести/видеть расходы филиала — только у отмеченных пользователей (admin — всегда).
     const canExpense = viewer.role === 'admin' || await usersRepo.canExpenseOf(viewer.id);
+    // Право отменять (сторно) операции своего раздела — «админ филиала» (admin — всегда).
+    const canReverse = viewer.role === 'admin' || await usersRepo.branchAdminOf(viewer.id);
     const { accounts, operations } = await financeRepo.overview(from, to);
     const scoped = scopeFinance(accounts, operations, { section, from, to });
     // Входящие переводы: перевод, где счёт-ПОЛУЧАТЕЛЬ (toAccountId) — наш, а
@@ -84,13 +86,35 @@ export const branchService = {
     // (баланс счетов НЕ трогаем — он считается из всех операций на сервере финансов).
     const movs = canExpense ? scoped.movs : scoped.movs.filter(o => o.opType !== 'Расход');
     return {
-      section, branchId, canExpense,
+      section, branchId, canExpense, canReverse,
       accounts: scoped.visAccts,
       operations: [...movs, ...incoming],
       accountNo: numberAccounts(scoped.visAccts),   // № счёта внутри раздела
       total: scoped.total, income: scoped.income + incomingSum, expense: canExpense ? scoped.expense : 0,
       transferTargets,
     };
+  },
+
+  // Отмена (сторно) операции своего раздела — только «админ филиала» (или admin).
+  // Жёсткие проверки: право + принадлежность операции разделу филиала + тип
+  // операции (переводы/старт/оплаты продаж-сертов отменяются своими документами,
+  // не здесь). Сама отмена — через общий сторно-механизм финансов (аудит + баланс).
+  async reverseOperation(viewer: { id: string; role?: string | null }, opId: string, actorId?: string | null, requested?: string | null) {
+    const { section } = await resolveSection(viewer, requested);
+    if (!(viewer.role === 'admin' || await usersRepo.branchAdminOf(viewer.id))) {
+      throw forbidden('Отменять операции может только админ филиала');
+    }
+    if (!opId) throw badRequest('id операции обязателен');
+    const op = await financeRepo.findOperation(opId);
+    if (!op) throw badRequest('Операция не найдена');
+    // Операция должна принадлежать РАЗДЕЛУ этого филиала (чужой тронуть нельзя).
+    const acc = await financeRepo.findAccount(op.accountId);
+    if (!acc || (acc.section || '') !== section) throw forbidden('Операция не принадлежит вашему филиалу');
+    if (op.reversedAt || op.reverses) throw badRequest('Операция уже отменена');
+    if (op.opType === 'Перевод' || op.source === 'Старт' || op.saleId || op.certId) {
+      throw forbidden('Эту операцию нельзя отменить здесь');
+    }
+    return financeService.reverseExpense(opId, actorId ?? null);
   },
 
   // Расход филиала — только со своего счёта. Обычный Расход в финледжере.

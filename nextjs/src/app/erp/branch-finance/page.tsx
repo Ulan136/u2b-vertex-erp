@@ -6,14 +6,18 @@ import { useApi, apiSend } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { formatDate } from '@/lib/format';
 import { Card, PageTitle, EmptyRow, DateRange, Button, Modal, Field, Input, MoneyInput, Select } from '@/components/ui';
-import { opIcon, opName, opSign, opAmountColor, isReversed } from '@/lib/opDisplay';
+import { opIcon, opName, opSign, opAmountColor, isReversed, isReversal } from '@/lib/opDisplay';
 
 const BRANCH_LABEL: Record<string, string> = { astana: 'Астана', almaty: 'Алматы' };
 
 type Acct = { id: string; name: string; icon?: string | null; section?: string | null; balance?: string | number | null };
-type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; createdByName?: string | null; incoming?: boolean };
+type Op = { id: string; opType: string; accountId: string; accountName?: string | null; amount: string | number; opDate?: string | null; name?: string | null; source?: string | null; reverses?: string | null; reversedAt?: string | null; createdByName?: string | null; incoming?: boolean; saleId?: string | null; certId?: string | null };
 type Target = { id: string; name: string; icon?: string | null; own: boolean };
-type Resp = { section: string; branchId: string; accounts: Acct[]; operations: Op[]; accountNo: Record<string, number>; total: number; income: number; expense: number; transferTargets: Target[]; canExpense?: boolean };
+type Resp = { section: string; branchId: string; accounts: Acct[]; operations: Op[]; accountNo: Record<string, number>; total: number; income: number; expense: number; transferTargets: Target[]; canExpense?: boolean; canReverse?: boolean };
+
+// Отменяемость операции в кабинете (как на главном экране финансов): не отменена,
+// не сторно, не перевод/старт, не оплата продажи/серта, не входящий перевод.
+const canReverseOp = (o: Op) => !isReversed(o) && !isReversal(o) && o.opType !== 'Перевод' && o.source !== 'Старт' && !o.saleId && !o.certId && !o.incoming;
 
 const fmt = (n: number | string) => (Number(n) || 0).toLocaleString('ru-RU');
 const num = (v: unknown) => Number(String(v ?? '').replace(/\s/g, '')) || 0;
@@ -36,6 +40,8 @@ function BranchFinanceInner() {
   // Право вести/видеть расходы филиала (сервер решает по пользователю; admin — всегда).
   // Пока данные не загрузились — не прячем (чтобы не мигало).
   const canExpense = data ? data.canExpense !== false : true;
+  // Право отменять операции — только у «админа филиала» (сервер решает по пользователю).
+  const canReverse = data?.canReverse === true;
   const targets = data?.transferTargets || [];
   const defAcc = accounts[0]?.id || '';
   const ops = React.useMemo(() => (data?.operations || []).slice().sort((a, b) => String(b.opDate).localeCompare(String(a.opDate))), [data]);
@@ -66,6 +72,15 @@ function BranchFinanceInner() {
       await apiSend('/api/v2/branch/expense' + (branchQ ? '?' + branchQ : ''), 'POST', { accountId: exp.accountId, amount: num(exp.amount), name: exp.name.trim(), date: exp.date || null, comment: exp.comment || null });
       setExp(s => ({ ...s, open: false })); await mutate(); toast('💸 Расход проведён');
     } catch (e) { setExp(s => ({ ...s, err: (e as Error).message, saving: false })); }
+  }
+
+  // ── Отмена операции (сторно) — только админ филиала ──
+  async function reverseOp(o: Op) {
+    if (!confirm(`Отменить операцию «${opName(o)}» на ${fmt(o.amount)} ₸?\nБудет создано сторно, баланс счёта откатится. Операция останется в истории зачёркнутой.`)) return;
+    try {
+      await apiSend(`/api/v2/branch/finance/${o.id}/reverse` + (branchQ ? '?' + branchQ : ''), 'POST');
+      await mutate(); toast('↩️ Операция отменена (сторно)');
+    } catch (e) { toast('⚠️ ' + (e as Error).message); }
   }
 
   // ── Перевод ──
@@ -146,7 +161,7 @@ function BranchFinanceInner() {
                   <tr key={o.id}>
                     <td className="erp-muted col-date" style={{ fontSize: 12 }}>{dmy(o.opDate)}</td>
                     <td className="erp-muted col-account" style={{ fontSize: 12 }}>№{accNo[o.accountId] ?? '?'} {o.accountName || ''}</td>
-                    <td style={isReversed(o) ? { textDecoration: 'line-through', opacity: .55 } : undefined}>{o.incoming ? '📥' : opIcon(o)} {o.incoming ? 'Перевод (входящий)' : opName(o)}{o.createdByName ? <span className="erp-muted" style={{ marginLeft: 6, fontSize: 11 }}>· {o.createdByName}</span> : null}</td>
+                    <td style={isReversed(o) ? { textDecoration: 'line-through', opacity: .55 } : undefined}>{o.incoming ? '📥' : opIcon(o)} {o.incoming ? 'Перевод (входящий)' : opName(o)}{o.createdByName ? <span className="erp-muted" style={{ marginLeft: 6, fontSize: 11 }}>· {o.createdByName}</span> : null}{canReverse && canReverseOp(o) && <button className="erp-icon-btn" title="Отменить операцию (сторно)" style={{ color: '#dc2626', marginLeft: 6, fontSize: 12, padding: '0 4px', lineHeight: 1 }} onClick={() => reverseOp(o)}>↩️</button>}</td>
                     <td style={{ textAlign: 'right', color: o.incoming ? '#16a34a' : opAmountColor(o), fontWeight: 700, whiteSpace: 'nowrap' }}>{o.incoming ? '+' : opSign(o)}{fmt(o.amount)} ₸</td>
                   </tr>
                 ))}

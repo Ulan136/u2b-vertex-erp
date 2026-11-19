@@ -51,6 +51,7 @@ export const users = pgTable('users', {
   lastSeenAt   : timestamp('last_seen_at', { withTimezone: true }),   // presence (обновляется на авторизованных запросах)
   stampSeqNext : integer('stamp_seq_next'),   // порядковый № клейма менеджера (следующий); у каждого свой
   canExpense   : boolean('can_expense').notNull().default(false),   // право вести расходы филиала (кабinет филиала)
+  branchAdmin  : boolean('branch_admin').notNull().default(false),   // админ филиала: может отменять (сторно) операции своего раздела в кабинете филиала
   createdAt    : timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt    : timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });
