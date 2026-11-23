@@ -46,6 +46,22 @@ function BranchFinanceInner() {
   const defAcc = accounts[0]?.id || '';
   const ops = React.useMemo(() => (data?.operations || []).slice().sort((a, b) => String(b.opDate).localeCompare(String(a.opDate))), [data]);
   const accNo = data?.accountNo || {};
+  // Приход по каждому счёту за выбранный период — чтобы рядом с остатком сразу
+  // было видно, сколько пришло на этот счёт за день. Правило то же, что у KPI
+  // «Приход за период» на сервере: живые приходы плюс входящие переводы,
+  // отменённые и сторно мимо. Поэтому сумма по счетам равна цифре в плашке.
+  // Без выбранной даты не показываем: период не задан — складывать нечего.
+  const hasPeriod = !!(from || to);
+  const incomeByAcc = React.useMemo(() => {
+    const m = new Map<string, number>();
+    if (!hasPeriod) return m;
+    for (const o of ops) {
+      if (o.reverses || o.reversedAt) continue;
+      if (o.opType !== 'Приход' && !o.incoming) continue;
+      m.set(o.accountId, (m.get(o.accountId) || 0) + (Number(o.amount) || 0));
+    }
+    return m;
+  }, [ops, hasPeriod]);
   const match = (o: Op) =>
     tab === 'all' ? true
       : tab === 'expense' ? o.opType === 'Расход'
@@ -136,7 +152,9 @@ function BranchFinanceInner() {
               {accounts.map(a => (
                 <div className="erp-sec-row" key={a.id}>
                   <span className="erp-sec-label"><b>№{accNo[a.id]}</b> {a.icon || '💳'} {a.name}</span>
-                  <span className="erp-sec-val">{fmt(a.balance || 0)} ₸</span>
+                  <span className="erp-sec-val">{fmt(a.balance || 0)} ₸{hasPeriod ? (incomeByAcc.get(a.id)
+                    ? <span className="erp-fin-inc" style={{ marginLeft: 8 }} title="Приход на этот счёт за выбранный период">+{fmt(incomeByAcc.get(a.id) as number)}</span>
+                    : <span className="erp-fin-inc zero" style={{ marginLeft: 8 }} title="За выбранный период приходов на этот счёт не было">—</span>) : null}</span>
                 </div>
               ))}
             </div>

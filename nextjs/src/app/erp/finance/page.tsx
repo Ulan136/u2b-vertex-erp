@@ -31,6 +31,8 @@ const SECTIONS = [
   { key: 'branch_almaty', no: 5, label: 'Филиал Алматы', icon: '🏢', color: '#0891b2' },
 ];
 const fmt = (n: number | string) => Math.round(Number(n) || 0).toLocaleString('ru-RU') + ' ₸';
+// То же число без «₸» — для компактной подписи прихода рядом с остатком счёта.
+const fmtn = (n: number | string) => Math.round(Number(n) || 0).toLocaleString('ru-RU');
 const dmy = (d?: string | null) => formatDate(d);
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -71,7 +73,9 @@ export default function FinancePage() {
   const supDebt = purchaseDebts(movements.data || [], paymentsAsOps(data?.purchasePayments));
   const pend = pendingReceivables(salesData.data || [], certsData.data || []);
   const accounts = data?.accounts || [];
-  const ops = data?.operations || [];
+  // useMemo, а не `data?.operations || []`: иначе каждый рендер даёт новый
+  // пустой массив и пересчитывает приход по счетам впустую.
+  const ops = React.useMemo(() => data?.operations || [], [data]);
   const secOf = (id: string) => accounts.find(a => a.id === id)?.section || 'other';
   const cats = cat === 'all' ? SECTIONS.map(s => s.key) : [cat];
 
@@ -96,6 +100,18 @@ export default function FinancePage() {
   const cash = visAccs.reduce((s, a) => s + (Number(a.balance) || 0), 0);
   const income = visOps.filter(isRealIncome).reduce((s, o) => s + (Number(o.amount) || 0), 0);
   const expense = visOps.filter(isRealExpense).reduce((s, o) => s + (Number(o.amount) || 0), 0);
+  // Приход по каждому счёту за выбранный период — чтобы рядом с остатком сразу
+  // было видно, сколько пришло на этот счёт за день. Считаем тем же isRealIncome,
+  // что и KPI сверху, поэтому сумма чисел по счетам = «Приход за период».
+  // Без выбранной даты не показываем вовсе: API тогда отдаёт последние 50 операций,
+  // и «за период» означало бы случайный хвост журнала, а не день.
+  const hasPeriod = !!(from || to);
+  const incomeByAcc = React.useMemo(() => {
+    const m = new Map<string, number>();
+    if (!hasPeriod) return m;
+    for (const o of ops) if (isRealIncome(o)) m.set(o.accountId, (m.get(o.accountId) || 0) + (Number(o.amount) || 0));
+    return m;
+  }, [ops, hasPeriod]);
   // Разбивка «Кассы» по владельцу денег: Тараз (общий: Поверка+Продажа+Прочие) и
   // отдельно каждый филиал (Астана/Алматы) — чтобы деньги филиала не смешивались с общими.
   const BRANCH_SECS: Record<string, string> = { branch: 'Астана', branch_almaty: 'Алматы' };
@@ -232,6 +248,7 @@ export default function FinancePage() {
             if (fAcc && !accs.some(a => a.id === fAcc)) return null;        // выбран счёт другого раздела — колонку скрываем
             const accsShown = fAcc ? accs.filter(a => a.id === fAcc) : accs;
             const total = accsShown.reduce((s, a) => s + (Number(a.balance) || 0), 0);
+            const incPeriod = accsShown.reduce((s, a) => s + (incomeByAcc.get(a.id) || 0), 0);
             const movs = ops.filter(o => secOf(o.accountId) === c && (!fAcc || o.accountId === fAcc)).sort((a, b) => String(b.opDate).localeCompare(String(a.opDate)));
             // связь отменённой пары: исходная ↔ её сторно (для подсказки «связана с …»)
             const revByOrig = new Map(ops.filter(o => o.reverses).map(o => [o.reverses as string, o]));
@@ -239,10 +256,12 @@ export default function FinancePage() {
             const pairTitle = (o: Op) => { const c2 = isReversal(o) ? opById.get(o.reverses as string) : isReversed(o) ? revByOrig.get(o.id) : null; return c2 ? `связана с: ${opName(c2)} (${dmy(c2.opDate)})` : undefined; };
             return (
               <div className="erp-fin-col" key={c}>
-                <div className="erp-fin-head" style={{ background: sec.color }}><span>№{sec.no} {sec.icon} {sec.label}</span><span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{fmt(total)}<button className="erp-icon-btn" title="Скрыть колонку (растянуть остальные)" style={{ color: '#fff', fontSize: 14, opacity: .85 }} onClick={() => toggleHidden(c)}>🙈</button></span></div>
+                <div className="erp-fin-head" style={{ background: sec.color }}><span>№{sec.no} {sec.icon} {sec.label}</span><span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{fmt(total)}{hasPeriod ? <span className="erp-fin-head-inc" title="Приход за выбранный период">+{fmtn(incPeriod)}</span> : null}<button className="erp-icon-btn" title="Скрыть колонку (растянуть остальные)" style={{ color: '#fff', fontSize: 14, opacity: .85 }} onClick={() => toggleHidden(c)}>🙈</button></span></div>
                 <div className="erp-fin-accs">
                   {accsShown.length === 0 ? <div className="erp-muted" style={{ fontSize: 12, padding: 6 }}>Нет счетов</div> : accsShown.map((a) => (
-                    <div className="erp-fin-acc" key={a.id}><span><b>№{accNoById.get(a.id)}</b> {a.icon} {a.name}</span><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{fmt(a.balance || 0)}<button className="erp-icon-btn" title="Изменить счёт / начальный остаток" style={{ fontSize: 13 }} onClick={() => editAcct(a)}>✏️</button></span></div>
+                    <div className="erp-fin-acc" key={a.id}><span><b>№{accNoById.get(a.id)}</b> {a.icon} {a.name}</span><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{fmt(a.balance || 0)}{hasPeriod ? (incomeByAcc.get(a.id)
+                      ? <span className="erp-fin-inc" title="Приход на этот счёт за выбранный период">+{fmtn(incomeByAcc.get(a.id) as number)}</span>
+                      : <span className="erp-fin-inc zero" title="За выбранный период приходов на этот счёт не было">—</span>) : null}<button className="erp-icon-btn" title="Изменить счёт / начальный остаток" style={{ fontSize: 13 }} onClick={() => editAcct(a)}>✏️</button></span></div>
                   ))}
                 </div>
                 <div className="erp-fin-movs">
