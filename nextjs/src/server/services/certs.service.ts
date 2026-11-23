@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { db, type Executor } from '@/db';
 import { certsRepo } from '@/server/repositories/certs.repo';
-import { certUpsertSchema, certUpdateSchema, cleanCertFields, isCertPaid, isCertSettled, poverkaPaymentSchema, payByClientSchema, commissionPaySchema, sectionForCertSource, certIncomePosts, certIncomeAmount, type CertQuery } from '@/server/dto/certs.dto';
+import { certUpsertSchema, certUpdateSchema, cleanCertFields, isCertSettled, poverkaPaymentSchema, payByClientSchema, commissionPaySchema, sectionForCertSource, certIncomePosts, certIncomeAmount, type CertQuery } from '@/server/dto/certs.dto';
 import { deviceTypesService } from '@/server/services/deviceTypes.service';
 import { productsService } from '@/server/services/products.service';
 import { financeService } from '@/server/services/finance.service';
@@ -25,10 +25,12 @@ async function branchIdBySlug(slug?: string | null): Promise<string | null> {
   return all.find((b: { id: string; name?: string | null; city?: string | null }) => branchFinanceSection(b) === section)?.id ?? null;
 }
 
-// Какое клеймо должно быть списано у ИТОГОВОГО состояния поверки:
-// расходуется только у ОПЛАЧЕННОЙ поверки (docType='cert'); иначе — ничего.
+// Какое клеймо должно быть списано у ИТОГОВОГО состояния поверки (docType='cert').
+// Считаем по isCertSettled, а не по isCertPaid: на бесплатной поверке клеймо
+// расходуется физически так же, как на платной — нет только денег. Иначе остаток
+// клейм на складе завышался бы на каждой бесплатной поверке.
 function sealFor(cert: { docType?: string | null; sealType?: string | null; payStatus?: string | null }): 'СЛ' | 'ПЛ' | null {
-  return isCertPaid(cert.payStatus) ? sealMarker(cert.docType, cert.sealType) : null;
+  return isCertSettled(cert.payStatus) ? sealMarker(cert.docType, cert.sealType) : null;
 }
 
 // ── Доход прямого сертификата/извещения (смешанная оплата → приход на счета) ──

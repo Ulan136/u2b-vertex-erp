@@ -46,9 +46,9 @@ test('isCertPaid: только «Оплачено» — расход', () => {
   assert.equal(isCertPaid(undefined), false);
 });
 
-// итоговый маркер = (оплачено ? клеймо : ничего) — как certs.service.sealFor
+// итоговый маркер = (вопрос денег закрыт ? клеймо : ничего) — как certs.service.sealFor
 const sealFor = (c: { docType?: string | null; sealType?: string | null; payStatus?: string | null }) =>
-  isCertPaid(c.payStatus) ? sealMarker(c.docType, c.sealType) : null;
+  isCertSettled(c.payStatus) ? sealMarker(c.docType, c.sealType) : null;
 
 test('sealFor: оплаченная поверка СЛ → списываем СЛ, ПЛ → ПЛ', () => {
   assert.equal(sealFor({ docType: 'cert', sealType: 'СЛ', payStatus: 'Оплачено' }), 'СЛ');
@@ -86,4 +86,13 @@ test('isCertSettled: «Бесплатно» — вопрос денег закр
   assert.equal(isCertSettled(null), false);
   // но денег по бесплатной поверке не приходило — это другой вопрос
   assert.equal(isCertPaid('Бесплатно'), false);
+});
+
+test('sealFor: бесплатная поверка — клеймо списываем (денег нет, клеймо израсходовано)', () => {
+  assert.equal(sealFor({ docType: 'cert', sealType: 'СЛ', payStatus: 'Бесплатно' }), 'СЛ');
+  assert.equal(sealFor({ docType: 'cert', sealType: 'ПЛ', payStatus: 'Бесплатно' }), 'ПЛ');
+  // неоплаченная — по-прежнему нет
+  assert.equal(sealFor({ docType: 'cert', sealType: 'СЛ', payStatus: 'В ожидании' }), null);
+  // а дохода по бесплатной нет и не будет
+  assert.equal(certIncomePosts({ source: 'САМИ', payStatus: 'Бесплатно', amount: 10000 }), false);
 });
