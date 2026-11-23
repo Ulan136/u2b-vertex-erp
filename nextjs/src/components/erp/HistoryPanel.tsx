@@ -5,6 +5,7 @@ import { apiFetch, useApi } from '@/lib/api';
 import { entityMeta, actionRu, AUDIT_ALL_ROLES, AUDIT_LOGIN_ROLES } from '@/server/dto/audit.dto';
 import { formatDate } from '@/lib/format';
 
+type Caps = { canAll?: boolean; canLogins?: boolean };
 type Row = { id: string; userName?: string | null; action: string; entityType?: string | null; entityId?: string | null; entityLabel?: string | null; ip?: string | null; createdAt: string };
 
 const two = (n: number) => String(n).padStart(2, '0');
@@ -14,8 +15,11 @@ function dayKey(s: string) { const d = new Date(s); const t = new Date(); const 
 export default function HistoryPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data: session } = useApi<{ user?: { role?: string } }>('/api/auth/session');
   const role = session?.user?.role || '';
-  const canAll = AUDIT_ALL_ROLES.includes(role);
-  const canLogins = AUDIT_LOGIN_ROLES.includes(role);
+  // Права на вкладки приходят из ответа ленты: по одной роли «админа филиала»
+  // от обычного сотрудника филиала не отличить. До первого ответа — по роли.
+  const [caps, setCaps] = React.useState<Caps>({});
+  const canAll = caps.canAll ?? AUDIT_ALL_ROLES.includes(role);
+  const canLogins = caps.canLogins ?? AUDIT_LOGIN_ROLES.includes(role);
   const router = useRouter();
 
   const [scope, setScope] = React.useState('mine');
@@ -29,7 +33,8 @@ export default function HistoryPanel({ open, onClose }: { open: boolean; onClose
     setLoading(true);
     const off = reset ? 0 : offset.current;
     try {
-      const r = await apiFetch<{ items: Row[]; hasMore: boolean }>(`/api/v2/audit?scope=${sc}&q=${encodeURIComponent(query)}&limit=40&offset=${off}`);
+      const r = await apiFetch<{ items: Row[]; hasMore: boolean } & Caps>(`/api/v2/audit?scope=${sc}&q=${encodeURIComponent(query)}&limit=40&offset=${off}`);
+      if (r.canAll !== undefined) setCaps({ canAll: r.canAll, canLogins: r.canLogins });
       offset.current = off + r.items.length;
       setItems(prev => reset ? r.items : [...prev, ...r.items]);
       setHasMore(r.hasMore);

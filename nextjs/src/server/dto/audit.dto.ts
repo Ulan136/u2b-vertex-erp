@@ -92,10 +92,16 @@ export function resolveMutation(o: {
 }
 
 // План выборки ленты по роли/скоупу (роль-гейт, тестируемо).
-export function auditListPlan(role: string, scope: string): { onlyLogins: boolean; mineOnly: boolean; denied: boolean } {
+// branchAdmin — «админ филиала»: вкладка «Все сотрудники» у него есть, но видит
+// он только свой филиал (branchOnly), а не компанию. Вкладка «Входы» — по-прежнему
+// только Админу.
+export function auditListPlan(role: string, scope: string, branchAdmin = false): { onlyLogins: boolean; mineOnly: boolean; branchOnly: boolean; denied: boolean } {
   if (scope === 'logins') {
-    return AUDIT_LOGIN_ROLES.includes(role) ? { onlyLogins: true, mineOnly: false, denied: false } : { onlyLogins: false, mineOnly: true, denied: true };
+    return AUDIT_LOGIN_ROLES.includes(role)
+      ? { onlyLogins: true, mineOnly: false, branchOnly: false, denied: false }
+      : { onlyLogins: false, mineOnly: true, branchOnly: false, denied: true };
   }
   const canAll = AUDIT_ALL_ROLES.includes(role);
-  return { onlyLogins: false, mineOnly: scope !== 'all' || !canAll, denied: false };
+  if (!canAll && branchAdmin && scope === 'all') return { onlyLogins: false, mineOnly: false, branchOnly: true, denied: false };
+  return { onlyLogins: false, mineOnly: scope !== 'all' || !canAll, branchOnly: false, denied: false };
 }

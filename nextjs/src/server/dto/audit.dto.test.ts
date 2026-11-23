@@ -64,3 +64,18 @@ test('auditListPlan: «Входы» — только Админу, осталь�
   assert.equal(auditListPlan('director', 'logins').denied, true);
   assert.equal(auditListPlan('manager', 'logins').denied, true);
 });
+
+test('auditListPlan: админ филиала видит «все» только по своему филиалу', () => {
+  const p = auditListPlan('branch', 'all', true);
+  assert.equal(p.branchOnly, true);
+  assert.equal(p.mineOnly, false);
+  assert.equal(p.denied, false);
+  // обычный сотрудник филиала — только свои
+  assert.equal(auditListPlan('branch', 'all', false).mineOnly, true);
+  assert.equal(auditListPlan('branch', 'all', false).branchOnly, false);
+  // «Входы» админу филиала не открываются
+  assert.equal(auditListPlan('branch', 'logins', true).denied, true);
+  // у Админа ничего не изменилось: вся компания, без branch-сужения
+  assert.equal(auditListPlan('admin', 'all').mineOnly, false);
+  assert.equal(auditListPlan('admin', 'all').branchOnly, false);
+});

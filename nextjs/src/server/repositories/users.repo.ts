@@ -56,6 +56,12 @@ export const usersRepo = {
   },
 
   // Админ филиала: может отменять (сторно) операции своего раздела в кабинете филиала.
+  // Все пользователи филиала — для ленты истории админа филиала.
+  async idsByBranch(branchId: string): Promise<string[]> {
+    const rows = await db.select({ id: users.id }).from(users).where(eq(users.branchId, branchId));
+    return rows.map(r => r.id);
+  },
+
   async branchAdminOf(id: string): Promise<boolean> {
     const [row] = await db.select({ v: users.branchAdmin }).from(users).where(eq(users.id, id)).limit(1);
     return row?.v === true;

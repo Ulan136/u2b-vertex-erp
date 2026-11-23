@@ -1,11 +1,12 @@
 import { db } from '@/db';
 import { auditLog } from '@/db/schema';
-import { and, desc, eq, ne, or, ilike, type SQL } from 'drizzle-orm';
+import { and, desc, eq, ne, or, ilike, inArray, type SQL } from 'drizzle-orm';
 
 type AuditInsert = typeof auditLog.$inferInsert;
 
 export type AuditQuery = {
   userId?: string | null;        // только действия этого пользователя (лента «Мои»)
+  userIds?: string[] | null;     // действия этих пользователей (лента филиала)
   entityType?: string | null;    // история конкретной сущности
   entityId?: string | null;
   onlyLogins?: boolean;          // вкладка «Входы»
@@ -28,6 +29,9 @@ export const auditRepo = {
       if (qy.onlyLogins) conds.push(eq(auditLog.action, 'login'));
       if (qy.excludeLogins) conds.push(ne(auditLog.action, 'login'));
       if (qy.userId) conds.push(eq(auditLog.userId, qy.userId));
+      // Пустой список сюда не доходит (сервис подставляет самого смотрящего),
+      // но проверяем: inArray([]) в SQL развернулся бы в «ничего не фильтруем».
+      if (qy.userIds && qy.userIds.length) conds.push(inArray(auditLog.userId, qy.userIds));
     }
     if (qy.q && qy.q.trim()) {
       const like = `%${qy.q.trim()}%`;
