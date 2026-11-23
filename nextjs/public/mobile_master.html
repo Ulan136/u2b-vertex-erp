@@ -626,7 +626,8 @@ async function setStatus(id,status){
       if(rc.ok){
         const certs=await rc.json();
         if(!Array.isArray(certs)||!certs.length){ toast('⚠️ Сначала оформите позиции и примите оплату'); return; }
-        if(certs.some(c=>c.payStatus!=='Оплачено')){ toast('⚠️ Заявка не оплачена — примите оплату (выберите счёт)'); return; }
+        // «Бесплатно» — закрытая позиция: денег по ней не ждём, заявку не держим.
+        if(certs.some(c=>c.payStatus!=='Оплачено'&&c.payStatus!=='Бесплатно')){ toast('⚠️ Заявка не оплачена — примите оплату (выберите счёт)'); return; }
       }
     }catch(_e){ /* сеть недоступна — не блокируем жёстко */ }
   }

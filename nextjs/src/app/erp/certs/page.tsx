@@ -9,6 +9,7 @@ import EntityHistory from '@/components/erp/EntityHistory';
 import ClientPicker from '@/components/erp/ClientPicker';
 import { getRecent, pushRecent, removeRecent, type RecentItem } from '@/lib/recent';
 import { payTone } from '@/lib/status';   // единый тон статуса оплаты (P1-5)
+import { isCertSettled } from '@/server/dto/certs.dto';   // «Бесплатно» — платить нечего
 import { useCols, ColumnMenu } from '@/components/erp/ColumnMenu';
 import { useRowFocus } from '@/lib/useRowFocus';
 
@@ -340,7 +341,8 @@ function CertsInner() {
   useRowFocus(list.length);   // переход к строке по ?focus=<id> (из Финансов/дашборда)
 
   // Блоки 2–4 (по полному списку направления).
-  const waiting = all.filter(c => c.payStatus !== 'Оплачено');
+  // «Бесплатно» в ожидание оплаты не попадает — денег по нему никто не ждёт.
+  const waiting = all.filter(c => !isCertSettled(c.payStatus));
   const unfit = all.filter(c => c.result === 'Не годен');
   const histList = React.useMemo(() => {
     let arr = all;
@@ -358,8 +360,8 @@ function CertsInner() {
     total: all.length,
     ktrm: all.filter(c => c.operStatus === 'Внесён в КТРМ').length,
     work: all.filter(c => c.operStatus === 'В работе').length,
-    paid: all.filter(c => c.payStatus === 'Оплачено').length,
-    wait: all.filter(c => c.payStatus !== 'Оплачено').length,
+    paid: all.filter(c => isCertSettled(c.payStatus)).length,   // вкл. «Бесплатно»: вопрос денег закрыт
+    wait: all.filter(c => !isCertSettled(c.payStatus)).length,
     tte: all.filter(isTTE).length,
   };
 
@@ -369,7 +371,7 @@ function CertsInner() {
   const pcAwaiting = React.useMemo(() => {
     if (!fClient) return [];
     return all.filter(c => {
-      if ((c.client || '') !== fClient || c.payStatus === 'Оплачено') return false;
+      if ((c.client || '') !== fClient || isCertSettled(c.payStatus)) return false;
       const d = iso(c.checkDate);
       if (pcFrom && d < pcFrom) return false;
       if (pcTo && d > pcTo) return false;

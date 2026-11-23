@@ -74,6 +74,14 @@ export function isCertPaid(payStatus?: string | null): boolean {
   return payStatus === 'Оплачено';
 }
 
+// По деньгам сертификат закрыт: платить по нему больше нечего. «Бесплатно» —
+// такой же закрытый случай, как «Оплачено»: денег не ждём, в списки и счётчики
+// ожидания он попадать не должен. Отличается от isCertPaid, который отвечает на
+// другой вопрос — «деньги реально пришли» (приход в финансах, списание клейма).
+export function isCertSettled(payStatus?: string | null): boolean {
+  return payStatus === 'Оплачено' || payStatus === 'Бесплатно';
+}
+
 export type CertQuery = { source?: string | null; archived?: boolean; type?: string | null; orderId?: string | null; trash?: boolean; branch?: string | null };
 
 // Приём оплаты поверки (заявки): смешанная оплата — строки {счёт, сумма}.

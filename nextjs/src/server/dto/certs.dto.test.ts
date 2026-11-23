@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanCertFields, isCertPaid, sectionForCertSource, certIncomePosts, certUpsertSchema } from './certs.dto';
+import { cleanCertFields, isCertPaid, isCertSettled, sectionForCertSource, certIncomePosts, certUpsertSchema } from './certs.dto';
 import { sealMarker } from './products.dto';
 
 test('sectionForCertSource: Астана → branch, прочие → poverka', () => {
@@ -76,4 +76,14 @@ test('certUpsertSchema: владелец — только физлицо или 
 test('certUpsertSchema: поверитель, класс точности и казахский адрес принимаются', () => {
   const r = certUpsertSchema.safeParse({ verifier: 'Болегенов А.', accuracyClass: '±5; ±2', addressKz: 'Тараз қ.' });
   assert.equal(r.success, true);
+});
+
+test('isCertSettled: «Бесплатно» — вопрос денег закрыт, как «Оплачено»', () => {
+  assert.equal(isCertSettled('Оплачено'), true);
+  assert.equal(isCertSettled('Бесплатно'), true);
+  assert.equal(isCertSettled('В ожидании'), false);
+  assert.equal(isCertSettled('Есть остаток'), false);
+  assert.equal(isCertSettled(null), false);
+  // но денег по бесплатной поверке не приходило — это другой вопрос
+  assert.equal(isCertPaid('Бесплатно'), false);
 });

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { db, type Executor } from '@/db';
 import { certsRepo } from '@/server/repositories/certs.repo';
-import { certUpsertSchema, certUpdateSchema, cleanCertFields, isCertPaid, poverkaPaymentSchema, payByClientSchema, commissionPaySchema, sectionForCertSource, certIncomePosts, certIncomeAmount, type CertQuery } from '@/server/dto/certs.dto';
+import { certUpsertSchema, certUpdateSchema, cleanCertFields, isCertPaid, isCertSettled, poverkaPaymentSchema, payByClientSchema, commissionPaySchema, sectionForCertSource, certIncomePosts, certIncomeAmount, type CertQuery } from '@/server/dto/certs.dto';
 import { deviceTypesService } from '@/server/services/deviceTypes.service';
 import { productsService } from '@/server/services/products.service';
 import { financeService } from '@/server/services/finance.service';
@@ -408,7 +408,7 @@ export const certsService = {
     const rows = await certsRepo.list({ source, archived: false, type: docType || 'cert' });
     const isoDate = (d: unknown) => (d ? String(d).slice(0, 10) : '');
     const awaiting = rows.filter(c => {
-      if ((c.client || '') !== client || isCertPaid(c.payStatus)) return false;
+      if ((c.client || '') !== client || isCertSettled(c.payStatus)) return false;
       const d = isoDate(c.checkDate);
       if (dateFrom && d < dateFrom) return false;   // диапазон дат поверки
       if (dateTo && d > dateTo) return false;
