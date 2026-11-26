@@ -495,8 +495,8 @@ function syncFilterUi(){
   document.getElementById('st-done').classList.toggle('on',filterStatus==='Готова');
   document.getElementById('st-cancel').classList.toggle('on',filterStatus==='Отменён');
 }
-function setFilter(f){ filter=f; filterFrom=''; filterTo=''; filterTimeFrom=''; filterTimeTo=''; document.getElementById('f-from').value=''; document.getElementById('f-to').value=''; document.getElementById('f-tfrom').value=''; document.getElementById('f-tto').value=''; syncFilterUi(); render(); loadCashSummary(); }
-function setRange(){ filterFrom=document.getElementById('f-from').value; filterTo=document.getElementById('f-to').value; filter=(filterFrom||filterTo)?'range':'today'; syncFilterUi(); render(); loadCashSummary(); }
+function setFilter(f){ filter=f; filterFrom=''; filterTo=''; filterTimeFrom=''; filterTimeTo=''; document.getElementById('f-from').value=''; document.getElementById('f-to').value=''; document.getElementById('f-tfrom').value=''; document.getElementById('f-tto').value=''; syncFilterUi(); render(); }
+function setRange(){ filterFrom=document.getElementById('f-from').value; filterTo=document.getElementById('f-to').value; filter=(filterFrom||filterTo)?'range':'today'; syncFilterUi(); render(); }
 function setTimeRange(){ filterTimeFrom=document.getElementById('f-tfrom').value; filterTimeTo=document.getElementById('f-tto').value; render(); }
 function setStatusFilter(s){ filterStatus=s; syncFilterUi(); render(); }
 
@@ -790,16 +790,9 @@ function fmtSum(n){ return Number(n||0).toLocaleString('ru-RU'); }
 // ── КАССА: поступления по счетам за период (карточка наверху экрана «Заявки») ──
 // Сервер отдаёт агрегат incomeByAccount (только доход, расходы мастеру не видны).
 let cashSummary=[];
-function cashPeriod(){
-  if(filter==='today'){ const t=todayStr(); return {from:t,to:t}; }
-  if(filter==='range'){ return {from:filterFrom||'', to:filterTo||''}; }
-  return {from:'2020-01-01', to:''};   // «Все» — за всё время
-}
-function cashTitle(){
-  if(filter==='today') return 'сегодня';
-  if(filter==='range'){ if(filterFrom&&filterTo) return fmtDate(filterFrom)+'–'+fmtDate(filterTo); if(filterFrom) return 'с '+fmtDate(filterFrom); if(filterTo) return 'по '+fmtDate(filterTo); }
-  return 'за всё время';
-}
+// Касса ВСЕГДА за сегодня — не зависит от фильтра дат заявок (по просьбе: только сегодня).
+function cashPeriod(){ const t=todayStr(); return {from:t, to:t}; }
+function cashTitle(){ return 'сегодня'; }
 function acctEmoji(name){ const n=(name||'').toLowerCase(); if(n.includes('нал')) return '💵'; if(n.includes('каспи')||n.includes('kaspi')) return '🟥'; if(n.includes('бцк')||n.includes('народ')||n.includes('halyk')) return '🏦'; return '💳'; }
 async function loadCashSummary(){
   const p=cashPeriod(); const qs=new URLSearchParams(); if(p.from) qs.set('from',p.from); if(p.to) qs.set('to',p.to);
