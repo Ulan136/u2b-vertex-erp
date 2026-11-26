@@ -188,6 +188,8 @@ input.voice-ok,select.voice-ok{border-color:#3b82f6 !important;background:#eff6f
       </div>
       <div class="ah-right"><span class="cc-bell-mount"></span><div class="avatar-sm" id="hdr-avatar">—</div></div>
     </div>
+    <!-- Касса: поступления по счетам за выбранный период (только доход). Наверху. -->
+    <div id="cash-summary" style="display:none;margin:8px 14px 2px;padding:10px 12px;background:linear-gradient(135deg,#ecfdf5,#f0fdfa);border:1px solid #a7f3d0;border-radius:12px;"></div>
     <div class="filter-row">
       <div class="fchip on" id="f-today" onclick="setFilter('today')">Сегодня</div>
       <div class="fchip" id="f-all" onclick="setFilter('all')">Все</div>
@@ -493,8 +495,8 @@ function syncFilterUi(){
   document.getElementById('st-done').classList.toggle('on',filterStatus==='Готова');
   document.getElementById('st-cancel').classList.toggle('on',filterStatus==='Отменён');
 }
-function setFilter(f){ filter=f; filterFrom=''; filterTo=''; filterTimeFrom=''; filterTimeTo=''; document.getElementById('f-from').value=''; document.getElementById('f-to').value=''; document.getElementById('f-tfrom').value=''; document.getElementById('f-tto').value=''; syncFilterUi(); render(); }
-function setRange(){ filterFrom=document.getElementById('f-from').value; filterTo=document.getElementById('f-to').value; filter=(filterFrom||filterTo)?'range':'today'; syncFilterUi(); render(); }
+function setFilter(f){ filter=f; filterFrom=''; filterTo=''; filterTimeFrom=''; filterTimeTo=''; document.getElementById('f-from').value=''; document.getElementById('f-to').value=''; document.getElementById('f-tfrom').value=''; document.getElementById('f-tto').value=''; syncFilterUi(); render(); loadCashSummary(); }
+function setRange(){ filterFrom=document.getElementById('f-from').value; filterTo=document.getElementById('f-to').value; filter=(filterFrom||filterTo)?'range':'today'; syncFilterUi(); render(); loadCashSummary(); }
 function setTimeRange(){ filterTimeFrom=document.getElementById('f-tfrom').value; filterTimeTo=document.getElementById('f-tto').value; render(); }
 function setStatusFilter(s){ filterStatus=s; syncFilterUi(); render(); }
 
@@ -784,6 +786,37 @@ async function loadPayAccounts(){
   try{ const r=await fetch('/api/v2/finance',{cache:'no-store'}); if(r.ok){ const d=await r.json(); payAccounts=d.accounts||[]; } }catch(e){}
 }
 function fmtSum(n){ return Number(n||0).toLocaleString('ru-RU'); }
+
+// ── КАССА: поступления по счетам за период (карточка наверху экрана «Заявки») ──
+// Сервер отдаёт агрегат incomeByAccount (только доход, расходы мастеру не видны).
+let cashSummary=[];
+function cashPeriod(){
+  if(filter==='today'){ const t=todayStr(); return {from:t,to:t}; }
+  if(filter==='range'){ return {from:filterFrom||'', to:filterTo||''}; }
+  return {from:'2020-01-01', to:''};   // «Все» — за всё время
+}
+function cashTitle(){
+  if(filter==='today') return 'сегодня';
+  if(filter==='range'){ if(filterFrom&&filterTo) return fmtDate(filterFrom)+'–'+fmtDate(filterTo); if(filterFrom) return 'с '+fmtDate(filterFrom); if(filterTo) return 'по '+fmtDate(filterTo); }
+  return 'за всё время';
+}
+function acctEmoji(name){ const n=(name||'').toLowerCase(); if(n.includes('нал')) return '💵'; if(n.includes('каспи')||n.includes('kaspi')) return '🟥'; if(n.includes('бцк')||n.includes('народ')||n.includes('halyk')) return '🏦'; return '💳'; }
+async function loadCashSummary(){
+  const p=cashPeriod(); const qs=new URLSearchParams(); if(p.from) qs.set('from',p.from); if(p.to) qs.set('to',p.to);
+  try{ const r=await fetch('/api/v2/finance'+(qs.toString()?'?'+qs:''),{cache:'no-store'}); if(r.ok){ const d=await r.json(); cashSummary=d.incomeByAccount||[]; } }catch(e){ cashSummary=[]; }
+  renderCashSummary();
+}
+function renderCashSummary(){
+  const box=document.getElementById('cash-summary'); if(!box) return;
+  const items=cashSummary||[]; if(!items.length){ box.style.display='none'; return; }
+  const total=items.reduce((s,a)=>s+Number(a.total||0),0);
+  box.style.display='block';
+  box.innerHTML=`<div style="font-size:11px;font-weight:700;color:#047857;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">💰 Поступления · ${esc(cashTitle())}</div>`
+    +`<div style="display:flex;flex-direction:column;gap:6px;">`
+    +items.map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;"><span>${acctEmoji(a.accountName)} ${esc(a.accountName)}</span><b>${fmtSum(a.total)} ₸</b></div>`).join('')
+    +`</div>`
+    +`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px dashed #a7f3d0;font-size:15px;color:#065f46;"><span>Итого</span><b>${fmtSum(total)} ₸</b></div>`;
+}
 function zaTotal(){ return zaPositions.reduce((s,c)=>s+Number(c.amount||0),0); }
 function zaAccOptions(){
   // Счета раздела МАСТЕРА (головной → «Поверка»; филиал Астана/Алматы → свой раздел),
@@ -876,7 +909,7 @@ async function zaAcceptPayment(){
     const r=await fetch(ORDERS_API+'/'+zaOrderId+'/payment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({payments})});
     if(r.status===401){location.href='/login?from=/master';return;}
     if(!r.ok){ let m='HTTP '+r.status; try{const e=await r.json();m=e.error||m;}catch(_e){} throw new Error(m); }
-    toast('✅ Оплата принята — приход на «Поверка»'); await zaLoadPositions();
+    toast('✅ Оплата принята — приход на «Поверка»'); await zaLoadPositions(); loadCashSummary();
   }catch(e){ toast('⚠️ '+e.message); }
   finally{ btn.disabled=false; btn.textContent='✅ Принять оплату'; }
 }
@@ -1126,6 +1159,7 @@ async function pushRenderState(known){
   document.getElementById('hdr-sub').textContent=(me&&me.name?me.name:'Мастер')+' · '+(()=>{const d=new Date();const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'.'+p(d.getMonth()+1)+'.'+d.getFullYear();})();
   await loadOrders();
   loadPayAccounts();   // счета всех разделов для приёма оплаты
+  loadCashSummary();   // касса: поступления по счетам за сегодня (наверху)
   setInterval(loadOrders,60000);
   // Общий модуль: колокольчик + экран «Задачи» + комментарии + обновление
   if(window.CabinetCommon) CabinetCommon.init({ me, onOpenTasks:()=>goScreen('tasks'), onRefresh:()=>loadOrders() });

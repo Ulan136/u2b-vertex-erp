@@ -202,6 +202,23 @@ async function reverseExpense(id: string, actorId?: string | null) {
 const opCategory = (o: { expenseCat?: string | null; source?: string | null; name?: string | null }) =>
   o.expenseCat || (o.source === 'Зарплата' ? 'Зарплата' : (o.name || '').split(':')[0].trim() || 'Прочие');
 
+// Поступления (Приход) по счетам за период — для сводки «Касса» в кабинете мастера.
+// Только доход (расходы мастер не видит), агрегировано — сами операции не отдаём.
+// Каждый счёт раздела присутствует (даже с 0), чтобы Нал/Каспи/БЦК были видны всегда.
+function sumIncomeByAccount(
+  ops: Array<{ opType?: string | null; accountId: string; amount?: string | number | null; reverses?: string | null; reversedAt?: unknown }>,
+  accounts: Array<{ id: string; name?: string | null }>,
+) {
+  const ids = new Set(accounts.map(a => a.id));
+  const m = new Map<string, number>();
+  for (const o of ops) {
+    if (o.opType !== 'Приход' || o.reverses || o.reversedAt) continue;
+    if (!ids.has(o.accountId)) continue;
+    m.set(o.accountId, (m.get(o.accountId) || 0) + (Number(o.amount) || 0));
+  }
+  return accounts.map(a => ({ accountId: a.id, accountName: a.name ?? '', total: m.get(a.id) || 0 }));
+}
+
 async function overview(from?: string | null, to?: string | null, role?: string | null, userId?: string | null) {
   const data = await financeRepo.overview(from, to);
   if (role === 'admin') return data;   // Админ всегда видит всё
@@ -210,9 +227,9 @@ async function overview(from?: string | null, to?: string | null, role?: string 
   if (role === BRANCH_ROLE && userId) {
     const branchId = await usersRepo.branchOf(userId);
     const section = branchId ? branchFinanceSection(await branchesRepo.get(branchId)) : null;
-    if (!section) return { accounts: [], operations: [] };
+    if (!section) return { accounts: [], operations: [], incomeByAccount: [] };
     const scoped = scopeFinance(data.accounts, data.operations, { section, from, to });
-    return { accounts: scoped.visAccts, operations: scoped.movs };
+    return { accounts: scoped.visAccts, operations: scoped.movs, incomeByAccount: sumIncomeByAccount(scoped.movs, scoped.visAccts) };
   }
   // Выездной мастер: /api/v2/finance нужен ему ТОЛЬКО для счетов приёма оплаты (его
   // раздела). Операции (вкл. расходы) НЕ отдаём вообще — мастер не должен видеть
@@ -220,8 +237,12 @@ async function overview(from?: string | null, to?: string | null, role?: string 
   if (role === 'master') {
     const branchId = userId ? await usersRepo.branchOf(userId) : null;
     const section = (branchId ? branchFinanceSection(await branchesRepo.get(branchId)) : null) || 'poverka';
-    const accounts = (data.accounts as Array<{ section?: string | null }>).filter(a => (a.section || '') === section);
-    return { accounts, operations: [] };
+    const accounts = (data.accounts as Array<{ id: string; name?: string | null; section?: string | null }>).filter(a => (a.section || '') === section);
+    // Операции мастеру НЕ отдаём (расходы скрыты). Но отдаём агрегат «приход по
+    // счетам» за период — для сводки «Касса» наверху кабинета (только доход).
+    const ids = new Set(accounts.map(a => a.id));
+    const periodOps = (data.operations as Array<{ opType?: string | null; accountId: string; amount?: string | number | null; reverses?: string | null; reversedAt?: unknown }>).filter(o => ids.has(o.accountId));
+    return { accounts, operations: [], incomeByAccount: sumIncomeByAccount(periodOps, accounts) };
   }
   // Видимость категорий расходов — по ролям (карта «Настройки → Доступы»);
   // для незаданных явно категорий действует legacy-флаг managerHidden.
