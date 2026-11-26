@@ -819,9 +819,11 @@ function zaRenderPay(){
   const payable=zaPositions.filter(c=>Number(c.amount)>0);
   const allPaid=payable.length>0 && payable.every(c=>c.payStatus==='Оплачено');
   if(allPaid){
-    box.innerHTML='<div style="text-align:center;color:#16a34a;font-weight:700;font-size:15px;padding:8px;background:#f0fdf4;border:1.5px solid #a7f3d0;border-radius:10px;">✅ Оплата принята</div>';
+    box.innerHTML='<div style="text-align:center;color:#16a34a;font-weight:700;font-size:15px;padding:8px;background:#f0fdf4;border:1.5px solid #a7f3d0;border-radius:10px;">✅ Оплата принята</div>'
+      +'<div id="za-chgacc" style="margin-top:8px;"></div>';
     if(btn)btn.style.display='none';
     if(sumLine)sumLine.style.display='none';
+    zaRenderChangeAcc((payable[0]||{}).id||'');
     return;
   }
   if(btn)btn.style.display='';
@@ -832,6 +834,33 @@ function zaRenderPay(){
   if(prevAcc) node.querySelector('select').value=prevAcc;             // не терять выбор мастера при пересоздании
   box.appendChild(node);
   zaRecalcPaySum();
+}
+// Счёт указали не тот (деньги взяли наличными, а провели на Каспи) — мастер
+// меняет его сам, не дёргая офис. Сервер сторнирует старый приход и проводит
+// новый на выбранный счёт: сумма не задваивается, старая строка остаётся в
+// истории зачёркнутой. Счёт — только своего раздела (проверка на сервере).
+async function zaRenderChangeAcc(certId){
+  const box=document.getElementById('za-chgacc'); if(!box||!certId)return;
+  box.innerHTML='<div style="font-size:11px;color:var(--muted);">Проверяю счёт…</div>';
+  let info=null;
+  try{ const r=await fetch('/api/v2/certs/'+certId+'/pay-account',{cache:'no-store'}); if(r.ok) info=await r.json(); }catch(_e){}
+  if(!info||!info.accounts||!info.accounts.length){ box.innerHTML=''; return; }
+  const cur=info.accounts.map(a=>esc(a.accountName||'—')+' · '+fmtSum(a.amount)+' ₸').join(', ');
+  box.innerHTML='<div style="font-size:12px;margin-bottom:6px;">Деньги ушли на: <b>'+cur+'</b></div>'
+    +'<div style="display:flex;gap:6px;align-items:center;"><select id="za-newacc" style="flex:1;">'+zaAccOptions()+'</select>'
+    +'<button class="btn-outline-sm" id="za-chg-btn" onclick="zaChangeAcc(\''+certId+'\')">🔁 Сменить счёт</button></div>'
+    +(info.accounts.length>1?'<div style="font-size:10px;color:var(--muted);margin-top:4px;">⚠️ Оплата разбита по счетам — смена сведёт её в один приход.</div>':'');
+}
+async function zaChangeAcc(certId){
+  const sel=document.getElementById('za-newacc'); const accountId=sel?sel.value:'';
+  if(!accountId){ toast('⚠️ Выберите счёт'); return; }
+  const btn=document.getElementById('za-chg-btn'); if(btn){btn.disabled=true;btn.textContent='Меняю…';}
+  try{
+    const r=await fetch('/api/v2/certs/'+certId+'/pay-account',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({accountId})});
+    if(r.status===401){location.href='/login?from=/master';return;}
+    if(!r.ok){ let m='HTTP '+r.status; try{const e=await r.json();m=e.error||m;}catch(_e){} throw new Error(m); }
+    toast('✅ Счёт изменён'); await zaLoadPositions();
+  }catch(e){ toast('⚠️ '+e.message); if(btn){btn.disabled=false;btn.textContent='🔁 Сменить счёт';} }
 }
 async function zaAcceptPayment(){
   if(!zaOrderId){ toast('⚠️ Сначала создайте позиции'); return; }

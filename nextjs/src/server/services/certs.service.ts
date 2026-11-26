@@ -201,6 +201,8 @@ export const certsService = {
     const { accountId } = z.object({ accountId: z.string().uuid('Выберите счёт') }).parse(input);
     const cert = await certsRepo.findById(certId);
     if (!cert) throw notFound('Сертификат не найден');
+    // Раздел считаем ДО транзакции (это чтение справочника филиалов).
+    const wantSection = await certSection(cert);
     return db.transaction(async (tx) => {
       const ops = cert.orderId
         ? await financeRepo.findByOrder(cert.orderId, tx)
@@ -210,6 +212,11 @@ export const certsService = {
       const total = live.reduce((s, o) => s + (Number(o.amount) || 0), 0);
       const acc = await financeRepo.findAccount(accountId, tx);
       if (!acc) throw badRequest('Счёт не найден');
+      // Только счёт СВОЕГО раздела: иначе мастер филиала мог бы этой кнопкой
+      // (или прямым запросом) увести доход филиала на счёт Тараза.
+      if ((acc.section || 'other') !== wantSection) {
+        throw badRequest(`Счёт «${acc.name}» не из раздела этой поверки (${srcLabel(wantSection)}) — выберите счёт своего раздела`);
+      }
       const sameOnly = live.length === 1 && live[0].accountId === accountId;
       if (sameOnly) return { ok: true, unchanged: true, account: acc.name, total: m2(total) };
       const name = (live[0].name as string) || 'Поверка (выездная)';

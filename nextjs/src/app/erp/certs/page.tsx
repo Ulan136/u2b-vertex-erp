@@ -184,7 +184,8 @@ function CertsInner() {
   const [payRows, setPayRows] = React.useState<Array<{ accountId: string; amount: string }>>([{ accountId: '', amount: '' }]);
   const [payTouched, setPayTouched] = React.useState(false);   // трогал ли пользователь оплату/цену в этой сессии модалки
   const setPay = (updater: React.SetStateAction<Array<{ accountId: string; amount: string }>>) => { setPayTouched(true); setPayRows(updater); };
-  // Счёт оплаты Выездной (доход на уровне заявки) — показать текущий и сменить.
+  // Счёт оплаты сертификата — показать текущий и сменить (у Выездной доход на
+  // уровне заявки, поэтому смена переставит счёт сразу всей заявке).
   const [payAcc, setPayAcc] = React.useState<{ accounts: Array<{ accountId: string; accountName: string | null; amount: number }>; total: string; byOrder: boolean } | null>(null);
   const [newAcc, setNewAcc] = React.useState('');
   const [payAccSaving, setPayAccSaving] = React.useState(false);
@@ -215,16 +216,17 @@ function CertsInner() {
   const [commOffsetOn, setCommOffsetOn] = React.useState(true);   // учитывать комиссию во взаиморасчёте (Блок 1)
   // При открытии модалки — одна строка оплаты: счёт раздела по умолчанию + цена.
   React.useEffect(() => { if (modal) { setPayRows([{ accountId: '', amount: form.amount || '' }]); setPayTouched(false); } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [modal]);
-  // Выездная: подгрузить текущий счёт оплаты заявки при открытии правки.
+  // Подгрузить текущий счёт оплаты при открытии правки — для любого серта:
+  // ошибиться счётом можно и на прямом (деньги взяли наличными, провели на Каспи).
   React.useEffect(() => {
     setPayAcc(null); setNewAcc('');
-    if (modal && !isDirect && form.id) {
+    if (modal && form.id) {
       fetch(`/api/v2/certs/${form.id}/pay-account`, { headers: { accept: 'application/json' }, cache: 'no-store' })
         .then(r => r.ok ? r.json() : null)
         .then(d => { if (d) { setPayAcc(d); setNewAcc(d.accounts?.[0]?.accountId || ''); } })
         .catch(() => {});
     }
-  }, [modal, form.id, isDirect]);
+  }, [modal, form.id]);
   async function changePayAcct() {
     if (!form.id || !newAcc) return;
     setPayAccSaving(true);
@@ -1036,27 +1038,28 @@ function CertsInner() {
               <div />
             </div>
             <div className="erp-muted" style={{ fontSize: 11, marginTop: 4 }}>ℹ️ Сумма пришла из кабинета мастера (цена поверки). Приём денег проводит мастер — приход по заявке на выбранный им счёт.</div>
-            {form.id && (
-              <div style={{ marginTop: 10 }}>
-                <div className="cert-sec-lbl">🏦 Счёт оплаты (заявка)</div>
-                {payAcc === null ? <div className="erp-muted" style={{ fontSize: 12 }}>Загрузка…</div>
-                  : payAcc.accounts.length === 0 ? <div className="erp-muted" style={{ fontSize: 12 }}>Оплата ещё не принята мастером — счёт менять нечего.</div>
-                  : (
-                    <>
-                      <div style={{ fontSize: 12, marginBottom: 6 }}>Сейчас: {payAcc.accounts.map(a => `${a.accountName || '—'} · ${fmtNum(a.amount)} ₸`).join(', ')}</div>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <Select value={newAcc} onChange={e => setNewAcc(e.target.value)} style={{ maxWidth: 240 }}>
-                          <option value="">{secAccounts.length ? '— выберите счёт —' : '— нет счетов раздела —'}</option>
-                          {secAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
-                        </Select>
-                        <Button variant="outline" onClick={changePayAcct} disabled={payAccSaving || !newAcc} style={{ fontSize: 12 }}>{payAccSaving ? 'Меняю…' : '🔁 Сменить счёт'}</Button>
-                      </div>
-                      {payAcc.byOrder && <div className="erp-muted" style={{ fontSize: 10, marginTop: 4 }}>⚠️ Сменит счёт для всей заявки (всех её позиций) на сумму {fmtNum(num(payAcc.total))} ₸.</div>}
-                    </>
-                  )}
-              </div>
-            )}
           </>
+        )}
+        {form.id && (
+          <div style={{ marginTop: 10 }}>
+            <div className="cert-sec-lbl">🏦 Счёт оплаты</div>
+            {payAcc === null ? <div className="erp-muted" style={{ fontSize: 12 }}>Загрузка…</div>
+              : payAcc.accounts.length === 0 ? <div className="erp-muted" style={{ fontSize: 12 }}>Оплата ещё не принята — счёт менять нечего.</div>
+              : (
+                <>
+                  <div style={{ fontSize: 12, marginBottom: 6 }}>Сейчас: {payAcc.accounts.map(a => `${a.accountName || '—'} · ${fmtNum(a.amount)} ₸`).join(', ')}</div>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <Select value={newAcc} onChange={e => setNewAcc(e.target.value)} style={{ maxWidth: 240 }}>
+                      <option value="">{secAccounts.length ? '— выберите счёт —' : '— нет счетов раздела —'}</option>
+                      {secAccounts.map(a => <option key={a.id} value={a.id}>{a.icon || '💳'} {a.name}</option>)}
+                    </Select>
+                    <Button variant="outline" onClick={changePayAcct} disabled={payAccSaving || !newAcc} style={{ fontSize: 12 }}>{payAccSaving ? 'Меняю…' : '🔁 Сменить счёт'}</Button>
+                  </div>
+                  {payAcc.accounts.length > 1 && <div className="erp-muted" style={{ fontSize: 10, marginTop: 4 }}>⚠️ Оплата разбита по счетам — смена сведёт её в один приход на выбранный счёт.</div>}
+                  {payAcc.byOrder && <div className="erp-muted" style={{ fontSize: 10, marginTop: 4 }}>⚠️ Сменит счёт для всей заявки (всех её позиций) на сумму {fmtNum(num(payAcc.total))} ₸.</div>}
+                </>
+              )}
+          </div>
         )}
 
         {form.id && <EntityHistory entityType="certificate" entityId={form.id} />}
