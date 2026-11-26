@@ -1,6 +1,6 @@
 import { db, type Executor } from '@/db';
 import { sales, salePayments, users } from '@/db/schema';
-import { desc, eq, sql, getTableColumns } from 'drizzle-orm';
+import { asc, desc, eq, sql, getTableColumns } from 'drizzle-orm';
 
 type SaleInsert = typeof sales.$inferInsert;
 type SalePaymentInsert = typeof salePayments.$inferInsert;
@@ -44,7 +44,14 @@ export const salesRepo = {
     const [row] = await exec.insert(salePayments).values(data as unknown as SalePaymentInsert).returning();
     return row;
   },
+  // Порядок важен: лишнюю оплату при правке чека вниз снимаем с ПОСЛЕДНИХ строк.
   paymentsBySale: (saleId: string, exec: Executor = db) =>
-    exec.select().from(salePayments).where(eq(salePayments.saleId, saleId)),
+    exec.select().from(salePayments).where(eq(salePayments.saleId, saleId)).orderBy(asc(salePayments.createdAt)),
+  async updatePayment(id: string, data: Record<string, unknown>, exec: Executor = db) {
+    const [row] = await exec.update(salePayments).set(data as Partial<SalePaymentInsert>).where(eq(salePayments.id, id)).returning();
+    return row;
+  },
+  deletePayment: (id: string, exec: Executor = db) =>
+    exec.delete(salePayments).where(eq(salePayments.id, id)),
   allPayments: (exec: Executor = db) => exec.select().from(salePayments),
 };

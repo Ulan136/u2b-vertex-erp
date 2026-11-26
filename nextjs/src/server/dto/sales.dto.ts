@@ -101,6 +101,25 @@ export function payStatusFor(total: number | string, paid: number | string): Pay
   return 'Частично';
 }
 
+// Чек поправили ВНИЗ ниже уже оплаченного: с каких строк оплаты и сколько снять.
+// Снимаем с ПОСЛЕДНИХ строк (LIFO): последняя оплата — обычно та самая доплата,
+// из-за которой и вышел перебор. keep = сколько в строке должно остаться
+// (0 — строку убрать совсем). cut = сколько всего снимаем со счётов.
+export function trimPaymentsPlan<T extends { id: string; amount: number | string }>(
+  payments: T[], target: number,
+): { cut: number; rows: Array<{ id: string; keep: number }> } {
+  let excess = money(paymentsTotal(payments) - (Number(target) || 0));
+  if (excess <= 0.005) return { cut: 0, rows: [] };
+  const cut = excess, rows: Array<{ id: string; keep: number }> = [];
+  for (let i = payments.length - 1; i >= 0 && excess > 0.005; i--) {
+    const amt = money(Number(payments[i].amount) || 0);
+    const keep = Math.max(0, money(amt - excess));
+    excess = money(excess - (amt - keep));
+    rows.push({ id: payments[i].id, keep });
+  }
+  return { cut, rows };
+}
+
 // Остаток к доплате (не меньше нуля).
 export function remainingToPay(total: number | string, paid: number | string): number {
   return Math.max(0, money((Number(total) || 0) - (Number(paid) || 0)));

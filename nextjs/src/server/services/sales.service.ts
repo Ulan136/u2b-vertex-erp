@@ -4,7 +4,7 @@ import { financeRepo } from '@/server/repositories/finance.repo';
 import { productsService } from '@/server/services/products.service';
 import { financeService } from '@/server/services/finance.service';
 import { clientsService } from '@/server/services/clients.service';
-import { saleMutateSchema, salePaymentSchema, normalizeItems, aggregateItems, paymentsTotal, payStatusFor, financePostable, type SaleItem, type SalePaymentInput } from '@/server/dto/sales.dto';
+import { saleMutateSchema, salePaymentSchema, normalizeItems, aggregateItems, paymentsTotal, payStatusFor, financePostable, trimPaymentsPlan, type SaleItem, type SalePaymentInput } from '@/server/dto/sales.dto';
 import { badRequest, notFound } from '@/server/lib/errors';
 import { z } from 'zod';
 
@@ -51,6 +51,31 @@ async function postPayments(sale: { id: string; saleNo?: string | null; productN
     names.push(acc.name);
   }
   return names;
+}
+
+// Чек поправили ВНИЗ, а оплата уже прошла: лишнее снимаем с последних оплат.
+// Приход не правим на месте, а делаем как остальное приложение — сторно старого
+// прихода + новый на остаток (или только сторно, если строка обнулилась). Иначе
+// в финансах оставался хвост: товара на 94 000, а на счёте приход 96 000.
+async function trimPaymentsTo(sale: SaleRow, target: number, actor: Actor, tx: Executor): Promise<number> {
+  const pays = await salesRepo.paymentsBySale(sale.id, tx);
+  const plan = trimPaymentsPlan(pays, target);
+  if (!plan.cut) return 0;
+  const byId = new Map(pays.map(p => [p.id, p]));
+  for (const { id: payId, keep } of plan.rows) {
+    const p = byId.get(payId)!;
+    if (p.financeOpId) await financeService.reverseOperation(p.financeOpId, actor?.id ?? null, tx);
+    if (keep > 0.005) {
+      const op = await financeService.createOperation(
+        { opType: 'Приход', accountId: p.accountId, amount: m2(keep), name: `Продажа ${sale.saleNo ?? ''}${sale.productName ? ': ' + sale.productName : ''}`.slice(0, 200), source: 'Продажа', saleId: sale.id, accountName: p.accountName || undefined, opDate: sale.saleDate || undefined, comment: sale.clientName || undefined },
+        actor?.id || null, tx,
+      );
+      await salesRepo.updatePayment(p.id, { amount: m2(keep), financeOpId: op.id }, tx);
+    } else {
+      await salesRepo.deletePayment(p.id, tx);
+    }
+  }
+  return plan.cut;
 }
 
 export const salesService = {
@@ -143,6 +168,11 @@ export const salesService = {
         }
       }
 
+      // Сначала подрезать оплаты под новый итог (если чек стал меньше оплаченного),
+      // и только потом считать статус — иначе он останется от старых сумм.
+      // Только когда правили сам чек (позиции). Правка комментария или клиента
+      // денег не трогает — иначе старые продажи с переплатой «лечились» бы молча.
+      const trimmed = itemsProvided ? await trimPaymentsTo({ ...old, productName: agg.productName }, agg.total, actor, tx) : 0;
       const existingPaid = paymentsTotal(await salesRepo.paymentsBySale(id, tx));
       const status = payStatusFor(agg.total, existingPaid);
       const patch: Record<string, unknown> = {
@@ -159,7 +189,8 @@ export const salesService = {
         totalSum: m2(agg.total),
       };
       if (data.saleDate) patch.saleDate = data.saleDate;
-      return salesRepo.update(id, patch, tx);
+      const row = await salesRepo.update(id, patch, tx);
+      return trimmed > 0 ? { ...row, paymentsTrimmed: trimmed } : row;
     });
   },
 

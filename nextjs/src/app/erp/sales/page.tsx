@@ -195,12 +195,17 @@ export default function SalesPage() {
     const body: Record<string, unknown> = { clientName: form.clientName.trim(), clientType: form.clientType, items, saleDate: form.saleDate || null, comment: form.comment || null };
     if (!form.id) body.payments = payments;   // оплаты задаются только при создании; правка — через «Дооплату»
     try {
-      if (form.id) await apiSend(`/api/v2/sales/${form.id}`, 'PATCH', body);
-      else await apiSend('/api/v2/sales', 'POST', body);
+      let trimmed = 0;
+      if (form.id) {
+        const r = await apiSend(`/api/v2/sales/${form.id}`, 'PATCH', body) as { paymentsTrimmed?: number };
+        trimmed = num(r?.paymentsTrimmed);   // чек стал меньше оплаченного — приход пересчитан сервером
+      } else await apiSend('/api/v2/sales', 'POST', body);
       // «Недавние» покупатели — только при успешном проведении (имя + тип для чипа).
       if (form.clientName.trim()) setRecentClients(pushRecent('saleClient', uid, { v: form.clientName.trim(), m: form.clientType }));
       setModal(false); await mutate();
-      toast(form.id ? '✅ Продажа обновлена' : (payments.length ? '✅ Продажа проведена: приходы в финансы + списан склад' : '✅ Продажа записана (ожидает оплаты)'));
+      toast(form.id
+        ? (trimmed > 0 ? `✅ Продажа обновлена · приход пересчитан: со счёта снято ${fmt(trimmed)} ₸ лишних` : '✅ Продажа обновлена')
+        : (payments.length ? '✅ Продажа проведена: приходы в финансы + списан склад' : '✅ Продажа записана (ожидает оплаты)'));
     } catch (e) { setErr((e as Error).message); } finally { setSaving(false); }
   }
 

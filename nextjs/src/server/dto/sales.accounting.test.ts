@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { normalizeItems, aggregateItems, financePostable, saleOutMovements, saleReturnMovements, paymentsTotal, payStatusFor, remainingToPay } from './sales.dto';
+import { normalizeItems, aggregateItems, financePostable, saleOutMovements, saleReturnMovements, paymentsTotal, payStatusFor, remainingToPay, trimPaymentsPlan } from './sales.dto';
 import { stockAfter, canApplyStock, STOCK_SIGN } from './products.dto';
 import { balanceDeltas } from './finance.dto';
 
@@ -137,4 +137,31 @@ test('отмена продажи со смешанной оплатой → с�
   // сторно каждой оплаты обратной операцией на её счёт
   for (const p of payments) applyFinance(bal, 'Расход', p.amount, p.accountId);
   assert.equal(bal[KASPI], 0); assert.equal(bal[CASH], 0);   // все счета вернулись к нулю
+});
+
+// ── правка чека вниз: приходы подрезаются под новый итог (случай ПРД-692) ──
+test('trimPaymentsPlan: чек 96 000 → 94 000 при одной оплате — снять 2 000, строка остаётся', () => {
+  const r = trimPaymentsPlan([{ id: 'p1', amount: '96000.00' }], 94000);
+  assert.equal(r.cut, 2000);
+  assert.deepEqual(r.rows, [{ id: 'p1', keep: 94000 }]);
+});
+
+test('trimPaymentsPlan: снимаем с последних оплат (LIFO), обнулённая строка уходит', () => {
+  // Каспи 10 000 + Наличка 5 000 = 15 000; новый чек 8 000 → снять 7 000:
+  // наличку убрать совсем (5 000), с Каспи оставить 8 000.
+  const r = trimPaymentsPlan([{ id: 'kaspi', amount: 10000 }, { id: 'nal', amount: 5000 }], 8000);
+  assert.equal(r.cut, 7000);
+  assert.deepEqual(r.rows, [{ id: 'nal', keep: 0 }, { id: 'kaspi', keep: 8000 }]);
+});
+
+test('trimPaymentsPlan: оплата не больше итога — не трогаем ничего', () => {
+  assert.deepEqual(trimPaymentsPlan([{ id: 'p1', amount: 5000 }], 8000), { cut: 0, rows: [] });
+  assert.deepEqual(trimPaymentsPlan([{ id: 'p1', amount: 8000 }], 8000), { cut: 0, rows: [] });
+  assert.deepEqual(trimPaymentsPlan([], 8000), { cut: 0, rows: [] });
+});
+
+test('trimPaymentsPlan: чек в ноль — снять всё, строки убрать', () => {
+  const r = trimPaymentsPlan([{ id: 'a', amount: 3000 }, { id: 'b', amount: 2000 }], 0);
+  assert.equal(r.cut, 5000);
+  assert.deepEqual(r.rows, [{ id: 'b', keep: 0 }, { id: 'a', keep: 0 }]);
 });
